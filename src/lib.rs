@@ -7,7 +7,6 @@ use bevy::render::FutureRendererResources;
 use bevy::window::{PrimaryWindow, RawHandleWrapper};
 use state::XrState;
 
-mod graphics;
 mod state;
 mod swapchain;
 
