@@ -1,0 +1,13 @@
+[package]
+name = "bevy_openxr"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bevy = { path = "../bevy", default-features = false, features = ["bevy_render"] }
+openxr = "0.17.1"
+wgpu = "0.16.0"
+wgpu-core = "0.16.0"
+wgpu-hal = "0.16.0"
