@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy = { path = "../bevy", default-features = false, features = ["bevy_render"] }
+bevy = { git = "https://github.com/awtterpip/bevy", default-features = false, features = ["bevy_render"] }
 openxr = "0.17.1"
 wgpu = "0.16.0"
 wgpu-core = "0.16.0"
