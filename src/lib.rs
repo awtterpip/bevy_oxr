@@ -8,7 +8,6 @@ use bevy::window::{PrimaryWindow, RawHandleWrapper};
 use state::XrState;
 
 mod state;
-mod swapchain;
 
 pub struct OpenXrPlugin {
     pub wgpu_settings: WgpuSettings,
