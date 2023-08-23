@@ -36,6 +36,7 @@ pub struct FutureXrResources(
                 XrSwapchain,
                 XrInput,
                 XrViews,
+                XrFrameState,
             )>,
         >,
     >,
@@ -59,7 +60,7 @@ impl Plugin for OpenXrPlugin {
 
         bevy::tasks::IoTaskPool::get()
             .spawn_local(async move {
-                let (device, queue, adapter_info, render_adapter, instance, xr_instance, session, blend_mode, session_running, frame_waiter, swapchain, input, views) = graphics::initialize_xr_graphics(primary_window).unwrap();
+                let (device, queue, adapter_info, render_adapter, instance, xr_instance, session, blend_mode, session_running, frame_waiter, swapchain, input, views, frame_state) = graphics::initialize_xr_graphics(primary_window).unwrap();
                 debug!("Configured wgpu adapter Limits: {:#?}", device.limits());
                 debug!("Configured wgpu adapter Features: {:#?}", device.features());
                 let mut future_renderer_resources_inner =
@@ -68,11 +69,11 @@ impl Plugin for OpenXrPlugin {
                     Some((device, queue, adapter_info, render_adapter, instance));
                 let mut future_xr_resources_inner = future_xr_resources_wrapper.lock().unwrap();
                 *future_xr_resources_inner =
-                    Some((xr_instance, session, blend_mode, session_running, frame_waiter, swapchain, input, views));
+                    Some((xr_instance, session, blend_mode, session_running, frame_waiter, swapchain, input, views, frame_state));
             })
             .detach();
 
-        app.add_systems(Last, pre_frame);
+        
     }
 
     fn ready(&self, app: &App) -> bool {
@@ -86,7 +87,7 @@ impl Plugin for OpenXrPlugin {
         if let Some(future_renderer_resources) =
             app.world.remove_resource::<FutureXrResources>()
         {
-            let (instance, session, blend_mode, session_running, frame_waiter, swapchain, input, views) =
+            let (instance, session, blend_mode, session_running, frame_waiter, swapchain, input, views, frame_state) =
                 future_renderer_resources.0.lock().unwrap().take().unwrap();
 
             app.insert_resource(instance.clone())
@@ -96,7 +97,8 @@ impl Plugin for OpenXrPlugin {
                 .insert_resource(frame_waiter.clone())
                 .insert_resource(swapchain.clone())
                 .insert_resource(input.clone())
-                .insert_resource(views.clone());
+                .insert_resource(views.clone())
+                .insert_resource(frame_state.clone());
 
             let render_app = app.sub_app_mut(RenderApp);
 
@@ -107,8 +109,9 @@ impl Plugin for OpenXrPlugin {
                 .insert_resource(frame_waiter)
                 .insert_resource(swapchain)
                 .insert_resource(input)
-                .insert_resource(views);
-            render_app.add_systems(Render, (post_frame.in_set(RenderSet::Prepare), post_queue_submit.in_set(RenderSet::Cleanup)));
+                .insert_resource(views)
+                .insert_resource(frame_state);
+            render_app.add_systems(Render, (pre_frame.in_set(RenderSet::Prepare).before(post_frame), post_frame.in_set(RenderSet::Prepare), post_queue_submit.in_set(RenderSet::Cleanup)));
         }
         
     }

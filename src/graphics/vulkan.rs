@@ -13,7 +13,7 @@ use wgpu::Instance;
 
 use crate::input::XrInput;
 use crate::resources::{
-    XrEnvironmentBlendMode, XrFrameWaiter, XrInstance, XrSession, XrSessionRunning, XrSwapchain, Swapchain, SwapchainInner, XrViews,
+    XrEnvironmentBlendMode, XrFrameWaiter, XrInstance, XrSession, XrSessionRunning, XrSwapchain, Swapchain, SwapchainInner, XrViews, XrFrameState,
 };
 use crate::VIEW_TYPE;
 
@@ -31,6 +31,7 @@ pub fn initialize_xr_graphics(window: Option<RawHandleWrapper>) -> anyhow::Resul
     XrSwapchain,
     XrInput,
     XrViews,
+    XrFrameState,
 )> {
     use wgpu_hal::{api::Vulkan as V, Api};
 
@@ -370,6 +371,7 @@ pub fn initialize_xr_graphics(window: Option<RawHandleWrapper>) -> anyhow::Resul
             buffers,
         })).into(),
         XrInput::new(xr_instance, session.into_any_graphics())?,
+        Mutex::default().into(),
         Mutex::default().into(),
     ))
 }
