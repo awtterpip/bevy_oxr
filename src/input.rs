@@ -1,16 +1,18 @@
+use std::sync::Arc;
+
 use bevy::prelude::*;
 use openxr as xr;
 
 type XrPose = (Vec3, Quat);
 
-#[derive(Resource)]
+#[derive(Clone, Resource)]
 pub struct XrInput {
     action_set: xr::ActionSet,
     right_action: xr::Action<xr::Posef>,
     left_action: xr::Action<xr::Posef>,
-    right_space: xr::Space,
-    left_space: xr::Space,
-    stage: xr::Space,
+    right_space: Arc<xr::Space>,
+    left_space: Arc<xr::Space>,
+    pub stage: Arc<xr::Space>,
 }
 
 impl XrInput {
@@ -47,9 +49,9 @@ impl XrInput {
             action_set,
             right_action,
             left_action,
-            right_space,
-            left_space,
-            stage,
+            right_space: Arc::new(right_space),
+            left_space: Arc::new(left_space),
+            stage: Arc::new(stage),
         })
     }
 }

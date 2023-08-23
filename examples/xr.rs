@@ -1,6 +1,6 @@
 //! A simple 3D scene with light shining over a cube sitting on a plane.
-use bevy_openxr::DefaultXrPlugins;
-use bevy::prelude::*;
+use bevy_openxr::{DefaultXrPlugins, LEFT_XR_TEXTURE_HANDLE, RIGHT_XR_TEXTURE_HANDLE};
+use bevy::{prelude::*, render::camera::RenderTarget};
 
 fn main() {
     App::new()
@@ -41,6 +41,25 @@ fn setup(
     // camera
     commands.spawn(Camera3dBundle {
         transform: Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
+        ..default()
+    });
+
+    commands.spawn(Camera3dBundle {
+        transform: Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
+        camera: Camera {
+            order: -1,
+            target: RenderTarget::TextureView(LEFT_XR_TEXTURE_HANDLE),
+            ..default()
+        },
+        ..default()
+    });
+    commands.spawn(Camera3dBundle {
+        transform: Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
+        camera: Camera {
+            order: -1,
+            target: RenderTarget::TextureView(RIGHT_XR_TEXTURE_HANDLE),
+            ..default()
+        },
         ..default()
     });
 }
