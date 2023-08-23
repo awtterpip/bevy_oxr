@@ -73,9 +73,6 @@ impl Plugin for OpenXrPlugin {
             .detach();
 
         app.add_systems(Last, pre_frame);
-
-        let render_app = app.sub_app_mut(RenderApp);
-        render_app.add_systems(Render, (post_frame.in_set(RenderSet::Prepare), post_queue_submit.in_set(RenderSet::Cleanup)));
     }
 
     fn ready(&self, app: &App) -> bool {
@@ -111,7 +108,9 @@ impl Plugin for OpenXrPlugin {
                 .insert_resource(swapchain)
                 .insert_resource(input)
                 .insert_resource(views);
+            render_app.add_systems(Render, (post_frame.in_set(RenderSet::Prepare), post_queue_submit.in_set(RenderSet::Cleanup)));
         }
+        
     }
 }
 
