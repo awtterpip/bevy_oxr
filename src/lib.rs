@@ -100,6 +100,24 @@ impl Plugin for OpenXrPlugin {
                 .insert_resource(views.clone())
                 .insert_resource(frame_state.clone());
 
+            let swapchain_mut = swapchain.lock().unwrap();
+            let (left, right) = swapchain_mut.get_render_views();
+            let format = swapchain_mut.format();
+            let left = ManualTextureView {
+                texture_view: left.into(),
+                size: swapchain_mut.resolution(),
+                format,
+            };
+            let right = ManualTextureView {
+                texture_view: right.into(),
+                size: swapchain_mut.resolution(),
+                format,
+            };
+            let mut manual_texture_views = app.world.resource_mut::<ManualTextureViews>();
+            manual_texture_views.insert(LEFT_XR_TEXTURE_HANDLE, left);
+            manual_texture_views.insert(RIGHT_XR_TEXTURE_HANDLE, right);
+            drop(manual_texture_views);
+            drop(swapchain_mut);
             let render_app = app.sub_app_mut(RenderApp);
 
             render_app.insert_resource(instance)
@@ -111,6 +129,7 @@ impl Plugin for OpenXrPlugin {
                 .insert_resource(input)
                 .insert_resource(views)
                 .insert_resource(frame_state);
+
             render_app.add_systems(Render, (pre_frame.in_set(RenderSet::Prepare).before(post_frame), post_frame.in_set(RenderSet::Prepare), post_queue_submit.in_set(RenderSet::Cleanup)));
         }
         
@@ -178,9 +197,19 @@ pub fn pre_frame(
     let mut swapchain = swapchain.lock().unwrap();
 
     swapchain.begin().unwrap();
+    swapchain.update_render_views();
     let (left, right) = swapchain.get_render_views();
-    let left = ManualTextureView::with_default_format(left.into(), swapchain.resolution());
-    let right = ManualTextureView::with_default_format(right.into(), swapchain.resolution());
+    let format = swapchain.format();
+    let left = ManualTextureView {
+        texture_view: left.into(),
+        size: swapchain.resolution(),
+        format,
+    };
+    let right = ManualTextureView {
+        texture_view: right.into(),
+        size: swapchain.resolution(),
+        format,
+    };
     manual_texture_views.insert(LEFT_XR_TEXTURE_HANDLE, left);
     manual_texture_views.insert(RIGHT_XR_TEXTURE_HANDLE, right);
 }

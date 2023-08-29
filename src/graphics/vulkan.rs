@@ -9,7 +9,7 @@ use bevy::prelude::*;
 use bevy::render::renderer::{RenderAdapter, RenderAdapterInfo, RenderDevice, RenderQueue};
 use bevy::window::RawHandleWrapper;
 use openxr as xr;
-use wgpu::Instance;
+use wgpu::{Instance, Texture};
 
 use crate::input::XrInput;
 use crate::resources::{
@@ -351,7 +351,6 @@ pub fn initialize_xr_graphics(window: Option<RawHandleWrapper>) -> anyhow::Resul
                 texture
             })
             .collect();
-    
 
     Ok((
         wgpu_device.into(),
@@ -368,7 +367,9 @@ pub fn initialize_xr_graphics(window: Option<RawHandleWrapper>) -> anyhow::Resul
             stream: frame_stream,
             handle,
             resolution,
+            format: swapchain_format,
             buffers,
+            image_index: 0,
         })).into(),
         XrInput::new(xr_instance, session.into_any_graphics())?,
         Mutex::default().into(),

@@ -26,9 +26,21 @@ impl Swapchain {
         }
     }
 
-    pub(crate) fn get_render_views(&mut self) -> (wgpu::TextureView, wgpu::TextureView) {
+    pub(crate) fn update_render_views(&mut self) {
+        match self {
+            Swapchain::Vulkan(swap) => swap.update_render_views(),
+        }
+    }
+
+    pub(crate) fn get_render_views(&self) -> (wgpu::TextureView, wgpu::TextureView) {
         match self {
             Swapchain::Vulkan(swap) => swap.get_render_views(),
+        }
+    }
+
+    pub(crate) fn format(&self) -> wgpu::TextureFormat {
+        match self {
+            Swapchain::Vulkan(swap) => swap.format
         }
     }
 
@@ -55,7 +67,9 @@ pub struct SwapchainInner<G: xr::Graphics> {
     pub(crate) stream: xr::FrameStream<G>,
     pub(crate) handle: xr::Swapchain<G>,
     pub(crate) resolution: UVec2,
+    pub(crate) format: wgpu::TextureFormat,
     pub(crate) buffers: Vec<wgpu::Texture>,
+    pub(crate) image_index: usize,
 }
 
 impl<G: xr::Graphics> SwapchainInner<G> {
@@ -63,11 +77,8 @@ impl<G: xr::Graphics> SwapchainInner<G> {
         self.stream.begin()
     }
 
-    fn get_render_views(&mut self) -> (wgpu::TextureView, wgpu::TextureView) {
-        let image_index = self.handle.acquire_image().unwrap();
-        self.handle.wait_image(xr::Duration::INFINITE).unwrap();
-
-        let texture = &self.buffers[image_index as usize];
+    fn get_render_views(&self) -> (wgpu::TextureView, wgpu::TextureView) {
+        let texture = &self.buffers[self.image_index];
 
         (
             texture.create_view(&wgpu::TextureViewDescriptor {
@@ -82,6 +93,13 @@ impl<G: xr::Graphics> SwapchainInner<G> {
                 ..Default::default()
             }),
         )
+    }
+
+    fn update_render_views(&mut self) {
+        let image_index = self.handle.acquire_image().unwrap();
+        self.handle.wait_image(xr::Duration::INFINITE).unwrap();
+
+        self.image_index = image_index as _;
     }
 
     fn post_queue_submit(
