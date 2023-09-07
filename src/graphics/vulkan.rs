@@ -77,8 +77,8 @@ pub fn initialize_xr_graphics(window: Option<RawHandleWrapper>) -> anyhow::Resul
 
     let blend_mode = xr_instance.enumerate_environment_blend_modes(xr_system_id, VIEW_TYPE)?[0];
 
-    let vk_target_version = vk::make_api_version(0, 1, 1, 0);
-    let vk_target_version_xr = xr::Version::new(1, 1, 0);
+    let vk_target_version = vk::make_api_version(0, 1, 2, 0);
+    let vk_target_version_xr = xr::Version::new(1, 2, 0);
     let reqs = xr_instance.graphics_requirements::<xr::Vulkan>(xr_system_id)?;
     if vk_target_version_xr < reqs.min_api_version_supported
         || vk_target_version_xr.major() > reqs.max_api_version_supported.major()

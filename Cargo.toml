@@ -9,7 +9,7 @@ edition = "2021"
 anyhow = "1.0.75"
 ash = "0.37.3"
 bevy = { git = "https://github.com/awtterpip/bevy", default-features = false, features = ["bevy_render"] }
-openxr = "0.17.1"
+openxr = {version = "0.17.1" }
 wgpu = "0.16.0"
 wgpu-core = "0.16.0"
 wgpu-hal = "0.16.0"
