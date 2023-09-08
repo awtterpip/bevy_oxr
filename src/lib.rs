@@ -153,6 +153,7 @@ pub fn pre_frame(
     frame_state: Res<XrFrameState>,
     frame_waiter: Res<XrFrameWaiter>,
     swapchain: Res<XrSwapchain>,
+    xr_input: Res<XrInput>,
     mut manual_texture_views: ResMut<ManualTextureViews>,
 ){
     while let Some(event) = instance.poll_event(&mut Default::default()).unwrap() {
@@ -199,6 +200,13 @@ pub fn pre_frame(
     swapchain.begin().unwrap();
     swapchain.update_render_views();
     let (left, right) = swapchain.get_render_views();
+    let active_action_set = xr::ActiveActionSet::new(&xr_input.action_set);
+    match session.sync_actions(&[active_action_set]) {
+        Err(err) => {
+            eprintln!("{}", err);
+        }
+        _ => {}
+    }
     let format = swapchain.format();
     let left = ManualTextureView {
         texture_view: left.into(),
