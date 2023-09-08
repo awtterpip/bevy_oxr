@@ -16,6 +16,7 @@ wgpu-hal = "0.16.0"
 
 [dev-dependencies]
 bevy = { git = "https://github.com/awtterpip/bevy" }
+color-eyre = "0.6.2"
 
 [[example]]
 name = "xr"

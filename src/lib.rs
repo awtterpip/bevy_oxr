@@ -1,18 +1,22 @@
+mod graphics;
 pub mod input;
 pub mod resource_macros;
 pub mod resources;
-mod graphics;
 
 use std::sync::{Arc, Mutex};
 
+use bevy::app::PluginGroupBuilder;
 use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
-use bevy::render::camera::{ManualTextureViews, ManualTextureView, ManualTextureViewHandle};
-use bevy::render::{FutureRendererResources, RenderPlugin, RenderApp, Render, RenderSet};
+use bevy::render::camera::{ManualTextureView, ManualTextureViewHandle, ManualTextureViews};
+use bevy::render::renderer::{RenderAdapterInfo, RenderAdapter, RenderDevice, RenderQueue};
+use bevy::render::settings::RenderSettings;
+use bevy::render::{Render, RenderApp, RenderPlugin, RenderSet};
 use bevy::window::{PrimaryWindow, RawHandleWrapper};
 use input::XrInput;
-use resources::*;
 use openxr as xr;
+use resources::*;
+use wgpu::Instance;
 
 const VIEW_TYPE: xr::ViewConfigurationType = xr::ViewConfigurationType::PRIMARY_STEREO;
 
@@ -25,7 +29,7 @@ pub struct OpenXrPlugin;
 
 #[derive(Resource)]
 pub struct FutureXrResources(
-    pub Arc<
+    pub  Arc<
         Mutex<
             Option<(
                 XrInstance,
@@ -44,36 +48,44 @@ pub struct FutureXrResources(
 
 impl Plugin for OpenXrPlugin {
     fn build(&self, app: &mut App) {
-        let future_renderer_resources_wrapper = Arc::new(Mutex::new(None));
-        app.insert_resource(FutureRendererResources(
-            future_renderer_resources_wrapper.clone(),
-        ));
-
         let future_xr_resources_wrapper = Arc::new(Mutex::new(None));
-        app.insert_resource(FutureXrResources(
-            future_xr_resources_wrapper.clone()
-        ));
+        app.insert_resource(FutureXrResources(future_xr_resources_wrapper.clone()));
 
         let mut system_state: SystemState<Query<&RawHandleWrapper, With<PrimaryWindow>>> =
             SystemState::new(&mut app.world);
         let primary_window = system_state.get(&app.world).get_single().ok().cloned();
 
-        bevy::tasks::IoTaskPool::get()
-            .spawn_local(async move {
-                let (device, queue, adapter_info, render_adapter, instance, xr_instance, session, blend_mode, session_running, frame_waiter, swapchain, input, views, frame_state) = graphics::initialize_xr_graphics(primary_window).unwrap();
-                debug!("Configured wgpu adapter Limits: {:#?}", device.limits());
-                debug!("Configured wgpu adapter Features: {:#?}", device.features());
-                let mut future_renderer_resources_inner =
-                    future_renderer_resources_wrapper.lock().unwrap();
-                *future_renderer_resources_inner =
-                    Some((device, queue, adapter_info, render_adapter, instance));
-                let mut future_xr_resources_inner = future_xr_resources_wrapper.lock().unwrap();
-                *future_xr_resources_inner =
-                    Some((xr_instance, session, blend_mode, session_running, frame_waiter, swapchain, input, views, frame_state));
-            })
-            .detach();
-
-        
+        let (
+            device,
+            queue,
+            adapter_info,
+            render_adapter,
+            instance,
+            xr_instance,
+            session,
+            blend_mode,
+            session_running,
+            frame_waiter,
+            swapchain,
+            input,
+            views,
+            frame_state,
+        ) = graphics::initialize_xr_graphics(primary_window).unwrap();
+        debug!("Configured wgpu adapter Limits: {:#?}", device.limits());
+        debug!("Configured wgpu adapter Features: {:#?}", device.features());
+        let mut future_xr_resources_inner = future_xr_resources_wrapper.lock().unwrap();
+        *future_xr_resources_inner = Some((
+            xr_instance,
+            session,
+            blend_mode,
+            session_running,
+            frame_waiter,
+            swapchain,
+            input,
+            views,
+            frame_state,
+        ));
+        app.add_plugins(DefaultPlugins.set(RenderPlugin { render_settings: RenderSettings::Manual(device, queue, adapter_info, render_adapter, Mutex::new(instance))}));
     }
 
     fn ready(&self, app: &App) -> bool {
@@ -84,13 +96,20 @@ impl Plugin for OpenXrPlugin {
     }
 
     fn finish(&self, app: &mut App) {
-        if let Some(future_renderer_resources) =
-            app.world.remove_resource::<FutureXrResources>()
-        {
-            let (instance, session, blend_mode, session_running, frame_waiter, swapchain, input, views, frame_state) =
-                future_renderer_resources.0.lock().unwrap().take().unwrap();
+        if let Some(future_renderer_resources) = app.world.remove_resource::<FutureXrResources>() {
+            let (
+                xr_instance,
+                session,
+                blend_mode,
+                session_running,
+                frame_waiter,
+                swapchain,
+                input,
+                views,
+                frame_state,
+            ) = future_renderer_resources.0.lock().unwrap().take().unwrap();
 
-            app.insert_resource(instance.clone())
+            app.insert_resource(xr_instance.clone())
                 .insert_resource(session.clone())
                 .insert_resource(blend_mode.clone())
                 .insert_resource(session_running.clone())
@@ -120,7 +139,8 @@ impl Plugin for OpenXrPlugin {
             drop(swapchain_mut);
             let render_app = app.sub_app_mut(RenderApp);
 
-            render_app.insert_resource(instance)
+            render_app
+                .insert_resource(xr_instance)
                 .insert_resource(session)
                 .insert_resource(blend_mode)
                 .insert_resource(session_running)
@@ -130,19 +150,25 @@ impl Plugin for OpenXrPlugin {
                 .insert_resource(views)
                 .insert_resource(frame_state);
 
-            render_app.add_systems(Render, (pre_frame.in_set(RenderSet::Prepare).before(post_frame), post_frame.in_set(RenderSet::Prepare), post_queue_submit.in_set(RenderSet::Cleanup)));
+            render_app.add_systems(
+                Render,
+                (
+                    pre_frame.in_set(RenderSet::Prepare).before(post_frame),
+                    post_frame.in_set(RenderSet::Prepare),
+                    post_queue_submit.in_set(RenderSet::Cleanup),
+                ),
+            );
         }
-        
     }
 }
 
 pub struct DefaultXrPlugins;
 
 impl PluginGroup for DefaultXrPlugins {
-    fn build(self) -> bevy::app::PluginGroupBuilder {
-        DefaultPlugins
-            .build()
-            .add_before::<RenderPlugin, _>(OpenXrPlugin)
+    fn build(self) -> PluginGroupBuilder {
+        let mut group = PluginGroupBuilder::start::<Self>();
+        group = group.add(OpenXrPlugin);
+        group
     }
 }
 
@@ -155,7 +181,7 @@ pub fn pre_frame(
     swapchain: Res<XrSwapchain>,
     xr_input: Res<XrInput>,
     mut manual_texture_views: ResMut<ManualTextureViews>,
-){
+) {
     while let Some(event) = instance.poll_event(&mut Default::default()).unwrap() {
         use xr::Event::*;
         match event {
@@ -172,15 +198,11 @@ pub fn pre_frame(
                         session.end().unwrap();
                         session_running.store(false, std::sync::atomic::Ordering::Relaxed);
                     }
-                    xr::SessionState::EXITING | xr::SessionState::LOSS_PENDING => {
-                        return
-                    }
+                    xr::SessionState::EXITING | xr::SessionState::LOSS_PENDING => return,
                     _ => {}
                 }
             }
-            InstanceLossPending(_) => {
-                return
-            }
+            InstanceLossPending(_) => return,
             EventsLost(e) => {
                 warn!("lost {} XR events", e.lost_event_count());
             }
@@ -190,7 +212,7 @@ pub fn pre_frame(
     if !session_running.load(std::sync::atomic::Ordering::Relaxed) {
         // Don't grind up the CPU
         std::thread::sleep(std::time::Duration::from_millis(10));
-        return
+        return;
     }
 
     *frame_state.lock().unwrap() = Some(frame_waiter.lock().unwrap().wait().unwrap());
@@ -228,11 +250,18 @@ pub fn post_frame(
     session: Res<XrSession>,
     xr_frame_state: Res<XrFrameState>,
 ) {
-    *views.lock().unwrap() = session.locate_views(
-        VIEW_TYPE,
-        xr_frame_state.lock().unwrap().unwrap().predicted_display_time,
-        &input.stage,
-    ).unwrap().1;
+    *views.lock().unwrap() = session
+        .locate_views(
+            VIEW_TYPE,
+            xr_frame_state
+                .lock()
+                .unwrap()
+                .unwrap()
+                .predicted_display_time,
+            &input.stage,
+        )
+        .unwrap()
+        .1;
 }
 
 pub fn post_queue_submit(
@@ -245,5 +274,9 @@ pub fn post_queue_submit(
     let xr_frame_state = xr_frame_state.lock().unwrap().unwrap();
     let views = &*views.lock().unwrap();
     let stage = &input.stage;
-    swapchain.lock().unwrap().post_queue_submit(xr_frame_state, views, stage, **environment_blend_mode).unwrap();
+    swapchain
+        .lock()
+        .unwrap()
+        .post_queue_submit(xr_frame_state, views, stage, **environment_blend_mode)
+        .unwrap();
 }
