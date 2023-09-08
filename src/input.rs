@@ -7,11 +7,11 @@ type XrPose = (Vec3, Quat);
 
 #[derive(Clone, Resource)]
 pub struct XrInput {
-    action_set: xr::ActionSet,
-    right_action: xr::Action<xr::Posef>,
-    left_action: xr::Action<xr::Posef>,
-    right_space: Arc<xr::Space>,
-    left_space: Arc<xr::Space>,
+    pub action_set: xr::ActionSet,
+    pub right_action: xr::Action<xr::Posef>,
+    pub left_action: xr::Action<xr::Posef>,
+    pub right_space: Arc<xr::Space>,
+    pub left_space: Arc<xr::Space>,
     pub stage: Arc<xr::Space>,
 }
 
