@@ -1,6 +1,6 @@
 use std::ffi::{c_void, CString};
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
 use ash::vk::{self, Handle};
@@ -13,11 +13,14 @@ use wgpu::{Instance, Texture};
 
 use crate::input::XrInput;
 use crate::resources::{
-    XrEnvironmentBlendMode, XrFrameWaiter, XrInstance, XrSession, XrSessionRunning, XrSwapchain, Swapchain, SwapchainInner, XrViews, XrFrameState,
+    Swapchain, SwapchainInner, XrEnvironmentBlendMode, XrFrameState, XrFrameWaiter, XrInstance,
+    XrSession, XrSessionRunning, XrSwapchain, XrViews,
 };
 use crate::VIEW_TYPE;
 
-pub fn initialize_xr_graphics(window: Option<RawHandleWrapper>) -> anyhow::Result<(
+pub fn initialize_xr_graphics(
+    window: Option<RawHandleWrapper>,
+) -> anyhow::Result<(
     RenderDevice,
     RenderQueue,
     RenderAdapterInfo,
@@ -277,11 +280,14 @@ pub fn initialize_xr_graphics(window: Option<RawHandleWrapper>) -> anyhow::Resul
             .expect("Failed to create wgpu surface")
     });
     let swapchain_format = surface
-            .as_ref()
-            .map(|surface| surface.get_capabilities(&wgpu_adapter).formats[0])
-            .unwrap_or(wgpu::TextureFormat::Rgba8UnormSrgb);
+        .as_ref()
+        .map(|surface| surface.get_capabilities(&wgpu_adapter).formats[0])
+        .unwrap_or(wgpu::TextureFormat::Rgba8UnormSrgb);
 
-    let resolution = uvec2(views[0].recommended_image_rect_width, views[0].recommended_image_rect_height);
+    let resolution = uvec2(
+        views[0].recommended_image_rect_width,
+        views[0].recommended_image_rect_height,
+    );
 
     let handle = session
         .create_swapchain(&xr::SwapchainCreateInfo {
@@ -303,54 +309,54 @@ pub fn initialize_xr_graphics(window: Option<RawHandleWrapper>) -> anyhow::Resul
     let images = handle.enumerate_images().unwrap();
 
     let buffers = images
-            .into_iter()
-            .map(|color_image| {
-                let color_image = vk::Image::from_raw(color_image);
-                let wgpu_hal_texture = unsafe {
-                    <V as Api>::Device::texture_from_raw(
-                        color_image,
-                        &wgpu_hal::TextureDescriptor {
-                            label: Some("VR Swapchain"),
-                            size: wgpu::Extent3d {
-                                width: resolution.x,
-                                height: resolution.y,
-                                depth_or_array_layers: 2,
-                            },
-                            mip_level_count: 1,
-                            sample_count: 1,
-                            dimension: wgpu::TextureDimension::D2,
-                            format: swapchain_format,
-                            usage: wgpu_hal::TextureUses::COLOR_TARGET
-                                | wgpu_hal::TextureUses::COPY_DST,
-                            memory_flags: wgpu_hal::MemoryFlags::empty(),
-                            view_formats: vec![],
+        .into_iter()
+        .map(|color_image| {
+            let color_image = vk::Image::from_raw(color_image);
+            let wgpu_hal_texture = unsafe {
+                <V as Api>::Device::texture_from_raw(
+                    color_image,
+                    &wgpu_hal::TextureDescriptor {
+                        label: Some("VR Swapchain"),
+                        size: wgpu::Extent3d {
+                            width: resolution.x,
+                            height: resolution.y,
+                            depth_or_array_layers: 2,
                         },
-                        None,
-                    )
-                };
-                let texture = unsafe {
-                    wgpu_device.create_texture_from_hal::<V>(
-                        wgpu_hal_texture,
-                        &wgpu::TextureDescriptor {
-                            label: Some("VR Swapchain"),
-                            size: wgpu::Extent3d {
-                                width: resolution.x,
-                                height: resolution.y,
-                                depth_or_array_layers: 2,
-                            },
-                            mip_level_count: 1,
-                            sample_count: 1,
-                            dimension: wgpu::TextureDimension::D2,
-                            format: swapchain_format,
-                            usage: wgpu::TextureUsages::RENDER_ATTACHMENT
-                                | wgpu::TextureUsages::COPY_DST,
-                            view_formats: &[],
+                        mip_level_count: 1,
+                        sample_count: 1,
+                        dimension: wgpu::TextureDimension::D2,
+                        format: swapchain_format,
+                        usage: wgpu_hal::TextureUses::COLOR_TARGET
+                            | wgpu_hal::TextureUses::COPY_DST,
+                        memory_flags: wgpu_hal::MemoryFlags::empty(),
+                        view_formats: vec![],
+                    },
+                    None,
+                )
+            };
+            let texture = unsafe {
+                wgpu_device.create_texture_from_hal::<V>(
+                    wgpu_hal_texture,
+                    &wgpu::TextureDescriptor {
+                        label: Some("VR Swapchain"),
+                        size: wgpu::Extent3d {
+                            width: resolution.x,
+                            height: resolution.y,
+                            depth_or_array_layers: 2,
                         },
-                    )
-                };
-                texture
-            })
-            .collect();
+                        mip_level_count: 1,
+                        sample_count: 1,
+                        dimension: wgpu::TextureDimension::D2,
+                        format: swapchain_format,
+                        usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                            | wgpu::TextureUsages::COPY_DST,
+                        view_formats: &[],
+                    },
+                )
+            };
+            texture
+        })
+        .collect();
 
     Ok((
         wgpu_device.into(),
@@ -370,7 +376,8 @@ pub fn initialize_xr_graphics(window: Option<RawHandleWrapper>) -> anyhow::Resul
             format: swapchain_format,
             buffers,
             image_index: 0,
-        })).into(),
+        }))
+        .into(),
         XrInput::new(xr_instance, session.into_any_graphics())?,
         Mutex::default().into(),
         Mutex::default().into(),

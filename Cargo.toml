@@ -9,7 +9,8 @@ edition = "2021"
 anyhow = "1.0.75"
 ash = "0.37.3"
 bevy = { git = "https://github.com/awtterpip/bevy", default-features = false, features = ["bevy_render"] }
-openxr = { version = "0.17.1" }
+openxr = { version = "0.17.1", features = ["mint"] }
+mint = "0.5.9"
 wgpu = "0.16.0"
 wgpu-core = { version = "0.16.0", features = ["vulkan"] }
 wgpu-hal = "0.16.0"
@@ -21,3 +22,6 @@ color-eyre = "0.6.2"
 [[example]]
 name = "xr"
 path = "examples/xr.rs"
+
+[profile.release]
+debug = true

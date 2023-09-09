@@ -40,7 +40,7 @@ impl Swapchain {
 
     pub(crate) fn format(&self) -> wgpu::TextureFormat {
         match self {
-            Swapchain::Vulkan(swap) => swap.format
+            Swapchain::Vulkan(swap) => swap.format,
         }
     }
 
@@ -58,7 +58,9 @@ impl Swapchain {
         environment_blend_mode: xr::EnvironmentBlendMode,
     ) -> xr::Result<()> {
         match self {
-            Swapchain::Vulkan(swap) => swap.post_queue_submit(xr_frame_state, views, stage, environment_blend_mode),
+            Swapchain::Vulkan(swap) => {
+                swap.post_queue_submit(xr_frame_state, views, stage, environment_blend_mode)
+            }
         }
     }
 }
@@ -110,36 +112,36 @@ impl<G: xr::Graphics> SwapchainInner<G> {
         environment_blend_mode: xr::EnvironmentBlendMode,
     ) -> xr::Result<()> {
         self.handle.release_image().unwrap();
-            let rect = xr::Rect2Di {
-                offset: xr::Offset2Di { x: 0, y: 0 },
-                extent: xr::Extent2Di {
-                    width: self.resolution.x as _,
-                    height: self.resolution.y as _,
-                },
-            };
-            self.stream.end(
-                xr_frame_state.predicted_display_time,
-                environment_blend_mode,
-                &[&xr::CompositionLayerProjection::new().space(stage).views(&[
-                    xr::CompositionLayerProjectionView::new()
-                        .pose(views[0].pose)
-                        .fov(views[0].fov)
-                        .sub_image(
-                            xr::SwapchainSubImage::new()
-                                .swapchain(&self.handle)
-                                .image_array_index(0)
-                                .image_rect(rect),
-                        ),
-                    xr::CompositionLayerProjectionView::new()
-                        .pose(views[1].pose)
-                        .fov(views[1].fov)
-                        .sub_image(
-                            xr::SwapchainSubImage::new()
-                                .swapchain(&self.handle)
-                                .image_array_index(1)
-                                .image_rect(rect),
-                        ),
-                ])],
-            )
+        let rect = xr::Rect2Di {
+            offset: xr::Offset2Di { x: 0, y: 0 },
+            extent: xr::Extent2Di {
+                width: self.resolution.x as _,
+                height: self.resolution.y as _,
+            },
+        };
+        self.stream.end(
+            xr_frame_state.predicted_display_time,
+            environment_blend_mode,
+            &[&xr::CompositionLayerProjection::new().space(stage).views(&[
+                xr::CompositionLayerProjectionView::new()
+                    .pose(views[0].pose)
+                    .fov(views[0].fov)
+                    .sub_image(
+                        xr::SwapchainSubImage::new()
+                            .swapchain(&self.handle)
+                            .image_array_index(0)
+                            .image_rect(rect),
+                    ),
+                xr::CompositionLayerProjectionView::new()
+                    .pose(views[1].pose)
+                    .fov(views[1].fov)
+                    .sub_image(
+                        xr::SwapchainSubImage::new()
+                            .swapchain(&self.handle)
+                            .image_array_index(1)
+                            .image_rect(rect),
+                    ),
+            ])],
+        )
     }
 }

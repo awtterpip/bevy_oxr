@@ -2,14 +2,16 @@ mod graphics;
 pub mod input;
 pub mod resource_macros;
 pub mod resources;
+pub mod xr_input;
 
 use std::sync::{Arc, Mutex};
 
+use crate::xr_input::oculus_touch::ActionSets;
 use bevy::app::PluginGroupBuilder;
 use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
 use bevy::render::camera::{ManualTextureView, ManualTextureViewHandle, ManualTextureViews};
-use bevy::render::renderer::{RenderAdapterInfo, RenderAdapter, RenderDevice, RenderQueue};
+use bevy::render::renderer::{RenderAdapter, RenderAdapterInfo, RenderDevice, RenderQueue};
 use bevy::render::settings::RenderSettings;
 use bevy::render::{Render, RenderApp, RenderPlugin, RenderSet};
 use bevy::window::{PrimaryWindow, RawHandleWrapper};
@@ -85,7 +87,16 @@ impl Plugin for OpenXrPlugin {
             views,
             frame_state,
         ));
-        app.add_plugins(DefaultPlugins.set(RenderPlugin { render_settings: RenderSettings::Manual(device, queue, adapter_info, render_adapter, Mutex::new(instance))}));
+        app.insert_resource(ActionSets(vec![]));
+        app.add_plugins(DefaultPlugins.set(RenderPlugin {
+            render_settings: RenderSettings::Manual(
+                device,
+                queue,
+                adapter_info,
+                render_adapter,
+                Mutex::new(instance),
+            ),
+        }));
     }
 
     fn ready(&self, app: &App) -> bool {
@@ -109,6 +120,8 @@ impl Plugin for OpenXrPlugin {
                 frame_state,
             ) = future_renderer_resources.0.lock().unwrap().take().unwrap();
 
+            let action_sets = app.world.resource::<ActionSets>().clone();
+
             app.insert_resource(xr_instance.clone())
                 .insert_resource(session.clone())
                 .insert_resource(blend_mode.clone())
@@ -117,7 +130,8 @@ impl Plugin for OpenXrPlugin {
                 .insert_resource(swapchain.clone())
                 .insert_resource(input.clone())
                 .insert_resource(views.clone())
-                .insert_resource(frame_state.clone());
+                .insert_resource(frame_state.clone())
+                .insert_resource(action_sets.clone());
 
             let swapchain_mut = swapchain.lock().unwrap();
             let (left, right) = swapchain_mut.get_render_views();
@@ -148,7 +162,8 @@ impl Plugin for OpenXrPlugin {
                 .insert_resource(swapchain)
                 .insert_resource(input)
                 .insert_resource(views)
-                .insert_resource(frame_state);
+                .insert_resource(frame_state)
+                .insert_resource(action_sets);
 
             render_app.add_systems(
                 Render,
@@ -180,6 +195,7 @@ pub fn pre_frame(
     frame_waiter: Res<XrFrameWaiter>,
     swapchain: Res<XrSwapchain>,
     xr_input: Res<XrInput>,
+    action_sets: Res<ActionSets>,
     mut manual_texture_views: ResMut<ManualTextureViews>,
 ) {
     while let Some(event) = instance.poll_event(&mut Default::default()).unwrap() {
@@ -211,7 +227,7 @@ pub fn pre_frame(
     }
     if !session_running.load(std::sync::atomic::Ordering::Relaxed) {
         // Don't grind up the CPU
-        std::thread::sleep(std::time::Duration::from_millis(10));
+        //std::thread::sleep(std::time::Duration::from_millis(10));
         return;
     }
 
@@ -222,13 +238,17 @@ pub fn pre_frame(
     swapchain.begin().unwrap();
     swapchain.update_render_views();
     let (left, right) = swapchain.get_render_views();
-    let active_action_set = xr::ActiveActionSet::new(&xr_input.action_set);
-    match session.sync_actions(&[active_action_set]) {
+    /*let mut active_action_sets = vec![];
+    for i in &action_sets.0 {
+        active_action_sets.push(xr::ActiveActionSet::new(i));
+    }
+    info!("action sets: {:#?}", action_sets.0.len());
+    match session.sync_actions(&active_action_sets) {
         Err(err) => {
-            eprintln!("{}", err);
+            warn!("{}", err);
         }
         _ => {}
-    }
+    }*/
     let format = swapchain.format();
     let left = ManualTextureView {
         texture_view: left.into(),
