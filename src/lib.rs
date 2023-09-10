@@ -11,7 +11,10 @@ use bevy::app::PluginGroupBuilder;
 use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
 use bevy::render::camera::{ManualTextureView, ManualTextureViewHandle, ManualTextureViews};
-use bevy::render::renderer::{RenderAdapter, RenderAdapterInfo, RenderDevice, RenderQueue};
+use bevy::render::pipelined_rendering::RenderExtractApp;
+use bevy::render::renderer::{
+    render_system, RenderAdapter, RenderAdapterInfo, RenderDevice, RenderQueue,
+};
 use bevy::render::settings::RenderSettings;
 use bevy::render::{Render, RenderApp, RenderPlugin, RenderSet};
 use bevy::window::{PrimaryWindow, RawHandleWrapper};
@@ -37,6 +40,8 @@ pub struct FutureXrResources(
                 XrInstance,
                 XrSession,
                 XrEnvironmentBlendMode,
+                XrResolution,
+                XrFormat,
                 XrSessionRunning,
                 XrFrameWaiter,
                 XrSwapchain,
@@ -66,6 +71,8 @@ impl Plugin for OpenXrPlugin {
             xr_instance,
             session,
             blend_mode,
+            resolution,
+            format,
             session_running,
             frame_waiter,
             swapchain,
@@ -80,6 +87,8 @@ impl Plugin for OpenXrPlugin {
             xr_instance,
             session,
             blend_mode,
+            resolution,
+            format,
             session_running,
             frame_waiter,
             swapchain,
@@ -112,6 +121,8 @@ impl Plugin for OpenXrPlugin {
                 xr_instance,
                 session,
                 blend_mode,
+                resolution,
+                format,
                 session_running,
                 frame_waiter,
                 swapchain,
@@ -125,6 +136,8 @@ impl Plugin for OpenXrPlugin {
             app.insert_resource(xr_instance.clone())
                 .insert_resource(session.clone())
                 .insert_resource(blend_mode.clone())
+                .insert_resource(resolution.clone())
+                .insert_resource(format.clone())
                 .insert_resource(session_running.clone())
                 .insert_resource(frame_waiter.clone())
                 .insert_resource(swapchain.clone())
@@ -133,30 +146,44 @@ impl Plugin for OpenXrPlugin {
                 .insert_resource(frame_state.clone())
                 .insert_resource(action_sets.clone());
 
-            let swapchain_mut = swapchain.lock().unwrap();
-            let (left, right) = swapchain_mut.get_render_views();
-            let format = swapchain_mut.format();
+            let (left, right) = swapchain.get_render_views();
             let left = ManualTextureView {
                 texture_view: left.into(),
-                size: swapchain_mut.resolution(),
-                format,
+                size: *resolution,
+                format: *format,
             };
             let right = ManualTextureView {
                 texture_view: right.into(),
-                size: swapchain_mut.resolution(),
-                format,
+                size: *resolution,
+                format: *format,
             };
             let mut manual_texture_views = app.world.resource_mut::<ManualTextureViews>();
             manual_texture_views.insert(LEFT_XR_TEXTURE_HANDLE, left);
             manual_texture_views.insert(RIGHT_XR_TEXTURE_HANDLE, right);
             drop(manual_texture_views);
-            drop(swapchain_mut);
+            let pipeline_app = app.sub_app_mut(RenderExtractApp);
+            pipeline_app
+                .insert_resource(xr_instance.clone())
+                .insert_resource(session.clone())
+                .insert_resource(blend_mode.clone())
+                .insert_resource(resolution.clone())
+                .insert_resource(format.clone())
+                .insert_resource(session_running.clone())
+                .insert_resource(frame_waiter.clone())
+                .insert_resource(swapchain.clone())
+                .insert_resource(input.clone())
+                .insert_resource(views.clone())
+                .insert_resource(frame_state.clone())
+                .insert_resource(action_sets.clone());
+            drop(pipeline_app);
             let render_app = app.sub_app_mut(RenderApp);
 
             render_app
                 .insert_resource(xr_instance)
                 .insert_resource(session)
                 .insert_resource(blend_mode)
+                .insert_resource(resolution)
+                .insert_resource(format)
                 .insert_resource(session_running)
                 .insert_resource(frame_waiter)
                 .insert_resource(swapchain)
@@ -168,9 +195,9 @@ impl Plugin for OpenXrPlugin {
             render_app.add_systems(
                 Render,
                 (
-                    pre_frame.in_set(RenderSet::Prepare).before(post_frame),
-                    post_frame.in_set(RenderSet::Prepare),
-                    post_queue_submit.in_set(RenderSet::Cleanup),
+                    begin_frame.before(render_system).after(RenderSet::ExtractCommands),
+                    locate_views.before(render_system),
+                    end_frame.after(render_system),
                 ),
             );
         }
@@ -187,116 +214,120 @@ impl PluginGroup for DefaultXrPlugins {
     }
 }
 
-pub fn pre_frame(
+pub fn begin_frame(
     instance: Res<XrInstance>,
     session: Res<XrSession>,
     session_running: Res<XrSessionRunning>,
-    frame_state: Res<XrFrameState>,
-    frame_waiter: Res<XrFrameWaiter>,
+    resolution: Res<XrResolution>,
+    format: Res<XrFormat>,
     swapchain: Res<XrSwapchain>,
-    xr_input: Res<XrInput>,
-    action_sets: Res<ActionSets>,
+    frame_waiter: Res<XrFrameWaiter>,
+    frame_state: Res<XrFrameState>,
     mut manual_texture_views: ResMut<ManualTextureViews>,
 ) {
-    while let Some(event) = instance.poll_event(&mut Default::default()).unwrap() {
-        use xr::Event::*;
-        match event {
-            SessionStateChanged(e) => {
-                // Session state change is where we can begin and end sessions, as well as
-                // find quit messages!
-                info!("entered XR state {:?}", e.state());
-                match e.state() {
-                    xr::SessionState::READY => {
-                        session.begin(VIEW_TYPE).unwrap();
-                        session_running.store(true, std::sync::atomic::Ordering::Relaxed);
+    {
+        let _span = info_span!("xr_poll_events");
+        while let Some(event) = instance.poll_event(&mut Default::default()).unwrap() {
+            use xr::Event::*;
+            match event {
+                SessionStateChanged(e) => {
+                    // Session state change is where we can begin and end sessions, as well as
+                    // find quit messages!
+                    info!("entered XR state {:?}", e.state());
+                    match e.state() {
+                        xr::SessionState::READY => {
+                            session.begin(VIEW_TYPE).unwrap();
+                            session_running.store(true, std::sync::atomic::Ordering::Relaxed);
+                        }
+                        xr::SessionState::STOPPING => {
+                            session.end().unwrap();
+                            session_running.store(false, std::sync::atomic::Ordering::Relaxed);
+                        }
+                        xr::SessionState::EXITING | xr::SessionState::LOSS_PENDING => return,
+                        _ => {}
                     }
-                    xr::SessionState::STOPPING => {
-                        session.end().unwrap();
-                        session_running.store(false, std::sync::atomic::Ordering::Relaxed);
-                    }
-                    xr::SessionState::EXITING | xr::SessionState::LOSS_PENDING => return,
-                    _ => {}
                 }
+                InstanceLossPending(_) => return,
+                EventsLost(e) => {
+                    warn!("lost {} XR events", e.lost_event_count());
+                }
+                _ => {}
             }
-            InstanceLossPending(_) => return,
-            EventsLost(e) => {
-                warn!("lost {} XR events", e.lost_event_count());
-            }
-            _ => {}
         }
     }
-    if !session_running.load(std::sync::atomic::Ordering::Relaxed) {
-        // Don't grind up the CPU
-        //std::thread::sleep(std::time::Duration::from_millis(10));
-        return;
+    {
+        let _span = info_span!("xr_wait_frame").entered();
+        *frame_state.lock().unwrap() = frame_waiter.lock().unwrap().wait().unwrap();
     }
-
-    *frame_state.lock().unwrap() = Some(frame_waiter.lock().unwrap().wait().unwrap());
-
-    let mut swapchain = swapchain.lock().unwrap();
-
-    swapchain.begin().unwrap();
-    swapchain.update_render_views();
-    let (left, right) = swapchain.get_render_views();
-    /*let mut active_action_sets = vec![];
-    for i in &action_sets.0 {
-        active_action_sets.push(xr::ActiveActionSet::new(i));
+    {
+        let _span = info_span!("xr_begin_frame").entered();
+        swapchain.begin().unwrap()
     }
-    info!("action sets: {:#?}", action_sets.0.len());
-    match session.sync_actions(&active_action_sets) {
-        Err(err) => {
-            warn!("{}", err);
-        }
-        _ => {}
-    }*/
-    let format = swapchain.format();
-    let left = ManualTextureView {
-        texture_view: left.into(),
-        size: swapchain.resolution(),
-        format,
-    };
-    let right = ManualTextureView {
-        texture_view: right.into(),
-        size: swapchain.resolution(),
-        format,
-    };
-    manual_texture_views.insert(LEFT_XR_TEXTURE_HANDLE, left);
-    manual_texture_views.insert(RIGHT_XR_TEXTURE_HANDLE, right);
+    {
+        let _span = info_span!("xr_acquire_image").entered();
+        swapchain.acquire_image().unwrap()
+    }
+    {
+        let _span = info_span!("xr_wait_image").entered();
+        swapchain.wait_image().unwrap();
+    }
+    {
+        let _span = info_span!("xr_update_manual_texture_views").entered();
+        let (left, right) = swapchain.get_render_views();
+        let left = ManualTextureView {
+            texture_view: left.into(),
+            size: **resolution,
+            format: **format,
+        };
+        let right = ManualTextureView {
+            texture_view: right.into(),
+            size: **resolution,
+            format: **format,
+        };
+        manual_texture_views.insert(LEFT_XR_TEXTURE_HANDLE, left);
+        manual_texture_views.insert(RIGHT_XR_TEXTURE_HANDLE, right);
+    }
 }
 
-pub fn post_frame(
+pub fn end_frame(
+    xr_frame_state: Res<XrFrameState>,
+    views: Res<XrViews>,
+    input: Res<XrInput>,
+    swapchain: Res<XrSwapchain>,
+    resolution: Res<XrResolution>,
+    environment_blend_mode: Res<XrEnvironmentBlendMode>,
+) {
+    {
+        let _span = info_span!("xr_release_image").entered();
+        swapchain.release_image().unwrap();
+    }
+    {
+        let _span = info_span!("xr_end_frame").entered();
+        swapchain
+            .end(
+                xr_frame_state.lock().unwrap().predicted_display_time,
+                &*views.lock().unwrap(),
+                &input.stage,
+                **resolution,
+                **environment_blend_mode,
+            )
+            .unwrap();
+    }
+}
+
+pub fn locate_views(
     views: Res<XrViews>,
     input: Res<XrInput>,
     session: Res<XrSession>,
     xr_frame_state: Res<XrFrameState>,
 ) {
+    let _span = info_span!("xr_locate_views").entered();
     *views.lock().unwrap() = session
         .locate_views(
             VIEW_TYPE,
-            xr_frame_state
-                .lock()
-                .unwrap()
-                .unwrap()
-                .predicted_display_time,
+            xr_frame_state.lock().unwrap().predicted_display_time,
             &input.stage,
         )
         .unwrap()
         .1;
-}
-
-pub fn post_queue_submit(
-    xr_frame_state: Res<XrFrameState>,
-    views: Res<XrViews>,
-    input: Res<XrInput>,
-    swapchain: Res<XrSwapchain>,
-    environment_blend_mode: Res<XrEnvironmentBlendMode>,
-) {
-    let xr_frame_state = xr_frame_state.lock().unwrap().unwrap();
-    let views = &*views.lock().unwrap();
-    let stage = &input.stage;
-    swapchain
-        .lock()
-        .unwrap()
-        .post_queue_submit(xr_frame_state, views, stage, **environment_blend_mode)
-        .unwrap();
 }

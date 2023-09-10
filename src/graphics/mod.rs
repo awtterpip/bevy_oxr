@@ -7,7 +7,7 @@ use wgpu::Instance;
 use crate::input::XrInput;
 use crate::resources::{
     XrEnvironmentBlendMode, XrFrameState, XrFrameWaiter, XrInstance, XrSession, XrSessionRunning,
-    XrSwapchain, XrViews,
+    XrSwapchain, XrViews, XrResolution, XrFormat,
 };
 
 pub fn initialize_xr_graphics(
@@ -21,6 +21,8 @@ pub fn initialize_xr_graphics(
     XrInstance,
     XrSession,
     XrEnvironmentBlendMode,
+    XrResolution,
+    XrFormat,
     XrSessionRunning,
     XrFrameWaiter,
     XrSwapchain,

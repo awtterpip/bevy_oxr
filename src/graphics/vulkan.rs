@@ -14,7 +14,7 @@ use wgpu::{Instance, Texture};
 use crate::input::XrInput;
 use crate::resources::{
     Swapchain, SwapchainInner, XrEnvironmentBlendMode, XrFrameState, XrFrameWaiter, XrInstance,
-    XrSession, XrSessionRunning, XrSwapchain, XrViews,
+    XrSession, XrSessionRunning, XrSwapchain, XrViews, XrResolution, XrFormat,
 };
 use crate::VIEW_TYPE;
 
@@ -29,6 +29,8 @@ pub fn initialize_xr_graphics(
     XrInstance,
     XrSession,
     XrEnvironmentBlendMode,
+    XrResolution,
+    XrFormat,
     XrSessionRunning,
     XrFrameWaiter,
     XrSwapchain,
@@ -367,20 +369,24 @@ pub fn initialize_xr_graphics(
         xr_instance.clone().into(),
         session.clone().into_any_graphics().into(),
         blend_mode.into(),
+        resolution.into(),
+        swapchain_format.into(),
         AtomicBool::new(false).into(),
         Mutex::new(frame_wait).into(),
-        Mutex::new(Swapchain::Vulkan(SwapchainInner {
-            stream: frame_stream,
-            handle,
-            resolution,
-            format: swapchain_format,
+        Swapchain::Vulkan(SwapchainInner {
+            stream: Mutex::new(frame_stream),
+            handle: Mutex::new(handle),
             buffers,
-            image_index: 0,
-        }))
+            image_index: Mutex::new(0),
+        })
         .into(),
         XrInput::new(xr_instance, session.into_any_graphics())?,
         Mutex::default().into(),
-        Mutex::default().into(),
+        Mutex::new(xr::FrameState {
+            predicted_display_time: xr::Time::from_nanos(1),
+            predicted_display_period: xr::Duration::from_nanos(1),
+            should_render: true,
+        }).into(),
     ))
 }
 
