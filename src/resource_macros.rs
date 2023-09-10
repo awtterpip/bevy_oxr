@@ -23,7 +23,7 @@ macro_rules! xr_resource_wrapper {
                 Self::new(value)
             }
         }
-    }
+    };
 }
 
 #[macro_export]
@@ -51,8 +51,8 @@ macro_rules! xr_arc_resource_wrapper {
                 Self::new(value)
             }
         }
-    }
+    };
 }
 
-pub use xr_resource_wrapper;
 pub use xr_arc_resource_wrapper;
+pub use xr_resource_wrapper;
