@@ -59,7 +59,7 @@ fn action_set_system(action_sets: Res<ActionSets>, session: Res<XrSession>) {
     for i in &action_sets.0 {
         active_action_sets.push(openxr::ActiveActionSet::new(i));
     }
-    info!("action sets: {:#?}", action_sets.0.len());
+    //info!("action sets: {:#?}", action_sets.0.len());
     match session.sync_actions(&active_action_sets) {
         Err(err) => {
             warn!("{}", err);

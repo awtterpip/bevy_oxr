@@ -322,12 +322,18 @@ pub fn locate_views(
     xr_frame_state: Res<XrFrameState>,
 ) {
     let _span = info_span!("xr_locate_views").entered();
-    *views.lock().unwrap() = session
+    *views.lock().unwrap() = match session
         .locate_views(
             VIEW_TYPE,
             xr_frame_state.lock().unwrap().predicted_display_time,
             &input.stage,
         )
-        .unwrap()
+    {
+        Ok(this) => this,
+        Err(err) => {
+            warn!("error: {}", err);
+            return;
+        }
+    }
         .1;
 }

@@ -134,6 +134,10 @@ impl<G: xr::Graphics> SwapchainInner<G> {
             },
         };
         let swapchain = self.handle.lock().unwrap();
+        if views.len() == 0 {
+            warn!("views are len of 0");
+            return Ok(())
+        }
         self.stream.lock().unwrap().end(
             predicted_display_time,
             environment_blend_mode,

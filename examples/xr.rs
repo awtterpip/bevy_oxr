@@ -81,18 +81,17 @@ fn hands(
     frame_state: Res<XrFrameState>,
     xr_input: Res<XrInput>,
 ) {
-    let frame_state = *frame_state.lock().unwrap();
+    let mut func = || -> anyhow::Result<()> {
+        let frame_state = *frame_state.lock().unwrap();
 
         let right_controller = oculus_controller
             .grip_space
             .right
-            .relate(&**&xr_input.stage, frame_state.predicted_display_time)
-            .unwrap();
+            .relate(&**&xr_input.stage, frame_state.predicted_display_time)?;
         let left_controller = oculus_controller
             .grip_space
             .left
-            .relate(&**&xr_input.stage, frame_state.predicted_display_time)
-            .unwrap();
+            .relate(&**&xr_input.stage, frame_state.predicted_display_time)?;
         gizmos.rect(
             right_controller.0.pose.position.to_vec3(),
             right_controller.0.pose.orientation.to_quat(),
@@ -105,4 +104,8 @@ fn hands(
             Vec2::new(0.05, 0.2),
             Color::YELLOW_GREEN,
         );
+        Ok(())
+    };
+
+    let _ = func();
 }
