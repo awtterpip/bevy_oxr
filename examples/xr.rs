@@ -1,5 +1,6 @@
 use bevy::core_pipeline::core_3d;
 use bevy::core_pipeline::tonemapping::{DebandDither, Tonemapping};
+use bevy::diagnostic::{LogDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
 use bevy::ecs::prelude::{Bundle, Component, ReflectComponent};
 
 use bevy::math::Mat4;
@@ -34,6 +35,8 @@ fn main() {
     App::new()
         .add_plugins(DefaultXrPlugins)
         .add_plugins(OpenXrInput::new(XrControllerType::OculusTouch))
+        .add_plugins(LogDiagnosticsPlugin::default())
+        .add_plugins(FrameTimeDiagnosticsPlugin::default())
         .add_systems(Startup, setup)
         .add_systems(Update, hands)
         .run();
