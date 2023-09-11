@@ -17,7 +17,7 @@ use bevy::render::renderer::{
 };
 use bevy::render::settings::RenderSettings;
 use bevy::render::{Render, RenderApp, RenderPlugin, RenderSet};
-use bevy::window::{PrimaryWindow, RawHandleWrapper};
+use bevy::window::{PresentMode, PrimaryWindow, RawHandleWrapper};
 use input::XrInput;
 use openxr as xr;
 use resources::*;
@@ -105,7 +105,14 @@ impl Plugin for OpenXrPlugin {
                 render_adapter,
                 Mutex::new(instance),
             ),
-        }).disable::<PipelinedRenderingPlugin>());
+        }).disable::<PipelinedRenderingPlugin>()
+            .set(WindowPlugin {
+                primary_window: Some(Window {
+                    present_mode: PresentMode::AutoNoVsync,
+                    ..default()
+                }),
+                ..default()
+            }));
     }
 
     fn ready(&self, app: &App) -> bool {
