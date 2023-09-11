@@ -157,25 +157,11 @@ impl Plugin for OpenXrPlugin {
                 size: *resolution,
                 format: *format,
             };
+            app.add_systems(PreUpdate, xr_begin_frame);
             let mut manual_texture_views = app.world.resource_mut::<ManualTextureViews>();
             manual_texture_views.insert(LEFT_XR_TEXTURE_HANDLE, left);
             manual_texture_views.insert(RIGHT_XR_TEXTURE_HANDLE, right);
             drop(manual_texture_views);
-            let pipeline_app = app.sub_app_mut(RenderExtractApp);
-            pipeline_app
-                .insert_resource(xr_instance.clone())
-                .insert_resource(session.clone())
-                .insert_resource(blend_mode.clone())
-                .insert_resource(resolution.clone())
-                .insert_resource(format.clone())
-                .insert_resource(session_running.clone())
-                .insert_resource(frame_waiter.clone())
-                .insert_resource(swapchain.clone())
-                .insert_resource(input.clone())
-                .insert_resource(views.clone())
-                .insert_resource(frame_state.clone())
-                .insert_resource(action_sets.clone());
-            drop(pipeline_app);
             let render_app = app.sub_app_mut(RenderApp);
 
             render_app
@@ -195,8 +181,9 @@ impl Plugin for OpenXrPlugin {
             render_app.add_systems(
                 Render,
                 (
-                    begin_frame.before(render_system).after(RenderSet::ExtractCommands),
-                    locate_views.before(render_system),
+                    post_frame
+                        .before(render_system)
+                        .after(RenderSet::ExtractCommands),
                     end_frame.after(render_system),
                 ),
             );
@@ -214,16 +201,15 @@ impl PluginGroup for DefaultXrPlugins {
     }
 }
 
-pub fn begin_frame(
+pub fn xr_begin_frame(
     instance: Res<XrInstance>,
     session: Res<XrSession>,
     session_running: Res<XrSessionRunning>,
-    resolution: Res<XrResolution>,
-    format: Res<XrFormat>,
-    swapchain: Res<XrSwapchain>,
-    frame_waiter: Res<XrFrameWaiter>,
     frame_state: Res<XrFrameState>,
-    mut manual_texture_views: ResMut<ManualTextureViews>,
+    frame_waiter: Res<XrFrameWaiter>,
+    swapchain: Res<XrSwapchain>,
+    views: Res<XrViews>,
+    input: Res<XrInput>,
 ) {
     {
         let _span = info_span!("xr_poll_events");
@@ -263,6 +249,25 @@ pub fn begin_frame(
         let _span = info_span!("xr_begin_frame").entered();
         swapchain.begin().unwrap()
     }
+    {
+        let _span = info_span!("xr_locate_views").entered();
+        *views.lock().unwrap() = session
+            .locate_views(
+                VIEW_TYPE,
+                frame_state.lock().unwrap().predicted_display_time,
+                &input.stage,
+            )
+            .unwrap()
+            .1;
+    }
+}
+
+pub fn post_frame(
+    resolution: Res<XrResolution>,
+    format: Res<XrFormat>,
+    swapchain: Res<XrSwapchain>,
+    mut manual_texture_views: ResMut<ManualTextureViews>,
+) {
     {
         let _span = info_span!("xr_acquire_image").entered();
         swapchain.acquire_image().unwrap()
