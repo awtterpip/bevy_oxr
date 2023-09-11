@@ -11,7 +11,7 @@ use bevy::app::PluginGroupBuilder;
 use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
 use bevy::render::camera::{ManualTextureView, ManualTextureViewHandle, ManualTextureViews};
-use bevy::render::pipelined_rendering::RenderExtractApp;
+use bevy::render::pipelined_rendering::{RenderExtractApp, PipelinedRenderingPlugin};
 use bevy::render::renderer::{
     render_system, RenderAdapter, RenderAdapterInfo, RenderDevice, RenderQueue,
 };
@@ -105,7 +105,7 @@ impl Plugin for OpenXrPlugin {
                 render_adapter,
                 Mutex::new(instance),
             ),
-        }));
+        }).disable::<PipelinedRenderingPlugin>());
     }
 
     fn ready(&self, app: &App) -> bool {

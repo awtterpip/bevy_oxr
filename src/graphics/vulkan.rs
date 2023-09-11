@@ -40,7 +40,7 @@ pub fn initialize_xr_graphics(
 )> {
     use wgpu_hal::{api::Vulkan as V, Api};
 
-    let xr_entry = unsafe { xr::Entry::load() }?;
+    let xr_entry = xr::Entry::linked();
 
     let available_extensions = xr_entry.enumerate_extensions()?;
     assert!(available_extensions.khr_vulkan_enable2);

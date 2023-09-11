@@ -3,6 +3,7 @@ pub mod oculus_touch;
 pub mod xr_camera;
 
 use crate::resources::XrSession;
+use crate::xr_begin_frame;
 use crate::xr_input::controllers::XrControllerType;
 use crate::xr_input::oculus_touch::{setup_oculus_controller, ActionSets};
 use crate::xr_input::xr_camera::{
@@ -38,7 +39,7 @@ impl Plugin for OpenXrInput {
             }
         }
         app.add_systems(PreUpdate, action_set_system);
-        app.add_systems(PreUpdate, xr_camera_head_sync);
+        app.add_systems(PreUpdate, xr_camera_head_sync.after(xr_begin_frame));
         app.add_systems(
             PostUpdate,
             update_frusta::<XRProjection>
