@@ -12,6 +12,7 @@ pub struct XrInput {
     //pub right_space: Arc<xr::Space>,
     //pub left_space: Arc<xr::Space>,
     pub stage: Arc<xr::Space>,
+    pub head: Arc<xr::Space>,
 }
 
 impl XrInput {
@@ -52,6 +53,9 @@ impl XrInput {
         // )?;
         let stage =
             session.create_reference_space(xr::ReferenceSpaceType::STAGE, xr::Posef::IDENTITY)?;
+        let head =
+        session.create_reference_space(xr::ReferenceSpaceType::VIEW, xr::Posef::IDENTITY)
+            .unwrap();
         //session.attach_action_sets(&[&action_set])?;
         //session.attach_action_sets(&[])?;
         Ok(Self {
@@ -60,6 +64,7 @@ impl XrInput {
             // right_space: Arc::new(right_space),
             // left_space: Arc::new(left_space),
             stage: Arc::new(stage),
+            head: Arc::new(head),
         })
     }
 }

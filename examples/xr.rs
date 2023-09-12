@@ -1,32 +1,12 @@
-use bevy::core_pipeline::core_3d;
-use bevy::core_pipeline::tonemapping::{DebandDither, Tonemapping};
-use bevy::diagnostic::{LogDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
-use bevy::ecs::prelude::{Bundle, Component, ReflectComponent};
-
-use bevy::math::Mat4;
-use bevy::prelude::Camera3d;
-use bevy::reflect::{std_traits::ReflectDefault, Reflect};
-use bevy::render::view::ColorGrading;
-use bevy::render::{
-    camera::{Camera, CameraProjection, CameraRenderGraph},
-    primitives::Frustum,
-    view::VisibleEntities,
-};
-use bevy::transform::components::{GlobalTransform, Transform};
-//  mostly copied from https://github.com/blaind/bevy_openxr/tree/main/crates/bevy_openxr/src/render_graph/camera
-use openxr::Fovf;
-
-use bevy::render::camera::CameraProjectionPlugin;
-use bevy::render::view::{update_frusta, VisibilitySystems};
-use bevy::transform::TransformSystem;
-use bevy::{prelude::*, render::camera::RenderTarget};
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+use bevy::prelude::*;
+use bevy::transform::components::Transform;
 use bevy_openxr::input::XrInput;
-use bevy_openxr::resources::{XrFrameState, XrSession, XrViews};
+use bevy_openxr::resources::XrFrameState;
 use bevy_openxr::xr_input::controllers::XrControllerType;
 use bevy_openxr::xr_input::oculus_touch::OculusController;
 use bevy_openxr::xr_input::{OpenXrInput, QuatConv, Vec3Conv};
-use bevy_openxr::{DefaultXrPlugins, LEFT_XR_TEXTURE_HANDLE, RIGHT_XR_TEXTURE_HANDLE};
-use openxr::ActiveActionSet;
+use bevy_openxr::DefaultXrPlugins;
 
 fn main() {
     color_eyre::install().unwrap();
@@ -36,7 +16,7 @@ fn main() {
         .add_plugins(DefaultXrPlugins)
         .add_plugins(OpenXrInput::new(XrControllerType::OculusTouch))
         .add_plugins(LogDiagnosticsPlugin::default())
-        .add_plugins(FrameTimeDiagnosticsPlugin::default())
+        .add_plugins(FrameTimeDiagnosticsPlugin)
         .add_systems(Startup, setup)
         .add_systems(Update, hands)
         .run();
@@ -84,17 +64,17 @@ fn hands(
     frame_state: Res<XrFrameState>,
     xr_input: Res<XrInput>,
 ) {
-    let mut func = || -> anyhow::Result<()> {
+    let mut func = || -> color_eyre::Result<()> {
         let frame_state = *frame_state.lock().unwrap();
 
         let right_controller = oculus_controller
             .grip_space
             .right
-            .relate(&**&xr_input.stage, frame_state.predicted_display_time)?;
+            .relate(&xr_input.stage, frame_state.predicted_display_time)?;
         let left_controller = oculus_controller
             .grip_space
             .left
-            .relate(&**&xr_input.stage, frame_state.predicted_display_time)?;
+            .relate(&xr_input.stage, frame_state.predicted_display_time)?;
         gizmos.rect(
             right_controller.0.pose.position.to_vec3(),
             right_controller.0.pose.orientation.to_quat(),
