@@ -7,18 +7,17 @@ use crate::xr_begin_frame;
 use crate::xr_input::controllers::XrControllerType;
 use crate::xr_input::oculus_touch::{setup_oculus_controller, ActionSets};
 use crate::xr_input::xr_camera::{
-    xr_camera_head_sync, Eye, XRProjection, XrCameraBundle, XrCamerasBundle,
+    xr_camera_head_sync, Eye, XRProjection, XrCameraBundle,
 };
 use bevy::app::{App, PostUpdate, Startup};
-use bevy::log::{info, warn};
+use bevy::log::warn;
 use bevy::prelude::IntoSystemConfigs;
 use bevy::prelude::{
-    Commands, Component, IntoSystemSetConfigs, Plugin, PreUpdate, Quat, Res, Resource, Vec3,
+    Commands, Plugin, PreUpdate, Quat, Res, Vec3,
 };
 use bevy::render::camera::CameraProjectionPlugin;
 use bevy::render::view::{update_frusta, VisibilitySystems};
 use bevy::transform::TransformSystem;
-use openxr::{Action, ActionSet, ActionTy};
 
 #[derive(Copy, Clone)]
 pub struct OpenXrInput {

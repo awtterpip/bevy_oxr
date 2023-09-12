@@ -3,8 +3,6 @@ use std::sync::Arc;
 use bevy::prelude::*;
 use openxr as xr;
 
-type XrPose = (Vec3, Quat);
-
 #[derive(Clone, Resource)]
 pub struct XrInput {
     //pub action_set: xr::ActionSet,
@@ -16,7 +14,7 @@ pub struct XrInput {
 }
 
 impl XrInput {
-    pub fn new(instance: xr::Instance, session: xr::Session<xr::AnyGraphics>) -> xr::Result<Self> {
+    pub fn new(_instance: xr::Instance, session: xr::Session<xr::AnyGraphics>) -> xr::Result<Self> {
         // let action_set = instance.create_action_set("input", "input pose information", 0)?;
         // let left_hand_subaction_path = instance.string_to_path("/user/hand/left").unwrap();
         // let right_hand_subaction_path = instance.string_to_path("/user/hand/right").unwrap();

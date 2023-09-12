@@ -1,9 +1,7 @@
 use crate::resources::{XrInstance, XrSession};
 use crate::xr_input::controllers::{Handed, Touchable};
-use crate::FutureXrResources;
 use bevy::prelude::{Commands, Res, Resource};
 use openxr::{Action, ActionSet, AnyGraphics, Binding, Haptic, Instance, Posef, Session, Space};
-use std::any::Any;
 
 pub fn setup_oculus_controller(
     mut commands: Commands,

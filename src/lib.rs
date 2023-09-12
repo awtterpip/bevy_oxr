@@ -11,17 +11,16 @@ use bevy::app::PluginGroupBuilder;
 use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
 use bevy::render::camera::{ManualTextureView, ManualTextureViewHandle, ManualTextureViews};
-use bevy::render::pipelined_rendering::{RenderExtractApp, PipelinedRenderingPlugin};
-use bevy::render::renderer::{
-    render_system, RenderAdapter, RenderAdapterInfo, RenderDevice, RenderQueue,
-};
+use bevy::render::pipelined_rendering::PipelinedRenderingPlugin;
+use bevy::render::renderer::render_system;
 use bevy::render::settings::RenderSettings;
 use bevy::render::{Render, RenderApp, RenderPlugin, RenderSet};
 use bevy::window::{PresentMode, PrimaryWindow, RawHandleWrapper};
 use input::XrInput;
 use openxr as xr;
 use resources::*;
-use wgpu::Instance;
+use xr_input::controllers::XrControllerType;
+use xr_input::OpenXrInput;
 
 const VIEW_TYPE: xr::ViewConfigurationType = xr::ViewConfigurationType::PRIMARY_STEREO;
 
@@ -97,7 +96,7 @@ impl Plugin for OpenXrPlugin {
             frame_state,
         ));
         app.insert_resource(ActionSets(vec![]));
-        app.add_plugins(DefaultPlugins.set(RenderPlugin {
+        app.add_plugins(RenderPlugin {
             render_settings: RenderSettings::Manual(
                 device,
                 queue,
@@ -105,14 +104,7 @@ impl Plugin for OpenXrPlugin {
                 render_adapter,
                 Mutex::new(instance),
             ),
-        }).disable::<PipelinedRenderingPlugin>()
-            .set(WindowPlugin {
-                primary_window: Some(Window {
-                    present_mode: PresentMode::AutoNoVsync,
-                    ..default()
-                }),
-                ..default()
-            }));
+        });
     }
 
     fn ready(&self, app: &App) -> bool {
@@ -202,9 +194,19 @@ pub struct DefaultXrPlugins;
 
 impl PluginGroup for DefaultXrPlugins {
     fn build(self) -> PluginGroupBuilder {
-        let mut group = PluginGroupBuilder::start::<Self>();
-        group = group.add(OpenXrPlugin);
-        group
+        DefaultPlugins
+            .build()
+            .disable::<RenderPlugin>()
+            .disable::<PipelinedRenderingPlugin>()
+            .add_before::<RenderPlugin, _>(OpenXrPlugin)
+            .add_after::<OpenXrPlugin, _>(OpenXrInput::new(XrControllerType::OculusTouch))
+            .set(WindowPlugin {
+                primary_window: Some(Window {
+                    present_mode: PresentMode::AutoNoVsync,
+                    ..default()
+                }),
+                ..default()
+            })
     }
 }
 
@@ -334,18 +336,16 @@ pub fn locate_views(
     xr_frame_state: Res<XrFrameState>,
 ) {
     let _span = info_span!("xr_locate_views").entered();
-    *views.lock().unwrap() = match session
-        .locate_views(
-            VIEW_TYPE,
-            xr_frame_state.lock().unwrap().predicted_display_time,
-            &input.stage,
-        )
-    {
+    *views.lock().unwrap() = match session.locate_views(
+        VIEW_TYPE,
+        xr_frame_state.lock().unwrap().predicted_display_time,
+        &input.stage,
+    ) {
         Ok(this) => this,
         Err(err) => {
             warn!("error: {}", err);
             return;
         }
     }
-        .1;
+    .1;
 }

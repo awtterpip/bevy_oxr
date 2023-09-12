@@ -5,11 +5,17 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[target.'cfg(windows)'.features]
+default = ["linked"]
+
+[features]
+linked = ["openxr/linked", "openxr/static"]
+
 [dependencies]
 anyhow = "1.0.75"
 ash = "0.37.3"
 bevy = { git = "https://github.com/awtterpip/bevy", default-features = false, features = ["bevy_render"] }
-openxr = { version = "0.17.1", features = ["mint", "static", "linked"] }
+openxr = { version = "0.17.1", features = ["mint"] }
 mint = "0.5.9"
 wgpu = "0.16.0"
 wgpu-core = { version = "0.16.0", features = ["vulkan"] }

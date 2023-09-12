@@ -10,6 +10,8 @@ use crate::resources::{
     XrSwapchain, XrViews, XrResolution, XrFormat,
 };
 
+use openxr as xr;
+
 pub fn initialize_xr_graphics(
     window: Option<RawHandleWrapper>,
 ) -> anyhow::Result<(
@@ -31,4 +33,12 @@ pub fn initialize_xr_graphics(
     XrFrameState,
 )> {
     vulkan::initialize_xr_graphics(window)
+}
+
+pub fn xr_entry() -> xr::Entry {
+    #[cfg(feature = "linked")]
+    let entry = xr::Entry::linked();
+    #[cfg(not(feature = "linked"))]
+    let entry = unsafe { xr::Entry::load().unwrap() };
+    entry
 }

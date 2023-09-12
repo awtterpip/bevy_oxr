@@ -3,9 +3,8 @@ use bevy::prelude::*;
 use bevy::transform::components::Transform;
 use bevy_openxr::input::XrInput;
 use bevy_openxr::resources::XrFrameState;
-use bevy_openxr::xr_input::controllers::XrControllerType;
 use bevy_openxr::xr_input::oculus_touch::OculusController;
-use bevy_openxr::xr_input::{OpenXrInput, QuatConv, Vec3Conv};
+use bevy_openxr::xr_input::{QuatConv, Vec3Conv};
 use bevy_openxr::DefaultXrPlugins;
 
 fn main() {
@@ -14,7 +13,6 @@ fn main() {
     info!("Running `openxr-6dof` skill");
     App::new()
         .add_plugins(DefaultXrPlugins)
-        .add_plugins(OpenXrInput::new(XrControllerType::OculusTouch))
         .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(FrameTimeDiagnosticsPlugin)
         .add_systems(Startup, setup)
