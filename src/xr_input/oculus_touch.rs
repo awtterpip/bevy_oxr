@@ -1,7 +1,9 @@
 use crate::resources::{XrInstance, XrSession};
 use crate::xr_input::controllers::{Handed, Touchable};
 use bevy::prelude::{Commands, Res, Resource};
-use openxr::{Action, ActionSet, AnyGraphics, Binding, Haptic, Instance, Posef, Session, Space};
+use openxr::{Action, ActionSet, AnyGraphics, Binding, FrameState, Haptic, Instance, Posef, Session, Space};
+use openxr::sys::Instance;
+use crate::input::XrInput;
 
 pub fn setup_oculus_controller(
     mut commands: Commands,
@@ -24,6 +26,26 @@ pub fn setup_oculus_controller(
 
 #[derive(Resource, Clone)]
 pub struct ActionSets(pub Vec<ActionSet>);
+
+pub struct OculusControllerRef<'a> {
+    oculus_controller: &'a OculusController,
+    instance: &'a Instance,
+    session: &'a Session<AnyGraphics>,
+    frame_state: &'a FrameState,
+    xr_input: &'a XrInput,
+}
+
+impl OculusController {
+    pub fn get_ref(&self, instance: &Instance, session: &Session<AnyGraphics>, frame_state: &FrameState, xr_input: &XrInput) -> OculusControllerRef {
+        OculusControllerRef {
+            oculus_controller: self,
+            instance,
+            session,
+            frame_state,
+            xr_input,
+        }
+    }
+}
 
 #[derive(Resource)]
 pub struct OculusController {
