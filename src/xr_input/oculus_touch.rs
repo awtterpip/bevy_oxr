@@ -7,7 +7,7 @@ use openxr::{
     Action, ActionSet, AnyGraphics, Binding, FrameState, Haptic, Instance, Path, Posef, Session,
     Space, SpaceLocation, SpaceVelocity,
 };
-use std::cell::OnceCell;
+
 use std::sync::OnceLock;
 
 pub fn setup_oculus_controller(
