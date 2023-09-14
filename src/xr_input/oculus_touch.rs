@@ -1,9 +1,14 @@
+use crate::input::XrInput;
 use crate::resources::{XrInstance, XrSession};
 use crate::xr_input::controllers::{Handed, Touchable};
+use crate::xr_input::Hand;
 use bevy::prelude::{Commands, Res, Resource};
-use openxr::{Action, ActionSet, AnyGraphics, Binding, FrameState, Haptic, Instance, Posef, Session, Space};
-use openxr::sys::Instance;
-use crate::input::XrInput;
+use openxr::{
+    Action, ActionSet, AnyGraphics, Binding, FrameState, Haptic, Instance, Path, Posef, Session,
+    Space, SpaceLocation, SpaceVelocity,
+};
+use std::cell::OnceCell;
+use std::sync::OnceLock;
 
 pub fn setup_oculus_controller(
     mut commands: Commands,
@@ -35,8 +40,195 @@ pub struct OculusControllerRef<'a> {
     xr_input: &'a XrInput,
 }
 
+static RIGHT_SUBACTION_PATH: OnceLock<Path> = OnceLock::new();
+static LEFT_SUBACTION_PATH: OnceLock<Path> = OnceLock::new();
+
+pub fn init_subaction_path(instance: &Instance) {
+    let _ = LEFT_SUBACTION_PATH.set(instance.string_to_path("/user/hand/left").unwrap());
+    let _ = RIGHT_SUBACTION_PATH.set(instance.string_to_path("/user/hand/right").unwrap());
+}
+
+pub fn subaction_path(hand: Hand) -> Path {
+    *match hand {
+        Hand::Left => LEFT_SUBACTION_PATH.get().unwrap(),
+        Hand::Right => RIGHT_SUBACTION_PATH.get().unwrap(),
+    }
+}
+
+impl OculusControllerRef<'_> {
+    pub fn grip_space(&self, hand: Hand) -> (SpaceLocation, SpaceVelocity) {
+        match hand {
+            Hand::Left => self.oculus_controller.grip_space.left.relate(
+                &self.xr_input.stage,
+                self.frame_state.predicted_display_time,
+            ),
+            Hand::Right => self.oculus_controller.grip_space.right.relate(
+                &self.xr_input.stage,
+                self.frame_state.predicted_display_time,
+            ),
+        }
+        .unwrap()
+    }
+    pub fn aim_space(&self, hand: Hand) -> (SpaceLocation, SpaceVelocity) {
+        match hand {
+            Hand::Left => self.oculus_controller.aim_space.left.relate(
+                &self.xr_input.stage,
+                self.frame_state.predicted_display_time,
+            ),
+            Hand::Right => self.oculus_controller.aim_space.left.relate(
+                &self.xr_input.stage,
+                self.frame_state.predicted_display_time,
+            ),
+        }
+        .unwrap()
+    }
+    pub fn squeeze(&self, hand: Hand) -> f32 {
+        let action = &self.oculus_controller.squeeze;
+        action
+            .state(&self.session, subaction_path(hand))
+            .unwrap()
+            .current_state
+    }
+    pub fn trigger(&self, hand: Hand) -> f32 {
+        self.oculus_controller
+            .trigger
+            .inner
+            .state(&self.session, subaction_path(hand))
+            .unwrap()
+            .current_state
+    }
+    pub fn trigger_touched(&self, hand: Hand) -> bool {
+        self.oculus_controller
+            .trigger
+            .touch
+            .state(&self.session, subaction_path(hand))
+            .unwrap()
+            .current_state
+    }
+    pub fn x_button(&self) -> bool {
+        self.oculus_controller
+            .x_button
+            .inner
+            .state(&self.session, Path::NULL)
+            .unwrap()
+            .current_state
+    }
+    pub fn x_button_touched(&self) -> bool {
+        self.oculus_controller
+            .x_button
+            .touch
+            .state(&self.session, Path::NULL)
+            .unwrap()
+            .current_state
+    }
+    pub fn y_button(&self) -> bool {
+        self.oculus_controller
+            .y_button
+            .inner
+            .state(&self.session, Path::NULL)
+            .unwrap()
+            .current_state
+    }
+    pub fn y_button_touched(&self) -> bool {
+        self.oculus_controller
+            .y_button
+            .touch
+            .state(&self.session, Path::NULL)
+            .unwrap()
+            .current_state
+    }
+    pub fn menu_button(&self) -> bool {
+        self.oculus_controller
+            .menu_button
+            .state(&self.session, Path::NULL)
+            .unwrap()
+            .current_state
+    }
+    pub fn a_button(&self) -> bool {
+        self.oculus_controller
+            .a_button
+            .inner
+            .state(&self.session, Path::NULL)
+            .unwrap()
+            .current_state
+    }
+    pub fn a_button_touched(&self) -> bool {
+        self.oculus_controller
+            .a_button
+            .touch
+            .state(&self.session, Path::NULL)
+            .unwrap()
+            .current_state
+    }
+    pub fn b_button(&self) -> bool {
+        self.oculus_controller
+            .b_button
+            .inner
+            .state(&self.session, Path::NULL)
+            .unwrap()
+            .current_state
+    }
+    pub fn b_button_touched(&self) -> bool {
+        self.oculus_controller
+            .b_button
+            .touch
+            .state(&self.session, Path::NULL)
+            .unwrap()
+            .current_state
+    }
+    pub fn thumbstick_touch(&self, hand: Hand) -> bool {
+        self.oculus_controller
+            .thumbstick_touch
+            .state(&self.session, subaction_path(hand))
+            .unwrap()
+            .current_state
+    }
+    pub fn thumbstick(&self, hand: Hand) -> Thumbstick {
+        Thumbstick {
+            x: self
+                .oculus_controller
+                .thumbstick_x
+                .state(&self.session, subaction_path(hand))
+                .unwrap()
+                .current_state,
+            y: self
+                .oculus_controller
+                .thumbstick_y
+                .state(&self.session, subaction_path(hand))
+                .unwrap()
+                .current_state,
+            click: self
+                .oculus_controller
+                .thumbstick_click
+                .state(&self.session, subaction_path(hand))
+                .unwrap()
+                .current_state,
+        }
+    }
+    pub fn thumbrest_touch(&self, hand: Hand) -> bool {
+        self.oculus_controller
+            .thumbrest_touch
+            .state(&self.session, subaction_path(hand))
+            .unwrap()
+            .current_state
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct Thumbstick {
+    x: f32,
+    y: f32,
+    click: bool,
+}
+
 impl OculusController {
-    pub fn get_ref(&self, instance: &Instance, session: &Session<AnyGraphics>, frame_state: &FrameState, xr_input: &XrInput) -> OculusControllerRef {
+    pub fn get_ref<'a>(
+        &'a self,
+        instance: &'a Instance,
+        session: &'a Session<AnyGraphics>,
+        frame_state: &'a FrameState,
+        xr_input: &'a XrInput,
+    ) -> OculusControllerRef {
         OculusControllerRef {
             oculus_controller: self,
             instance,
@@ -75,6 +267,7 @@ impl OculusController {
     ) -> anyhow::Result<Self> {
         let action_set =
             instance.create_action_set("oculus_input", "Oculus Touch Controller Input", 0)?;
+        init_subaction_path(&instance);
         let left_path = instance.string_to_path("/user/hand/left").unwrap();
         let right_path = instance.string_to_path("/user/hand/right").unwrap();
         let hands = [left_path, right_path];

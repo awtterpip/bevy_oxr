@@ -13,8 +13,8 @@ use wgpu::Instance;
 
 use crate::input::XrInput;
 use crate::resources::{
-    Swapchain, SwapchainInner, XrEnvironmentBlendMode, XrFrameState, XrFrameWaiter, XrInstance,
-    XrSession, XrSessionRunning, XrSwapchain, XrViews, XrResolution, XrFormat,
+    Swapchain, SwapchainInner, XrEnvironmentBlendMode, XrFormat, XrFrameState, XrFrameWaiter,
+    XrInstance, XrResolution, XrSession, XrSessionRunning, XrSwapchain, XrViews,
 };
 use crate::VIEW_TYPE;
 
@@ -386,7 +386,8 @@ pub fn initialize_xr_graphics(
             predicted_display_time: xr::Time::from_nanos(1),
             predicted_display_period: xr::Duration::from_nanos(1),
             should_render: true,
-        }).into(),
+        })
+        .into(),
     ))
 }
 

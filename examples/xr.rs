@@ -2,9 +2,9 @@ use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
 use bevy::transform::components::Transform;
 use bevy_openxr::input::XrInput;
-use bevy_openxr::resources::XrFrameState;
+use bevy_openxr::resources::{XrFrameState, XrInstance, XrSession};
 use bevy_openxr::xr_input::oculus_touch::OculusController;
-use bevy_openxr::xr_input::{QuatConv, Vec3Conv};
+use bevy_openxr::xr_input::{Hand, QuatConv, Vec3Conv};
 use bevy_openxr::DefaultXrPlugins;
 
 fn main() {
@@ -61,29 +61,43 @@ fn hands(
     oculus_controller: Res<OculusController>,
     frame_state: Res<XrFrameState>,
     xr_input: Res<XrInput>,
+    instance: Res<XrInstance>,
+    session: Res<XrSession>,
 ) {
     let mut func = || -> color_eyre::Result<()> {
         let frame_state = *frame_state.lock().unwrap();
 
-        let right_controller = oculus_controller
-            .grip_space
-            .right
-            .relate(&xr_input.stage, frame_state.predicted_display_time)?;
-        let left_controller = oculus_controller
-            .grip_space
-            .left
-            .relate(&xr_input.stage, frame_state.predicted_display_time)?;
+        let controller = oculus_controller.get_ref(&instance, &session, &frame_state, &xr_input);
+
+        let right_controller = controller.grip_space(Hand::Right);
+        let left_controller = controller.grip_space(Hand::Left);
+
+        let mut color = Color::YELLOW_GREEN;
+        if controller.a_button() {
+            color = Color::BLUE;
+        }
+        if controller.b_button() {
+            color = Color::RED;
+        }
+        if controller.trigger(Hand::Right) != 0.0 {
+            color = Color::rgb(
+                controller.trigger(Hand::Right),
+                0.5,
+                controller.trigger(Hand::Right),
+            );
+        }
+
         gizmos.rect(
             right_controller.0.pose.position.to_vec3(),
             right_controller.0.pose.orientation.to_quat(),
             Vec2::new(0.05, 0.2),
-            Color::YELLOW_GREEN,
+            color,
         );
         gizmos.rect(
             left_controller.0.pose.position.to_vec3(),
             left_controller.0.pose.orientation.to_quat(),
             Vec2::new(0.05, 0.2),
-            Color::YELLOW_GREEN,
+            color,
         );
         Ok(())
     };

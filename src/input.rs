@@ -51,8 +51,8 @@ impl XrInput {
         // )?;
         let stage =
             session.create_reference_space(xr::ReferenceSpaceType::STAGE, xr::Posef::IDENTITY)?;
-        let head =
-        session.create_reference_space(xr::ReferenceSpaceType::VIEW, xr::Posef::IDENTITY)
+        let head = session
+            .create_reference_space(xr::ReferenceSpaceType::VIEW, xr::Posef::IDENTITY)
             .unwrap();
         //session.attach_action_sets(&[&action_set])?;
         //session.attach_action_sets(&[])?;
