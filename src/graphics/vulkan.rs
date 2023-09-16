@@ -42,6 +42,9 @@ pub fn initialize_xr_graphics(
 
     let xr_entry = super::xr_entry();
 
+    #[cfg(target_os = "android")]
+    xr_entry.initialize_android_loader().unwrap();
+
     let available_extensions = xr_entry.enumerate_extensions()?;
     assert!(available_extensions.khr_vulkan_enable2);
     info!("available xr exts: {:#?}", available_extensions);
@@ -82,8 +85,8 @@ pub fn initialize_xr_graphics(
 
     let blend_mode = xr_instance.enumerate_environment_blend_modes(xr_system_id, VIEW_TYPE)?[0];
 
-    let vk_target_version = vk::make_api_version(0, 1, 2, 0);
-    let vk_target_version_xr = xr::Version::new(1, 2, 0);
+    let vk_target_version = vk::make_api_version(0, 1, 0, 0);
+    let vk_target_version_xr = xr::Version::new(1, 0, 0);
     let reqs = xr_instance.graphics_requirements::<xr::Vulkan>(xr_system_id)?;
     if vk_target_version_xr < reqs.min_api_version_supported
         || vk_target_version_xr.major() > reqs.max_api_version_supported.major()
@@ -102,6 +105,7 @@ pub fn initialize_xr_graphics(
     let device_extensions = vec![
         ash::extensions::khr::Swapchain::name(),
         ash::extensions::khr::DrawIndirectCount::name(),
+        ash::extensions::khr::TimelineSemaphore::name(),
     ];
     info!(
         "creating vulkan instance with these extensions: {:#?}",
@@ -151,8 +155,9 @@ pub fn initialize_xr_graphics(
     let vk_device_properties =
         unsafe { vk_instance.get_physical_device_properties(vk_physical_device) };
     if vk_device_properties.api_version < vk_target_version {
-        unsafe { vk_instance.destroy_instance(None) }
-        panic!("Vulkan physical device doesn't support version 1.1");
+
+        //unsafe { vk_instance.destroy_instance(None) }
+        warn!("Vulkan physical device doesn't support version {:?}", vk_target_version_xr);
     }
 
     let wgpu_vk_instance = unsafe {

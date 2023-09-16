@@ -4,26 +4,72 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["linked"]
+#default = ["linked"]
 linked = ["openxr/linked", "openxr/static"]
 
 [dependencies]
 anyhow = "1.0.75"
 ash = "0.37.3"
-bevy = { git = "https://github.com/awtterpip/bevy", default-features = false, features = ["bevy_render"] }
-openxr = { version = "0.17.1", features = ["mint"] }
+bevy = { git = "https://github.com/awtterpip/bevy", branch = "android" }
+openxr = { version = "0.17.1", features = ["mint", "loaded"] }
 mint = "0.5.9"
 wgpu = "0.16.0"
 wgpu-core = { version = "0.16.0", features = ["vulkan"] }
 wgpu-hal = "0.16.0"
 
+[patch.crates-io]
+android-activity = { git = "https://github.com/rust-mobile/android-activity", rev = "79e03e08fbf70e374cb88d8ef8c89acaa006bbfc" }
+
 [dev-dependencies]
-bevy = { git = "https://github.com/awtterpip/bevy" }
+#bevy = { git = "https://github.com/awtterpip/bevy" }
 color-eyre = "0.6.2"
 
 [[example]]
 name = "xr"
 path = "examples/xr.rs"
+
+crate-type = ["lib", "cdylib"]
+package = "org.bevyengine.example"
+apk_name = "bevyexample"
+assets = "assets"
+res = "assets/android-res"
+icon = "@mipmap/ic_launcher"
+label = "Bevy Example"
+build_targets = ["aarch64-linux-android"]
+runtime_libs = "./common_lib"
+#resources = "assets/android-res"
+#runtime_libs = "libs"
+[package.metadata.android.sdk]
+min_sdk_version = 32
+target_sdk_version = 32
+
+[package.metadata.android.application]
+
+[[package.metadata.android.application.meta_data]]
+name = "com.samsung.android.vr.application.mode"
+value = "vr_only"
+[[package.metadata.android.application.meta_data]]
+name = "com.oculus.supportedDevices"
+value = "quest|quest2"
+
+[package.metadata.android.application.activity]
+theme = "@android:style/Theme.Black.NoTitleBar.Fullscreen"
+config_changes = "density|keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|uiMode"
+launch_mode = "singleTask"
+orientation = "landscape"
+resizeable_activity = false
+
+[[package.metadata.android.application.activity.intent_filter]]
+actions = ["android.intent.action.MAIN"]
+categories = [
+    "com.oculus.intent.category.VR",
+    "android.intent.category.LAUNCHER",
+    "android.intent.category.INFO",
+]
+
+[package.metadata.android.signing.release]
+path = "./hotham_examples.keystore"
+keystore_password = "chomsky-vigilant-spa"
 
 [profile.release]
 debug = true

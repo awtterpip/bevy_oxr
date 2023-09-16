@@ -34,6 +34,7 @@ pub struct ActionSets(pub Vec<ActionSet>);
 
 pub struct OculusControllerRef<'a> {
     oculus_controller: &'a OculusController,
+    #[allow(dead_code)]
     instance: &'a Instance,
     session: &'a Session<AnyGraphics>,
     frame_state: &'a FrameState,
@@ -213,11 +214,14 @@ impl OculusControllerRef<'_> {
             .current_state
     }
 }
-
+#[allow(dead_code)]
 #[derive(Copy, Clone, Debug)]
 pub struct Thumbstick {
+    #[allow(dead_code)]
     x: f32,
+    #[allow(dead_code)]
     y: f32,
+    #[allow(dead_code)]
     click: bool,
 }
 

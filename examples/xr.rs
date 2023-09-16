@@ -7,6 +7,7 @@ use bevy_openxr::xr_input::oculus_touch::OculusController;
 use bevy_openxr::xr_input::{Hand, QuatConv, Vec3Conv};
 use bevy_openxr::DefaultXrPlugins;
 
+#[bevy_main]
 fn main() {
     color_eyre::install().unwrap();
 

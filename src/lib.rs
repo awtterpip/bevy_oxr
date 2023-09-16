@@ -15,7 +15,7 @@ use bevy::render::pipelined_rendering::PipelinedRenderingPlugin;
 use bevy::render::renderer::render_system;
 use bevy::render::settings::RenderSettings;
 use bevy::render::{Render, RenderApp, RenderPlugin, RenderSet};
-use bevy::window::{PresentMode, PrimaryWindow, RawHandleWrapper};
+use bevy::window::{ExitCondition, PresentMode, PrimaryWindow, RawHandleWrapper};
 use input::XrInput;
 use openxr as xr;
 use resources::*;
@@ -201,11 +201,9 @@ impl PluginGroup for DefaultXrPlugins {
             .add_before::<RenderPlugin, _>(OpenXrPlugin)
             .add_after::<OpenXrPlugin, _>(OpenXrInput::new(XrControllerType::OculusTouch))
             .set(WindowPlugin {
-                primary_window: Some(Window {
-                    present_mode: PresentMode::AutoNoVsync,
-                    ..default()
-                }),
-                ..default()
+                primary_window: None,
+                exit_condition: ExitCondition::DontExit,
+                close_when_requested: true,
             })
     }
 }
@@ -239,7 +237,9 @@ pub fn xr_begin_frame(
                             session_running.store(false, std::sync::atomic::Ordering::Relaxed);
                         }
                         xr::SessionState::EXITING | xr::SessionState::LOSS_PENDING => return,
-                        _ => {}
+                        state => {
+                            warn!("state: {:?}", state);
+                        }
                     }
                 }
                 InstanceLossPending(_) => return,
@@ -252,7 +252,13 @@ pub fn xr_begin_frame(
     }
     {
         let _span = info_span!("xr_wait_frame").entered();
-        *frame_state.lock().unwrap() = frame_waiter.lock().unwrap().wait().unwrap();
+        *frame_state.lock().unwrap() = match frame_waiter.lock().unwrap().wait() {
+            Ok(a) => a,
+            Err(e) => {
+                warn!("error: {}", e);
+                return;
+            }
+        };
     }
     {
         let _span = info_span!("xr_begin_frame").entered();
