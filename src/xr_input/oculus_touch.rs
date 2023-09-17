@@ -75,7 +75,7 @@ impl OculusControllerRef<'_> {
                 &self.xr_input.stage,
                 self.frame_state.predicted_display_time,
             ),
-            Hand::Right => self.oculus_controller.aim_space.left.relate(
+            Hand::Right => self.oculus_controller.aim_space.right.relate(
                 &self.xr_input.stage,
                 self.frame_state.predicted_display_time,
             ),
@@ -216,9 +216,9 @@ impl OculusControllerRef<'_> {
 
 #[derive(Copy, Clone, Debug)]
 pub struct Thumbstick {
-    x: f32,
-    y: f32,
-    click: bool,
+    pub x: f32,
+    pub y: f32,
+    pub click: bool,
 }
 
 impl OculusController {
@@ -276,12 +276,12 @@ impl OculusController {
 
         let this = OculusController {
             grip_space: Handed {
-                left: grip_pose.create_space(session.clone(), right_path, Posef::IDENTITY)?,
-                right: grip_pose.create_space(session.clone(), left_path, Posef::IDENTITY)?,
+                left: grip_pose.create_space(session.clone(), left_path, Posef::IDENTITY)?,
+                right: grip_pose.create_space(session.clone(), right_path, Posef::IDENTITY)?,
             },
             aim_space: Handed {
-                left: aim_pose.create_space(session.clone(), right_path, Posef::IDENTITY)?,
-                right: aim_pose.create_space(session.clone(), left_path, Posef::IDENTITY)?,
+                left: aim_pose.create_space(session.clone(), left_path, Posef::IDENTITY)?,
+                right: aim_pose.create_space(session.clone(), right_path, Posef::IDENTITY)?,
             },
             grip_pose,
             aim_pose,
