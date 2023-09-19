@@ -1,4 +1,6 @@
-use bevy::prelude::{Color, Gizmos, Plugin, Quat, Res, Transform, Update, Vec2, Vec3};
+use bevy::prelude::{
+    info, Color, Gizmos, Plugin, Quat, Query, Res, Transform, Update, Vec2, Vec3, With, PreUpdate,
+};
 
 use crate::{
     input::XrInput,
@@ -7,7 +9,7 @@ use crate::{
 
 use crate::xr_input::{
     oculus_touch::{OculusController, OculusControllerRef},
-    Hand, QuatConv, Vec3Conv,
+    Hand, QuatConv, TrackingRoot, Vec3Conv,
 };
 
 /// add debug renderer for controllers
@@ -27,17 +29,33 @@ pub fn draw_gizmos(
     xr_input: Res<XrInput>,
     instance: Res<XrInstance>,
     session: Res<XrSession>,
+    tracking_root_query: Query<(&mut Transform, With<TrackingRoot>)>,
 ) {
     //lock frame
     let frame_state = *frame_state.lock().unwrap();
     //get controller
     let controller = oculus_controller.get_ref(&instance, &session, &frame_state, &xr_input);
+    //tracking root?
+    let mut tracking_position = Vec3::ZERO;
+    let root = tracking_root_query.get_single();
+    match root {
+        Ok(position) => {
+            gizmos.circle(position.0.translation, Vec3::Y, 0.2, Color::RED);
+            tracking_position = position.0.translation;
+        }
+        Err(_) => info!("too many tracking roots"),
+    }
     //draw the hands
-    draw_hand_gizmo(&mut gizmos, &controller, Hand::Right);
-    draw_hand_gizmo(&mut gizmos, &controller, Hand::Left);
+    draw_hand_gizmo(&mut gizmos, &controller, Hand::Right, tracking_position);
+    draw_hand_gizmo(&mut gizmos, &controller, Hand::Left, tracking_position);
 }
 
-fn draw_hand_gizmo(gizmos: &mut Gizmos, controller: &OculusControllerRef<'_>, hand: Hand) {
+fn draw_hand_gizmo(
+    gizmos: &mut Gizmos,
+    controller: &OculusControllerRef<'_>,
+    hand: Hand,
+    tracking_root: Vec3,
+) {
     match hand {
         Hand::Left => {
             //get left controller
@@ -51,7 +69,7 @@ fn draw_hand_gizmo(gizmos: &mut Gizmos, controller: &OculusControllerRef<'_>, ha
             let grip_quat_offset = Quat::from_rotation_x(-1.4);
             let face_quat_offset = Quat::from_rotation_x(1.05);
 
-            let controller_vec3 = left_controller.0.pose.position.to_vec3();
+            let controller_vec3 = left_controller.0.pose.position.to_vec3() + tracking_root;
             let controller_quat = left_controller.0.pose.orientation.to_quat();
             let face_quat = controller_quat.mul_quat(face_quat_offset);
             let face_quat_normal = face_quat.mul_vec3(Vec3::Z);
@@ -158,7 +176,7 @@ fn draw_hand_gizmo(gizmos: &mut Gizmos, controller: &OculusControllerRef<'_>, ha
             let grip_quat_offset = Quat::from_rotation_x(-1.4);
             let face_quat_offset = Quat::from_rotation_x(1.05);
 
-            let controller_vec3 = right_controller.0.pose.position.to_vec3();
+            let controller_vec3 = right_controller.0.pose.position.to_vec3() + tracking_root;
             let controller_quat = right_controller.0.pose.orientation.to_quat();
             let face_quat = controller_quat.mul_quat(face_quat_offset);
             let face_quat_normal = face_quat.mul_vec3(Vec3::Z);

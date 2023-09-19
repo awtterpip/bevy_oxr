@@ -10,11 +10,11 @@ use crate::xr_input::oculus_touch::{setup_oculus_controller, ActionSets};
 use crate::xr_input::xr_camera::{xr_camera_head_sync, Eye, XRProjection, XrCameraBundle};
 use bevy::app::{App, PostUpdate, Startup};
 use bevy::log::warn;
-use bevy::prelude::IntoSystemConfigs;
-use bevy::prelude::{Commands, Plugin, PreUpdate, Quat, Res, Vec3};
+use bevy::prelude::{default, Commands, Component, Plugin, PreUpdate, Quat, Res, Vec3};
+use bevy::prelude::{BuildChildren, IntoSystemConfigs};
 use bevy::render::camera::CameraProjectionPlugin;
 use bevy::render::view::{update_frusta, VisibilitySystems};
-use bevy::transform::TransformSystem;
+use bevy::transform::{TransformBundle, TransformSystem};
 
 #[derive(Copy, Clone)]
 pub struct OpenXrInput {
@@ -25,6 +25,10 @@ pub enum Hand {
     Left,
     Right,
 }
+
+#[derive(Component)]
+pub struct TrackingRoot;
+
 impl OpenXrInput {
     pub fn new(controller_type: XrControllerType) -> Self {
         Self { controller_type }
@@ -52,8 +56,12 @@ impl Plugin for OpenXrInput {
 }
 
 fn setup_xr_cameras(mut commands: Commands) {
-    commands.spawn(XrCameraBundle::new(Eye::Right));
-    commands.spawn(XrCameraBundle::new(Eye::Left));
+    //this needs to do the whole xr tracking volume not just cameras
+    //get the root?
+    let tracking_root = commands.spawn((TransformBundle { ..default() }, TrackingRoot)).id();
+    let right = commands.spawn(XrCameraBundle::new(Eye::Right)).id();
+    let left = commands.spawn(XrCameraBundle::new(Eye::Left)).id();
+    commands.entity(tracking_root).push_children(&[right, left]);
 }
 
 fn action_set_system(action_sets: Res<ActionSets>, session: Res<XrSession>) {

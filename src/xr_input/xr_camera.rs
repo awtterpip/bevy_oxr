@@ -46,6 +46,7 @@ pub enum XrCameraType {
     Xr(Eye),
     Flatscreen,
 }
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum Eye {
     Left = 0,
