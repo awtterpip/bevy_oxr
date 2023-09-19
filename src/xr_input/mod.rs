@@ -1,4 +1,5 @@
 pub mod controllers;
+pub mod debug_gizmos;
 pub mod oculus_touch;
 pub mod xr_camera;
 
