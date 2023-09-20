@@ -2,10 +2,10 @@ use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
 use bevy::transform::components::Transform;
 use bevy_openxr::input::XrInput;
-use bevy_openxr::resources::{XrFrameState, XrInstance, XrSession};
+use bevy_openxr::resources::{XrFrameState, XrInstance, XrSession, XrViews};
 use bevy_openxr::xr_input::debug_gizmos::OpenXrDebugRenderer;
 use bevy_openxr::xr_input::oculus_touch::OculusController;
-use bevy_openxr::xr_input::{Hand, TrackingRoot};
+use bevy_openxr::xr_input::{Hand, QuatConv, TrackingRoot};
 use bevy_openxr::DefaultXrPlugins;
 
 fn main() {
@@ -41,13 +41,13 @@ fn setup(
         transform: Transform::from_xyz(0.0, 0.5, 0.0),
         ..default()
     });
-        // cube
-        commands.spawn(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
-            material: materials.add(Color::rgb(0.8, 0.0, 0.0).into()),
-            transform: Transform::from_xyz(0.0, 0.5, 1.0),
-            ..default()
-        });
+    // cube
+    commands.spawn(PbrBundle {
+        mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
+        material: materials.add(Color::rgb(0.8, 0.0, 0.0).into()),
+        transform: Transform::from_xyz(0.0, 0.5, 1.0),
+        ..default()
+    });
     // light
     commands.spawn(PointLightBundle {
         point_light: PointLight {
@@ -65,6 +65,11 @@ fn setup(
     },));
 }
 
+pub enum LocomotionType {
+    Head,
+    Hand,
+}
+
 fn proto_locomotion(
     time: Res<Time>,
     mut tracking_root_query: Query<(&mut Transform, With<TrackingRoot>)>,
@@ -73,6 +78,7 @@ fn proto_locomotion(
     xr_input: Res<XrInput>,
     instance: Res<XrInstance>,
     session: Res<XrSession>,
+    views: ResMut<XrViews>,
 ) {
     //lock frame
     let frame_state = *frame_state.lock().unwrap();
@@ -81,11 +87,33 @@ fn proto_locomotion(
     let root = tracking_root_query.get_single_mut();
     match root {
         Ok(mut position) => {
-            //do work here?
+            //get the stick input and do some maths
             let stick = controller.thumbstick(Hand::Left);
             let input = Vec3::new(stick.x, 0.0, -stick.y);
             let speed = 1.0;
-            position.0.translation += input * speed * time.delta_seconds()
+            //now the question is how do we do hmd based locomotion
+            //or controller based for that matter
+            let locomotion_type = LocomotionType::Hand;
+            let mut reference_quat = Quat::IDENTITY;
+            match locomotion_type {
+                LocomotionType::Head => {
+                    let v = views.lock().unwrap();
+                    let views = v.get(0);
+                    match views {
+                        Some(view) => {
+                            reference_quat = view.pose.orientation.to_quat();
+                        }
+                        None => return,
+                    }
+                }
+                LocomotionType::Hand => {
+                    let grip = controller.grip_space(Hand::Left);
+                    reference_quat = grip.0.pose.orientation.to_quat();
+                }
+            }
+            let mut locomotion_vec = reference_quat.mul_vec3(input);
+            locomotion_vec.y = 0.0;
+            position.0.translation += locomotion_vec * speed * time.delta_seconds()
         }
         Err(_) => info!("too many tracking roots"),
     }
