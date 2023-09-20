@@ -1,4 +1,5 @@
 use std::f32::consts::PI;
+use std::time::Duration;
 
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::Gizmos;
@@ -66,6 +67,10 @@ fn setup(
         transform: Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
         ..default()
     },));
+
+    commands.insert_resource(RotationTimer {
+        timer: Timer::from_seconds(1.0, TimerMode::Once),
+    })
 }
 
 pub enum LocomotionType {
@@ -78,6 +83,11 @@ pub enum RotationType {
     Snap,
 }
 
+#[derive(Resource)]
+struct RotationTimer {
+    timer: Timer,
+}
+
 fn proto_locomotion(
     time: Res<Time>,
     mut tracking_root_query: Query<(&mut Transform, With<TrackingRoot>)>,
@@ -88,6 +98,7 @@ fn proto_locomotion(
     session: Res<XrSession>,
     views: ResMut<XrViews>,
     mut gizmos: Gizmos,
+    mut rotation_timer: Option<ResMut<RotationTimer>>,
 ) {
     //lock frame
     let frame_state = *frame_state.lock().unwrap();
@@ -134,16 +145,16 @@ fn proto_locomotion(
             position.0.translation += locomotion_vec * speed * time.delta_seconds();
 
             //now time for rotation
-            let snap_angle = 45.0;
+            let snap_angle = 45.0 * (PI / 180.0);
             let smooth_rotation_speed = 0.5 * PI;
-            let rotation_setting = RotationType::Smooth;
+            let rotation_setting = RotationType::Snap;
             match rotation_setting {
                 RotationType::Smooth => {
                     //once again with the math
                     let control_stick = controller.thumbstick(Hand::Right);
-                    let rot_input = -control_stick.x; //why is this negative i dont know
+                    let rot_input = control_stick.x; //why is this negative i dont know
                     if rot_input.abs() <= 0.2 {
-                        //return;
+                        return;
                     }
                     let smoth_rot = Quat::from_rotation_y(
                         rot_input * smooth_rotation_speed * time.delta_seconds(),
@@ -166,7 +177,45 @@ fn proto_locomotion(
                 }
                 RotationType::Snap => {
                     //yup even more math i cant remember
-                    todo!();
+
+                    //get timer
+                    match rotation_timer {
+                        Some(mut timer) => {
+                            //tick the timer
+                            timer.timer.tick(time.delta());
+                            if timer.timer.finished() {
+                                //now we can snap turn?
+                                //once again with the math
+                                let control_stick = controller.thumbstick(Hand::Right);
+                                let rot_input = -control_stick.x;
+                                if rot_input.abs() <= 0.5 {
+                                    return;
+                                }
+                                let dir: f32 = match rot_input > 0.0 {
+                                    true => 1.0,
+                                    false => -1.0,
+                                };
+                                let smoth_rot = Quat::from_rotation_y(snap_angle * dir);
+                                //apply rotation
+                                let v = views.lock().unwrap();
+                                let views = v.get(0);
+                                match views {
+                                    Some(view) => {
+                                        let mut hmd_translation = view.pose.position.to_vec3();
+                                        hmd_translation.y = 0.0;
+                                        let local = position.0.translation;
+                                        let global =
+                                            position.0.rotation.mul_vec3(hmd_translation) + local;
+                                        gizmos.circle(global, Vec3::Y, 0.1, Color::GREEN);
+                                        position.0.rotate_around(global, smoth_rot);
+                                    }
+                                    None => return,
+                                }
+                                timer.timer.reset();
+                            }
+                        }
+                        None => info!("didnt init the rotation timer"),
+                    }
                 }
             }
         }
