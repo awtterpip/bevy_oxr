@@ -1,6 +1,4 @@
-use bevy::prelude::{
-    info, Color, Gizmos, Plugin, Quat, Query, Res, Transform, Update, Vec2, Vec3, With, PreUpdate,
-};
+use bevy::prelude::{Color, Gizmos, Plugin, Quat, Query, Res, Transform, Update, Vec2, Vec3, With, info};
 
 use crate::{
     input::XrInput,
