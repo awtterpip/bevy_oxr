@@ -1,11 +1,14 @@
+use std::f32::consts::PI;
+
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+use bevy::prelude::Gizmos;
 use bevy::prelude::*;
 use bevy::transform::components::Transform;
 use bevy_openxr::input::XrInput;
 use bevy_openxr::resources::{XrFrameState, XrInstance, XrSession, XrViews};
 use bevy_openxr::xr_input::debug_gizmos::OpenXrDebugRenderer;
 use bevy_openxr::xr_input::oculus_touch::OculusController;
-use bevy_openxr::xr_input::{Hand, QuatConv, TrackingRoot};
+use bevy_openxr::xr_input::{Hand, QuatConv, TrackingRoot, Vec3Conv};
 use bevy_openxr::DefaultXrPlugins;
 
 fn main() {
@@ -70,6 +73,11 @@ pub enum LocomotionType {
     Hand,
 }
 
+pub enum RotationType {
+    Smooth,
+    Snap,
+}
+
 fn proto_locomotion(
     time: Res<Time>,
     mut tracking_root_query: Query<(&mut Transform, With<TrackingRoot>)>,
@@ -79,6 +87,7 @@ fn proto_locomotion(
     instance: Res<XrInstance>,
     session: Res<XrSession>,
     views: ResMut<XrViews>,
+    mut gizmos: Gizmos,
 ) {
     //lock frame
     let frame_state = *frame_state.lock().unwrap();
@@ -93,7 +102,7 @@ fn proto_locomotion(
             let speed = 1.0;
             //now the question is how do we do hmd based locomotion
             //or controller based for that matter
-            let locomotion_type = LocomotionType::Hand;
+            let locomotion_type = LocomotionType::Head;
             let mut reference_quat = Quat::IDENTITY;
             match locomotion_type {
                 LocomotionType::Head => {
@@ -101,19 +110,65 @@ fn proto_locomotion(
                     let views = v.get(0);
                     match views {
                         Some(view) => {
-                            reference_quat = view.pose.orientation.to_quat();
+                            reference_quat = view
+                                .pose
+                                .orientation
+                                .to_quat()
+                                .mul_quat(position.0.rotation);
                         }
                         None => return,
                     }
                 }
                 LocomotionType::Hand => {
                     let grip = controller.grip_space(Hand::Left);
-                    reference_quat = grip.0.pose.orientation.to_quat();
+                    reference_quat = grip
+                        .0
+                        .pose
+                        .orientation
+                        .to_quat()
+                        .mul_quat(position.0.rotation); //TODO add root tracking quat to this so we simulate the global rotation
                 }
             }
             let mut locomotion_vec = reference_quat.mul_vec3(input);
             locomotion_vec.y = 0.0;
-            position.0.translation += locomotion_vec * speed * time.delta_seconds()
+            position.0.translation += locomotion_vec * speed * time.delta_seconds();
+
+            //now time for rotation
+            let snap_angle = 45.0;
+            let smooth_rotation_speed = 0.5 * PI;
+            let rotation_setting = RotationType::Smooth;
+            match rotation_setting {
+                RotationType::Smooth => {
+                    //once again with the math
+                    let control_stick = controller.thumbstick(Hand::Right);
+                    let rot_input = -control_stick.x; //why is this negative i dont know
+                    if rot_input.abs() <= 0.2 {
+                        //return;
+                    }
+                    let smoth_rot = Quat::from_rotation_y(
+                        rot_input * smooth_rotation_speed * time.delta_seconds(),
+                    );
+                    //apply rotation
+                    let v = views.lock().unwrap();
+                    let views = v.get(0);
+                    let views = v.get(0);
+                    match views {
+                        Some(view) => {
+                            let mut hmd_translation = view.pose.position.to_vec3();
+                            hmd_translation.y = 0.0;
+                            let local = position.0.translation;
+                            let global = position.0.rotation.mul_vec3(hmd_translation) + local;
+                            gizmos.circle(global, Vec3::Y, 0.1, Color::GREEN);
+                            position.0.rotate_around(global, smoth_rot);
+                        }
+                        None => return,
+                    }
+                }
+                RotationType::Snap => {
+                    //yup even more math i cant remember
+                    todo!();
+                }
+            }
         }
         Err(_) => info!("too many tracking roots"),
     }
