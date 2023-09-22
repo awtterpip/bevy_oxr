@@ -12,7 +12,7 @@ use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
 use bevy::render::camera::{ManualTextureView, ManualTextureViewHandle, ManualTextureViews};
 use bevy::render::pipelined_rendering::PipelinedRenderingPlugin;
-use bevy::render::renderer::render_system;
+use bevy::render::renderer::{render_system, RenderInstance};
 use bevy::render::settings::RenderSettings;
 use bevy::render::{Render, RenderApp, RenderPlugin, RenderSet};
 use bevy::window::{PresentMode, PrimaryWindow, RawHandleWrapper};
@@ -102,7 +102,7 @@ impl Plugin for OpenXrPlugin {
                 queue,
                 adapter_info,
                 render_adapter,
-                Mutex::new(instance),
+                RenderInstance(Arc::new(instance)),
             ),
         });
     }
