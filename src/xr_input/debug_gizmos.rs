@@ -1,5 +1,6 @@
 use bevy::prelude::{
-    info, Color, Gizmos, Plugin, Quat, Query, Res, Transform, Update, Vec2, Vec3, With,
+    info, Color, Gizmos, GlobalTransform, Plugin, Quat, Query, Res, Transform, Update, Vec2, Vec3,
+    With, Without,
 };
 
 use crate::{
@@ -9,8 +10,10 @@ use crate::{
 
 use crate::xr_input::{
     oculus_touch::{OculusController, OculusControllerRef},
-    Hand, QuatConv, TrackingRoot, Vec3Conv,
+    Hand, QuatConv, Vec3Conv,
 };
+
+use super::trackers::{OpenXRLeftController, OpenXRRightController, OpenXRTrackingRoot};
 
 /// add debug renderer for controllers
 #[derive(Default)]
@@ -29,7 +32,19 @@ pub fn draw_gizmos(
     xr_input: Res<XrInput>,
     instance: Res<XrInstance>,
     session: Res<XrSession>,
-    tracking_root_query: Query<(&mut Transform, With<TrackingRoot>)>,
+    tracking_root_query: Query<(&mut Transform, With<OpenXRTrackingRoot>)>,
+    left_controller_query: Query<(
+        &GlobalTransform,
+        With<OpenXRLeftController>,
+        Without<OpenXRRightController>,
+        Without<OpenXRTrackingRoot>,
+    )>,
+    right_controller_query: Query<(
+        &GlobalTransform,
+        With<OpenXRRightController>,
+        Without<OpenXRLeftController>,
+        Without<OpenXRTrackingRoot>,
+    )>,
 ) {
     //lock frame
     let frame_state = *frame_state.lock().unwrap();
@@ -56,21 +71,21 @@ pub fn draw_gizmos(
         Err(_) => info!("too many tracking roots"),
     }
     //draw the hands
-    draw_hand_gizmo(&mut gizmos, &controller, Hand::Right, tracking_transform);
-    draw_hand_gizmo(&mut gizmos, &controller, Hand::Left, tracking_transform);
+    let left_transform = left_controller_query.get_single().unwrap().0;
+    let right_transform = right_controller_query.get_single().unwrap().0;
+
+    draw_hand_gizmo(&mut gizmos, &controller, Hand::Right, right_transform);
+    draw_hand_gizmo(&mut gizmos, &controller, Hand::Left, left_transform);
 }
 
 fn draw_hand_gizmo(
     gizmos: &mut Gizmos,
     controller: &OculusControllerRef<'_>,
     hand: Hand,
-    tracking_root: &Transform,
+    hand_transform: &GlobalTransform,
 ) {
     match hand {
         Hand::Left => {
-            //get left controller
-            let left_controller = controller.grip_space(Hand::Left);
-
             let left_color = Color::YELLOW_GREEN;
             let off_color = Color::BLUE;
             let touch_color = Color::GREEN;
@@ -78,14 +93,9 @@ fn draw_hand_gizmo(
 
             let grip_quat_offset = Quat::from_rotation_x(-1.4);
             let face_quat_offset = Quat::from_rotation_x(1.05);
-
-            let controller_vec3 = tracking_root
-                .rotation
-                .mul_vec3(left_controller.0.pose.position.to_vec3())
-                + tracking_root.translation;
-            let controller_quat = tracking_root
-                .rotation
-                .mul_quat(left_controller.0.pose.orientation.to_quat());
+            let trans = hand_transform.compute_transform();
+            let controller_vec3 = trans.translation;
+            let controller_quat = trans.rotation;
             let face_quat = controller_quat.mul_quat(face_quat_offset);
             let face_quat_normal = face_quat.mul_vec3(Vec3::Z);
 
@@ -182,7 +192,6 @@ fn draw_hand_gizmo(
         }
         Hand::Right => {
             //get right controller
-            let right_controller = controller.grip_space(Hand::Right);
             let right_color = Color::YELLOW_GREEN;
             let off_color = Color::BLUE;
             let touch_color = Color::GREEN;
@@ -191,16 +200,14 @@ fn draw_hand_gizmo(
             let grip_quat_offset = Quat::from_rotation_x(-1.4);
             let face_quat_offset = Quat::from_rotation_x(1.05);
 
-            let controller_vec3 = tracking_root
-                .rotation
-                .mul_vec3(right_controller.0.pose.position.to_vec3())
-                + tracking_root.translation;
-            let controller_quat = tracking_root
-                .rotation
-                .mul_quat(right_controller.0.pose.orientation.to_quat());
+            let trans = hand_transform.compute_transform();
+            let controller_vec3 = trans.translation;
+            let controller_quat = trans.rotation;
             let face_quat = controller_quat.mul_quat(face_quat_offset);
             let face_quat_normal = face_quat.mul_vec3(Vec3::Z);
 
+            let squeeze = controller.squeeze(Hand::Right);
+            //info!("{:?}", squeeze);
             //grip
             gizmos.rect(
                 controller_vec3,
