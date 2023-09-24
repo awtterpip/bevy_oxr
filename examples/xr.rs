@@ -9,9 +9,10 @@ use bevy_openxr::input::XrInput;
 use bevy_openxr::resources::{XrFrameState, XrInstance, XrSession, XrViews};
 use bevy_openxr::xr_input::debug_gizmos::OpenXrDebugRenderer;
 use bevy_openxr::xr_input::oculus_touch::OculusController;
+use bevy_openxr::xr_input::prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig};
 use bevy_openxr::xr_input::trackers::{
     OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker,
-    OpenXRTrackingRoot,
+    OpenXRTrackingRoot, adopt_open_xr_trackers,
 };
 use bevy_openxr::xr_input::{Hand, QuatConv, Vec3Conv};
 use bevy_openxr::DefaultXrPlugins;
@@ -27,9 +28,10 @@ fn main() {
         .add_plugins(FrameTimeDiagnosticsPlugin)
         .add_systems(Startup, setup)
         .add_systems(Update, proto_locomotion)
-        .add_systems(Startup, spawn_controllers)
-        .add_systems(Update, update_hands)
+        .add_systems(Startup, spawn_controllers_example)
+        .add_systems(Update, update_open_xr_controllers)
         .add_systems(Update, adopt_open_xr_trackers)
+        .insert_resource(PrototypeLocomotionConfig::default())
         .run();
 }
 
@@ -74,61 +76,38 @@ fn setup(
         transform: Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
         ..default()
     },));
-
-    commands.insert_resource(RotationTimer {
-        timer: Timer::from_seconds(1.0, TimerMode::Once),
-    })
 }
 
-pub enum LocomotionType {
-    Head,
-    Hand,
-}
-
-pub enum RotationType {
-    Smooth,
-    Snap,
-}
-
-#[derive(Resource)]
-struct RotationTimer {
-    timer: Timer,
-}
-
-fn spawn_controllers(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
+fn spawn_controllers_example(mut commands: Commands) {
     //left hand
     commands.spawn((
         OpenXRLeftController,
         OpenXRController,
         OpenXRTracker,
-        // SpatialBundle::default(),
-        PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
-            material: materials.add(Color::RED.into()),
-            transform: Transform::from_xyz(0.0, 0.5, 1.0),
-            ..default()
-        },
+        SpatialBundle::default(),
+        // PbrBundle {
+        //     mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
+        //     material: materials.add(Color::RED.into()),
+        //     transform: Transform::from_xyz(0.0, 0.5, 1.0),
+        //     ..default()
+        // },
     ));
     //right hand
     commands.spawn((
         OpenXRRightController,
         OpenXRController,
         OpenXRTracker,
-        // SpatialBundle::default(),
-        PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
-            material: materials.add(Color::BLUE.into()),
-            transform: Transform::from_xyz(0.0, 0.5, 1.0),
-            ..default()
-        },
+        SpatialBundle::default(),
+        // PbrBundle {
+        //     mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
+        //     material: materials.add(Color::BLUE.into()),
+        //     transform: Transform::from_xyz(0.0, 0.5, 1.0),
+        //     ..default()
+        // },
     ));
 }
 
-fn update_hands(
+fn update_open_xr_controllers(
     oculus_controller: Res<OculusController>,
     mut left_controller_query: Query<(
         &mut Transform,
@@ -174,152 +153,4 @@ fn update_hands(
         right.0.pose.orientation.to_quat();
 }
 
-fn adopt_open_xr_trackers(
-    query: Query<(Entity), Added<OpenXRTracker>>,
-    mut commands: Commands,
-    tracking_root_query: Query<(Entity, With<OpenXRTrackingRoot>)>,
-) {
-    let root = tracking_root_query.get_single();
-    match root {
-        Ok(thing) => {
-            // info!("root is");
-            for tracker in query.iter() {
-                info!("we got a new tracker");
-                commands.entity(thing.0).add_child(tracker);
-            }
-        }
-        Err(_) => info!("root isnt spawned yet?"),
-    }
-}
 
-fn proto_locomotion(
-    time: Res<Time>,
-    mut tracking_root_query: Query<(&mut Transform, With<OpenXRTrackingRoot>)>,
-    oculus_controller: Res<OculusController>,
-    frame_state: Res<XrFrameState>,
-    xr_input: Res<XrInput>,
-    instance: Res<XrInstance>,
-    session: Res<XrSession>,
-    views: ResMut<XrViews>,
-    mut gizmos: Gizmos,
-    mut rotation_timer: Option<ResMut<RotationTimer>>,
-) {
-    //lock frame
-    let frame_state = *frame_state.lock().unwrap();
-    //get controller
-    let controller = oculus_controller.get_ref(&instance, &session, &frame_state, &xr_input);
-    let root = tracking_root_query.get_single_mut();
-    match root {
-        Ok(mut position) => {
-            //get the stick input and do some maths
-            let stick = controller.thumbstick(Hand::Left);
-            let input = Vec3::new(stick.x, 0.0, -stick.y);
-            let speed = 1.0;
-            //now the question is how do we do hmd based locomotion
-            //or controller based for that matter
-            let locomotion_type = LocomotionType::Head;
-            let mut reference_quat = Quat::IDENTITY;
-            match locomotion_type {
-                LocomotionType::Head => {
-                    let v = views.lock().unwrap();
-                    let views = v.get(0);
-                    match views {
-                        Some(view) => {
-                            reference_quat = view
-                                .pose
-                                .orientation
-                                .to_quat()
-                                .mul_quat(position.0.rotation);
-                        }
-                        None => return,
-                    }
-                }
-                LocomotionType::Hand => {
-                    let grip = controller.grip_space(Hand::Left);
-                    reference_quat = grip
-                        .0
-                        .pose
-                        .orientation
-                        .to_quat()
-                        .mul_quat(position.0.rotation); //TODO add root tracking quat to this so we simulate the global rotation
-                }
-            }
-            let mut locomotion_vec = reference_quat.mul_vec3(input);
-            locomotion_vec.y = 0.0;
-            position.0.translation += locomotion_vec * speed * time.delta_seconds();
-
-            //now time for rotation
-            let snap_angle = 45.0 * (PI / 180.0);
-            let smooth_rotation_speed = 0.5 * PI;
-            let rotation_setting = RotationType::Snap;
-            match rotation_setting {
-                RotationType::Smooth => {
-                    //once again with the math
-                    let control_stick = controller.thumbstick(Hand::Right);
-                    let rot_input = control_stick.x; //why is this negative i dont know
-                    if rot_input.abs() <= 0.2 {
-                        return;
-                    }
-                    let smoth_rot = Quat::from_rotation_y(
-                        rot_input * smooth_rotation_speed * time.delta_seconds(),
-                    );
-                    //apply rotation
-                    let v = views.lock().unwrap();
-                    let views = v.get(0);
-                    match views {
-                        Some(view) => {
-                            let mut hmd_translation = view.pose.position.to_vec3();
-                            hmd_translation.y = 0.0;
-                            let local = position.0.translation;
-                            let global = position.0.rotation.mul_vec3(hmd_translation) + local;
-                            gizmos.circle(global, Vec3::Y, 0.1, Color::GREEN);
-                            position.0.rotate_around(global, smoth_rot);
-                        }
-                        None => return,
-                    }
-                }
-                RotationType::Snap => {
-                    //get timer
-                    match rotation_timer {
-                        Some(mut timer) => {
-                            //tick the timer
-                            timer.timer.tick(time.delta());
-                            if timer.timer.finished() {
-                                //now we can snap turn?
-                                //once again with the math
-                                let control_stick = controller.thumbstick(Hand::Right);
-                                let rot_input = -control_stick.x;
-                                if rot_input.abs() <= 0.5 {
-                                    return;
-                                }
-                                let dir: f32 = match rot_input > 0.0 {
-                                    true => 1.0,
-                                    false => -1.0,
-                                };
-                                let smoth_rot = Quat::from_rotation_y(snap_angle * dir);
-                                //apply rotation
-                                let v = views.lock().unwrap();
-                                let views = v.get(0);
-                                match views {
-                                    Some(view) => {
-                                        let mut hmd_translation = view.pose.position.to_vec3();
-                                        hmd_translation.y = 0.0;
-                                        let local = position.0.translation;
-                                        let global =
-                                            position.0.rotation.mul_vec3(hmd_translation) + local;
-                                        gizmos.circle(global, Vec3::Y, 0.1, Color::GREEN);
-                                        position.0.rotate_around(global, smoth_rot);
-                                    }
-                                    None => return,
-                                }
-                                timer.timer.reset();
-                            }
-                        }
-                        None => info!("didnt init the rotation timer"),
-                    }
-                }
-            }
-        }
-        Err(_) => info!("too many tracking roots"),
-    }
-}

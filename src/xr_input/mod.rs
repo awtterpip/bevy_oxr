@@ -2,6 +2,7 @@ pub mod controllers;
 pub mod debug_gizmos;
 pub mod oculus_touch;
 pub mod trackers;
+pub mod prototype_locomotion;
 pub mod xr_camera;
 
 use crate::resources::XrSession;
