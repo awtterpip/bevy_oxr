@@ -13,7 +13,7 @@ use crate::xr_input::{
     Hand,
 };
 
-use super::trackers::{OpenXRLeftController, OpenXRRightController, OpenXRTrackingRoot};
+use super::trackers::{XrLeftController, XrRightController, XrTrackingRoot};
 
 /// add debug renderer for controllers
 #[derive(Default)]
@@ -32,18 +32,18 @@ pub fn draw_gizmos(
     xr_input: Res<XrInput>,
     instance: Res<XrInstance>,
     session: Res<XrSession>,
-    tracking_root_query: Query<(&mut Transform, With<OpenXRTrackingRoot>)>,
+    tracking_root_query: Query<(&mut Transform, With<XrTrackingRoot>)>,
     left_controller_query: Query<(
         &GlobalTransform,
-        With<OpenXRLeftController>,
-        Without<OpenXRRightController>,
-        Without<OpenXRTrackingRoot>,
+        With<XrLeftController>,
+        Without<XrRightController>,
+        Without<XrTrackingRoot>,
     )>,
     right_controller_query: Query<(
         &GlobalTransform,
-        With<OpenXRRightController>,
-        Without<OpenXRLeftController>,
-        Without<OpenXRTrackingRoot>,
+        With<XrRightController>,
+        Without<XrLeftController>,
+        Without<XrTrackingRoot>,
     )>,
 ) {
     //lock frame

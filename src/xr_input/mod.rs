@@ -19,8 +19,8 @@ use bevy::render::view::{update_frusta, VisibilitySystems};
 use bevy::transform::TransformSystem;
 
 use self::trackers::{
-    adopt_open_xr_trackers, update_open_xr_controllers, OpenXRLeftEye, OpenXRRightEye,
-    OpenXRTrackingRoot,
+    adopt_open_xr_trackers, update_open_xr_controllers, XrLeftEye, XrRightEye,
+    XrTrackingRoot,
 };
 
 #[derive(Copy, Clone)]
@@ -67,13 +67,13 @@ fn setup_xr_cameras(mut commands: Commands) {
     //this needs to do the whole xr tracking volume not just cameras
     //get the root?
     let tracking_root = commands
-        .spawn((SpatialBundle::default(), OpenXRTrackingRoot))
+        .spawn((SpatialBundle::default(), XrTrackingRoot))
         .id();
     let right = commands
-        .spawn((XrCameraBundle::new(Eye::Right), OpenXRRightEye))
+        .spawn((XrCameraBundle::new(Eye::Right), XrRightEye))
         .id();
     let left = commands
-        .spawn((XrCameraBundle::new(Eye::Left), OpenXRLeftEye))
+        .spawn((XrCameraBundle::new(Eye::Left), XrLeftEye))
         .id();
     commands.entity(tracking_root).push_children(&[right, left]);
 }

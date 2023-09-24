@@ -4,7 +4,7 @@ use bevy::transform::components::Transform;
 use bevy_openxr::xr_input::debug_gizmos::OpenXrDebugRenderer;
 use bevy_openxr::xr_input::prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig};
 use bevy_openxr::xr_input::trackers::{
-    OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker,
+    XrController, XrLeftController, XrRightController, XrTracker,
 };
 use bevy_openxr::DefaultXrPlugins;
 
@@ -70,16 +70,16 @@ fn setup(
 fn spawn_controllers_example(mut commands: Commands) {
     //left hand
     commands.spawn((
-        OpenXRLeftController,
-        OpenXRController,
-        OpenXRTracker,
+        XrLeftController,
+        XrController,
+        XrTracker,
         SpatialBundle::default(),
     ));
     //right hand
     commands.spawn((
-        OpenXRRightController,
-        OpenXRController,
-        OpenXRTracker,
+        XrRightController,
+        XrController,
+        XrTracker,
         SpatialBundle::default(),
     ));
 }

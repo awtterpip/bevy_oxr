@@ -11,7 +11,7 @@ use crate::{
 };
 
 use super::{
-    oculus_touch::OculusController, trackers::OpenXRTrackingRoot, Hand, QuatConv, Vec3Conv,
+    oculus_touch::OculusController, trackers::XrTrackingRoot, Hand, QuatConv, Vec3Conv,
 };
 
 pub enum LocomotionType {
@@ -43,7 +43,7 @@ pub struct PrototypeLocomotionConfig {
 impl Default for PrototypeLocomotionConfig {
     fn default() -> Self {
         Self {
-            locomotion_type: LocomotionType::Hand,
+            locomotion_type: LocomotionType::Head,
             locomotion_speed: 1.0,
             rotation_type: RotationType::Smooth,
             snap_angle: 45.0 * (PI / 180.0),
@@ -58,7 +58,7 @@ impl Default for PrototypeLocomotionConfig {
 
 pub fn proto_locomotion(
     time: Res<Time>,
-    mut tracking_root_query: Query<(&mut Transform, With<OpenXRTrackingRoot>)>,
+    mut tracking_root_query: Query<(&mut Transform, With<XrTrackingRoot>)>,
     oculus_controller: Res<OculusController>,
     frame_state: Res<XrFrameState>,
     xr_input: Res<XrInput>,

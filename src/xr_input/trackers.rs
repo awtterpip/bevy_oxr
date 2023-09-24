@@ -5,26 +5,26 @@ use crate::{resources::{XrFrameState, XrInstance, XrSession}, input::XrInput};
 use super::{oculus_touch::OculusController, Hand, Vec3Conv, QuatConv};
 
 #[derive(Component)]
-pub struct OpenXRTrackingRoot;
+pub struct XrTrackingRoot;
 #[derive(Component)]
-pub struct OpenXRTracker;
+pub struct XrTracker;
 #[derive(Component)]
-pub struct OpenXRLeftEye;
+pub struct XrLeftEye;
 #[derive(Component)]
-pub struct OpenXRRightEye;
+pub struct XrRightEye;
 #[derive(Component)]
-pub struct OpenXRHMD;
+pub struct XrHmd;
 #[derive(Component)]
-pub struct OpenXRLeftController;
+pub struct XrLeftController;
 #[derive(Component)]
-pub struct OpenXRRightController;
+pub struct XrRightController;
 #[derive(Component)]
-pub struct OpenXRController;
+pub struct XrController;
 
 pub fn adopt_open_xr_trackers(
-    query: Query<(Entity), Added<OpenXRTracker>>,
+    query: Query<(Entity), Added<XrTracker>>,
     mut commands: Commands,
-    tracking_root_query: Query<(Entity, With<OpenXRTrackingRoot>)>,
+    tracking_root_query: Query<(Entity, With<XrTrackingRoot>)>,
 ) {
     let root = tracking_root_query.get_single();
     match root {
@@ -43,13 +43,13 @@ pub fn update_open_xr_controllers(
     oculus_controller: Res<OculusController>,
     mut left_controller_query: Query<(
         &mut Transform,
-        With<OpenXRLeftController>,
-        Without<OpenXRRightController>,
+        With<XrLeftController>,
+        Without<XrRightController>,
     )>,
     mut right_controller_query: Query<(
         &mut Transform,
-        With<OpenXRRightController>,
-        Without<OpenXRLeftController>,
+        With<XrRightController>,
+        Without<XrLeftController>,
     )>,
     frame_state: Res<XrFrameState>,
     instance: Res<XrInstance>,
@@ -61,27 +61,19 @@ pub fn update_open_xr_controllers(
     //get controller
     let controller = oculus_controller.get_ref(&instance, &session, &frame_state, &xr_input);
     //get left controller
-    let left = controller.grip_space(Hand::Left);
-    let left_postion = left.0.pose.position.to_vec3();
+    let (left, _) = controller.grip_space(Hand::Left);
 
-    left_controller_query
-        .get_single_mut()
-        .unwrap()
-        .0
-        .translation = left_postion;
+    if let Ok(mut left_controller) = left_controller_query.get_single_mut() {
+        left_controller.0.translation = left.pose.position.to_vec3();
+        left_controller.0.rotation = left.pose.orientation.to_quat();
+    }
 
-    left_controller_query.get_single_mut().unwrap().0.rotation = left.0.pose.orientation.to_quat();
     //get right controller
-    let right = controller.grip_space(Hand::Right);
-    let right_postion = right.0.pose.position.to_vec3();
+    let (right, _) = controller.grip_space(Hand::Right);
 
-    right_controller_query
-        .get_single_mut()
-        .unwrap()
-        .0
-        .translation = right_postion;
-
-    right_controller_query.get_single_mut().unwrap().0.rotation =
-        right.0.pose.orientation.to_quat();
+    if let Ok(mut right_controller) = right_controller_query.get_single_mut() {
+        right_controller.0.translation = right.pose.position.to_vec3();
+        right_controller.0.rotation = right.pose.orientation.to_quat()
+    }
 }
 
