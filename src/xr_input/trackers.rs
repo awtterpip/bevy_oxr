@@ -1,4 +1,8 @@
-use bevy::prelude::{info, Added, BuildChildren, Commands, Component, Entity, Query, With};
+use bevy::prelude::{info, Added, BuildChildren, Commands, Component, Entity, Query, With, Res, Transform, Without};
+
+use crate::{resources::{XrFrameState, XrInstance, XrSession}, input::XrInput};
+
+use super::{oculus_touch::OculusController, Hand, Vec3Conv, QuatConv};
 
 #[derive(Component)]
 pub struct OpenXRTrackingRoot;
@@ -34,3 +38,50 @@ pub fn adopt_open_xr_trackers(
         Err(_) => info!("root isnt spawned yet?"),
     }
 }
+
+pub fn update_open_xr_controllers(
+    oculus_controller: Res<OculusController>,
+    mut left_controller_query: Query<(
+        &mut Transform,
+        With<OpenXRLeftController>,
+        Without<OpenXRRightController>,
+    )>,
+    mut right_controller_query: Query<(
+        &mut Transform,
+        With<OpenXRRightController>,
+        Without<OpenXRLeftController>,
+    )>,
+    frame_state: Res<XrFrameState>,
+    instance: Res<XrInstance>,
+    xr_input: Res<XrInput>,
+    session: Res<XrSession>,
+) {
+    //lock dat frame?
+    let frame_state = *frame_state.lock().unwrap();
+    //get controller
+    let controller = oculus_controller.get_ref(&instance, &session, &frame_state, &xr_input);
+    //get left controller
+    let left = controller.grip_space(Hand::Left);
+    let left_postion = left.0.pose.position.to_vec3();
+
+    left_controller_query
+        .get_single_mut()
+        .unwrap()
+        .0
+        .translation = left_postion;
+
+    left_controller_query.get_single_mut().unwrap().0.rotation = left.0.pose.orientation.to_quat();
+    //get right controller
+    let right = controller.grip_space(Hand::Right);
+    let right_postion = right.0.pose.position.to_vec3();
+
+    right_controller_query
+        .get_single_mut()
+        .unwrap()
+        .0
+        .translation = right_postion;
+
+    right_controller_query.get_single_mut().unwrap().0.rotation =
+        right.0.pose.orientation.to_quat();
+}
+

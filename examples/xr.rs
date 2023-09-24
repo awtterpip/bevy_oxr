@@ -11,8 +11,8 @@ use bevy_openxr::xr_input::debug_gizmos::OpenXrDebugRenderer;
 use bevy_openxr::xr_input::oculus_touch::OculusController;
 use bevy_openxr::xr_input::prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig};
 use bevy_openxr::xr_input::trackers::{
-    OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker,
-    OpenXRTrackingRoot, adopt_open_xr_trackers,
+    adopt_open_xr_trackers, OpenXRController, OpenXRLeftController, OpenXRRightController,
+    OpenXRTracker, OpenXRTrackingRoot,
 };
 use bevy_openxr::xr_input::{Hand, QuatConv, Vec3Conv};
 use bevy_openxr::DefaultXrPlugins;
@@ -29,8 +29,6 @@ fn main() {
         .add_systems(Startup, setup)
         .add_systems(Update, proto_locomotion)
         .add_systems(Startup, spawn_controllers_example)
-        .add_systems(Update, update_open_xr_controllers)
-        .add_systems(Update, adopt_open_xr_trackers)
         .insert_resource(PrototypeLocomotionConfig::default())
         .run();
 }
@@ -85,12 +83,6 @@ fn spawn_controllers_example(mut commands: Commands) {
         OpenXRController,
         OpenXRTracker,
         SpatialBundle::default(),
-        // PbrBundle {
-        //     mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
-        //     material: materials.add(Color::RED.into()),
-        //     transform: Transform::from_xyz(0.0, 0.5, 1.0),
-        //     ..default()
-        // },
     ));
     //right hand
     commands.spawn((
@@ -98,59 +90,5 @@ fn spawn_controllers_example(mut commands: Commands) {
         OpenXRController,
         OpenXRTracker,
         SpatialBundle::default(),
-        // PbrBundle {
-        //     mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
-        //     material: materials.add(Color::BLUE.into()),
-        //     transform: Transform::from_xyz(0.0, 0.5, 1.0),
-        //     ..default()
-        // },
     ));
 }
-
-fn update_open_xr_controllers(
-    oculus_controller: Res<OculusController>,
-    mut left_controller_query: Query<(
-        &mut Transform,
-        With<OpenXRLeftController>,
-        Without<OpenXRRightController>,
-    )>,
-    mut right_controller_query: Query<(
-        &mut Transform,
-        With<OpenXRRightController>,
-        Without<OpenXRLeftController>,
-    )>,
-    frame_state: Res<XrFrameState>,
-    instance: Res<XrInstance>,
-    xr_input: Res<XrInput>,
-    session: Res<XrSession>,
-) {
-    //lock dat frame?
-    let frame_state = *frame_state.lock().unwrap();
-    //get controller
-    let controller = oculus_controller.get_ref(&instance, &session, &frame_state, &xr_input);
-    //get left controller
-    let left = controller.grip_space(Hand::Left);
-    let left_postion = left.0.pose.position.to_vec3();
-
-    left_controller_query
-        .get_single_mut()
-        .unwrap()
-        .0
-        .translation = left_postion;
-
-    left_controller_query.get_single_mut().unwrap().0.rotation = left.0.pose.orientation.to_quat();
-    //get right controller
-    let right = controller.grip_space(Hand::Right);
-    let right_postion = right.0.pose.position.to_vec3();
-
-    right_controller_query
-        .get_single_mut()
-        .unwrap()
-        .0
-        .translation = right_postion;
-
-    right_controller_query.get_single_mut().unwrap().0.rotation =
-        right.0.pose.orientation.to_quat();
-}
-
-

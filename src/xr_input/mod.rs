@@ -1,8 +1,8 @@
 pub mod controllers;
 pub mod debug_gizmos;
 pub mod oculus_touch;
-pub mod trackers;
 pub mod prototype_locomotion;
+pub mod trackers;
 pub mod xr_camera;
 
 use crate::resources::XrSession;
@@ -13,14 +13,17 @@ use crate::xr_input::xr_camera::{xr_camera_head_sync, Eye, XRProjection, XrCamer
 use bevy::app::{App, PostUpdate, Startup};
 use bevy::log::warn;
 use bevy::prelude::{
-    default, Commands, Component, Plugin, PreUpdate, Quat, Res, SpatialBundle, Vec3,
+    default, Commands, Component, Plugin, PreUpdate, Quat, Res, SpatialBundle, Update, Vec3,
 };
 use bevy::prelude::{BuildChildren, IntoSystemConfigs};
 use bevy::render::camera::CameraProjectionPlugin;
 use bevy::render::view::{update_frusta, VisibilitySystems};
 use bevy::transform::{TransformBundle, TransformSystem};
 
-use self::trackers::{OpenXRLeftEye, OpenXRRightEye, OpenXRTrackingRoot};
+use self::trackers::{
+    adopt_open_xr_trackers, update_open_xr_controllers, OpenXRLeftEye, OpenXRRightEye,
+    OpenXRTrackingRoot,
+};
 
 #[derive(Copy, Clone)]
 pub struct OpenXrInput {
@@ -46,8 +49,12 @@ impl Plugin for OpenXrInput {
                 app.add_systems(Startup, setup_oculus_controller);
             }
         }
+        //adopt any new trackers
+        app.add_systems(PreUpdate, adopt_open_xr_trackers);
         app.add_systems(PreUpdate, action_set_system);
         app.add_systems(PreUpdate, xr_camera_head_sync.after(xr_begin_frame));
+        //update controller trackers
+        app.add_systems(Update, update_open_xr_controllers);
         app.add_systems(
             PostUpdate,
             update_frusta::<XRProjection>
