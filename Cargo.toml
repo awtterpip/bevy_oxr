@@ -10,7 +10,9 @@ linked = ["openxr/linked", "openxr/static"]
 [dependencies]
 anyhow = "1.0.75"
 ash = "0.37.3"
-bevy = { git = "https://github.com/awtterpip/bevy", default-features = false, features = ["bevy_render"] }
+bevy = { git = "https://github.com/awtterpip/bevy", default-features = false, features = [
+    "bevy_render",
+], rev = "ac28b11797c0a85b431ee4940c6afa434f712f7a" }
 openxr = { version = "0.17.1", features = ["mint"] }
 mint = "0.5.9"
 wgpu = "0.16.0"
@@ -18,7 +20,7 @@ wgpu-core = { version = "0.16.0", features = ["vulkan"] }
 wgpu-hal = "0.16.0"
 
 [dev-dependencies]
-bevy = { git = "https://github.com/awtterpip/bevy" }
+bevy = { git = "https://github.com/awtterpip/bevy", rev = "ac28b11797c0a85b431ee4940c6afa434f712f7a" }
 color-eyre = "0.6.2"
 
 [[example]]
