@@ -10,7 +10,7 @@ use crate::{
 
 use crate::xr_input::{
     oculus_touch::{OculusController, OculusControllerRef},
-    Hand, QuatConv, Vec3Conv,
+    Hand,
 };
 
 use super::trackers::{OpenXRLeftController, OpenXRRightController, OpenXRTrackingRoot};

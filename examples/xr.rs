@@ -1,20 +1,11 @@
-use std::f32::consts::PI;
-use std::time::Duration;
-
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
-use bevy::prelude::Gizmos;
 use bevy::prelude::*;
 use bevy::transform::components::Transform;
-use bevy_openxr::input::XrInput;
-use bevy_openxr::resources::{XrFrameState, XrInstance, XrSession, XrViews};
 use bevy_openxr::xr_input::debug_gizmos::OpenXrDebugRenderer;
-use bevy_openxr::xr_input::oculus_touch::OculusController;
 use bevy_openxr::xr_input::prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig};
 use bevy_openxr::xr_input::trackers::{
-    adopt_open_xr_trackers, OpenXRController, OpenXRLeftController, OpenXRRightController,
-    OpenXRTracker, OpenXRTrackingRoot,
+    OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker,
 };
-use bevy_openxr::xr_input::{Hand, QuatConv, Vec3Conv};
 use bevy_openxr::DefaultXrPlugins;
 
 fn main() {

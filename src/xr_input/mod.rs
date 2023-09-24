@@ -12,13 +12,11 @@ use crate::xr_input::oculus_touch::{setup_oculus_controller, ActionSets};
 use crate::xr_input::xr_camera::{xr_camera_head_sync, Eye, XRProjection, XrCameraBundle};
 use bevy::app::{App, PostUpdate, Startup};
 use bevy::log::warn;
-use bevy::prelude::{
-    default, Commands, Component, Plugin, PreUpdate, Quat, Res, SpatialBundle, Update, Vec3,
-};
 use bevy::prelude::{BuildChildren, IntoSystemConfigs};
+use bevy::prelude::{Commands, Plugin, PreUpdate, Quat, Res, SpatialBundle, Update, Vec3};
 use bevy::render::camera::CameraProjectionPlugin;
 use bevy::render::view::{update_frusta, VisibilitySystems};
-use bevy::transform::{TransformBundle, TransformSystem};
+use bevy::transform::TransformSystem;
 
 use self::trackers::{
     adopt_open_xr_trackers, update_open_xr_controllers, OpenXRLeftEye, OpenXRRightEye,

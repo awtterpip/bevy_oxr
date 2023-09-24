@@ -1,4 +1,4 @@
-use bevy::prelude::{info, Added, BuildChildren, Commands, Component, Entity, Query, With, Res, Transform, Without};
+use bevy::prelude::{Added, BuildChildren, Commands, Entity, Query, With, Res, Transform, Without, Component, info};
 
 use crate::{resources::{XrFrameState, XrInstance, XrSession}, input::XrInput};
 
