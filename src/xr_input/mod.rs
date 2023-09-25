@@ -1,5 +1,6 @@
 pub mod controllers;
 pub mod debug_gizmos;
+pub mod interactions;
 pub mod oculus_touch;
 pub mod prototype_locomotion;
 pub mod trackers;

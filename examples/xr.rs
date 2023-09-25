@@ -1,11 +1,19 @@
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
 use bevy::transform::components::Transform;
+use bevy_openxr::input::XrInput;
+use bevy_openxr::resources::{XrFrameState, XrInstance, XrSession};
 use bevy_openxr::xr_input::debug_gizmos::OpenXrDebugRenderer;
+use bevy_openxr::xr_input::interactions::{
+    draw_interaction_gizmos, hover_interaction, XRDirectInteractor, XRInteractable,
+    XRInteractableState, XRInteractorState,
+};
+use bevy_openxr::xr_input::oculus_touch::OculusController;
 use bevy_openxr::xr_input::prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig};
 use bevy_openxr::xr_input::trackers::{
     OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker,
 };
+use bevy_openxr::xr_input::Hand;
 use bevy_openxr::DefaultXrPlugins;
 
 fn main() {
@@ -21,6 +29,9 @@ fn main() {
         .add_systems(Update, proto_locomotion)
         .add_systems(Startup, spawn_controllers_example)
         .insert_resource(PrototypeLocomotionConfig::default())
+        .add_systems(Update, draw_interaction_gizmos)
+        .add_systems(Update, hover_interaction)
+        .add_systems(Update, prototype_interaction_input)
         .run();
 }
 
@@ -65,6 +76,15 @@ fn setup(
         transform: Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
         ..default()
     },));
+    //simple interactable
+    commands.spawn((
+        SpatialBundle {
+            transform: Transform::from_xyz(0.0, 1.0, 0.0),
+            ..default()
+        },
+        XRInteractable,
+        XRInteractableState::default(),
+    ));
 }
 
 fn spawn_controllers_example(mut commands: Commands) {
@@ -74,6 +94,8 @@ fn spawn_controllers_example(mut commands: Commands) {
         OpenXRController,
         OpenXRTracker,
         SpatialBundle::default(),
+        XRDirectInteractor,
+        XRInteractorState::default(),
     ));
     //right hand
     commands.spawn((
@@ -81,5 +103,52 @@ fn spawn_controllers_example(mut commands: Commands) {
         OpenXRController,
         OpenXRTracker,
         SpatialBundle::default(),
+        XRDirectInteractor,
+        XRInteractorState::default(),
     ));
+}
+
+fn prototype_interaction_input(
+    oculus_controller: Res<OculusController>,
+    frame_state: Res<XrFrameState>,
+    xr_input: Res<XrInput>,
+    instance: Res<XrInstance>,
+    session: Res<XrSession>,
+    mut right_interactor_query: Query<
+        (&mut XRInteractorState),
+        (
+            With<XRDirectInteractor>,
+            With<OpenXRRightController>,
+            Without<OpenXRLeftController>,
+        ),
+    >,
+    mut left_interactor_query: Query<
+        (&mut XRInteractorState),
+        (
+            With<XRDirectInteractor>,
+            With<OpenXRLeftController>,
+            Without<OpenXRRightController>,
+        ),
+    >,
+) {
+    //lock frame
+    let frame_state = *frame_state.lock().unwrap();
+    //get controller
+    let controller = oculus_controller.get_ref(&instance, &session, &frame_state, &xr_input);
+    //get controller triggers
+    let left_trigger = controller.trigger(Hand::Left);
+    let right_trigger = controller.trigger(Hand::Right);
+    //get the interactors and do state stuff
+    let mut left_state = left_interactor_query.single_mut();
+    if left_trigger > 0.8 {
+        *left_state = XRInteractorState::Selecting;
+    } else {
+        *left_state = XRInteractorState::Idle;
+    }
+    let mut right_state = right_interactor_query.single_mut();
+    if right_trigger > 0.8 {
+        *right_state = XRInteractorState::Selecting;
+    } else {
+        *right_state = XRInteractorState::Idle;
+    }
 }
