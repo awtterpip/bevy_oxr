@@ -10,9 +10,7 @@ linked = ["openxr/linked", "openxr/static"]
 [dependencies]
 anyhow = "1.0.75"
 ash = "0.37.3"
-bevy = { git = "https://github.com/awtterpip/bevy", default-features = false, features = [
-    "bevy_render",
-], rev = "98f3b8ae207deb440f7255b3d900e7e01b6df0cb" }
+bevy = { git = "https://github.com/awtterpip/bevy", rev = "98f3b8ae207deb440f7255b3d900e7e01b6df0cb" }
 openxr = { version = "0.17.1", features = ["mint"] }
 mint = "0.5.9"
 wgpu = "0.16.0"
