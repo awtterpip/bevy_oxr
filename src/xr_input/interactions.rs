@@ -82,7 +82,7 @@ pub fn hover_interaction(
         (With<XRDirectInteractor>, Without<XRInteractable>),
     >,
 ) {
-    'interactable: for (xr_interactable_global_transform, mut state) in
+    for (xr_interactable_global_transform, mut state) in
         interactable_query.iter_mut()
     {
         let mut hovered = false;
@@ -100,7 +100,7 @@ pub fn hover_interaction(
                 )
                 < (size * size) * 2.0
             {
-                info!("we overlapping");
+                
                 //check for selections first
                 match interactor_state {
                     XRInteractorState::Idle => hovered = true,
