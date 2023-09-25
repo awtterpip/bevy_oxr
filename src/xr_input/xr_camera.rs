@@ -46,6 +46,7 @@ pub enum XrCameraType {
     Xr(Eye),
     Flatscreen,
 }
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum Eye {
     Left = 0,
@@ -222,6 +223,7 @@ pub fn xr_camera_head_sync(
     mut query: Query<(&mut Transform, &XrCameraType, &mut XRProjection)>,
 ) {
     let mut f = || -> Option<()> {
+        //TODO calculate HMD position
         for (mut transform, camera_type, mut xr_projection) in query.iter_mut() {
             let view_idx = match camera_type {
                 XrCameraType::Xr(eye) => *eye as usize,
