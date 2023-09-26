@@ -22,7 +22,7 @@ pub struct OpenXRRightController;
 pub struct OpenXRController;
 
 pub fn adopt_open_xr_trackers(
-    query: Query<(Entity), Added<OpenXRTracker>>,
+    query: Query<Entity, Added<OpenXRTracker>>,
     mut commands: Commands,
     tracking_root_query: Query<(Entity, With<OpenXRTrackingRoot>)>,
 ) {
