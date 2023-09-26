@@ -206,7 +206,7 @@ fn draw_hand_gizmo(
             let face_quat = controller_quat.mul_quat(face_quat_offset);
             let face_quat_normal = face_quat.mul_vec3(Vec3::Z);
 
-            let squeeze = controller.squeeze(Hand::Right);
+            let _squeeze = controller.squeeze(Hand::Right);
             //info!("{:?}", squeeze);
             //grip
             gizmos.rect(

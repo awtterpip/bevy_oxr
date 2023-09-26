@@ -13,7 +13,7 @@ use bevy::prelude::*;
 use bevy::render::camera::{ManualTextureView, ManualTextureViewHandle, ManualTextureViews};
 use bevy::render::pipelined_rendering::PipelinedRenderingPlugin;
 use bevy::render::renderer::{render_system, RenderInstance};
-use bevy::render::settings::RenderSettings;
+use bevy::render::settings::RenderCreation;
 use bevy::render::{Render, RenderApp, RenderPlugin, RenderSet};
 use bevy::window::{PresentMode, PrimaryWindow, RawHandleWrapper};
 use input::XrInput;
@@ -97,7 +97,7 @@ impl Plugin for OpenXrPlugin {
         ));
         app.insert_resource(ActionSets(vec![]));
         app.add_plugins(RenderPlugin {
-            render_settings: RenderSettings::Manual(
+            render_creation: RenderCreation::Manual(
                 device,
                 queue,
                 adapter_info,
