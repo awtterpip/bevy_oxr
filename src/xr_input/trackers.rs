@@ -1,8 +1,14 @@
-use bevy::prelude::{Added, BuildChildren, Commands, Entity, Query, With, Res, Transform, Without, Component, info};
+use bevy::prelude::{
+    info, Added, BuildChildren, Commands, Component, Entity, Query, Res, Transform, Vec3, With,
+    Without,
+};
 
-use crate::{resources::{XrFrameState, XrInstance, XrSession}, input::XrInput};
+use crate::{
+    input::XrInput,
+    resources::{XrFrameState, XrInstance, XrSession},
+};
 
-use super::{oculus_touch::OculusController, Hand, Vec3Conv, QuatConv};
+use super::{oculus_touch::OculusController, Hand, QuatConv, Vec3Conv};
 
 #[derive(Component)]
 pub struct OpenXRTrackingRoot;
@@ -20,6 +26,8 @@ pub struct OpenXRLeftController;
 pub struct OpenXRRightController;
 #[derive(Component)]
 pub struct OpenXRController;
+#[derive(Component)]
+pub struct AimPose(pub Transform);
 
 pub fn adopt_open_xr_trackers(
     query: Query<(Entity), Added<OpenXRTracker>>,
@@ -43,11 +51,13 @@ pub fn update_open_xr_controllers(
     oculus_controller: Res<OculusController>,
     mut left_controller_query: Query<(
         &mut Transform,
+        Option<&mut AimPose>,
         With<OpenXRLeftController>,
         Without<OpenXRRightController>,
     )>,
     mut right_controller_query: Query<(
         &mut Transform,
+        Option<&mut AimPose>,
         With<OpenXRRightController>,
         Without<OpenXRLeftController>,
     )>,
@@ -61,8 +71,20 @@ pub fn update_open_xr_controllers(
     //get controller
     let controller = oculus_controller.get_ref(&instance, &session, &frame_state, &xr_input);
     //get left controller
-    let left = controller.grip_space(Hand::Left);
-    let left_postion = left.0.pose.position.to_vec3();
+    let left_grip_space = controller.grip_space(Hand::Left);
+    let left_aim_space = controller.aim_space(Hand::Left);
+    let left_postion = left_grip_space.0.pose.position.to_vec3();
+    let aim_pose = left_controller_query.get_single_mut().unwrap().1;
+    match aim_pose {
+        Some(mut pose) => {
+            *pose = AimPose(Transform {
+                translation: left_aim_space.0.pose.position.to_vec3(),
+                rotation: left_aim_space.0.pose.orientation.to_quat(),
+                scale: Vec3::splat(1.0),
+            });
+        }
+        None => (),
+    }
 
     left_controller_query
         .get_single_mut()
@@ -70,7 +92,8 @@ pub fn update_open_xr_controllers(
         .0
         .translation = left_postion;
 
-    left_controller_query.get_single_mut().unwrap().0.rotation = left.0.pose.orientation.to_quat();
+    left_controller_query.get_single_mut().unwrap().0.rotation =
+        left_grip_space.0.pose.orientation.to_quat();
     //get right controller
     let right = controller.grip_space(Hand::Right);
     let right_postion = right.0.pose.position.to_vec3();
@@ -84,4 +107,3 @@ pub fn update_open_xr_controllers(
     right_controller_query.get_single_mut().unwrap().0.rotation =
         right.0.pose.orientation.to_quat();
 }
-

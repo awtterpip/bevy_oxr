@@ -5,13 +5,13 @@ use bevy_openxr::input::XrInput;
 use bevy_openxr::resources::{XrFrameState, XrInstance, XrSession};
 use bevy_openxr::xr_input::debug_gizmos::OpenXrDebugRenderer;
 use bevy_openxr::xr_input::interactions::{
-    draw_interaction_gizmos, hover_interaction, XRDirectInteractor, XRInteractable,
-    XRInteractableState, XRInteractorState,
+    draw_interaction_gizmos, direct_interaction, XRDirectInteractor, XRInteractable,
+    XRInteractableState, XRInteractorState, XRRayInteractor, ray_interaction,
 };
 use bevy_openxr::xr_input::oculus_touch::OculusController;
 use bevy_openxr::xr_input::prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig};
 use bevy_openxr::xr_input::trackers::{
-    OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker,
+    OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker, AimPose,
 };
 use bevy_openxr::xr_input::Hand;
 use bevy_openxr::DefaultXrPlugins;
@@ -30,7 +30,8 @@ fn main() {
         .add_systems(Startup, spawn_controllers_example)
         .insert_resource(PrototypeLocomotionConfig::default())
         .add_systems(Update, draw_interaction_gizmos)
-        .add_systems(Update, hover_interaction)
+        .add_systems(Update, direct_interaction)
+        .add_systems(Update, ray_interaction)
         .add_systems(Update, prototype_interaction_input)
         .run();
 }
@@ -95,6 +96,8 @@ fn spawn_controllers_example(mut commands: Commands) {
         OpenXRTracker,
         SpatialBundle::default(),
         XRDirectInteractor,
+        XRRayInteractor,
+        AimPose(Transform::default()),
         XRInteractorState::default(),
     ));
     //right hand
