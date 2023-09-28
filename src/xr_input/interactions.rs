@@ -1,7 +1,8 @@
 use std::f32::consts::PI;
 
 use bevy::prelude::{
-    info, Color, Component, Gizmos, GlobalTransform, Quat, Query, Transform, Vec3, With, Without,
+    info, Color, Component, Entity, Event, EventReader, EventWriter, Gizmos, GlobalTransform, Quat,
+    Query, Transform, Vec3, With, Without,
 };
 
 use super::trackers::{AimPose, OpenXRTrackingRoot};
@@ -12,7 +13,7 @@ pub struct XRDirectInteractor;
 #[derive(Component)]
 pub struct XRRayInteractor;
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 pub enum XRInteractableState {
     Idle,
     Hover,
@@ -110,46 +111,113 @@ pub fn draw_interaction_gizmos(
     }
 }
 
-pub fn direct_interaction(
+#[derive(Event)]
+pub struct InteractionEvent {
+    pub interactor: Entity,
+    pub interactable: Entity,
+    pub interactable_state: XRInteractableState,
+}
+
+pub fn interactions(
     mut interactable_query: Query<
-        (&GlobalTransform, &mut XRInteractableState),
+        (&GlobalTransform, &mut XRInteractableState, Entity),
         (With<XRInteractable>, Without<XRDirectInteractor>),
     >,
     interactor_query: Query<
-        (&GlobalTransform, &XRInteractorState),
-        (With<XRDirectInteractor>, Without<XRInteractable>),
+        (
+            &GlobalTransform,
+            &XRInteractorState,
+            Entity,
+            Option<&XRDirectInteractor>,
+            Option<&XRRayInteractor>,
+            Option<&AimPose>,
+        ),
+        (Without<XRInteractable>),
     >,
+    tracking_root_query: Query<(&mut Transform, With<OpenXRTrackingRoot>)>,
+    mut writer: EventWriter<InteractionEvent>,
 ) {
-    for (xr_interactable_global_transform, mut state) in interactable_query.iter_mut() {
+    for (xr_interactable_global_transform, mut state, interactable_entity) in
+        interactable_query.iter_mut()
+    {
         let mut hovered = false;
-        let mut selected = false;
-        for (interactor_global_transform, interactor_state) in interactor_query.iter() {
-            //check for sphere overlaps
-            let size = 0.1;
-            if interactor_global_transform
-                .compute_transform()
-                .translation
-                .distance_squared(
-                    xr_interactable_global_transform
+        for (interactor_global_transform, interactor_state, interactor_entity, direct, ray, aim) in
+            interactor_query.iter()
+        {
+            match direct {
+                Some(_) => {
+                    //check for sphere overlaps
+                    let size = 0.1;
+                    if interactor_global_transform
                         .compute_transform()
-                        .translation,
-                )
-                < (size * size) * 2.0
-            {
-                //check for selections first
-                match interactor_state {
-                    XRInteractorState::Idle => hovered = true,
-                    XRInteractorState::Selecting => {
-                        selected = true;
+                        .translation
+                        .distance_squared(
+                            xr_interactable_global_transform
+                                .compute_transform()
+                                .translation,
+                        )
+                        < (size * size) * 2.0
+                    {
+                        //check for selections first
+                        match interactor_state {
+                            XRInteractorState::Idle => hovered = true,
+                            XRInteractorState::Selecting => {
+                                //welp now I gota actually make things do stuff lol
+                                let event = InteractionEvent {
+                                    interactor: interactor_entity,
+                                    interactable: interactable_entity,
+                                    interactable_state: XRInteractableState::Select,
+                                };
+                                writer.send(event);
+                            }
+                        }
                     }
                 }
+                None => (),
+            }
+            match ray {
+                Some(_) => {
+                    //check for ray-sphere intersection
+                    let sphere_transform = xr_interactable_global_transform.compute_transform();
+                    let center = sphere_transform.translation;
+                    let radius: f32 = 0.1;
+                    //I hate this but the aim pose needs the root for now
+                    let root = tracking_root_query.get_single().unwrap().0;
+                    match aim {
+                        Some(aim) => {
+                            let ray_origin =
+                                root.translation + root.rotation.mul_vec3(aim.0.translation);
+                            let ray_dir = root.rotation.mul_vec3(aim.0.forward());
+
+                            if ray_sphere_intersection(
+                                center,
+                                radius,
+                                ray_origin,
+                                ray_dir.normalize_or_zero(),
+                            ) {
+                                //check for selections first
+                                match interactor_state {
+                                    XRInteractorState::Idle => hovered = true,
+                                    XRInteractorState::Selecting => {
+                                        //welp now I gota actually make things do stuff lol
+                                        let event = InteractionEvent {
+                                            interactor: interactor_entity,
+                                            interactable: interactable_entity,
+                                            interactable_state: XRInteractableState::Select,
+                                        };
+                                        writer.send(event);
+                                    }
+                                }
+                            }
+                        }
+                        None => info!("no aim pose"),
+                    }
+                }
+                None => (),
             }
         }
-        //check what we found
-        //also i dont like this
-        if selected {
-            *state = XRInteractableState::Select;
-        } else if hovered {
+        //still hate this
+        if hovered {
             *state = XRInteractableState::Hover;
         } else {
             *state = XRInteractableState::Idle;
@@ -157,58 +225,18 @@ pub fn direct_interaction(
     }
 }
 
-pub fn ray_interaction(
-    mut interactable_query: Query<
-        (&GlobalTransform, &mut XRInteractableState),
-        (With<XRInteractable>, Without<XRDirectInteractor>),
-    >,
-    interactor_query: Query<
-        (&GlobalTransform, &XRInteractorState, Option<&AimPose>),
-        (With<XRRayInteractor>, Without<XRInteractable>),
-    >,
-    tracking_root_query: Query<(&mut Transform, With<OpenXRTrackingRoot>)>,
+pub fn update_interactable_states(
+    mut events: EventReader<InteractionEvent>,
+    mut interactable_query: Query<(Entity, &mut XRInteractableState), (With<XRInteractable>)>,
 ) {
-    for (xr_interactable_global_transform, mut state) in interactable_query.iter_mut() {
-        let mut hovered = false;
-        let mut selected = false;
-        for (interactor_global_transform, interactor_state, aim) in interactor_query.iter() {
-            //check for ray-sphere intersection
-            let sphere_transform = xr_interactable_global_transform.compute_transform();
-            let center = sphere_transform.translation;
-            let radius: f32 = 0.1;
-            //I hate this but the aim pose needs the root for now
-            let root = tracking_root_query.get_single().unwrap().0;
-            match aim {
-                Some(aim) => {
-                    let ray_origin = root.translation + root.rotation.mul_vec3(aim.0.translation);
-                    let ray_dir = root.rotation.mul_vec3(aim.0.forward());
-
-                    if ray_sphere_intersection(
-                        center,
-                        radius,
-                        ray_origin,
-                        ray_dir.normalize_or_zero(),
-                    ) {
-                        //check for selections first
-                        match interactor_state {
-                            XRInteractorState::Idle => hovered = true,
-                            XRInteractorState::Selecting => {
-                                selected = true;
-                            }
-                        }
-                    }
-                }
-                None => info!("no aim pose"),
+    for event in events.read() {
+        //lets change the state?
+        match interactable_query.get_mut(event.interactable) {
+            Ok((_entity, mut entity_state)) => {
+                *entity_state = event.interactable_state;
             }
-        }
-        //check what we found
-        //also i dont like this
-        if selected {
-            *state = XRInteractableState::Select;
-        } else if hovered {
-            *state = XRInteractableState::Hover;
-        } else {
-            *state = XRInteractableState::Idle;
+            Err(_) => {
+            }
         }
     }
 }

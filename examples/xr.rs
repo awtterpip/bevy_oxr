@@ -5,13 +5,13 @@ use bevy_openxr::input::XrInput;
 use bevy_openxr::resources::{XrFrameState, XrInstance, XrSession};
 use bevy_openxr::xr_input::debug_gizmos::OpenXrDebugRenderer;
 use bevy_openxr::xr_input::interactions::{
-    draw_interaction_gizmos, direct_interaction, XRDirectInteractor, XRInteractable,
-    XRInteractableState, XRInteractorState, XRRayInteractor, ray_interaction,
+    interactions, draw_interaction_gizmos, update_interactable_states, InteractionEvent,
+    XRDirectInteractor, XRInteractable, XRInteractableState, XRInteractorState, XRRayInteractor,
 };
 use bevy_openxr::xr_input::oculus_touch::OculusController;
 use bevy_openxr::xr_input::prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig};
 use bevy_openxr::xr_input::trackers::{
-    OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker, AimPose,
+    AimPose, OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker,
 };
 use bevy_openxr::xr_input::Hand;
 use bevy_openxr::DefaultXrPlugins;
@@ -29,10 +29,15 @@ fn main() {
         .add_systems(Update, proto_locomotion)
         .add_systems(Startup, spawn_controllers_example)
         .insert_resource(PrototypeLocomotionConfig::default())
-        .add_systems(Update, draw_interaction_gizmos)
-        .add_systems(Update, direct_interaction)
-        .add_systems(Update, ray_interaction)
+        .add_systems(
+            Update,
+            draw_interaction_gizmos.after(update_interactable_states),
+        )
+        .add_systems(Update, interactions)
         .add_systems(Update, prototype_interaction_input)
+        .add_systems(Update, update_interactable_states.after(interactions))
+        .add_systems(Update, update_grabbables.after(update_interactable_states))
+        .add_event::<InteractionEvent>()
         .run();
 }
 
@@ -85,6 +90,7 @@ fn setup(
         },
         XRInteractable,
         XRInteractableState::default(),
+        Grabbable,
     ));
 }
 
@@ -95,7 +101,6 @@ fn spawn_controllers_example(mut commands: Commands) {
         OpenXRController,
         OpenXRTracker,
         SpatialBundle::default(),
-        XRDirectInteractor,
         XRRayInteractor,
         AimPose(Transform::default()),
         XRInteractorState::default(),
@@ -128,7 +133,7 @@ fn prototype_interaction_input(
     mut left_interactor_query: Query<
         (&mut XRInteractorState),
         (
-            With<XRDirectInteractor>,
+            With<XRRayInteractor>,
             With<OpenXRLeftController>,
             Without<OpenXRRightController>,
         ),
@@ -153,5 +158,43 @@ fn prototype_interaction_input(
         *right_state = XRInteractorState::Selecting;
     } else {
         *right_state = XRInteractorState::Idle;
+    }
+}
+
+#[derive(Component)]
+pub struct Grabbable;
+
+pub fn update_grabbables(
+    mut events: EventReader<InteractionEvent>,
+    mut grabbable_query: Query<(&mut Transform, With<Grabbable>, Without<XRDirectInteractor>)>,
+    interactor_query: Query<(&GlobalTransform, With<XRDirectInteractor>, Without<Grabbable>)>,
+) {
+    //so basically the idea is to try all the events?
+    for event in events.read() {
+        info!("some event");
+        match grabbable_query.get_mut(event.interactable) {
+            Ok(mut grabbable_transform) => {
+                info!("we got a grabbable");
+                //now we need the location of our interactor
+                match interactor_query.get(event.interactor) {
+                    Ok(interactor_transform) => {
+                        info!("its a direct interactor?");
+                        info!(
+                            "before gT: {:?}, iT: {:?}",
+                            grabbable_transform, interactor_transform
+                        );
+                        *grabbable_transform.0 = interactor_transform.0.compute_transform();
+                        info!(
+                            "after gT: {:?}, iT: {:?}",
+                            grabbable_transform, interactor_transform
+                        );
+                    }
+                    Err(_) => info!("not a direct interactor"),
+                }
+            }
+            Err(_) => {
+                info!("not a grabbable?")
+            }
+        }
     }
 }
