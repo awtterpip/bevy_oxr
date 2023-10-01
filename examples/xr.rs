@@ -5,9 +5,9 @@ use bevy_openxr::input::XrInput;
 use bevy_openxr::resources::{XrFrameState, XrInstance, XrSession};
 use bevy_openxr::xr_input::debug_gizmos::OpenXrDebugRenderer;
 use bevy_openxr::xr_input::interactions::{
-    draw_interaction_gizmos, draw_socket_gizmos, interactions, update_interactable_states,
-    InteractionEvent, XRDirectInteractor, XRInteractable, XRInteractableState, XRInteractorState,
-    XRRayInteractor, XRSocketInteractor, socket_interactions,
+    draw_interaction_gizmos, draw_socket_gizmos, interactions, socket_interactions,
+    update_interactable_states, InteractionEvent, XRDirectInteractor, XRInteractable,
+    XRInteractableState, XRInteractorState, XRRayInteractor, XRSocketInteractor,
 };
 use bevy_openxr::xr_input::oculus_touch::OculusController;
 use bevy_openxr::xr_input::prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig};
@@ -35,10 +35,13 @@ fn main() {
             draw_interaction_gizmos.after(update_interactable_states),
         )
         .add_systems(Update, draw_socket_gizmos.after(update_interactable_states))
-        .add_systems(Update, interactions)
-        .add_systems(Update, socket_interactions)
+        .add_systems(Update, interactions.before(update_interactable_states))
+        .add_systems(
+            Update,
+            socket_interactions.before(update_interactable_states),
+        )
         .add_systems(Update, prototype_interaction_input)
-        .add_systems(Update, update_interactable_states.after(interactions))
+        .add_systems(Update, update_interactable_states)
         .add_systems(Update, update_grabbables.after(update_interactable_states))
         .add_event::<InteractionEvent>()
         .run();
@@ -173,37 +176,40 @@ pub struct Grabbable;
 pub fn update_grabbables(
     mut events: EventReader<InteractionEvent>,
     mut grabbable_query: Query<(&mut Transform, With<Grabbable>, Without<XRDirectInteractor>)>,
-    interactor_query: Query<(
-        &GlobalTransform,
-        With<XRInteractorState>,
-        Without<Grabbable>,
-    )>,
+    interactor_query: Query<(&GlobalTransform, &XRInteractorState, Without<Grabbable>)>,
 ) {
     //so basically the idea is to try all the events?
     for event in events.read() {
-        info!("some event");
+        // info!("some event");
         match grabbable_query.get_mut(event.interactable) {
             Ok(mut grabbable_transform) => {
-                info!("we got a grabbable");
+                // info!("we got a grabbable");
                 //now we need the location of our interactor
                 match interactor_query.get(event.interactor) {
                     Ok(interactor_transform) => {
-                        info!("its a direct interactor?");
-                        info!(
-                            "before gT: {:?}, iT: {:?}",
-                            grabbable_transform, interactor_transform
-                        );
-                        *grabbable_transform.0 = interactor_transform.0.compute_transform();
-                        info!(
-                            "after gT: {:?}, iT: {:?}",
-                            grabbable_transform, interactor_transform
-                        );
+                        match interactor_transform.1 {
+                            XRInteractorState::Idle => (),
+                            XRInteractorState::Selecting => {
+                                // info!("its a direct interactor?");
+                                // info!(
+                                //     "before gT: {:?}, iT: {:?}",
+                                //     grabbable_transform, interactor_transform
+                                // );
+                                *grabbable_transform.0 = interactor_transform.0.compute_transform();
+                                // info!(
+                                //     "after gT: {:?}, iT: {:?}",
+                                //     grabbable_transform, interactor_transform
+                                // );
+                            }
+                        }
                     }
-                    Err(_) => info!("not a direct interactor"),
+                    Err(_) => {
+                        // info!("not a direct interactor")
+                    }
                 }
             }
             Err(_) => {
-                info!("not a grabbable?")
+                // info!("not a grabbable?")
             }
         }
     }

@@ -16,7 +16,7 @@ pub struct XRRayInteractor;
 #[derive(Component)]
 pub struct XRSocketInteractor;
 
-#[derive(Component, Clone, Copy)]
+#[derive(Component, Clone, Copy, PartialEq, PartialOrd, Debug)]
 pub enum XRInteractableState {
     Idle,
     Hover,
@@ -78,7 +78,7 @@ pub fn draw_interaction_gizmos(
             Option<&XRRayInteractor>,
             Option<&AimPose>,
         ),
-        (Without<XRInteractable>),
+        Without<XRInteractable>,
     >,
     tracking_root_query: Query<(&mut Transform, With<OpenXRTrackingRoot>)>,
 ) {
@@ -144,7 +144,7 @@ pub struct InteractionEvent {
 
 //yeah these need to be seperate somehow
 pub fn socket_interactions(
-    mut interactable_query: Query<
+    interactable_query: Query<
         (&GlobalTransform, &mut XRInteractableState, Entity),
         (With<XRInteractable>, Without<XRSocketInteractor>),
     >,
@@ -155,7 +155,7 @@ pub fn socket_interactions(
             Entity,
             &XRSocketInteractor,
         ),
-        (Without<XRInteractable>),
+        Without<XRInteractable>,
     >,
     mut writer: EventWriter<InteractionEvent>,
 ) {
@@ -179,7 +179,15 @@ pub fn socket_interactions(
             {
                 //check for selections first
                 match interactor_state {
-                    XRInteractorState::Idle => (), //welp this wont work,
+                    XRInteractorState::Idle => {
+                        //welp now I gota actually make things do stuff lol
+                        let event = InteractionEvent {
+                            interactor: socket.2,
+                            interactable: interactable.2,
+                            interactable_state: XRInteractableState::Hover,
+                        };
+                        writer.send(event);
+                    }
                     XRInteractorState::Selecting => {
                         //welp now I gota actually make things do stuff lol
                         let event = InteractionEvent {
@@ -196,8 +204,8 @@ pub fn socket_interactions(
 }
 
 pub fn interactions(
-    mut interactable_query: Query<
-        (&GlobalTransform, &mut XRInteractableState, Entity),
+    interactable_query: Query<
+        (&GlobalTransform, Entity),
         (With<XRInteractable>, Without<XRDirectInteractor>),
     >,
     interactor_query: Query<
@@ -209,15 +217,12 @@ pub fn interactions(
             Option<&XRRayInteractor>,
             Option<&AimPose>,
         ),
-        (Without<XRInteractable>),
+        Without<XRInteractable>,
     >,
     tracking_root_query: Query<(&mut Transform, With<OpenXRTrackingRoot>)>,
     mut writer: EventWriter<InteractionEvent>,
 ) {
-    for (xr_interactable_global_transform, mut state, interactable_entity) in
-        interactable_query.iter_mut()
-    {
-        let mut hovered = false;
+    for (xr_interactable_global_transform, interactable_entity) in interactable_query.iter() {
         for (interactor_global_transform, interactor_state, interactor_entity, direct, ray, aim) in
             interactor_query.iter()
         {
@@ -237,7 +242,15 @@ pub fn interactions(
                     {
                         //check for selections first
                         match interactor_state {
-                            XRInteractorState::Idle => hovered = true,
+                            XRInteractorState::Idle => {
+                                //welp now I gota actually make things do stuff lol
+                                let event = InteractionEvent {
+                                    interactor: interactor_entity,
+                                    interactable: interactable_entity,
+                                    interactable_state: XRInteractableState::Hover,
+                                };
+                                writer.send(event);
+                            }
                             XRInteractorState::Selecting => {
                                 //welp now I gota actually make things do stuff lol
                                 let event = InteractionEvent {
@@ -274,7 +287,15 @@ pub fn interactions(
                             ) {
                                 //check for selections first
                                 match interactor_state {
-                                    XRInteractorState::Idle => hovered = true,
+                                    XRInteractorState::Idle => {
+                                        //welp now I gota actually make things do stuff lol
+                                        let event = InteractionEvent {
+                                            interactor: interactor_entity,
+                                            interactable: interactable_entity,
+                                            interactable_state: XRInteractableState::Hover,
+                                        };
+                                        writer.send(event);
+                                    }
                                     XRInteractorState::Selecting => {
                                         //welp now I gota actually make things do stuff lol
                                         let event = InteractionEvent {
@@ -293,23 +314,29 @@ pub fn interactions(
                 None => (),
             }
         }
-        //still hate this
-        if hovered {
-            *state = XRInteractableState::Hover;
-        } else {
-            *state = XRInteractableState::Idle;
-        }
     }
 }
 
 pub fn update_interactable_states(
     mut events: EventReader<InteractionEvent>,
-    mut interactable_query: Query<(Entity, &mut XRInteractableState), (With<XRInteractable>)>,
+    mut interactable_query: Query<(Entity, &mut XRInteractableState), With<XRInteractable>>,
 ) {
+    //i legit hate this haha but it works
+    for (_entity, mut state) in interactable_query.iter_mut() {
+        *state = XRInteractableState::Idle;
+    }
+
     for event in events.read() {
         //lets change the state?
         match interactable_query.get_mut(event.interactable) {
             Ok((_entity, mut entity_state)) => {
+                if event.interactable_state > *entity_state {
+                    // info!(
+                    //     "event.state: {:?}, interactable.state: {:?}",
+                    //     event.interactable_state, entity_state
+                    // );
+                    // info!("event has a higher state");
+                }
                 *entity_state = event.interactable_state;
             }
             Err(_) => {}
