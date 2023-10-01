@@ -13,6 +13,9 @@ pub struct XRDirectInteractor;
 #[derive(Component)]
 pub struct XRRayInteractor;
 
+#[derive(Component)]
+pub struct XRSocketInteractor;
+
 #[derive(Component, Clone, Copy)]
 pub enum XRInteractableState {
     Idle,
@@ -39,6 +42,27 @@ impl Default for XRInteractorState {
 
 #[derive(Component)]
 pub struct XRInteractable;
+
+//i guess really these should be seperate
+pub fn draw_socket_gizmos(
+    mut gizmos: Gizmos,
+    interactor_query: Query<(
+        &GlobalTransform,
+        &XRInteractorState,
+        Entity,
+        &XRSocketInteractor,
+    )>,
+) {
+    for (global, state, _entity, _socket) in interactor_query.iter() {
+        let mut transform = global.compute_transform().clone();
+        transform.scale = Vec3::splat(0.1);
+        let color = match state {
+            XRInteractorState::Idle => Color::BLUE,
+            XRInteractorState::Selecting => Color::PURPLE,
+        };
+        gizmos.cuboid(transform, color)
+    }
+}
 
 pub fn draw_interaction_gizmos(
     mut gizmos: Gizmos,
@@ -116,6 +140,59 @@ pub struct InteractionEvent {
     pub interactor: Entity,
     pub interactable: Entity,
     pub interactable_state: XRInteractableState,
+}
+
+//yeah these need to be seperate somehow
+pub fn socket_interactions(
+    mut interactable_query: Query<
+        (&GlobalTransform, &mut XRInteractableState, Entity),
+        (With<XRInteractable>, Without<XRSocketInteractor>),
+    >,
+    interactor_query: Query<
+        (
+            &GlobalTransform,
+            &XRInteractorState,
+            Entity,
+            &XRSocketInteractor,
+        ),
+        (Without<XRInteractable>),
+    >,
+    mut writer: EventWriter<InteractionEvent>,
+) {
+    for interactable in interactable_query.iter() {
+        //for the interactbles
+        for socket in interactor_query.iter() {
+            let interactor_global_transform = socket.0;
+            let xr_interactable_global_transform = interactable.0;
+            let interactor_state = socket.1;
+            //check for sphere overlaps
+            let size = 0.1;
+            if interactor_global_transform
+                .compute_transform()
+                .translation
+                .distance_squared(
+                    xr_interactable_global_transform
+                        .compute_transform()
+                        .translation,
+                )
+                < (size * size) * 2.0
+            {
+                //check for selections first
+                match interactor_state {
+                    XRInteractorState::Idle => (), //welp this wont work,
+                    XRInteractorState::Selecting => {
+                        //welp now I gota actually make things do stuff lol
+                        let event = InteractionEvent {
+                            interactor: socket.2,
+                            interactable: interactable.2,
+                            interactable_state: XRInteractableState::Select,
+                        };
+                        writer.send(event);
+                    }
+                }
+            }
+        }
+    }
 }
 
 pub fn interactions(
@@ -235,8 +312,7 @@ pub fn update_interactable_states(
             Ok((_entity, mut entity_state)) => {
                 *entity_state = event.interactable_state;
             }
-            Err(_) => {
-            }
+            Err(_) => {}
         }
     }
 }

@@ -5,8 +5,9 @@ use bevy_openxr::input::XrInput;
 use bevy_openxr::resources::{XrFrameState, XrInstance, XrSession};
 use bevy_openxr::xr_input::debug_gizmos::OpenXrDebugRenderer;
 use bevy_openxr::xr_input::interactions::{
-    interactions, draw_interaction_gizmos, update_interactable_states, InteractionEvent,
-    XRDirectInteractor, XRInteractable, XRInteractableState, XRInteractorState, XRRayInteractor,
+    draw_interaction_gizmos, draw_socket_gizmos, interactions, update_interactable_states,
+    InteractionEvent, XRDirectInteractor, XRInteractable, XRInteractableState, XRInteractorState,
+    XRRayInteractor, XRSocketInteractor, socket_interactions,
 };
 use bevy_openxr::xr_input::oculus_touch::OculusController;
 use bevy_openxr::xr_input::prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig};
@@ -33,7 +34,9 @@ fn main() {
             Update,
             draw_interaction_gizmos.after(update_interactable_states),
         )
+        .add_systems(Update, draw_socket_gizmos.after(update_interactable_states))
         .add_systems(Update, interactions)
+        .add_systems(Update, socket_interactions)
         .add_systems(Update, prototype_interaction_input)
         .add_systems(Update, update_interactable_states.after(interactions))
         .add_systems(Update, update_grabbables.after(update_interactable_states))
@@ -60,13 +63,16 @@ fn setup(
         transform: Transform::from_xyz(0.0, 0.5, 0.0),
         ..default()
     });
-    // cube
-    commands.spawn(PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
-        material: materials.add(Color::rgb(0.8, 0.0, 0.0).into()),
-        transform: Transform::from_xyz(0.0, 0.5, 1.0),
-        ..default()
-    });
+    // socket
+    commands.spawn((
+        SpatialBundle {
+            transform: Transform::from_xyz(0.0, 0.5, 1.0),
+            ..default()
+        },
+        XRInteractorState::Selecting,
+        XRSocketInteractor,
+    ));
+
     // light
     commands.spawn(PointLightBundle {
         point_light: PointLight {
@@ -167,7 +173,11 @@ pub struct Grabbable;
 pub fn update_grabbables(
     mut events: EventReader<InteractionEvent>,
     mut grabbable_query: Query<(&mut Transform, With<Grabbable>, Without<XRDirectInteractor>)>,
-    interactor_query: Query<(&GlobalTransform, With<XRDirectInteractor>, Without<Grabbable>)>,
+    interactor_query: Query<(
+        &GlobalTransform,
+        With<XRInteractorState>,
+        Without<Grabbable>,
+    )>,
 ) {
     //so basically the idea is to try all the events?
     for event in events.read() {
