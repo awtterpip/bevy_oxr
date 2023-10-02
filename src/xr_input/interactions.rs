@@ -16,6 +16,9 @@ pub struct XRRayInteractor;
 #[derive(Component)]
 pub struct XRSocketInteractor;
 
+#[derive(Component)]
+pub struct Touched(pub bool);
+
 #[derive(Component, Clone, Copy, PartialEq, PartialOrd, Debug)]
 pub enum XRInteractableState {
     Idle,
@@ -43,7 +46,6 @@ impl Default for XRInteractorState {
 #[derive(Component)]
 pub struct XRInteractable;
 
-//i guess really these should be seperate
 pub fn draw_socket_gizmos(
     mut gizmos: Gizmos,
     interactor_query: Query<(
@@ -142,7 +144,6 @@ pub struct InteractionEvent {
     pub interactable_state: XRInteractableState,
 }
 
-//yeah these need to be seperate somehow
 pub fn socket_interactions(
     interactable_query: Query<
         (&GlobalTransform, &mut XRInteractableState, Entity),
@@ -160,7 +161,7 @@ pub fn socket_interactions(
     mut writer: EventWriter<InteractionEvent>,
 ) {
     for interactable in interactable_query.iter() {
-        //for the interactbles
+        //for the interactables
         for socket in interactor_query.iter() {
             let interactor_global_transform = socket.0;
             let xr_interactable_global_transform = interactable.0;
@@ -180,7 +181,6 @@ pub fn socket_interactions(
                 //check for selections first
                 match interactor_state {
                     XRInteractorState::Idle => {
-                        //welp now I gota actually make things do stuff lol
                         let event = InteractionEvent {
                             interactor: socket.2,
                             interactable: interactable.2,
@@ -189,7 +189,6 @@ pub fn socket_interactions(
                         writer.send(event);
                     }
                     XRInteractorState::Selecting => {
-                        //welp now I gota actually make things do stuff lol
                         let event = InteractionEvent {
                             interactor: socket.2,
                             interactable: interactable.2,
@@ -243,7 +242,6 @@ pub fn interactions(
                         //check for selections first
                         match interactor_state {
                             XRInteractorState::Idle => {
-                                //welp now I gota actually make things do stuff lol
                                 let event = InteractionEvent {
                                     interactor: interactor_entity,
                                     interactable: interactable_entity,
@@ -252,7 +250,6 @@ pub fn interactions(
                                 writer.send(event);
                             }
                             XRInteractorState::Selecting => {
-                                //welp now I gota actually make things do stuff lol
                                 let event = InteractionEvent {
                                     interactor: interactor_entity,
                                     interactable: interactable_entity,
@@ -288,7 +285,6 @@ pub fn interactions(
                                 //check for selections first
                                 match interactor_state {
                                     XRInteractorState::Idle => {
-                                        //welp now I gota actually make things do stuff lol
                                         let event = InteractionEvent {
                                             interactor: interactor_entity,
                                             interactable: interactable_entity,
@@ -297,7 +293,6 @@ pub fn interactions(
                                         writer.send(event);
                                     }
                                     XRInteractorState::Selecting => {
-                                        //welp now I gota actually make things do stuff lol
                                         let event = InteractionEvent {
                                             interactor: interactor_entity,
                                             interactable: interactable_entity,
@@ -319,17 +314,21 @@ pub fn interactions(
 
 pub fn update_interactable_states(
     mut events: EventReader<InteractionEvent>,
-    mut interactable_query: Query<(Entity, &mut XRInteractableState), With<XRInteractable>>,
+    mut interactable_query: Query<
+        (Entity, &mut XRInteractableState, &mut Touched),
+        With<XRInteractable>,
+    >,
 ) {
-    //i legit hate this haha but it works
-    for (_entity, mut state) in interactable_query.iter_mut() {
-        *state = XRInteractableState::Idle;
+    //i very much dislike this
+    for (_entity, _state, mut touched) in interactable_query.iter_mut() {
+        *touched = Touched(false);
     }
-
     for event in events.read() {
-        //lets change the state?
+        //lets change the state
         match interactable_query.get_mut(event.interactable) {
-            Ok((_entity, mut entity_state)) => {
+            Ok((_entity, mut entity_state, mut touched)) => {
+                //since we have an event we were touched this frame, i hate this name
+                *touched = Touched(true);
                 if event.interactable_state > *entity_state {
                     // info!(
                     //     "event.state: {:?}, interactable.state: {:?}",
@@ -340,6 +339,12 @@ pub fn update_interactable_states(
                 *entity_state = event.interactable_state;
             }
             Err(_) => {}
+        }
+    }
+    //lets go through all the untouched interactables and set them to idle
+    for (_entity, mut state, touched) in interactable_query.iter_mut() {
+        if !touched.0 {
+            *state = XRInteractableState::Idle;
         }
     }
 }

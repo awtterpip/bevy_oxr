@@ -6,7 +6,7 @@ use bevy_openxr::resources::{XrFrameState, XrInstance, XrSession};
 use bevy_openxr::xr_input::debug_gizmos::OpenXrDebugRenderer;
 use bevy_openxr::xr_input::interactions::{
     draw_interaction_gizmos, draw_socket_gizmos, interactions, socket_interactions,
-    update_interactable_states, InteractionEvent, XRDirectInteractor, XRInteractable,
+    update_interactable_states, InteractionEvent, Touched, XRDirectInteractor, XRInteractable,
     XRInteractableState, XRInteractorState, XRRayInteractor, XRSocketInteractor,
 };
 use bevy_openxr::xr_input::oculus_touch::OculusController;
@@ -100,6 +100,7 @@ fn setup(
         XRInteractable,
         XRInteractableState::default(),
         Grabbable,
+        Touched(false),
     ));
 }
 
