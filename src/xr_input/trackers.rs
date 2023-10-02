@@ -74,8 +74,8 @@ pub fn update_open_xr_controllers(
     let left_grip_space = controller.grip_space(Hand::Left);
     let left_aim_space = controller.aim_space(Hand::Left);
     let left_postion = left_grip_space.0.pose.position.to_vec3();
-    let aim_pose = left_controller_query.get_single_mut().unwrap().1;
-    match aim_pose {
+    let left_aim_pose = left_controller_query.get_single_mut().unwrap().1;
+    match left_aim_pose {
         Some(mut pose) => {
             *pose = AimPose(Transform {
                 translation: left_aim_space.0.pose.position.to_vec3(),
@@ -95,8 +95,21 @@ pub fn update_open_xr_controllers(
     left_controller_query.get_single_mut().unwrap().0.rotation =
         left_grip_space.0.pose.orientation.to_quat();
     //get right controller
-    let right = controller.grip_space(Hand::Right);
-    let right_postion = right.0.pose.position.to_vec3();
+    let right_grip_space = controller.grip_space(Hand::Right);
+    let right_aim_space = controller.aim_space(Hand::Right);
+    let right_postion = right_grip_space.0.pose.position.to_vec3();
+
+    let right_aim_pose = right_controller_query.get_single_mut().unwrap().1;
+    match right_aim_pose {
+        Some(mut pose) => {
+            *pose = AimPose(Transform {
+                translation: right_aim_space.0.pose.position.to_vec3(),
+                rotation: right_aim_space.0.pose.orientation.to_quat(),
+                scale: Vec3::splat(1.0),
+            });
+        }
+        None => (),
+    }
 
     right_controller_query
         .get_single_mut()
@@ -105,5 +118,5 @@ pub fn update_open_xr_controllers(
         .translation = right_postion;
 
     right_controller_query.get_single_mut().unwrap().0.rotation =
-        right.0.pose.orientation.to_quat();
+        right_grip_space.0.pose.orientation.to_quat();
 }
