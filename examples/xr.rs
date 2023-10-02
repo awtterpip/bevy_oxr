@@ -192,15 +192,7 @@ pub fn update_grabbables(
                             XRInteractorState::Idle => (),
                             XRInteractorState::Selecting => {
                                 // info!("its a direct interactor?");
-                                // info!(
-                                //     "before gT: {:?}, iT: {:?}",
-                                //     grabbable_transform, interactor_transform
-                                // );
                                 *grabbable_transform.0 = interactor_transform.0.compute_transform();
-                                // info!(
-                                //     "after gT: {:?}, iT: {:?}",
-                                //     grabbable_transform, interactor_transform
-                                // );
                             }
                         }
                     }
