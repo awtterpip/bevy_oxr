@@ -1,12 +1,22 @@
+<<<<<<< HEAD
 
+=======
+use std::f32::consts::PI;
+use std::ops::Mul;
+>>>>>>> 68cdf19 (both hands work)
 
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 
 use bevy::prelude::*;
 use bevy::transform::components::Transform;
+<<<<<<< HEAD
 
 use bevy_openxr::xr_input::{QuatConv, Vec3Conv};
 use bevy_openxr::xr_input::hand::{OpenXrHandInput, HandInputDebugRenderer};
+=======
+use bevy_openxr::xr_input::{Vec3Conv, QuatConv, Hand};
+use bevy_openxr::xr_input::debug_gizmos::OpenXrDebugRenderer;
+>>>>>>> 68cdf19 (both hands work)
 use bevy_openxr::xr_input::prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig};
 use bevy_openxr::xr_input::trackers::{
     OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker,
@@ -25,6 +35,11 @@ fn main() {
         .add_plugins(FrameTimeDiagnosticsPlugin)
         .add_systems(Startup, setup)
         .add_systems(Update, proto_locomotion)
+<<<<<<< HEAD
+=======
+        .add_systems(Startup, spawn_controllers_example)
+        .add_systems(Update, draw_skeleton_hands)
+>>>>>>> 68cdf19 (both hands work)
         .insert_resource(PrototypeLocomotionConfig::default())
         .add_systems(Startup, spawn_controllers_example)
         .add_plugins(OpenXrHandInput)
@@ -82,24 +97,39 @@ fn setup(
     },));
 }
 
-fn draw_skeleton_hand(mut commands: Commands,
+fn draw_skeleton_hands(mut commands: Commands,
     mut gizmos: Gizmos,
     right_controller_query: Query<(
     &GlobalTransform,
     With<OpenXRRightController>,
-)>, ) {
+)>, 
+left_controller_query: Query<(
+    &GlobalTransform,
+    With<OpenXRLeftController>,
+)>,) {
+
+            let left_hand_transform = left_controller_query.get_single().unwrap().0.compute_transform();
+            draw_hand(&mut gizmos, left_hand_transform, Hand::Left);
+            let right_hand_transform = right_controller_query.get_single().unwrap().0.compute_transform();
+            draw_hand(&mut gizmos, right_hand_transform, Hand::Right)
+        
+    
+
+}
+
+fn draw_hand(mut gizmos: &mut Gizmos,
+    controller_transform: Transform,
+hand: Hand) {
     //draw debug for controller grip center to match palm to
-    let right_transform = right_controller_query.get_single().unwrap().0;
-    let right_translation = right_transform.compute_transform().translation;
-    let right_quat = right_transform.compute_transform().rotation;
+    let hand_translation = controller_transform.translation;
+    let hand_quat = controller_transform.rotation;
     //we need to flip this i dont know why
     let flip = Quat::from_rotation_x(PI);
-    let flap = Quat::from_rotation_z(-45.0*(PI/180.0));
-    let controller_backward = right_quat.mul_quat(flip).mul_quat(flap);
+    let controller_backward = hand_quat.mul_quat(flip);
 
-    let hand_pose: [Posef; 26] = [
+    let test: [Posef; 26] = [
         Posef { position: Vector3f {x: 0.0, y: 0.0, z: 0.0}, orientation: Quaternionf {x: -0.267, y:  0.849, z: 0.204, w:  0.407}}, //palm
-        Posef { position: Vector3f {x: 0.0, y: 0.32,  z: 0.0}, orientation: Quaternionf {x: -0.267, y:  0.849, z: 0.204, w:  0.407}},
+        Posef { position: Vector3f { x: 0.02, y: -0.040, z: -0.015}, orientation: Quaternionf {x: -0.267, y:  0.849, z: 0.204, w:  0.407}},
 
         Posef { position: Vector3f {x: 0.019, y: -0.037, z: 0.011}, orientation: Quaternionf {x: -0.744, y: -0.530, z: 0.156, w:  -0.376}},
         Posef { position: Vector3f {x: 0.015, y: -0.014, z: 0.047}, orientation: Quaternionf {x: -0.786, y: -0.550, z: 0.126, w:  -0.254}},
@@ -131,80 +161,83 @@ fn draw_skeleton_hand(mut commands: Commands,
         Posef { position: Vector3f {x: -0.068, y:0.059, z:-0.013}, orientation: Quaternionf {x: 0.045,  y: -0.780, z: 0.378, w:  -0.496}},
     ];
 
+    let hand_pose = flip_hand_pose(test.clone(), hand);
+
     //log_hand(hand_pose);
 
-
-    //cursed wrist math
-    let wrist_dist = Vec3{ x: -0.01, y: -0.040, z: -0.015};
-
-    //cursed offset
-    let offset = right_translation;
-
-    //old stuff dont touch for now
     let palm = hand_pose[HandJoint::PALM];
-    gizmos.sphere(palm.position.to_vec3() + offset, palm.orientation.to_quat().mul_quat(controller_backward), 0.01, Color::WHITE);
+    gizmos.sphere(palm.position.to_vec3() + hand_translation, palm.orientation.to_quat().mul_quat(controller_backward), 0.01, Color::WHITE);
 
-    let rotated_wfp =  palm.position.to_vec3()  + right_quat.mul_quat(flip).mul_vec3(wrist_dist);
-    gizmos.sphere(offset + rotated_wfp, palm.orientation.to_quat(), 0.01, Color::GRAY);
+    let wrist = hand_pose[HandJoint::WRIST];
+    draw_joint(&mut gizmos, wrist.position.to_vec3(), wrist.orientation.to_quat(), 0.01, Color::GRAY, controller_backward, hand_translation);
 
 
     let thumb_meta = hand_pose[HandJoint::THUMB_METACARPAL];
-    draw_joint(&mut gizmos, thumb_meta.position.to_vec3(), thumb_meta.orientation.to_quat(), 0.01, Color::RED, controller_backward, offset);
+    draw_joint(&mut gizmos, thumb_meta.position.to_vec3(), thumb_meta.orientation.to_quat(), 0.01, Color::RED, controller_backward, hand_translation);
 
     let thumb_prox = hand_pose[HandJoint::THUMB_PROXIMAL];
-    draw_joint(&mut gizmos, thumb_prox.position.to_vec3(), thumb_prox.orientation.to_quat(), 0.008, Color::RED, controller_backward, offset);
+    draw_joint(&mut gizmos, thumb_prox.position.to_vec3(), thumb_prox.orientation.to_quat(), 0.008, Color::RED, controller_backward, hand_translation);
     let thumb_dist = hand_pose[HandJoint::THUMB_DISTAL];
-    draw_joint(&mut gizmos, thumb_dist.position.to_vec3(), thumb_dist.orientation.to_quat(), 0.006, Color::RED, controller_backward, offset);
+    draw_joint(&mut gizmos, thumb_dist.position.to_vec3(), thumb_dist.orientation.to_quat(), 0.006, Color::RED, controller_backward, hand_translation);
     let thumb_tip = hand_pose[HandJoint::THUMB_TIP];
-    draw_joint(&mut gizmos, thumb_tip.position.to_vec3(), thumb_tip.orientation.to_quat(), 0.004, Color::RED, controller_backward, offset);
+    draw_joint(&mut gizmos, thumb_tip.position.to_vec3(), thumb_tip.orientation.to_quat(), 0.004, Color::RED, controller_backward, hand_translation);
 
     let index_meta = hand_pose[HandJoint::INDEX_METACARPAL];
-    draw_joint(&mut gizmos, index_meta.position.to_vec3(), index_meta.orientation.to_quat(), 0.01, Color::ORANGE, controller_backward, offset);
+    draw_joint(&mut gizmos, index_meta.position.to_vec3(), index_meta.orientation.to_quat(), 0.01, Color::ORANGE, controller_backward, hand_translation);
     let index_prox = hand_pose[HandJoint::INDEX_PROXIMAL];
-    draw_joint(&mut gizmos, index_prox.position.to_vec3(), index_prox.orientation.to_quat(), 0.008, Color::ORANGE, controller_backward, offset);
+    draw_joint(&mut gizmos, index_prox.position.to_vec3(), index_prox.orientation.to_quat(), 0.008, Color::ORANGE, controller_backward, hand_translation);
     let index_inter = hand_pose[HandJoint::INDEX_INTERMEDIATE];
-    draw_joint(&mut gizmos, index_inter.position.to_vec3(), index_inter.orientation.to_quat(), 0.006, Color::ORANGE, controller_backward, offset);
+    draw_joint(&mut gizmos, index_inter.position.to_vec3(), index_inter.orientation.to_quat(), 0.006, Color::ORANGE, controller_backward, hand_translation);
     let index_dist = hand_pose[HandJoint::INDEX_DISTAL];
-    draw_joint(&mut gizmos, index_dist.position.to_vec3(), index_dist.orientation.to_quat(), 0.004, Color::ORANGE, controller_backward, offset);
+    draw_joint(&mut gizmos, index_dist.position.to_vec3(), index_dist.orientation.to_quat(), 0.004, Color::ORANGE, controller_backward, hand_translation);
     let index_tip = hand_pose[HandJoint::INDEX_TIP];
-    draw_joint(&mut gizmos, index_tip.position.to_vec3(), index_tip.orientation.to_quat(), 0.002, Color::ORANGE, controller_backward, offset);
+    draw_joint(&mut gizmos, index_tip.position.to_vec3(), index_tip.orientation.to_quat(), 0.002, Color::ORANGE, controller_backward, hand_translation);
 
     let middle_meta = hand_pose[HandJoint::MIDDLE_METACARPAL];
-    draw_joint(&mut gizmos, middle_meta.position.to_vec3(), middle_meta.orientation.to_quat(), 0.01, Color::YELLOW, controller_backward, offset);
+    draw_joint(&mut gizmos, middle_meta.position.to_vec3(), middle_meta.orientation.to_quat(), 0.01, Color::YELLOW, controller_backward, hand_translation);
     let middle_prox = hand_pose[HandJoint::MIDDLE_PROXIMAL];
-    draw_joint(&mut gizmos, middle_prox.position.to_vec3(), middle_prox.orientation.to_quat(), 0.008, Color::YELLOW, controller_backward, offset);
+    draw_joint(&mut gizmos, middle_prox.position.to_vec3(), middle_prox.orientation.to_quat(), 0.008, Color::YELLOW, controller_backward, hand_translation);
     let middle_inter = hand_pose[HandJoint::MIDDLE_INTERMEDIATE];
-    draw_joint(&mut gizmos, middle_inter.position.to_vec3(), middle_inter.orientation.to_quat(), 0.006, Color::YELLOW, controller_backward, offset);
+    draw_joint(&mut gizmos, middle_inter.position.to_vec3(), middle_inter.orientation.to_quat(), 0.006, Color::YELLOW, controller_backward, hand_translation);
     let middle_dist = hand_pose[HandJoint::MIDDLE_DISTAL];
-    draw_joint(&mut gizmos, middle_dist.position.to_vec3(), middle_dist.orientation.to_quat(), 0.004, Color::YELLOW, controller_backward, offset);
+    draw_joint(&mut gizmos, middle_dist.position.to_vec3(), middle_dist.orientation.to_quat(), 0.004, Color::YELLOW, controller_backward, hand_translation);
     let middle_tip = hand_pose[HandJoint::MIDDLE_TIP];
-    draw_joint(&mut gizmos, middle_tip.position.to_vec3(), middle_tip.orientation.to_quat(), 0.002, Color::YELLOW, controller_backward, offset);
+    draw_joint(&mut gizmos, middle_tip.position.to_vec3(), middle_tip.orientation.to_quat(), 0.002, Color::YELLOW, controller_backward, hand_translation);
 
     let ring_meta = hand_pose[HandJoint::RING_METACARPAL];
-    draw_joint(&mut gizmos, ring_meta.position.to_vec3(), ring_meta.orientation.to_quat(), 0.01, Color::GREEN, controller_backward, offset);
+    draw_joint(&mut gizmos, ring_meta.position.to_vec3(), ring_meta.orientation.to_quat(), 0.01, Color::GREEN, controller_backward, hand_translation);
     let ring_prox = hand_pose[HandJoint::RING_PROXIMAL];
-    draw_joint(&mut gizmos, ring_prox.position.to_vec3(), ring_prox.orientation.to_quat(), 0.008, Color::GREEN, controller_backward, offset);
+    draw_joint(&mut gizmos, ring_prox.position.to_vec3(), ring_prox.orientation.to_quat(), 0.008, Color::GREEN, controller_backward, hand_translation);
     let ring_inter = hand_pose[HandJoint::RING_INTERMEDIATE];
-    draw_joint(&mut gizmos, ring_inter.position.to_vec3(), ring_inter.orientation.to_quat(), 0.006, Color::GREEN, controller_backward, offset);
+    draw_joint(&mut gizmos, ring_inter.position.to_vec3(), ring_inter.orientation.to_quat(), 0.006, Color::GREEN, controller_backward, hand_translation);
     let ring_dist = hand_pose[HandJoint::RING_DISTAL];
-    draw_joint(&mut gizmos, ring_dist.position.to_vec3(), ring_dist.orientation.to_quat(), 0.004, Color::GREEN, controller_backward, offset);
+    draw_joint(&mut gizmos, ring_dist.position.to_vec3(), ring_dist.orientation.to_quat(), 0.004, Color::GREEN, controller_backward, hand_translation);
     let ring_tip = hand_pose[HandJoint::RING_TIP];
-    draw_joint(&mut gizmos, ring_tip.position.to_vec3(), ring_tip.orientation.to_quat(), 0.002, Color::GREEN, controller_backward, offset);
+    draw_joint(&mut gizmos, ring_tip.position.to_vec3(), ring_tip.orientation.to_quat(), 0.002, Color::GREEN, controller_backward, hand_translation);
 
     let little_meta = hand_pose[HandJoint::LITTLE_METACARPAL];
-    draw_joint(&mut gizmos, little_meta.position.to_vec3(), little_meta.orientation.to_quat(), 0.01, Color::BLUE, controller_backward, offset);
+    draw_joint(&mut gizmos, little_meta.position.to_vec3(), little_meta.orientation.to_quat(), 0.01, Color::BLUE, controller_backward, hand_translation);
     let little_prox = hand_pose[HandJoint::LITTLE_PROXIMAL];
-    draw_joint(&mut gizmos, little_prox.position.to_vec3(), little_prox.orientation.to_quat(), 0.008, Color::BLUE, controller_backward, offset);
+    draw_joint(&mut gizmos, little_prox.position.to_vec3(), little_prox.orientation.to_quat(), 0.008, Color::BLUE, controller_backward, hand_translation);
     let little_inter = hand_pose[HandJoint::LITTLE_INTERMEDIATE];
-    draw_joint(&mut gizmos, little_inter.position.to_vec3(), little_inter.orientation.to_quat(), 0.006, Color::BLUE, controller_backward, offset);
+    draw_joint(&mut gizmos, little_inter.position.to_vec3(), little_inter.orientation.to_quat(), 0.006, Color::BLUE, controller_backward, hand_translation);
     let little_dist = hand_pose[HandJoint::LITTLE_DISTAL];
-    draw_joint(&mut gizmos, little_dist.position.to_vec3(), little_dist.orientation.to_quat(), 0.004, Color::BLUE, controller_backward, offset);
+    draw_joint(&mut gizmos, little_dist.position.to_vec3(), little_dist.orientation.to_quat(), 0.004, Color::BLUE, controller_backward, hand_translation);
     let little_tip = hand_pose[HandJoint::LITTLE_TIP];
-    draw_joint(&mut gizmos, little_tip.position.to_vec3(), little_tip.orientation.to_quat(), 0.002, Color::BLUE, controller_backward, offset);
+    draw_joint(&mut gizmos, little_tip.position.to_vec3(), little_tip.orientation.to_quat(), 0.002, Color::BLUE, controller_backward, hand_translation);
+}
 
-
-
-
+fn flip_hand_pose(hand_pose: [Posef; 26], hand: Hand) -> [Posef; 26] {
+    let mut new_pose = hand_pose;
+    match hand {
+        Hand::Left => {
+            for pose in new_pose.iter_mut() {
+                pose.position.x = -pose.position.x;
+            }
+        },
+        Hand::Right => (),
+    }
+    return new_pose;
 }
 
 fn draw_joint(gizmos: &mut Gizmos, joint_pos: Vec3, joint_rot: Quat, radius: f32, color: Color, controller_backwards: Quat, offset: Vec3) {
