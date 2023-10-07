@@ -4,6 +4,7 @@ pub mod oculus_touch;
 pub mod prototype_locomotion;
 pub mod trackers;
 pub mod xr_camera;
+pub mod hand_poses;
 
 use crate::resources::XrSession;
 use crate::xr_begin_frame;
