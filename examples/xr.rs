@@ -57,6 +57,8 @@ fn main() {
         .add_plugins(HandInputDebugRenderer)
 =======
         .add_systems(PreUpdate, update_hand_states)
+        .add_systems(PostUpdate, draw_hand_entities)
+        .add_systems(Startup, spawn_hand_entities)
         .insert_resource(PrototypeLocomotionConfig::default())
         .insert_resource(HandStatesResource::default())
 >>>>>>> 319a2dc (hand state resource is used to drive skeleton)
@@ -111,6 +113,49 @@ fn setup(
         ),
         ..default()
     },));
+}
+
+pub fn spawn_hand_entities(mut commands: Commands) {
+    let hands = [Hand::Left, Hand::Right];
+    let bones = [
+        HandBone::PALM,
+        HandBone::WRIST,
+        HandBone::THUMB_METACARPAL,
+        HandBone::THUMB_PROXIMAL,
+        HandBone::THUMB_DISTAL,
+        HandBone::THUMB_TIP,
+        HandBone::INDEX_METACARPAL,
+        HandBone::INDEX_PROXIMAL,
+        HandBone::INDEX_INTERMEDIATE,
+        HandBone::INDEX_DISTAL,
+        HandBone::INDEX_TIP,
+        HandBone::MIDDLE_METACARPAL,
+        HandBone::MIDDLE_PROXIMAL,
+        HandBone::MIDDLE_INTERMEDIATE,
+        HandBone::MIDDLE_DISTAL,
+        HandBone::MIDDLE_TIP,
+        HandBone::RING_METACARPAL,
+        HandBone::RING_PROXIMAL,
+        HandBone::RING_INTERMEDIATE,
+        HandBone::RING_DISTAL,
+        HandBone::RING_TIP,
+        HandBone::LITTLE_METACARPAL,
+        HandBone::LITTLE_PROXIMAL,
+        HandBone::LITTLE_INTERMEDIATE,
+        HandBone::LITTLE_DISTAL,
+        HandBone::LITTLE_TIP,
+    ];
+
+    for hand in hands.iter() {
+        for bone in bones.iter() {
+            commands.spawn((
+                SpatialBundle::default(),
+                bone.clone(),
+                OpenXRTracker,
+                hand.clone(),
+            ));
+        }
+    }
 }
 
 pub fn update_hand_states(
@@ -227,11 +272,11 @@ pub fn update_hand_states(
 }
 
 fn draw_skeleton_hands(
-    mut commands: Commands,
     mut gizmos: Gizmos,
     right_controller_query: Query<(&GlobalTransform, With<OpenXRRightController>)>,
     left_controller_query: Query<(&GlobalTransform, With<OpenXRLeftController>)>,
     hand_states_option: Option<ResMut<HandStatesResource>>,
+    mut hand_bone_query: Query<(&mut Transform, &HandBone, &Hand)>,
 ) {
     match hand_states_option {
         Some(hands) => {
@@ -240,30 +285,61 @@ fn draw_skeleton_hands(
                 .unwrap()
                 .0
                 .compute_transform();
-            draw_hand_bones(&mut gizmos, left_hand_transform, Hand::Left, hands.left);
+            draw_hand_bones(
+                &mut gizmos,
+                left_hand_transform,
+                Hand::Left,
+                hands.left,
+                &mut hand_bone_query,
+            );
             let right_hand_transform = right_controller_query
                 .get_single()
                 .unwrap()
                 .0
                 .compute_transform();
             // draw_hand(&mut gizmos, right_hand_transform, Hand::Right);
-            draw_hand_bones(&mut gizmos, right_hand_transform, Hand::Right, hands.right);
+            draw_hand_bones(
+                &mut gizmos,
+                right_hand_transform,
+                Hand::Right,
+                hands.right,
+                &mut hand_bone_query,
+            );
         }
         None => info!("hand states resource not initialized yet"),
     }
 }
 
-fn pose_array_to_transform_array(hand_pose: [Posef; 26]) -> [Transform; 26] {
-    let mut result_array: [Transform; 26] = [Transform::default(); 26];
-    for (place, data) in result_array.iter_mut().zip(hand_pose.iter()) {
-        *place = Transform {
-            translation: data.position.to_vec3(),
-            rotation: data.orientation.to_quat(),
-            scale: Vec3::splat(1.0),
-        }
-    }
-    return result_array;
+#[derive(Component, Debug, Clone, Copy)]
+pub enum HandBone {
+    PALM,
+    WRIST,
+    THUMB_METACARPAL,
+    THUMB_PROXIMAL,
+    THUMB_DISTAL,
+    THUMB_TIP,
+    INDEX_METACARPAL,
+    INDEX_PROXIMAL,
+    INDEX_INTERMEDIATE,
+    INDEX_DISTAL,
+    INDEX_TIP,
+    MIDDLE_METACARPAL,
+    MIDDLE_PROXIMAL,
+    MIDDLE_INTERMEDIATE,
+    MIDDLE_DISTAL,
+    MIDDLE_TIP,
+    RING_METACARPAL,
+    RING_PROXIMAL,
+    RING_INTERMEDIATE,
+    RING_DISTAL,
+    RING_TIP,
+    LITTLE_METACARPAL,
+    LITTLE_PROXIMAL,
+    LITTLE_INTERMEDIATE,
+    LITTLE_DISTAL,
+    LITTLE_TIP,
 }
+
 #[derive(Clone, Copy)]
 pub enum ButtonState {
     OFF,
@@ -360,11 +436,50 @@ impl HandState {
     }
 }
 
+fn draw_hand_entities(mut gizmos: Gizmos, query: Query<(&Transform, &HandBone)>) {
+    for (transform, hand_bone) in query.iter() {
+        let (radius, color) = get_bone_gizmo_style(hand_bone);
+        gizmos.sphere(transform.translation, transform.rotation, radius, color);
+    }
+}
+
+fn get_bone_gizmo_style(hand_bone: &HandBone) -> (f32, Color) {
+    match hand_bone {
+        HandBone::PALM => (0.01, Color::WHITE),
+        HandBone::WRIST => (0.01, Color::GRAY),
+        HandBone::THUMB_METACARPAL => (0.01, Color::RED),
+        HandBone::THUMB_PROXIMAL => (0.008, Color::RED),
+        HandBone::THUMB_DISTAL => (0.006, Color::RED),
+        HandBone::THUMB_TIP => (0.004, Color::RED),
+        HandBone::INDEX_METACARPAL => (0.01, Color::ORANGE),
+        HandBone::INDEX_PROXIMAL => (0.008, Color::ORANGE),
+        HandBone::INDEX_INTERMEDIATE => (0.006, Color::ORANGE),
+        HandBone::INDEX_DISTAL => (0.004, Color::ORANGE),
+        HandBone::INDEX_TIP => (0.002, Color::ORANGE),
+        HandBone::MIDDLE_METACARPAL => (0.01, Color::YELLOW),
+        HandBone::MIDDLE_PROXIMAL => (0.008, Color::YELLOW),
+        HandBone::MIDDLE_INTERMEDIATE => (0.006, Color::YELLOW),
+        HandBone::MIDDLE_DISTAL => (0.004, Color::YELLOW),
+        HandBone::MIDDLE_TIP => (0.002, Color::YELLOW),
+        HandBone::RING_METACARPAL => (0.01, Color::GREEN),
+        HandBone::RING_PROXIMAL => (0.008, Color::GREEN),
+        HandBone::RING_INTERMEDIATE => (0.006, Color::GREEN),
+        HandBone::RING_DISTAL => (0.004, Color::GREEN),
+        HandBone::RING_TIP => (0.002, Color::GREEN),
+        HandBone::LITTLE_METACARPAL => (0.01, Color::BLUE),
+        HandBone::LITTLE_PROXIMAL => (0.008, Color::BLUE),
+        HandBone::LITTLE_INTERMEDIATE => (0.006, Color::BLUE),
+        HandBone::LITTLE_DISTAL => (0.004, Color::BLUE),
+        HandBone::LITTLE_TIP => (0.002, Color::BLUE),
+    }
+}
+
 fn draw_hand_bones(
     mut gizmos: &mut Gizmos,
     controller_transform: Transform,
     hand: Hand,
     hand_state: HandState,
+    hand_bone_query: &mut Query<(&mut Transform, &HandBone, &Hand)>,
 ) {
     let left_hand_rot = Quat::from_rotation_y(180.0 * PI / 180.0);
     let hand_translation: Vec3 = match hand {
@@ -381,6 +496,9 @@ fn draw_hand_bones(
         Hand::Left => -1.0,
         Hand::Right => 1.0,
     };
+    //lets make a structure to hold our calculated transforms for now
+    let mut calc_transforms = [Transform::default(); 26];
+
     //curl represents how closed the hand is from 0 to 1;
     let grip_curl = hand_state.grip;
     let index_curl = hand_state.get_index_curl();
@@ -410,6 +528,10 @@ fn draw_hand_bones(
     //draw controller-palm bone(should be zero length)
     let palm = hand_transform_array[HandJoint::PALM];
     gizmos.ray(hand_translation, palm.translation, Color::WHITE);
+    calc_transforms[HandJoint::PALM] = Transform {
+        translation: hand_translation + palm.translation,
+        ..default()
+    };
     //draw palm-wrist
     let wrist = hand_transform_array[HandJoint::WRIST];
     gizmos.ray(
@@ -417,6 +539,10 @@ fn draw_hand_bones(
         palm_quat.mul_vec3(wrist.translation),
         Color::GRAY,
     );
+    calc_transforms[HandJoint::WRIST] = Transform {
+        translation: hand_translation + palm.translation + palm_quat.mul_vec3(wrist.translation),
+        ..default()
+    };
 
     //thumb
     //better finger drawing?
@@ -446,6 +572,11 @@ fn draw_hand_bones(
                 prior_start = Some(tp_start);
                 prior_quat = Some(tp_quat);
                 prior_vector = Some(tp_vector);
+                //store it
+                calc_transforms[*bone] = Transform {
+                    translation: tp_start + tp_vector,
+                    ..default()
+                };
             }
             None => {
                 let thumb_meta = hand_transform_array[*bone];
@@ -457,6 +588,11 @@ fn draw_hand_bones(
                 prior_start = Some(tm_start);
                 prior_quat = Some(splay_quat);
                 prior_vector = Some(tm_vector);
+                //store it
+                calc_transforms[*bone] = Transform {
+                    translation: tm_start + tm_vector,
+                    ..default()
+                };
             }
         }
     }
@@ -489,6 +625,11 @@ fn draw_hand_bones(
                 prior_start = Some(tp_start);
                 prior_quat = Some(tp_quat);
                 prior_vector = Some(tp_vector);
+                //store it
+                calc_transforms[*bone] = Transform {
+                    translation: tp_start + tp_vector,
+                    ..default()
+                };
             }
             None => {
                 let thumb_meta = hand_transform_array[*bone];
@@ -500,6 +641,11 @@ fn draw_hand_bones(
                 prior_start = Some(tm_start);
                 prior_quat = Some(splay_quat);
                 prior_vector = Some(tm_vector);
+                //store it
+                calc_transforms[*bone] = Transform {
+                    translation: tm_start + tm_vector,
+                    ..default()
+                };
             }
         }
     }
@@ -531,6 +677,11 @@ fn draw_hand_bones(
                 prior_start = Some(tp_start);
                 prior_quat = Some(tp_quat);
                 prior_vector = Some(tp_vector);
+                //store it
+                calc_transforms[*bone] = Transform {
+                    translation: tp_start + tp_vector,
+                    ..default()
+                };
             }
             None => {
                 let thumb_meta = hand_transform_array[*bone];
@@ -542,6 +693,11 @@ fn draw_hand_bones(
                 prior_start = Some(tm_start);
                 prior_quat = Some(splay_quat);
                 prior_vector = Some(tm_vector);
+                //store it
+                calc_transforms[*bone] = Transform {
+                    translation: tm_start + tm_vector,
+                    ..default()
+                };
             }
         }
     }
@@ -572,6 +728,11 @@ fn draw_hand_bones(
                 prior_start = Some(tp_start);
                 prior_quat = Some(tp_quat);
                 prior_vector = Some(tp_vector);
+                //store it
+                calc_transforms[*bone] = Transform {
+                    translation: tp_start + tp_vector,
+                    ..default()
+                };
             }
             None => {
                 let thumb_meta = hand_transform_array[*bone];
@@ -583,6 +744,11 @@ fn draw_hand_bones(
                 prior_start = Some(tm_start);
                 prior_quat = Some(splay_quat);
                 prior_vector = Some(tm_vector);
+                //store it
+                calc_transforms[*bone] = Transform {
+                    translation: tm_start + tm_vector,
+                    ..default()
+                };
             }
         }
     }
@@ -614,6 +780,11 @@ fn draw_hand_bones(
                 prior_start = Some(tp_start);
                 prior_quat = Some(tp_quat);
                 prior_vector = Some(tp_vector);
+                //store it
+                calc_transforms[*bone] = Transform {
+                    translation: tp_start + tp_vector,
+                    ..default()
+                };
             }
             None => {
                 let thumb_meta = hand_transform_array[*bone];
@@ -625,8 +796,53 @@ fn draw_hand_bones(
                 prior_start = Some(tm_start);
                 prior_quat = Some(splay_quat);
                 prior_vector = Some(tm_vector);
+                //store it
+                calc_transforms[*bone] = Transform {
+                    translation: tm_start + tm_vector,
+                    ..default()
+                };
             }
         }
+    }
+
+    //now that we have all the transforms lets assign them
+    for (mut transform, handbone, bonehand) in hand_bone_query.iter_mut() {
+        if *bonehand == hand {
+            //if the hands match lets go
+            let index = match_index(handbone);
+            *transform = calc_transforms[index];
+        }
+    }
+}
+
+fn match_index(handbone: &HandBone) -> HandJoint {
+    match handbone {
+        HandBone::PALM => HandJoint::PALM,
+        HandBone::WRIST => HandJoint::WRIST,
+        HandBone::THUMB_METACARPAL => HandJoint::THUMB_METACARPAL,
+        HandBone::THUMB_PROXIMAL => HandJoint::THUMB_PROXIMAL,
+        HandBone::THUMB_DISTAL => HandJoint::THUMB_DISTAL,
+        HandBone::THUMB_TIP => HandJoint::THUMB_TIP,
+        HandBone::INDEX_METACARPAL => HandJoint::INDEX_METACARPAL,
+        HandBone::INDEX_PROXIMAL => HandJoint::INDEX_PROXIMAL,
+        HandBone::INDEX_INTERMEDIATE => HandJoint::INDEX_INTERMEDIATE,
+        HandBone::INDEX_DISTAL => HandJoint::INDEX_DISTAL,
+        HandBone::INDEX_TIP => HandJoint::INDEX_TIP,
+        HandBone::MIDDLE_METACARPAL => HandJoint::MIDDLE_METACARPAL,
+        HandBone::MIDDLE_PROXIMAL => HandJoint::MIDDLE_PROXIMAL,
+        HandBone::MIDDLE_INTERMEDIATE => HandJoint::MIDDLE_INTERMEDIATE,
+        HandBone::MIDDLE_DISTAL => HandJoint::MIDDLE_DISTAL,
+        HandBone::MIDDLE_TIP => HandJoint::MIDDLE_TIP,
+        HandBone::RING_METACARPAL => HandJoint::RING_METACARPAL,
+        HandBone::RING_PROXIMAL => HandJoint::RING_PROXIMAL,
+        HandBone::RING_INTERMEDIATE => HandJoint::RING_INTERMEDIATE,
+        HandBone::RING_DISTAL => HandJoint::RING_DISTAL,
+        HandBone::RING_TIP => HandJoint::RING_TIP,
+        HandBone::LITTLE_METACARPAL => HandJoint::LITTLE_METACARPAL,
+        HandBone::LITTLE_PROXIMAL => HandJoint::LITTLE_PROXIMAL,
+        HandBone::LITTLE_INTERMEDIATE => HandJoint::LITTLE_INTERMEDIATE,
+        HandBone::LITTLE_DISTAL => HandJoint::LITTLE_DISTAL,
+        HandBone::LITTLE_TIP => HandJoint::LITTLE_TIP,
     }
 }
 
@@ -641,320 +857,6 @@ fn get_bone_curl_angle(bone: HandJoint, curl: f32) -> f32 {
     };
     let curl_angle = -((mul * curl * 80.0) + 5.0);
     return curl_angle;
-}
-
-fn draw_hand(mut gizmos: &mut Gizmos, controller_transform: Transform, hand: Hand) {
-    //draw debug for controller grip center to match palm to
-    let hand_translation = controller_transform.translation;
-    let hand_quat = controller_transform.rotation;
-    //we need to flip this i dont know why
-    let flip = Quat::from_rotation_x(PI);
-    let controller_backward = hand_quat.mul_quat(flip);
-
-    let test_hand_pose = get_test_hand_pose_array();
-
-    let hand_pose = flip_hand_pose(test_hand_pose.clone(), hand);
-
-    // let hand_transform_array: [Transform; 26] = pose_array_to_transform_array(hand_pose);
-    let hand_transform_array: [Transform; 26] = get_simulated_open_hand_transforms(hand);
-
-    let palm = hand_transform_array[HandJoint::PALM];
-    gizmos.sphere(
-        palm.translation + hand_translation,
-        palm.rotation.mul_quat(controller_backward),
-        0.01,
-        Color::WHITE,
-    );
-
-    let wrist = hand_transform_array[HandJoint::WRIST];
-    draw_joint(
-        &mut gizmos,
-        wrist.translation,
-        wrist.rotation,
-        0.01,
-        Color::GRAY,
-        controller_backward,
-        hand_translation,
-    );
-
-    let thumb_meta = hand_transform_array[HandJoint::THUMB_METACARPAL];
-    draw_joint(
-        &mut gizmos,
-        thumb_meta.translation,
-        thumb_meta.rotation,
-        0.01,
-        Color::RED,
-        controller_backward,
-        hand_translation,
-    );
-
-    let thumb_prox = hand_transform_array[HandJoint::THUMB_PROXIMAL];
-    draw_joint(
-        &mut gizmos,
-        thumb_prox.translation,
-        thumb_prox.rotation,
-        0.008,
-        Color::RED,
-        controller_backward,
-        hand_translation,
-    );
-    let thumb_dist = hand_transform_array[HandJoint::THUMB_DISTAL];
-    draw_joint(
-        &mut gizmos,
-        thumb_dist.translation,
-        thumb_dist.rotation,
-        0.006,
-        Color::RED,
-        controller_backward,
-        hand_translation,
-    );
-    let thumb_tip = hand_transform_array[HandJoint::THUMB_TIP];
-    draw_joint(
-        &mut gizmos,
-        thumb_tip.translation,
-        thumb_tip.rotation,
-        0.004,
-        Color::RED,
-        controller_backward,
-        hand_translation,
-    );
-
-    let index_meta = hand_transform_array[HandJoint::INDEX_METACARPAL];
-    draw_joint(
-        &mut gizmos,
-        index_meta.translation,
-        index_meta.rotation,
-        0.01,
-        Color::ORANGE,
-        controller_backward,
-        hand_translation,
-    );
-    let index_prox = hand_transform_array[HandJoint::INDEX_PROXIMAL];
-    draw_joint(
-        &mut gizmos,
-        index_prox.translation,
-        index_prox.rotation,
-        0.008,
-        Color::ORANGE,
-        controller_backward,
-        hand_translation,
-    );
-
-    let index_inter = hand_transform_array[HandJoint::INDEX_INTERMEDIATE];
-    draw_joint(
-        &mut gizmos,
-        index_inter.translation,
-        index_inter.rotation,
-        0.006,
-        Color::ORANGE,
-        controller_backward,
-        hand_translation,
-    );
-
-    let index_dist = hand_transform_array[HandJoint::INDEX_DISTAL];
-    draw_joint(
-        &mut gizmos,
-        index_dist.translation,
-        index_dist.rotation,
-        0.004,
-        Color::ORANGE,
-        controller_backward,
-        hand_translation,
-    );
-
-    let index_tip = hand_transform_array[HandJoint::INDEX_TIP];
-    draw_joint(
-        &mut gizmos,
-        index_tip.translation,
-        index_tip.rotation,
-        0.002,
-        Color::ORANGE,
-        controller_backward,
-        hand_translation,
-    );
-
-    let middle_meta = hand_transform_array[HandJoint::MIDDLE_METACARPAL];
-    draw_joint(
-        &mut gizmos,
-        middle_meta.translation,
-        middle_meta.rotation,
-        0.01,
-        Color::YELLOW,
-        controller_backward,
-        hand_translation,
-    );
-    let middle_prox = hand_transform_array[HandJoint::MIDDLE_PROXIMAL];
-    draw_joint(
-        &mut gizmos,
-        middle_prox.translation,
-        middle_prox.rotation,
-        0.008,
-        Color::YELLOW,
-        controller_backward,
-        hand_translation,
-    );
-    let middle_inter = hand_transform_array[HandJoint::MIDDLE_INTERMEDIATE];
-    draw_joint(
-        &mut gizmos,
-        middle_inter.translation,
-        middle_inter.rotation,
-        0.006,
-        Color::YELLOW,
-        controller_backward,
-        hand_translation,
-    );
-    let middle_dist = hand_transform_array[HandJoint::MIDDLE_DISTAL];
-    draw_joint(
-        &mut gizmos,
-        middle_dist.translation,
-        middle_dist.rotation,
-        0.004,
-        Color::YELLOW,
-        controller_backward,
-        hand_translation,
-    );
-    let middle_tip = hand_transform_array[HandJoint::MIDDLE_TIP];
-    draw_joint(
-        &mut gizmos,
-        middle_tip.translation,
-        middle_tip.rotation,
-        0.002,
-        Color::YELLOW,
-        controller_backward,
-        hand_translation,
-    );
-
-    let ring_meta = hand_transform_array[HandJoint::RING_METACARPAL];
-    draw_joint(
-        &mut gizmos,
-        ring_meta.translation,
-        ring_meta.rotation,
-        0.01,
-        Color::GREEN,
-        controller_backward,
-        hand_translation,
-    );
-    let ring_prox = hand_transform_array[HandJoint::RING_PROXIMAL];
-    draw_joint(
-        &mut gizmos,
-        ring_prox.translation,
-        ring_prox.rotation,
-        0.008,
-        Color::GREEN,
-        controller_backward,
-        hand_translation,
-    );
-    let ring_inter = hand_transform_array[HandJoint::RING_INTERMEDIATE];
-    draw_joint(
-        &mut gizmos,
-        ring_inter.translation,
-        ring_inter.rotation,
-        0.006,
-        Color::GREEN,
-        controller_backward,
-        hand_translation,
-    );
-    let ring_dist = hand_transform_array[HandJoint::RING_DISTAL];
-    draw_joint(
-        &mut gizmos,
-        ring_dist.translation,
-        ring_dist.rotation,
-        0.004,
-        Color::GREEN,
-        controller_backward,
-        hand_translation,
-    );
-    let ring_tip = hand_transform_array[HandJoint::RING_TIP];
-    draw_joint(
-        &mut gizmos,
-        ring_tip.translation,
-        ring_tip.rotation,
-        0.002,
-        Color::GREEN,
-        controller_backward,
-        hand_translation,
-    );
-
-    let little_meta = hand_transform_array[HandJoint::LITTLE_METACARPAL];
-    draw_joint(
-        &mut gizmos,
-        little_meta.translation,
-        little_meta.rotation,
-        0.01,
-        Color::BLUE,
-        controller_backward,
-        hand_translation,
-    );
-    let little_prox = hand_transform_array[HandJoint::LITTLE_PROXIMAL];
-    draw_joint(
-        &mut gizmos,
-        little_prox.translation,
-        little_prox.rotation,
-        0.008,
-        Color::BLUE,
-        controller_backward,
-        hand_translation,
-    );
-    let little_inter = hand_transform_array[HandJoint::LITTLE_INTERMEDIATE];
-    draw_joint(
-        &mut gizmos,
-        little_inter.translation,
-        little_inter.rotation,
-        0.006,
-        Color::BLUE,
-        controller_backward,
-        hand_translation,
-    );
-    let little_dist = hand_transform_array[HandJoint::LITTLE_DISTAL];
-    draw_joint(
-        &mut gizmos,
-        little_dist.translation,
-        little_dist.rotation,
-        0.004,
-        Color::BLUE,
-        controller_backward,
-        hand_translation,
-    );
-    let little_tip = hand_transform_array[HandJoint::LITTLE_TIP];
-    draw_joint(
-        &mut gizmos,
-        little_tip.translation,
-        little_tip.rotation,
-        0.002,
-        Color::BLUE,
-        controller_backward,
-        hand_translation,
-    );
-}
-
-fn flip_hand_pose(hand_pose: [Posef; 26], hand: Hand) -> [Posef; 26] {
-    let mut new_pose = hand_pose;
-    match hand {
-        Hand::Left => {
-            for pose in new_pose.iter_mut() {
-                pose.position.x = -pose.position.x;
-            }
-        }
-        Hand::Right => (),
-    }
-    return new_pose;
-}
-
-fn draw_joint(
-    gizmos: &mut Gizmos,
-    joint_pos: Vec3,
-    joint_rot: Quat,
-    radius: f32,
-    color: Color,
-    controller_backwards: Quat,
-    offset: Vec3,
-) {
-    gizmos.sphere(
-        controller_backwards.mul_vec3(joint_pos) + offset,
-        joint_rot,
-        radius,
-        color,
-    );
 }
 
 fn log_hand(hand_pose: [Posef; 26]) {
