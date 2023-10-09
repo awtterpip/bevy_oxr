@@ -30,7 +30,7 @@ fn main() {
         .add_systems(Startup, setup)
         .add_systems(Update, proto_locomotion)
         .add_systems(Startup, spawn_controllers_example)
-        .add_systems(Update, draw_skeleton_hands)
+        .add_systems(Update, update_emulated_hand_skeletons)
         .add_systems(PreUpdate, update_hand_states)
         .add_systems(PostUpdate, draw_hand_entities)
         .add_systems(Startup, spawn_hand_entities)
@@ -245,8 +245,7 @@ pub fn update_hand_states(
     }
 }
 
-fn draw_skeleton_hands(
-    mut gizmos: Gizmos,
+fn update_emulated_hand_skeletons(
     right_controller_query: Query<(&GlobalTransform, With<OpenXRRightController>)>,
     left_controller_query: Query<(&GlobalTransform, With<OpenXRLeftController>)>,
     hand_states_option: Option<ResMut<HandStatesResource>>,
@@ -259,8 +258,7 @@ fn draw_skeleton_hands(
                 .unwrap()
                 .0
                 .compute_transform();
-            draw_hand_bones(
-                &mut gizmos,
+            update_hand_bones_emulated(
                 left_hand_transform,
                 Hand::Left,
                 hands.left,
@@ -271,9 +269,7 @@ fn draw_skeleton_hands(
                 .unwrap()
                 .0
                 .compute_transform();
-            // draw_hand(&mut gizmos, right_hand_transform, Hand::Right);
-            draw_hand_bones(
-                &mut gizmos,
+            update_hand_bones_emulated(
                 right_hand_transform,
                 Hand::Right,
                 hands.right,
@@ -448,8 +444,7 @@ fn get_bone_gizmo_style(hand_bone: &HandBone) -> (f32, Color) {
     }
 }
 
-fn draw_hand_bones(
-    mut gizmos: &mut Gizmos,
+fn update_hand_bones_emulated(
     controller_transform: Transform,
     hand: Hand,
     hand_state: HandState,
@@ -477,49 +472,26 @@ fn draw_hand_bones(
     let grip_curl = hand_state.grip;
     let index_curl = hand_state.get_index_curl();
     let thumb_curl = hand_state.get_thumb_curl();
-    //get paml quat
+    //get palm quat
     let y = Quat::from_rotation_y(-90.0 * PI / 180.0);
     let x = Quat::from_rotation_x(-90.0 * PI / 180.0);
     let palm_quat = controller_quat.mul_quat(y).mul_quat(x);
-    //draw debug rays
-    // gizmos.ray(
-    //     hand_translation,
-    //     palm_quat.mul_vec3(Vec3::Z * 0.2),
-    //     Color::BLUE,
-    // );
-    // gizmos.ray(
-    //     hand_translation,
-    //     palm_quat.mul_vec3(Vec3::Y * 0.2),
-    //     Color::GREEN,
-    // );
-    // gizmos.ray(
-    //     hand_translation,
-    //     palm_quat.mul_vec3(Vec3::X * 0.2),
-    //     Color::RED,
-    // );
     //get simulated bones
     let hand_transform_array: [Transform; 26] = get_simulated_open_hand_transforms(hand);
-    //draw controller-palm bone(should be zero length)
+    //palm
     let palm = hand_transform_array[HandJoint::PALM];
-    gizmos.ray(hand_translation, palm.translation, Color::WHITE);
     calc_transforms[HandJoint::PALM] = Transform {
         translation: hand_translation + palm.translation,
         ..default()
     };
-    //draw palm-wrist
+    //wrist
     let wrist = hand_transform_array[HandJoint::WRIST];
-    gizmos.ray(
-        hand_translation + palm.translation,
-        palm_quat.mul_vec3(wrist.translation),
-        Color::GRAY,
-    );
     calc_transforms[HandJoint::WRIST] = Transform {
         translation: hand_translation + palm.translation + palm_quat.mul_vec3(wrist.translation),
         ..default()
     };
 
     //thumb
-    //better finger drawing?
     let thumb_joints = [
         HandJoint::THUMB_METACARPAL,
         HandJoint::THUMB_PROXIMAL,
@@ -529,7 +501,6 @@ fn draw_hand_bones(
     let mut prior_start: Option<Vec3> = None;
     let mut prior_quat: Option<Quat> = None;
     let mut prior_vector: Option<Vec3> = None;
-    let color = Color::RED;
     let splay = Quat::from_rotation_y(splay_direction * 30.0 * PI / 180.0);
     let huh = Quat::from_rotation_x(-35.0 * PI / 180.0);
     let splay_quat = palm_quat.mul_quat(huh).mul_quat(splay);
@@ -542,7 +513,6 @@ fn draw_hand_bones(
                 let thumb_prox = hand_transform_array[*bone];
                 let tp_start = start + prior_vector.unwrap();
                 let tp_vector = tp_quat.mul_vec3(thumb_prox.translation);
-                gizmos.ray(tp_start, tp_vector, color);
                 prior_start = Some(tp_start);
                 prior_quat = Some(tp_quat);
                 prior_vector = Some(tp_vector);
@@ -558,7 +528,6 @@ fn draw_hand_bones(
                     + palm_quat.mul_vec3(palm.translation)
                     + palm_quat.mul_vec3(wrist.translation);
                 let tm_vector = palm_quat.mul_vec3(thumb_meta.translation);
-                gizmos.ray(tm_start, tm_vector, color);
                 prior_start = Some(tm_start);
                 prior_quat = Some(splay_quat);
                 prior_vector = Some(tm_vector);
@@ -572,7 +541,6 @@ fn draw_hand_bones(
     }
 
     //index
-    //better finger drawing?
     let thumb_joints = [
         HandJoint::INDEX_METACARPAL,
         HandJoint::INDEX_PROXIMAL,
@@ -583,7 +551,6 @@ fn draw_hand_bones(
     let mut prior_start: Option<Vec3> = None;
     let mut prior_quat: Option<Quat> = None;
     let mut prior_vector: Option<Vec3> = None;
-    let color = Color::ORANGE;
     let splay = Quat::from_rotation_y(splay_direction * 10.0 * PI / 180.0);
     let splay_quat = palm_quat.mul_quat(splay);
     for bone in thumb_joints.iter() {
@@ -595,7 +562,6 @@ fn draw_hand_bones(
                 let thumb_prox = hand_transform_array[*bone];
                 let tp_start = start + prior_vector.unwrap();
                 let tp_vector = tp_quat.mul_vec3(thumb_prox.translation);
-                gizmos.ray(tp_start, tp_vector, color);
                 prior_start = Some(tp_start);
                 prior_quat = Some(tp_quat);
                 prior_vector = Some(tp_vector);
@@ -611,7 +577,6 @@ fn draw_hand_bones(
                     + palm_quat.mul_vec3(palm.translation)
                     + palm_quat.mul_vec3(wrist.translation);
                 let tm_vector = palm_quat.mul_vec3(thumb_meta.translation);
-                gizmos.ray(tm_start, tm_vector, color);
                 prior_start = Some(tm_start);
                 prior_quat = Some(splay_quat);
                 prior_vector = Some(tm_vector);
@@ -624,7 +589,7 @@ fn draw_hand_bones(
         }
     }
 
-    //better finger drawing?
+    //middle
     let thumb_joints = [
         HandJoint::MIDDLE_METACARPAL,
         HandJoint::MIDDLE_PROXIMAL,
@@ -635,7 +600,6 @@ fn draw_hand_bones(
     let mut prior_start: Option<Vec3> = None;
     let mut prior_quat: Option<Quat> = None;
     let mut prior_vector: Option<Vec3> = None;
-    let color = Color::YELLOW;
     let splay = Quat::from_rotation_y(splay_direction * 0.0 * PI / 180.0);
     let splay_quat = palm_quat.mul_quat(splay);
     for bone in thumb_joints.iter() {
@@ -647,7 +611,6 @@ fn draw_hand_bones(
                 let thumb_prox = hand_transform_array[*bone];
                 let tp_start = start + prior_vector.unwrap();
                 let tp_vector = tp_quat.mul_vec3(thumb_prox.translation);
-                gizmos.ray(tp_start, tp_vector, color);
                 prior_start = Some(tp_start);
                 prior_quat = Some(tp_quat);
                 prior_vector = Some(tp_vector);
@@ -663,7 +626,6 @@ fn draw_hand_bones(
                     + palm_quat.mul_vec3(palm.translation)
                     + palm_quat.mul_vec3(wrist.translation);
                 let tm_vector = palm_quat.mul_vec3(thumb_meta.translation);
-                gizmos.ray(tm_start, tm_vector, color);
                 prior_start = Some(tm_start);
                 prior_quat = Some(splay_quat);
                 prior_vector = Some(tm_vector);
@@ -675,7 +637,7 @@ fn draw_hand_bones(
             }
         }
     }
-    //better finger drawing?
+    //ring
     let thumb_joints = [
         HandJoint::RING_METACARPAL,
         HandJoint::RING_PROXIMAL,
@@ -686,7 +648,6 @@ fn draw_hand_bones(
     let mut prior_start: Option<Vec3> = None;
     let mut prior_quat: Option<Quat> = None;
     let mut prior_vector: Option<Vec3> = None;
-    let color = Color::GREEN;
     let splay = Quat::from_rotation_y(splay_direction * -10.0 * PI / 180.0);
     let splay_quat = palm_quat.mul_quat(splay);
     for bone in thumb_joints.iter() {
@@ -698,7 +659,6 @@ fn draw_hand_bones(
                 let thumb_prox = hand_transform_array[*bone];
                 let tp_start = start + prior_vector.unwrap();
                 let tp_vector = tp_quat.mul_vec3(thumb_prox.translation);
-                gizmos.ray(tp_start, tp_vector, color);
                 prior_start = Some(tp_start);
                 prior_quat = Some(tp_quat);
                 prior_vector = Some(tp_vector);
@@ -714,7 +674,6 @@ fn draw_hand_bones(
                     + palm_quat.mul_vec3(palm.translation)
                     + palm_quat.mul_vec3(wrist.translation);
                 let tm_vector = palm_quat.mul_vec3(thumb_meta.translation);
-                gizmos.ray(tm_start, tm_vector, color);
                 prior_start = Some(tm_start);
                 prior_quat = Some(splay_quat);
                 prior_vector = Some(tm_vector);
@@ -727,7 +686,7 @@ fn draw_hand_bones(
         }
     }
 
-    //better finger drawing?
+    //little
     let thumb_joints = [
         HandJoint::LITTLE_METACARPAL,
         HandJoint::LITTLE_PROXIMAL,
@@ -738,7 +697,6 @@ fn draw_hand_bones(
     let mut prior_start: Option<Vec3> = None;
     let mut prior_quat: Option<Quat> = None;
     let mut prior_vector: Option<Vec3> = None;
-    let color = Color::BLUE;
     let splay = Quat::from_rotation_y(splay_direction * -20.0 * PI / 180.0);
     let splay_quat = palm_quat.mul_quat(splay);
     for bone in thumb_joints.iter() {
@@ -750,7 +708,6 @@ fn draw_hand_bones(
                 let thumb_prox = hand_transform_array[*bone];
                 let tp_start = start + prior_vector.unwrap();
                 let tp_vector = tp_quat.mul_vec3(thumb_prox.translation);
-                gizmos.ray(tp_start, tp_vector, color);
                 prior_start = Some(tp_start);
                 prior_quat = Some(tp_quat);
                 prior_vector = Some(tp_vector);
@@ -766,7 +723,6 @@ fn draw_hand_bones(
                     + palm_quat.mul_vec3(palm.translation)
                     + palm_quat.mul_vec3(wrist.translation);
                 let tm_vector = palm_quat.mul_vec3(thumb_meta.translation);
-                gizmos.ray(tm_start, tm_vector, color);
                 prior_start = Some(tm_start);
                 prior_quat = Some(splay_quat);
                 prior_vector = Some(tm_vector);
