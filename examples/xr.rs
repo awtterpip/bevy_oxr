@@ -1,22 +1,22 @@
 use std::f32::consts::PI;
-use std::ops::Mul;
+
 
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
-use bevy::math::vec3;
+
 use bevy::transform::components::Transform;
-use bevy::{gizmos, prelude::*};
+use bevy::{prelude::*};
 use bevy_openxr::input::XrInput;
 use bevy_openxr::resources::{XrFrameState, XrInstance, XrSession};
-use bevy_openxr::xr_input::debug_gizmos::OpenXrDebugRenderer;
+
 use bevy_openxr::xr_input::hand_poses::*;
 use bevy_openxr::xr_input::oculus_touch::OculusController;
 use bevy_openxr::xr_input::prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig};
 use bevy_openxr::xr_input::trackers::{
     OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker,
 };
-use bevy_openxr::xr_input::{Hand, QuatConv, Vec3Conv};
+use bevy_openxr::xr_input::{Hand, Vec3Conv};
 use bevy_openxr::DefaultXrPlugins;
-use openxr::{HandJoint, Posef, Quaternionf, Vector3f};
+use openxr::{HandJoint, Posef};
 
 fn main() {
     color_eyre::install().unwrap();
@@ -790,7 +790,7 @@ fn get_bone_curl_angle(bone: HandJoint, curl: f32) -> f32 {
 }
 
 fn log_hand(hand_pose: [Posef; 26]) {
-    let palm_wrist = hand_pose[HandJoint::WRIST].position.to_vec3()
+    let _palm_wrist = hand_pose[HandJoint::WRIST].position.to_vec3()
         - hand_pose[HandJoint::PALM].position.to_vec3();
     info!(
         "palm-wrist: {}",
