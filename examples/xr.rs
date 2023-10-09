@@ -22,7 +22,7 @@ use bevy_openxr::xr_input::debug_gizmos::OpenXrDebugRenderer;
 use bevy::{gizmos, prelude::*};
 use bevy_openxr::input::XrInput;
 use bevy_openxr::resources::{XrFrameState, XrInstance, XrSession};
-use bevy_openxr::xr_input::debug_gizmos::OpenXrDebugRenderer;
+
 use bevy_openxr::xr_input::hand_poses::*;
 use bevy_openxr::xr_input::oculus_touch::OculusController;
 >>>>>>> 319a2dc (hand state resource is used to drive skeleton)
@@ -30,9 +30,9 @@ use bevy_openxr::xr_input::prototype_locomotion::{proto_locomotion, PrototypeLoc
 use bevy_openxr::xr_input::trackers::{
     OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker,
 };
-use bevy_openxr::xr_input::{Hand, QuatConv, Vec3Conv};
+use bevy_openxr::xr_input::{Hand, Vec3Conv};
 use bevy_openxr::DefaultXrPlugins;
-use openxr::{HandJoint, Posef, Quaternionf, Vector3f};
+use openxr::{HandJoint, Posef};
 
 fn main() {
     color_eyre::install().unwrap();
@@ -816,7 +816,7 @@ fn get_bone_curl_angle(bone: HandJoint, curl: f32) -> f32 {
 }
 
 fn log_hand(hand_pose: [Posef; 26]) {
-    let palm_wrist = hand_pose[HandJoint::WRIST].position.to_vec3()
+    let _palm_wrist = hand_pose[HandJoint::WRIST].position.to_vec3()
         - hand_pose[HandJoint::PALM].position.to_vec3();
     info!(
         "palm-wrist: {}",
