@@ -5,6 +5,7 @@ pub mod prototype_locomotion;
 pub mod trackers;
 pub mod xr_camera;
 pub mod hand_poses;
+pub mod hand;
 
 use crate::resources::XrSession;
 use crate::xr_begin_frame;
