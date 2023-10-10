@@ -23,6 +23,7 @@ use bevy::{gizmos, prelude::*};
 use bevy_openxr::input::XrInput;
 use bevy_openxr::resources::{XrFrameState, XrInstance, XrSession};
 
+use bevy_openxr::xr_input::hand::HandsResource;
 use bevy_openxr::xr_input::hand_poses::*;
 use bevy_openxr::xr_input::oculus_touch::OculusController;
 >>>>>>> 319a2dc (hand state resource is used to drive skeleton)
@@ -145,17 +146,79 @@ pub fn spawn_hand_entities(mut commands: Commands) {
         HandBone::LittleDistal,
         HandBone::LittleTip,
     ];
-
+    //hand resource
+    let mut hand_resource = HandsResource { ..default() };
     for hand in hands.iter() {
         for bone in bones.iter() {
-            commands.spawn((
-                SpatialBundle::default(),
-                bone.clone(),
-                OpenXRTracker,
-                hand.clone(),
-            ));
+            let boneid = commands
+                .spawn((
+                    SpatialBundle::default(),
+                    bone.clone(),
+                    OpenXRTracker,
+                    hand.clone(),
+                ))
+                .id();
+            match hand {
+                Hand::Left => match bone {
+                    HandBone::Palm => hand_resource.left.palm = boneid,
+                    HandBone::Wrist => hand_resource.left.wrist = boneid,
+                    HandBone::ThumbMetacarpal => hand_resource.left.thumb.metacarpal = boneid,
+                    HandBone::ThumbProximal => hand_resource.left.thumb.proximal = boneid,
+                    HandBone::ThumbDistal => hand_resource.left.thumb.distal = boneid,
+                    HandBone::ThumbTip => hand_resource.left.thumb.tip = boneid,
+                    HandBone::IndexMetacarpal => hand_resource.left.index.metacarpal = boneid,
+                    HandBone::IndexProximal => hand_resource.left.index.proximal = boneid,
+                    HandBone::IndexIntermediate => hand_resource.left.index.intermediate = boneid,
+                    HandBone::IndexDistal => hand_resource.left.index.distal = boneid,
+                    HandBone::IndexTip => hand_resource.left.index.tip = boneid,
+                    HandBone::MiddleMetacarpal => hand_resource.left.middle.metacarpal = boneid,
+                    HandBone::MiddleProximal => hand_resource.left.middle.proximal = boneid,
+                    HandBone::MiddleIntermediate => hand_resource.left.middle.intermediate = boneid,
+                    HandBone::MiddleDistal => hand_resource.left.middle.distal = boneid,
+                    HandBone::MiddleTip => hand_resource.left.middle.tip = boneid,
+                    HandBone::RingMetacarpal => hand_resource.left.ring.metacarpal = boneid,
+                    HandBone::RingProximal => hand_resource.left.ring.proximal = boneid,
+                    HandBone::RingIntermediate => hand_resource.left.ring.intermediate = boneid,
+                    HandBone::RingDistal => hand_resource.left.ring.distal = boneid,
+                    HandBone::RingTip => hand_resource.left.ring.tip = boneid,
+                    HandBone::LittleMetacarpal => hand_resource.left.little.metacarpal = boneid,
+                    HandBone::LittleProximal => hand_resource.left.little.proximal = boneid,
+                    HandBone::LittleIntermediate => hand_resource.left.little.intermediate = boneid,
+                    HandBone::LittleDistal => hand_resource.left.little.distal = boneid,
+                    HandBone::LittleTip => hand_resource.left.little.tip = boneid,
+                },
+                Hand::Right => match bone {
+                    HandBone::Palm => hand_resource.right.palm = boneid,
+                    HandBone::Wrist => hand_resource.right.wrist = boneid,
+                    HandBone::ThumbMetacarpal => hand_resource.right.thumb.metacarpal = boneid,
+                    HandBone::ThumbProximal => hand_resource.right.thumb.proximal = boneid,
+                    HandBone::ThumbDistal => hand_resource.right.thumb.distal = boneid,
+                    HandBone::ThumbTip => hand_resource.right.thumb.tip = boneid,
+                    HandBone::IndexMetacarpal => hand_resource.right.index.metacarpal = boneid,
+                    HandBone::IndexProximal => hand_resource.right.index.proximal = boneid,
+                    HandBone::IndexIntermediate => hand_resource.right.index.intermediate = boneid,
+                    HandBone::IndexDistal => hand_resource.right.index.distal = boneid,
+                    HandBone::IndexTip => hand_resource.right.index.tip = boneid,
+                    HandBone::MiddleMetacarpal => hand_resource.right.middle.metacarpal = boneid,
+                    HandBone::MiddleProximal => hand_resource.right.middle.proximal = boneid,
+                    HandBone::MiddleIntermediate => hand_resource.right.middle.intermediate = boneid,
+                    HandBone::MiddleDistal => hand_resource.right.middle.distal = boneid,
+                    HandBone::MiddleTip => hand_resource.right.middle.tip = boneid,
+                    HandBone::RingMetacarpal => hand_resource.right.ring.metacarpal = boneid,
+                    HandBone::RingProximal => hand_resource.right.ring.proximal = boneid,
+                    HandBone::RingIntermediate => hand_resource.right.ring.intermediate = boneid,
+                    HandBone::RingDistal => hand_resource.right.ring.distal = boneid,
+                    HandBone::RingTip => hand_resource.right.ring.tip = boneid,
+                    HandBone::LittleMetacarpal => hand_resource.right.little.metacarpal = boneid,
+                    HandBone::LittleProximal => hand_resource.right.little.proximal = boneid,
+                    HandBone::LittleIntermediate => hand_resource.right.little.intermediate = boneid,
+                    HandBone::LittleDistal => hand_resource.right.little.distal = boneid,
+                    HandBone::LittleTip => hand_resource.right.little.tip = boneid,
+                },
+            }
         }
     }
+    commands.insert_resource(hand_resource);
 }
 
 pub fn update_hand_states(
