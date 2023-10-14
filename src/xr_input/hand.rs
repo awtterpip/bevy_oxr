@@ -1,11 +1,51 @@
 use std::f32::consts::PI;
 
-use bevy::prelude::{Entity, Resource, Component, default, SpatialBundle, Commands, Res, ResMut, info, Transform, Query, Quat, Vec3, GlobalTransform, With, Gizmos, Color};
+use bevy::prelude::{
+    default, info, Color, Commands, Component, Entity, Gizmos, GlobalTransform, Plugin, PostUpdate,
+    PreUpdate, Quat, Query, Res, ResMut, Resource, SpatialBundle, Startup, Transform, Update, Vec3,
+    With,
+};
 use openxr::{HandJoint, Posef};
 
-use crate::{resources::{XrFrameState, XrInstance, XrSession}, input::XrInput, xr_input::Vec3Conv};
+use crate::{
+    input::XrInput,
+    resources::{XrFrameState, XrInstance, XrSession},
+    xr_input::Vec3Conv,
+};
 
-use super::{trackers::{OpenXRTracker, OpenXRRightController, OpenXRLeftController}, Hand, oculus_touch::OculusController, hand_poses::get_simulated_open_hand_transforms};
+use super::{
+    hand_poses::get_simulated_open_hand_transforms,
+    oculus_touch::OculusController,
+    trackers::{OpenXRLeftController, OpenXRRightController, OpenXRTracker},
+    Hand,
+};
+
+/// add debug renderer for controllers
+#[derive(Default)]
+pub struct OpenXrHandInput;
+
+impl Plugin for OpenXrHandInput {
+    fn build(&self, app: &mut bevy::prelude::App) {
+        app.add_systems(Update, update_hand_skeletons)
+            .add_systems(PreUpdate, update_hand_states)
+            .add_systems(PostUpdate, draw_hand_entities)
+            .add_systems(Startup, spawn_hand_entities)
+            .insert_resource(HandStatesResource::default())
+            .insert_resource(HandInputSource::default());
+    }
+}
+
+#[derive(Resource)]
+pub enum HandInputSource {
+    Emulated,
+    OpenXr,
+}
+
+impl Default for HandInputSource {
+    fn default() -> Self {
+        HandInputSource::Emulated
+    }
+}
 
 #[derive(Resource, Default)]
 pub struct HandsResource {
@@ -25,7 +65,15 @@ pub struct HandResource {
 
 impl Default for HandResource {
     fn default() -> Self {
-        Self { palm: Entity::PLACEHOLDER, wrist: Entity::PLACEHOLDER, thumb: Default::default(), index: Default::default(), middle: Default::default(), ring: Default::default(), little: Default::default() }
+        Self {
+            palm: Entity::PLACEHOLDER,
+            wrist: Entity::PLACEHOLDER,
+            thumb: Default::default(),
+            index: Default::default(),
+            middle: Default::default(),
+            ring: Default::default(),
+            little: Default::default(),
+        }
     }
 }
 
@@ -38,7 +86,12 @@ pub struct ThumbResource {
 
 impl Default for ThumbResource {
     fn default() -> Self {
-        Self { metacarpal: Entity::PLACEHOLDER, proximal: Entity::PLACEHOLDER, distal: Entity::PLACEHOLDER, tip: Entity::PLACEHOLDER }
+        Self {
+            metacarpal: Entity::PLACEHOLDER,
+            proximal: Entity::PLACEHOLDER,
+            distal: Entity::PLACEHOLDER,
+            tip: Entity::PLACEHOLDER,
+        }
     }
 }
 pub struct IndexResource {
@@ -51,7 +104,13 @@ pub struct IndexResource {
 
 impl Default for IndexResource {
     fn default() -> Self {
-        Self { metacarpal: Entity::PLACEHOLDER, proximal: Entity::PLACEHOLDER, intermediate: Entity::PLACEHOLDER, distal: Entity::PLACEHOLDER, tip: Entity::PLACEHOLDER }
+        Self {
+            metacarpal: Entity::PLACEHOLDER,
+            proximal: Entity::PLACEHOLDER,
+            intermediate: Entity::PLACEHOLDER,
+            distal: Entity::PLACEHOLDER,
+            tip: Entity::PLACEHOLDER,
+        }
     }
 }
 pub struct MiddleResource {
@@ -63,7 +122,13 @@ pub struct MiddleResource {
 }
 impl Default for MiddleResource {
     fn default() -> Self {
-        Self { metacarpal: Entity::PLACEHOLDER, proximal: Entity::PLACEHOLDER, intermediate: Entity::PLACEHOLDER, distal: Entity::PLACEHOLDER, tip: Entity::PLACEHOLDER }
+        Self {
+            metacarpal: Entity::PLACEHOLDER,
+            proximal: Entity::PLACEHOLDER,
+            intermediate: Entity::PLACEHOLDER,
+            distal: Entity::PLACEHOLDER,
+            tip: Entity::PLACEHOLDER,
+        }
     }
 }
 pub struct RingResource {
@@ -75,7 +140,13 @@ pub struct RingResource {
 }
 impl Default for RingResource {
     fn default() -> Self {
-        Self { metacarpal: Entity::PLACEHOLDER, proximal: Entity::PLACEHOLDER, intermediate: Entity::PLACEHOLDER, distal: Entity::PLACEHOLDER, tip: Entity::PLACEHOLDER }
+        Self {
+            metacarpal: Entity::PLACEHOLDER,
+            proximal: Entity::PLACEHOLDER,
+            intermediate: Entity::PLACEHOLDER,
+            distal: Entity::PLACEHOLDER,
+            tip: Entity::PLACEHOLDER,
+        }
     }
 }
 pub struct LittleResource {
@@ -87,7 +158,13 @@ pub struct LittleResource {
 }
 impl Default for LittleResource {
     fn default() -> Self {
-        Self { metacarpal: Entity::PLACEHOLDER, proximal: Entity::PLACEHOLDER, intermediate: Entity::PLACEHOLDER, distal: Entity::PLACEHOLDER, tip: Entity::PLACEHOLDER }
+        Self {
+            metacarpal: Entity::PLACEHOLDER,
+            proximal: Entity::PLACEHOLDER,
+            intermediate: Entity::PLACEHOLDER,
+            distal: Entity::PLACEHOLDER,
+            tip: Entity::PLACEHOLDER,
+        }
     }
 }
 
@@ -176,7 +253,9 @@ pub fn spawn_hand_entities(mut commands: Commands) {
                     HandBone::IndexTip => hand_resource.right.index.tip = boneid,
                     HandBone::MiddleMetacarpal => hand_resource.right.middle.metacarpal = boneid,
                     HandBone::MiddleProximal => hand_resource.right.middle.proximal = boneid,
-                    HandBone::MiddleIntermediate => hand_resource.right.middle.intermediate = boneid,
+                    HandBone::MiddleIntermediate => {
+                        hand_resource.right.middle.intermediate = boneid
+                    }
                     HandBone::MiddleDistal => hand_resource.right.middle.distal = boneid,
                     HandBone::MiddleTip => hand_resource.right.middle.tip = boneid,
                     HandBone::RingMetacarpal => hand_resource.right.ring.metacarpal = boneid,
@@ -186,7 +265,9 @@ pub fn spawn_hand_entities(mut commands: Commands) {
                     HandBone::RingTip => hand_resource.right.ring.tip = boneid,
                     HandBone::LittleMetacarpal => hand_resource.right.little.metacarpal = boneid,
                     HandBone::LittleProximal => hand_resource.right.little.proximal = boneid,
-                    HandBone::LittleIntermediate => hand_resource.right.little.intermediate = boneid,
+                    HandBone::LittleIntermediate => {
+                        hand_resource.right.little.intermediate = boneid
+                    }
                     HandBone::LittleDistal => hand_resource.right.little.distal = boneid,
                     HandBone::LittleTip => hand_resource.right.little.tip = boneid,
                 },
@@ -915,39 +996,54 @@ fn log_hand(hand_pose: [Posef; 26]) {
     );
 }
 
-
-pub fn update_emulated_hand_skeletons(
+pub fn update_hand_skeletons(
     right_controller_query: Query<(&GlobalTransform, With<OpenXRRightController>)>,
     left_controller_query: Query<(&GlobalTransform, With<OpenXRLeftController>)>,
     hand_states_option: Option<ResMut<HandStatesResource>>,
     mut hand_bone_query: Query<(&mut Transform, &HandBone, &Hand)>,
+    input_source: Option<Res<HandInputSource>>,
 ) {
-    match hand_states_option {
-        Some(hands) => {
-            let left_hand_transform = left_controller_query
-                .get_single()
-                .unwrap()
-                .0
-                .compute_transform();
-            update_hand_bones_emulated(
-                left_hand_transform,
-                Hand::Left,
-                hands.left,
-                &mut hand_bone_query,
-            );
-            let right_hand_transform = right_controller_query
-                .get_single()
-                .unwrap()
-                .0
-                .compute_transform();
-            update_hand_bones_emulated(
-                right_hand_transform,
-                Hand::Right,
-                hands.right,
-                &mut hand_bone_query,
-            );
+    match input_source {
+        Some(res) => match *res {
+            HandInputSource::Emulated => {
+                info!("hand input source is emulated");
+                match hand_states_option {
+                    Some(hands) => {
+                        let left_hand_transform = left_controller_query
+                            .get_single()
+                            .unwrap()
+                            .0
+                            .compute_transform();
+                        update_hand_bones_emulated(
+                            left_hand_transform,
+                            Hand::Left,
+                            hands.left,
+                            &mut hand_bone_query,
+                        );
+                        let right_hand_transform = right_controller_query
+                            .get_single()
+                            .unwrap()
+                            .0
+                            .compute_transform();
+                        update_hand_bones_emulated(
+                            right_hand_transform,
+                            Hand::Right,
+                            hands.right,
+                            &mut hand_bone_query,
+                        );
+                    }
+                    None => info!("hand states resource not initialized yet"),
+                }
+            }
+            HandInputSource::OpenXr => {
+                info!("hand input source is open XR: this is not implemented yet");
+                return;
+            }
+        },
+        None => {
+            info!("hand input source not initialized");
+            return;
         }
-        None => info!("hand states resource not initialized yet"),
     }
 }
 
