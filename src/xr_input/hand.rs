@@ -28,10 +28,19 @@ impl Plugin for OpenXrHandInput {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.add_systems(Update, update_hand_skeletons)
             .add_systems(PreUpdate, update_hand_states)
-            .add_systems(PostUpdate, draw_hand_entities)
             .add_systems(Startup, spawn_hand_entities)
             .insert_resource(HandStatesResource::default())
             .insert_resource(HandInputSource::default());
+    }
+}
+
+/// add debug renderer for controllers
+#[derive(Default)]
+pub struct HandInputDebugRenderer;
+
+impl Plugin for HandInputDebugRenderer{
+    fn build(&self, app: &mut bevy::prelude::App) {
+        app.add_systems(PostUpdate, draw_hand_entities);
     }
 }
 
