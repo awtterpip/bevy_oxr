@@ -5,7 +5,7 @@ use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
 use bevy::transform::components::Transform;
 
-use bevy_openxr::xr_input::hand::OpenXrHandInput;
+use bevy_openxr::xr_input::hand::{OpenXrHandInput, HandInputDebugRenderer};
 use bevy_openxr::xr_input::prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig};
 use bevy_openxr::xr_input::trackers::{
     OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker,
@@ -26,6 +26,7 @@ fn main() {
         .insert_resource(PrototypeLocomotionConfig::default())
         .add_systems(Startup, spawn_controllers_example)
         .add_plugins(OpenXrHandInput)
+        .add_plugins(HandInputDebugRenderer)
         .run();
 }
 
