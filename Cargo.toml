@@ -13,9 +13,9 @@ ash = "0.37.3"
 bevy = { git = "https://github.com/bevyengine/bevy.git" }
 openxr = { version = "0.17.1", features = ["mint"] }
 mint = "0.5.9"
-wgpu = "0.16.0"
-wgpu-core = { version = "0.16.0", features = ["vulkan"] }
-wgpu-hal = "0.16.0"
+wgpu = "0.17.1"
+wgpu-core = { version = "0.17.1", features = ["vulkan"] }
+wgpu-hal = "0.17.1"
 
 [dev-dependencies]
 bevy = { git = "https://github.com/bevyengine/bevy.git" }

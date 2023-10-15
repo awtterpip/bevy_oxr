@@ -161,6 +161,7 @@ pub fn initialize_xr_graphics(
             vk_instance.clone(),
             vk_target_version,
             0,
+            None,
             extensions,
             flags,
             false,
