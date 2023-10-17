@@ -42,6 +42,9 @@ pub fn initialize_xr_graphics(
 
     let xr_entry = super::xr_entry();
 
+    #[cfg(target_os = "android")]
+    xr_entry.initialize_android_loader().unwrap();
+
     let available_extensions = xr_entry.enumerate_extensions()?;
     assert!(available_extensions.khr_vulkan_enable2);
     info!("available xr exts: {:#?}", available_extensions);
@@ -102,6 +105,8 @@ pub fn initialize_xr_graphics(
     let device_extensions = vec![
         ash::extensions::khr::Swapchain::name(),
         ash::extensions::khr::DrawIndirectCount::name(),
+        #[cfg(target_os = "android")]
+        ash::extensions::khr::TimelineSemaphore::name(),
     ];
     info!(
         "creating vulkan instance with these extensions: {:#?}",

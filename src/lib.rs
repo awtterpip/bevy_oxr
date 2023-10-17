@@ -201,10 +201,17 @@ impl PluginGroup for DefaultXrPlugins {
             .add_before::<RenderPlugin, _>(OpenXrPlugin)
             .add_after::<OpenXrPlugin, _>(OpenXrInput::new(XrControllerType::OculusTouch))
             .set(WindowPlugin {
+                #[cfg(not(target_os = "android"))]
                 primary_window: Some(Window {
                     present_mode: PresentMode::AutoNoVsync,
                     ..default()
                 }),
+                #[cfg(target_os = "android")]
+                primary_window: None,
+                #[cfg(target_os = "android")]
+                exit_condition: bevy::window::ExitCondition::DontExit,
+                #[cfg(target_os = "android")]
+                close_when_requested: true,
                 ..default()
             })
     }
