@@ -10,8 +10,6 @@ use bevy_openxr::DefaultXrPlugins;
 
 #[bevy_main]
 fn main() {
-    color_eyre::install().unwrap();
-
     App::new()
         .add_plugins(DefaultXrPlugins)
         .add_plugins(OpenXrDebugRenderer)
