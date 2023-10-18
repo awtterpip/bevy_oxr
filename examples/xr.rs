@@ -4,12 +4,21 @@ use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 
 use bevy::prelude::*;
 use bevy::transform::components::Transform;
+use bevy_openxr::input::XrInput;
+use bevy_openxr::resources::{XrFrameState, XrInstance, XrSession};
 
 use bevy_openxr::xr_input::hand::{OpenXrHandInput, HandInputDebugRenderer};
+use bevy_openxr::xr_input::interactions::{
+    draw_interaction_gizmos, draw_socket_gizmos, interactions, socket_interactions,
+    update_interactable_states, InteractionEvent, Touched, XRDirectInteractor, XRInteractable,
+    XRInteractableState, XRInteractorState, XRRayInteractor, XRSocketInteractor,
+};
+use bevy_openxr::xr_input::oculus_touch::OculusController;
 use bevy_openxr::xr_input::prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig};
 use bevy_openxr::xr_input::trackers::{
-    OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker,
+    AimPose, OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker,
 };
+use bevy_openxr::xr_input::Hand;
 use bevy_openxr::DefaultXrPlugins;
 
 fn main() {
@@ -27,6 +36,20 @@ fn main() {
         .add_systems(Startup, spawn_controllers_example)
         .add_plugins(OpenXrHandInput)
         .add_plugins(HandInputDebugRenderer)
+        .add_systems(
+            Update,
+            draw_interaction_gizmos.after(update_interactable_states),
+        )
+        .add_systems(Update, draw_socket_gizmos.after(update_interactable_states))
+        .add_systems(Update, interactions.before(update_interactable_states))
+        .add_systems(
+            Update,
+            socket_interactions.before(update_interactable_states),
+        )
+        .add_systems(Update, prototype_interaction_input)
+        .add_systems(Update, update_interactable_states)
+        .add_systems(Update, update_grabbables.after(update_interactable_states))
+        .add_event::<InteractionEvent>()
         .run();
 }
 
@@ -49,13 +72,16 @@ fn setup(
         transform: Transform::from_xyz(0.0, 0.5, 0.0),
         ..default()
     });
-    // cube
-    commands.spawn(PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
-        material: materials.add(Color::rgb(0.8, 0.0, 0.0).into()),
-        transform: Transform::from_xyz(0.0, 0.5, 1.0),
-        ..default()
-    });
+    // socket
+    commands.spawn((
+        SpatialBundle {
+            transform: Transform::from_xyz(0.0, 0.5, 1.0),
+            ..default()
+        },
+        XRInteractorState::Selecting,
+        XRSocketInteractor,
+    ));
+
     // light
     commands.spawn(PointLightBundle {
         point_light: PointLight {
@@ -78,6 +104,17 @@ fn setup(
         ),
         ..default()
     },));
+    //simple interactable
+    commands.spawn((
+        SpatialBundle {
+            transform: Transform::from_xyz(0.0, 1.0, 0.0),
+            ..default()
+        },
+        XRInteractable,
+        XRInteractableState::default(),
+        Grabbable,
+        Touched(false),
+    ));
 }
 
 fn spawn_controllers_example(mut commands: Commands) {
@@ -87,6 +124,9 @@ fn spawn_controllers_example(mut commands: Commands) {
         OpenXRController,
         OpenXRTracker,
         SpatialBundle::default(),
+        XRRayInteractor,
+        AimPose(Transform::default()),
+        XRInteractorState::default(),
     ));
     //right hand
     commands.spawn((
@@ -94,5 +134,89 @@ fn spawn_controllers_example(mut commands: Commands) {
         OpenXRController,
         OpenXRTracker,
         SpatialBundle::default(),
+        XRDirectInteractor,
+        XRInteractorState::default(),
     ));
+}
+
+fn prototype_interaction_input(
+    oculus_controller: Res<OculusController>,
+    frame_state: Res<XrFrameState>,
+    xr_input: Res<XrInput>,
+    instance: Res<XrInstance>,
+    session: Res<XrSession>,
+    mut right_interactor_query: Query<
+        (&mut XRInteractorState),
+        (
+            With<XRDirectInteractor>,
+            With<OpenXRRightController>,
+            Without<OpenXRLeftController>,
+        ),
+    >,
+    mut left_interactor_query: Query<
+        (&mut XRInteractorState),
+        (
+            With<XRRayInteractor>,
+            With<OpenXRLeftController>,
+            Without<OpenXRRightController>,
+        ),
+    >,
+) {
+    //lock frame
+    let frame_state = *frame_state.lock().unwrap();
+    //get controller
+    let controller = oculus_controller.get_ref(&instance, &session, &frame_state, &xr_input);
+    //get controller triggers
+    let left_trigger = controller.trigger(Hand::Left);
+    let right_trigger = controller.trigger(Hand::Right);
+    //get the interactors and do state stuff
+    let mut left_state = left_interactor_query.single_mut();
+    if left_trigger > 0.8 {
+        *left_state = XRInteractorState::Selecting;
+    } else {
+        *left_state = XRInteractorState::Idle;
+    }
+    let mut right_state = right_interactor_query.single_mut();
+    if right_trigger > 0.8 {
+        *right_state = XRInteractorState::Selecting;
+    } else {
+        *right_state = XRInteractorState::Idle;
+    }
+}
+
+#[derive(Component)]
+pub struct Grabbable;
+
+pub fn update_grabbables(
+    mut events: EventReader<InteractionEvent>,
+    mut grabbable_query: Query<(&mut Transform, With<Grabbable>, Without<XRDirectInteractor>)>,
+    interactor_query: Query<(&GlobalTransform, &XRInteractorState, Without<Grabbable>)>,
+) {
+    //so basically the idea is to try all the events?
+    for event in events.read() {
+        // info!("some event");
+        match grabbable_query.get_mut(event.interactable) {
+            Ok(mut grabbable_transform) => {
+                // info!("we got a grabbable");
+                //now we need the location of our interactor
+                match interactor_query.get(event.interactor) {
+                    Ok(interactor_transform) => {
+                        match interactor_transform.1 {
+                            XRInteractorState::Idle => (),
+                            XRInteractorState::Selecting => {
+                                // info!("its a direct interactor?");
+                                *grabbable_transform.0 = interactor_transform.0.compute_transform();
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        // info!("not a direct interactor")
+                    }
+                }
+            }
+            Err(_) => {
+                // info!("not a grabbable?")
+            }
+        }
+    }
 }

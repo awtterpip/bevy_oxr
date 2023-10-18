@@ -43,7 +43,7 @@ pub struct PrototypeLocomotionConfig {
 impl Default for PrototypeLocomotionConfig {
     fn default() -> Self {
         Self {
-            locomotion_type: LocomotionType::Hand,
+            locomotion_type: LocomotionType::Head,
             locomotion_speed: 1.0,
             rotation_type: RotationType::Smooth,
             snap_angle: 45.0 * (PI / 180.0),
