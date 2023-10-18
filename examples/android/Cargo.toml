@@ -29,7 +29,7 @@ target_sdk_version = 32
 # label = "Bevy Example"
 
 [dependencies]
-bevy_openxr = { path = "../.." }
+bevy_openxr = { path = "../..", default-features = false }
 bevy = { git = "https://github.com/bevyengine/bevy.git" }
 openxr = { git = "https://github.com/Ralith/openxrs", features = ["mint"] }
 
