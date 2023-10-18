@@ -1,4 +1,4 @@
-# [package]
+[package]
 name = "bevy_openxr_android"
 version = "0.1.0"
 edition = "2021"
@@ -6,31 +6,20 @@ description = "Example for building an Android OpenXR app with Bevy"
 publish = false
 license = "MIT OR Apache-2.0"
 
-# [lib]
-# name = "bevy_mobile_example"
-# crate-type = ["staticlib", "cdylib"]
-
-# [dependencies]
-# bevy = { path = "../../" }
-
-# [package.metadata.android]
-# package = "org.bevyengine.example"
-# apk_name = "bevyexample"
-# assets = "../../assets"
-# resources = "../../assets/android-res"
-# # This strips debug symbols from the shared libraries, drastically reducing APK size. If you need them, remove the option.
-# strip = "strip"
-# build_targets = ["aarch64-linux-android", "armv7-linux-androideabi"]
+[lib]
+name = "bevy_openxr_android"
+crate-type = ["staticlib", "cdylib"]
 
 [package.metadata.android]
-package = "com.github.alexichepura.bevyopenxr"
+package = "org.bevyengine.example_openxr_android"
 build_targets = ["aarch64-linux-android"]
 runtime_libs = "examples/libs"
 apk_name = "bevyopenxr"
 assets = "assets"
 res = "assets/android-res"
 icon = "@mipmap/ic_launcher"
-label = "Bevy Openxr"
+label = "Bevy Openxr Android"
+strip = "strip"
 
 [package.metadata.android.sdk]
 target_sdk_version = 32
@@ -42,7 +31,6 @@ target_sdk_version = 32
 [dependencies]
 anyhow = "1.0.75"
 # ash = "0.37.3"
-# ash = { version = "0.37", default-features = false, features = ["loaded"] }
 bevy = { git = "https://github.com/bevyengine/bevy.git" }
 openxr = { git = "https://github.com/Ralith/openxrs", features = ["mint"] }
 mint = "0.5.9"
@@ -58,17 +46,6 @@ color-eyre = "0.6.2"
 lto = "fat"
 codegen-units = 1
 panic = "abort"
-#debug = true
-
-[package.metadata.android]
-build_targets = ["aarch64-linux-android"]
-runtime_libs = "examples/libs"
-package = "com.github.alexichepura.bevyopenxr"
-apk_name = "bevyopenxr"
-assets = "assets"
-res = "assets/android-res"
-icon = "@mipmap/ic_launcher"
-label = "Bevy Openxr"
 
 [package.metadata.android.application.activity]
 theme = "@android:style/Theme.Black.NoTitleBar.Fullscreen"

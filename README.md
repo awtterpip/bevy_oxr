@@ -6,7 +6,7 @@ An in-progress crate for adding openxr support to Bevy without forking.
 To see it in action run the example in `examples` with `cargo run --example xr`.
 
 ## Quest
-Running on quest can be done with https://github.com/rust-mobile/cargo-apk and requires disabling default features. 
+Running on Meta Quest can be done with https://github.com/rust-mobile/cargo-apk and requires disabling default features. 
 ```sh 
 cargo apk run --example xr --release --no-default-features
 ```
