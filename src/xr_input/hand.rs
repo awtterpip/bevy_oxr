@@ -1015,7 +1015,7 @@ pub fn update_hand_skeletons(
     match input_source {
         Some(res) => match *res {
             HandInputSource::Emulated => {
-                info!("hand input source is emulated");
+                // info!("hand input source is emulated");
                 match hand_states_option {
                     Some(hands) => {
                         let left_hand_transform = left_controller_query
