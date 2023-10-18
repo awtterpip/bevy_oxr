@@ -1,32 +1,11 @@
-<<<<<<< HEAD
 
-=======
-use std::f32::consts::PI;
-use std::ops::Mul;
->>>>>>> 68cdf19 (both hands work)
 
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 
 use bevy::prelude::*;
 use bevy::transform::components::Transform;
-<<<<<<< HEAD
-<<<<<<< HEAD
 
-use bevy_openxr::xr_input::{QuatConv, Vec3Conv};
 use bevy_openxr::xr_input::hand::{OpenXrHandInput, HandInputDebugRenderer};
-=======
-use bevy_openxr::xr_input::{Vec3Conv, QuatConv, Hand};
-use bevy_openxr::xr_input::debug_gizmos::OpenXrDebugRenderer;
->>>>>>> 68cdf19 (both hands work)
-=======
-use bevy::{gizmos, prelude::*};
-use bevy_openxr::input::XrInput;
-use bevy_openxr::resources::{XrFrameState, XrInstance, XrSession};
-
-use bevy_openxr::xr_input::hand::HandsResource;
-use bevy_openxr::xr_input::hand_poses::*;
-use bevy_openxr::xr_input::oculus_touch::OculusController;
->>>>>>> 319a2dc (hand state resource is used to drive skeleton)
 use bevy_openxr::xr_input::prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig};
 use bevy_openxr::xr_input::trackers::{
     OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker,
@@ -44,23 +23,10 @@ fn main() {
         .add_plugins(FrameTimeDiagnosticsPlugin)
         .add_systems(Startup, setup)
         .add_systems(Update, proto_locomotion)
-<<<<<<< HEAD
-=======
-        .add_systems(Startup, spawn_controllers_example)
-        .add_systems(Update, draw_skeleton_hands)
-<<<<<<< HEAD
->>>>>>> 68cdf19 (both hands work)
         .insert_resource(PrototypeLocomotionConfig::default())
         .add_systems(Startup, spawn_controllers_example)
         .add_plugins(OpenXrHandInput)
         .add_plugins(HandInputDebugRenderer)
-=======
-        .add_systems(PreUpdate, update_hand_states)
-        .add_systems(PostUpdate, draw_hand_entities)
-        .add_systems(Startup, spawn_hand_entities)
-        .insert_resource(PrototypeLocomotionConfig::default())
-        .insert_resource(HandStatesResource::default())
->>>>>>> 319a2dc (hand state resource is used to drive skeleton)
         .run();
 }
 
