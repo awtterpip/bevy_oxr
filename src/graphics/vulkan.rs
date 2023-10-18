@@ -42,6 +42,9 @@ pub fn initialize_xr_graphics(
 
     let xr_entry = super::xr_entry();
 
+    #[cfg(target_os = "android")]
+    xr_entry.initialize_android_loader().unwrap();
+
     let available_extensions = xr_entry.enumerate_extensions()?;
     assert!(available_extensions.khr_vulkan_enable2);
     info!("available xr exts: {:#?}", available_extensions);
@@ -82,8 +85,16 @@ pub fn initialize_xr_graphics(
 
     let blend_mode = xr_instance.enumerate_environment_blend_modes(xr_system_id, VIEW_TYPE)?[0];
 
+    #[cfg(not(target_os = "android"))]
     let vk_target_version = vk::make_api_version(0, 1, 2, 0);
+    #[cfg(not(target_os = "android"))]
     let vk_target_version_xr = xr::Version::new(1, 2, 0);
+
+    #[cfg(target_os = "android")]
+    let vk_target_version = vk::make_api_version(0, 1, 1, 0);
+    #[cfg(target_os = "android")]
+    let vk_target_version_xr = xr::Version::new(1, 1, 0);
+
     let reqs = xr_instance.graphics_requirements::<xr::Vulkan>(xr_system_id)?;
     if vk_target_version_xr < reqs.min_api_version_supported
         || vk_target_version_xr.major() > reqs.max_api_version_supported.major()
@@ -102,6 +113,8 @@ pub fn initialize_xr_graphics(
     let device_extensions = vec![
         ash::extensions::khr::Swapchain::name(),
         ash::extensions::khr::DrawIndirectCount::name(),
+        #[cfg(target_os = "android")]
+        ash::extensions::khr::TimelineSemaphore::name(),
     ];
     info!(
         "creating vulkan instance with these extensions: {:#?}",
