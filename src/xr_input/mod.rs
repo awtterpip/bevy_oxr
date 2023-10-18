@@ -5,6 +5,8 @@ pub mod oculus_touch;
 pub mod prototype_locomotion;
 pub mod trackers;
 pub mod xr_camera;
+pub mod hand_poses;
+pub mod hand;
 
 use crate::resources::XrSession;
 use crate::xr_begin_frame;
@@ -13,7 +15,7 @@ use crate::xr_input::oculus_touch::{setup_oculus_controller, ActionSets};
 use crate::xr_input::xr_camera::{xr_camera_head_sync, Eye, XRProjection, XrCameraBundle};
 use bevy::app::{App, PostUpdate, Startup};
 use bevy::log::warn;
-use bevy::prelude::{BuildChildren, IntoSystemConfigs};
+use bevy::prelude::{BuildChildren, IntoSystemConfigs, Component};
 use bevy::prelude::{Commands, Plugin, PreUpdate, Quat, Res, SpatialBundle, Update, Vec3};
 use bevy::render::camera::CameraProjectionPlugin;
 use bevy::render::view::{update_frusta, VisibilitySystems};
@@ -28,7 +30,7 @@ use self::trackers::{
 pub struct OpenXrInput {
     pub controller_type: XrControllerType,
 }
-#[derive(Clone, Copy, Debug, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Ord, PartialOrd, Eq, PartialEq, Component)]
 pub enum Hand {
     Left,
     Right,

@@ -1,9 +1,13 @@
+
+
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+
 use bevy::prelude::*;
 use bevy::transform::components::Transform;
 use bevy_openxr::input::XrInput;
 use bevy_openxr::resources::{XrFrameState, XrInstance, XrSession};
-use bevy_openxr::xr_input::debug_gizmos::OpenXrDebugRenderer;
+
+use bevy_openxr::xr_input::hand::{OpenXrHandInput, HandInputDebugRenderer};
 use bevy_openxr::xr_input::interactions::{
     draw_interaction_gizmos, draw_socket_gizmos, interactions, socket_interactions,
     update_interactable_states, InteractionEvent, Touched, XRDirectInteractor, XRInteractable,
@@ -23,13 +27,15 @@ fn main() {
     info!("Running `openxr-6dof` skill");
     App::new()
         .add_plugins(DefaultXrPlugins)
-        .add_plugins(OpenXrDebugRenderer) //new debug renderer adds gizmos to
+        //.add_plugins(OpenXrDebugRenderer) //new debug renderer adds gizmos to
         .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(FrameTimeDiagnosticsPlugin)
         .add_systems(Startup, setup)
         .add_systems(Update, proto_locomotion)
-        .add_systems(Startup, spawn_controllers_example)
         .insert_resource(PrototypeLocomotionConfig::default())
+        .add_systems(Startup, spawn_controllers_example)
+        .add_plugins(OpenXrHandInput)
+        .add_plugins(HandInputDebugRenderer)
         .add_systems(
             Update,
             draw_interaction_gizmos.after(update_interactable_states),
@@ -88,7 +94,14 @@ fn setup(
     });
     // camera
     commands.spawn((Camera3dBundle {
-        transform: Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
+        transform: Transform::from_xyz(0.25, 1.25, 0.0).looking_at(
+            Vec3 {
+                x: -0.548,
+                y: -0.161,
+                z: -0.137,
+            },
+            Vec3::Y,
+        ),
         ..default()
     },));
     //simple interactable
