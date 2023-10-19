@@ -2,9 +2,12 @@ use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     log::info,
     prelude::{
-        App, Commands, IntoSystemConfigs, IntoSystemSetConfigs, PostUpdate, Query, Res,
-        SpatialBundle, Startup, Update, With, Without, Component, EventReader, Transform, GlobalTransform,
+        default, shape, App, Assets, Color, Commands, Component, Event, EventReader, EventWriter,
+        GlobalTransform, IntoSystemConfigs, IntoSystemSetConfigs, Mesh, PbrBundle, PostUpdate,
+        Query, Res, ResMut, Resource, SpatialBundle, StandardMaterial, Startup, Transform, Update,
+        With, Without,
     },
+    time::{Time, Timer},
     transform::TransformSystem,
 };
 use bevy_openxr::{
@@ -13,8 +16,9 @@ use bevy_openxr::{
     xr_input::{
         debug_gizmos::OpenXrDebugRenderer,
         interactions::{
-            interactions, update_interactable_states, XRDirectInteractor, XRInteractorState,
-            XRRayInteractor, draw_interaction_gizmos, draw_socket_gizmos, socket_interactions, InteractionEvent,
+            draw_interaction_gizmos, draw_socket_gizmos, interactions, socket_interactions,
+            update_interactable_states, InteractionEvent, Touched, XRDirectInteractor,
+            XRInteractable, XRInteractableState, XRInteractorState, XRRayInteractor,
         },
         oculus_touch::OculusController,
         prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig},
@@ -44,7 +48,7 @@ fn main() {
         .add_plugins(OpenXrDebugRenderer)
         //rapier goes here
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default().with_default_system_setup(false))
-        .add_plugins(RapierDebugRenderPlugin::default())
+        // .add_plugins(RapierDebugRenderPlugin::default())
         //lets setup the starting scene
         .add_systems(Startup, setup_scene)
         .add_systems(Startup, spawn_controllers_example) //you need to spawn controllers or it crashes TODO:: Fix this
@@ -68,6 +72,14 @@ fn main() {
             draw_interaction_gizmos.after(update_interactable_states),
         )
         .add_systems(Update, draw_socket_gizmos.after(update_interactable_states))
+        //add our cube spawning system
+        .add_event::<SpawnCubeRequest>()
+        .insert_resource(SpawnCubeTimer(Timer::from_seconds(
+            0.25,
+            bevy::time::TimerMode::Once,
+        )))
+        .add_systems(Update, request_cube_spawn)
+        .add_systems(Update, cube_spawner.after(request_cube_spawn))
         ;
 
     //configure rapier sets
@@ -121,6 +133,68 @@ fn spawn_controllers_example(mut commands: Commands) {
     ));
 }
 
+#[derive(Event, Default)]
+pub struct SpawnCubeRequest;
+
+#[derive(Resource)]
+pub struct SpawnCubeTimer(Timer);
+
+fn request_cube_spawn(
+    oculus_controller: Res<OculusController>,
+    frame_state: Res<XrFrameState>,
+    xr_input: Res<XrInput>,
+    instance: Res<XrInstance>,
+    session: Res<XrSession>,
+    mut writer: EventWriter<SpawnCubeRequest>,
+    time: Res<Time>,
+    mut timer: ResMut<SpawnCubeTimer>,
+) {
+    timer.0.tick(time.delta());
+    if timer.0.finished() {
+        //lock frame
+        let frame_state = *frame_state.lock().unwrap();
+        //get controller
+        let controller = oculus_controller.get_ref(&instance, &session, &frame_state, &xr_input);
+        //get controller triggers
+        let left_main_button = controller.a_button();
+        if left_main_button {
+            writer.send(SpawnCubeRequest::default());
+            timer.0.reset();
+        }
+        let right_main_button = controller.x_button();
+        if right_main_button {
+            writer.send(SpawnCubeRequest::default());
+            timer.0.reset();
+        }
+    }
+}
+
+fn cube_spawner(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut events: EventReader<SpawnCubeRequest>,
+) {
+    for request in events.read() {
+        // cube
+        commands.spawn((
+            PbrBundle {
+                mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
+                material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+                transform: Transform::from_xyz(0.0, 1.0, 0.0),
+                ..default()
+            },
+            RigidBody::Dynamic,
+            Collider::cuboid(0.05, 0.05, 0.05),
+            ColliderDebugColor(Color::hsl(220.0, 1.0, 0.3)),
+            XRInteractable,
+            XRInteractableState::default(),
+            Grabbable,
+            Touched(false),
+        ));
+    }
+}
+
 //TODO: find a real place for this
 fn prototype_interaction_input(
     oculus_controller: Res<OculusController>,
@@ -172,7 +246,12 @@ pub struct Grabbable;
 
 pub fn update_grabbables(
     mut events: EventReader<InteractionEvent>,
-    mut grabbable_query: Query<(&mut Transform, With<Grabbable>, Without<XRDirectInteractor>, Option<&mut RigidBody>)>,
+    mut grabbable_query: Query<(
+        &mut Transform,
+        With<Grabbable>,
+        Without<XRDirectInteractor>,
+        Option<&mut RigidBody>,
+    )>,
     interactor_query: Query<(&GlobalTransform, &XRInteractorState, Without<Grabbable>)>,
 ) {
     //so basically the idea is to try all the events?
@@ -185,20 +264,18 @@ pub fn update_grabbables(
                 match interactor_query.get(event.interactor) {
                     Ok(interactor_transform) => {
                         match interactor_transform.1 {
-                            XRInteractorState::Idle => {
-                                match grabbable_transform.3 {
-                                    Some(mut thing) => {
-                                        *thing = RigidBody::Dynamic;
-                                    },
-                                    None => (),
+                            XRInteractorState::Idle => match grabbable_transform.3 {
+                                Some(mut thing) => {
+                                    *thing = RigidBody::Dynamic;
                                 }
+                                None => (),
                             },
                             XRInteractorState::Selecting => {
                                 // info!("its a direct interactor?");
                                 match grabbable_transform.3 {
                                     Some(mut thing) => {
                                         *thing = RigidBody::KinematicPositionBased;
-                                    },
+                                    }
                                     None => (),
                                 }
                                 *grabbable_transform.0 = interactor_transform.0.compute_transform();
