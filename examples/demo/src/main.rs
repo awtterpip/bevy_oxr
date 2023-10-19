@@ -1,11 +1,25 @@
 use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
-    prelude::{info, App, Commands, SpatialBundle, Startup, PostUpdate, IntoSystemSetConfigs, IntoSystemConfigs, Transform, Color}, transform::{TransformSystem, TransformBundle},
+    log::info,
+    prelude::{
+        App, Commands, IntoSystemConfigs, IntoSystemSetConfigs, PostUpdate, Query, Res,
+        SpatialBundle, Startup, Update, With, Without, Component, EventReader, Transform, GlobalTransform,
+    },
+    transform::TransformSystem,
 };
 use bevy_openxr::{
+    input::XrInput,
+    resources::{XrFrameState, XrInstance, XrSession},
     xr_input::{
         debug_gizmos::OpenXrDebugRenderer,
+        interactions::{
+            interactions, update_interactable_states, XRDirectInteractor, XRInteractorState,
+            XRRayInteractor, draw_interaction_gizmos, draw_socket_gizmos, socket_interactions, InteractionEvent,
+        },
+        oculus_touch::OculusController,
+        prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig},
         trackers::{OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker},
+        Hand,
     },
     DefaultXrPlugins,
 };
@@ -34,8 +48,26 @@ fn main() {
         //lets setup the starting scene
         .add_systems(Startup, setup_scene)
         .add_systems(Startup, spawn_controllers_example) //you need to spawn controllers or it crashes TODO:: Fix this
-        //spawn rapier test physics
-        .add_systems(Startup, setup_physics)
+        //add locomotion
+        .add_systems(Update, proto_locomotion)
+        .insert_resource(PrototypeLocomotionConfig::default())
+        //lets add the interaction systems
+        .add_event::<InteractionEvent>()
+        .add_systems(Update, prototype_interaction_input)
+        .add_systems(Update, interactions.before(update_interactable_states))
+        .add_systems(Update, update_interactable_states)
+        .add_systems(
+            Update,
+            socket_interactions.before(update_interactable_states),
+        )
+        //add the grabbable system
+        .add_systems(Update, update_grabbables.after(update_interactable_states))
+        //draw the interaction gizmos
+        .add_systems(
+            Update,
+            draw_interaction_gizmos.after(update_interactable_states),
+        )
+        .add_systems(Update, draw_socket_gizmos.after(update_interactable_states))
         ;
 
     //configure rapier sets
@@ -75,9 +107,8 @@ fn spawn_controllers_example(mut commands: Commands) {
         OpenXRController,
         OpenXRTracker,
         SpatialBundle::default(),
-        // XRRayInteractor,
-        // AimPose(Transform::default()),
-        // XRInteractorState::default(),
+        XRDirectInteractor,
+        XRInteractorState::default(),
     ));
     //right hand
     commands.spawn((
@@ -85,59 +116,103 @@ fn spawn_controllers_example(mut commands: Commands) {
         OpenXRController,
         OpenXRTracker,
         SpatialBundle::default(),
-        // XRDirectInteractor,
-        // XRInteractorState::default(),
+        XRDirectInteractor,
+        XRInteractorState::default(),
     ));
 }
 
-pub fn setup_physics(mut commands: Commands) {
-    /*
-     * Ground
-     */
-    let ground_size = 200.1;
-    let ground_height = 0.1;
+//TODO: find a real place for this
+fn prototype_interaction_input(
+    oculus_controller: Res<OculusController>,
+    frame_state: Res<XrFrameState>,
+    xr_input: Res<XrInput>,
+    instance: Res<XrInstance>,
+    session: Res<XrSession>,
+    mut right_interactor_query: Query<
+        (&mut XRInteractorState),
+        (
+            With<XRDirectInteractor>,
+            With<OpenXRRightController>,
+            Without<OpenXRLeftController>,
+        ),
+    >,
+    mut left_interactor_query: Query<
+        (&mut XRInteractorState),
+        (
+            With<XRDirectInteractor>,
+            With<OpenXRLeftController>,
+            Without<OpenXRRightController>,
+        ),
+    >,
+) {
+    //lock frame
+    let frame_state = *frame_state.lock().unwrap();
+    //get controller
+    let controller = oculus_controller.get_ref(&instance, &session, &frame_state, &xr_input);
+    //get controller triggers
+    let left_trigger = controller.trigger(Hand::Left);
+    let right_trigger = controller.trigger(Hand::Right);
+    //get the interactors and do state stuff
+    let mut left_state = left_interactor_query.single_mut();
+    if left_trigger > 0.8 {
+        *left_state = XRInteractorState::Selecting;
+    } else {
+        *left_state = XRInteractorState::Idle;
+    }
+    let mut right_state = right_interactor_query.single_mut();
+    if right_trigger > 0.8 {
+        *right_state = XRInteractorState::Selecting;
+    } else {
+        *right_state = XRInteractorState::Idle;
+    }
+}
 
-    commands.spawn((
-        TransformBundle::from(Transform::from_xyz(0.0, -ground_height, 0.0)),
-        Collider::cuboid(ground_size, ground_height, ground_size),
-    ));
+#[derive(Component)]
+pub struct Grabbable;
 
-    /*
-     * Create the cubes
-     */
-    let num = 8;
-    let rad = 1.0;
-
-    let shift = rad * 2.0 + rad;
-    let centerx = shift * (num / 2) as f32;
-    let centery = shift / 2.0;
-    let centerz = shift * (num / 2) as f32;
-
-    let mut offset = -(num as f32) * (rad * 2.0 + rad) * 0.5;
-    let mut color = 0;
-    let colors = [
-        Color::hsl(220.0, 1.0, 0.3),
-        Color::hsl(180.0, 1.0, 0.3),
-        Color::hsl(260.0, 1.0, 0.7),
-    ];
-
-    for j in 0usize..20 {
-        for i in 0..num {
-            for k in 0usize..num {
-                let x = i as f32 * shift - centerx + offset;
-                let y = j as f32 * shift + centery + 3.0;
-                let z = k as f32 * shift - centerz + offset;
-                color += 1;
-
-                commands.spawn((
-                    TransformBundle::from(Transform::from_xyz(x, y, z)),
-                    RigidBody::Dynamic,
-                    Collider::cuboid(rad, rad, rad),
-                    ColliderDebugColor(colors[color % 3]),
-                ));
+pub fn update_grabbables(
+    mut events: EventReader<InteractionEvent>,
+    mut grabbable_query: Query<(&mut Transform, With<Grabbable>, Without<XRDirectInteractor>, Option<&mut RigidBody>)>,
+    interactor_query: Query<(&GlobalTransform, &XRInteractorState, Without<Grabbable>)>,
+) {
+    //so basically the idea is to try all the events?
+    for event in events.read() {
+        // info!("some event");
+        match grabbable_query.get_mut(event.interactable) {
+            Ok(mut grabbable_transform) => {
+                // info!("we got a grabbable");
+                //now we need the location of our interactor
+                match interactor_query.get(event.interactor) {
+                    Ok(interactor_transform) => {
+                        match interactor_transform.1 {
+                            XRInteractorState::Idle => {
+                                match grabbable_transform.3 {
+                                    Some(mut thing) => {
+                                        *thing = RigidBody::Dynamic;
+                                    },
+                                    None => (),
+                                }
+                            },
+                            XRInteractorState::Selecting => {
+                                // info!("its a direct interactor?");
+                                match grabbable_transform.3 {
+                                    Some(mut thing) => {
+                                        *thing = RigidBody::KinematicPositionBased;
+                                    },
+                                    None => (),
+                                }
+                                *grabbable_transform.0 = interactor_transform.0.compute_transform();
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        // info!("not a direct interactor")
+                    }
+                }
+            }
+            Err(_) => {
+                // info!("not a grabbable?")
             }
         }
-
-        offset -= 0.05 * rad * (num as f32 - 1.0);
     }
 }
