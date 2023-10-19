@@ -25,5 +25,9 @@ color-eyre = "0.6.2"
 name = "xr"
 path = "examples/xr.rs"
 
+[[example]]
+name = "demo"
+path = "examples/demo/src/main.rs"
+
 [profile.release]
 debug = true
