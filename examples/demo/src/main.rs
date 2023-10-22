@@ -2,10 +2,10 @@ use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     log::info,
     prelude::{
-        default, shape, App, Assets, Color, Commands, Component, Event, EventReader, EventWriter,
-        GlobalTransform, IntoSystemConfigs, IntoSystemSetConfigs, Mesh, PbrBundle, PostUpdate,
-        Query, Res, ResMut, Resource, SpatialBundle, StandardMaterial, Startup, Transform, Update,
-        With, Without,
+        default, shape, App, Assets, Color, Commands, Component, Entity, Event, EventReader,
+        EventWriter, GlobalTransform, IntoSystemConfigs, IntoSystemSetConfigs, Mesh, PbrBundle,
+        PostUpdate, Query, Res, ResMut, Resource, SpatialBundle, StandardMaterial, Startup,
+        Transform, Update, With, Without,
     },
     time::{Time, Timer},
     transform::TransformSystem,
@@ -18,7 +18,7 @@ use bevy_openxr::{
         interactions::{
             draw_interaction_gizmos, draw_socket_gizmos, interactions, socket_interactions,
             update_interactable_states, InteractionEvent, Touched, XRDirectInteractor,
-            XRInteractable, XRInteractableState, XRInteractorState, XRRayInteractor,
+            XRInteractable, XRInteractableState, XRInteractorState, XRSelection,
         },
         oculus_touch::OculusController,
         prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig},
@@ -79,8 +79,7 @@ fn main() {
             bevy::time::TimerMode::Once,
         )))
         .add_systems(Update, request_cube_spawn)
-        .add_systems(Update, cube_spawner.after(request_cube_spawn))
-        ;
+        .add_systems(Update, cube_spawner.after(request_cube_spawn));
 
     //configure rapier sets
     app.configure_sets(
@@ -121,6 +120,7 @@ fn spawn_controllers_example(mut commands: Commands) {
         SpatialBundle::default(),
         XRDirectInteractor,
         XRInteractorState::default(),
+        XRSelection::default(),
     ));
     //right hand
     commands.spawn((
@@ -130,6 +130,7 @@ fn spawn_controllers_example(mut commands: Commands) {
         SpatialBundle::default(),
         XRDirectInteractor,
         XRInteractorState::default(),
+        XRSelection::default(),
     ));
 }
 
@@ -247,12 +248,18 @@ pub struct Grabbable;
 pub fn update_grabbables(
     mut events: EventReader<InteractionEvent>,
     mut grabbable_query: Query<(
+        Entity,
         &mut Transform,
         With<Grabbable>,
         Without<XRDirectInteractor>,
         Option<&mut RigidBody>,
     )>,
-    interactor_query: Query<(&GlobalTransform, &XRInteractorState, Without<Grabbable>)>,
+    mut interactor_query: Query<(
+        &GlobalTransform,
+        &XRInteractorState,
+        &mut XRSelection,
+        Without<Grabbable>,
+    )>,
 ) {
     //so basically the idea is to try all the events?
     for event in events.read() {
@@ -261,24 +268,48 @@ pub fn update_grabbables(
             Ok(mut grabbable_transform) => {
                 // info!("we got a grabbable");
                 //now we need the location of our interactor
-                match interactor_query.get(event.interactor) {
-                    Ok(interactor_transform) => {
-                        match interactor_transform.1 {
-                            XRInteractorState::Idle => match grabbable_transform.3 {
-                                Some(mut thing) => {
-                                    *thing = RigidBody::Dynamic;
-                                }
-                                None => (),
-                            },
-                            XRInteractorState::Selecting => {
-                                // info!("its a direct interactor?");
-                                match grabbable_transform.3 {
-                                    Some(mut thing) => {
-                                        *thing = RigidBody::KinematicPositionBased;
+                match interactor_query.get_mut(event.interactor) {
+                    Ok(mut interactor_transform) => {
+                        match *interactor_transform.2 {
+                            XRSelection::Empty => {
+                                match interactor_transform.1 {
+                                    XRInteractorState::Idle => match grabbable_transform.4 {
+                                        Some(mut thing) => {
+                                            *thing = RigidBody::Dynamic;
+                                            *interactor_transform.2 = XRSelection::Empty;
+                                        }
+                                        None => (),
+                                    },
+                                    XRInteractorState::Selecting => {
+                                        // info!("its a direct interactor?");
+                                        match grabbable_transform.4 {
+                                            Some(mut thing) => {
+                                                *thing = RigidBody::KinematicPositionBased;
+                                                *interactor_transform.2 =
+                                                    XRSelection::Full(grabbable_transform.0);
+                                            }
+                                            None => (),
+                                        }
+                                        *grabbable_transform.1 =
+                                            interactor_transform.0.compute_transform();
                                     }
-                                    None => (),
                                 }
-                                *grabbable_transform.0 = interactor_transform.0.compute_transform();
+                            }
+                            XRSelection::Full(ent) => {
+                                info!("nah bro we holding something");
+                                match grabbable_transform.0 == ent {
+                                    true => {
+                                        *grabbable_transform.1 =
+                                            interactor_transform.0.compute_transform();
+                                    }
+                                    false => {}
+                                }
+                                match interactor_transform.1 {
+                                    XRInteractorState::Idle => {
+                                        *interactor_transform.2 = XRSelection::Empty
+                                    }
+                                    XRInteractorState::Selecting => {}
+                                }
                             }
                         }
                     }

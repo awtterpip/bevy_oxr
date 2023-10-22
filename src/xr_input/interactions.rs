@@ -42,6 +42,16 @@ impl Default for XRInteractorState {
         XRInteractorState::Idle
     }
 }
+#[derive(Component)]
+pub enum XRSelection {
+    Empty,
+    Full(Entity)
+}
+impl Default for XRSelection {
+    fn default() -> Self {
+        XRSelection::Empty
+    }
+}
 
 #[derive(Component)]
 pub struct XRInteractable;
