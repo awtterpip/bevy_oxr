@@ -5,7 +5,7 @@ use bevy::{
         default, shape, App, Assets, Color, Commands, Component, Entity, Event, EventReader,
         EventWriter, GlobalTransform, IntoSystemConfigs, IntoSystemSetConfigs, Mesh, PbrBundle,
         PostUpdate, Query, Res, ResMut, Resource, SpatialBundle, StandardMaterial, Startup,
-        Transform, Update, With, Without,
+        Transform, Update, Vec3, With, Without,
     },
     time::{Time, Timer},
     transform::TransformSystem,
@@ -15,6 +15,7 @@ use bevy_openxr::{
     resources::{XrFrameState, XrInstance, XrSession},
     xr_input::{
         debug_gizmos::OpenXrDebugRenderer,
+        hand::{HandBone, HandInputDebugRenderer, HandResource, HandsResource, OpenXrHandInput},
         interactions::{
             draw_interaction_gizmos, draw_socket_gizmos, interactions, socket_interactions,
             update_interactable_states, InteractionEvent, Touched, XRDirectInteractor,
@@ -48,7 +49,7 @@ fn main() {
         .add_plugins(OpenXrDebugRenderer)
         //rapier goes here
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default().with_default_system_setup(false))
-        // .add_plugins(RapierDebugRenderPlugin::default())
+        .add_plugins(RapierDebugRenderPlugin::default())
         //lets setup the starting scene
         .add_systems(Startup, setup_scene)
         .add_systems(Startup, spawn_controllers_example) //you need to spawn controllers or it crashes TODO:: Fix this
@@ -79,7 +80,14 @@ fn main() {
             bevy::time::TimerMode::Once,
         )))
         .add_systems(Update, request_cube_spawn)
-        .add_systems(Update, cube_spawner.after(request_cube_spawn));
+        .add_systems(Update, cube_spawner.after(request_cube_spawn))
+        //test capsule
+        .add_systems(Startup, spawn_capsule)
+        //physics hands
+        .add_plugins(OpenXrHandInput)
+        .add_plugins(HandInputDebugRenderer)
+        .add_systems(Startup, spawn_physics_hands)
+        .add_systems(Update, update_physics_hands);
 
     //configure rapier sets
     app.configure_sets(
@@ -132,6 +140,156 @@ fn spawn_controllers_example(mut commands: Commands) {
         XRInteractorState::default(),
         XRSelection::default(),
     ));
+}
+
+fn spawn_capsule(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    commands.spawn((
+        PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Capsule {
+                radius: 0.033,
+                depth: 0.115,
+                ..default()
+            })),
+            material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+            transform: Transform::from_xyz(0.0, 2.0, 0.0),
+            ..default()
+        },
+        // Collider::capsule_y(0.0575, 0.034),
+        Collider::capsule(
+            Vec3 {
+                x: 0.0,
+                y: -0.0575,
+                z: 0.0,
+            },
+            Vec3 {
+                x: 0.0,
+                y: 0.0575,
+                z: 0.0,
+            },
+            0.034,
+        ),
+        RigidBody::Dynamic,
+    ));
+}
+
+#[derive(Component, PartialEq)]
+pub enum PhysicsHandBone {
+    Palm,
+    Wrist,
+    ThumbMetacarpal,
+    ThumbProximal,
+    ThumbDistal,
+    ThumbTip,
+    IndexMetacarpal,
+    IndexProximal,
+    IndexIntermediate,
+    IndexDistal,
+    IndexTip,
+    MiddleMetacarpal,
+    MiddleProximal,
+    MiddleIntermediate,
+    MiddleDistal,
+    MiddleTip,
+    RingMetacarpal,
+    RingProximal,
+    RingIntermediate,
+    RingDistal,
+    RingTip,
+    LittleMetacarpal,
+    LittleProximal,
+    LittleIntermediate,
+    LittleDistal,
+    LittleTip,
+}
+#[derive(Component, PartialEq)]
+pub enum BoneInitState {
+    True,
+    False,
+}
+
+fn spawn_physics_hands(mut commands: Commands) {
+    //lets just do the Right ThumbMetacarpal for now
+    //i dont understand the groups yet
+    let self_group = Group::GROUP_1;
+    let interaction_group = Group::ALL;
+    let radius = 0.010;
+    //spawn the thing
+    commands.spawn((
+        SpatialBundle::default(),
+        Collider::capsule(
+            Vec3 {
+                x: 0.0,
+                y: -0.0575,
+                z: 0.0,
+            },
+            Vec3 {
+                x: 0.0,
+                y: 0.0575,
+                z: 0.0,
+            },
+            radius,
+        ),
+        RigidBody::KinematicPositionBased,
+        // CollisionGroups::new(self_group, interaction_group),
+        // SolverGroups::new(self_group, interaction_group),
+        PhysicsHandBone::ThumbMetacarpal,
+        BoneInitState::False,
+    ));
+}
+
+fn update_physics_hands(
+    HandRes: Option<Res<HandsResource>>,
+    mut bone_query: Query<(
+        &mut Transform,
+        &mut Collider,
+        &PhysicsHandBone,
+        &mut BoneInitState,
+    )>,
+    hand_query: Query<(&Transform, &HandBone, &Hand, Without<PhysicsHandBone>)>,
+) {
+    //sanity check do we even have hands?
+    match HandRes {
+        Some(res) => {
+            let radius = 0.010;
+            //lets just do the Right ThumbMetacarpal for now
+            let right_thumb_meta_entity = res.right.thumb.metacarpal;
+            let right_thumb_prox_entity = res.right.thumb.proximal;
+            
+            //now we need their transforms
+            let rtm = hand_query.get(right_thumb_meta_entity);
+            let rtp = hand_query.get(right_thumb_prox_entity);
+            let end = rtp.unwrap().0.translation - rtm.unwrap().0.translation;
+            if(end.length() < 0.001){ //i hate this but we need to skip init if the length is zero
+                return;
+            }
+            info!("end: {}", end.length());
+            for mut bone in bone_query.iter_mut() {
+                match *bone.3 {
+                    BoneInitState::True => {
+                        //if we are init then we just move em?
+                        *bone.0 =  rtm.unwrap().0.clone().looking_at(rtp.unwrap().0.translation, Vec3::Y);
+
+                    },
+                    BoneInitState::False => {
+                        if (*bone.2 == PhysicsHandBone::ThumbMetacarpal) {
+                            //build a new collider?
+                            *bone.1 = Collider::capsule(
+                                Vec3::splat(0.0),
+                                Vec3 { x: 0.0, y: 0.0, z: -end.length() },
+                                radius,
+                            );
+                            *bone.3 = BoneInitState::True;
+                        }
+                    }
+                }
+            }
+        }
+        None => info!("hand states resource not initialized yet"),
+    }
 }
 
 #[derive(Event, Default)]
