@@ -259,7 +259,13 @@ pub fn xr_begin_frame(
     }
     {
         let _span = info_span!("xr_wait_frame").entered();
-        *frame_state.lock().unwrap() = frame_waiter.lock().unwrap().wait().unwrap();
+        *frame_state.lock().unwrap() = match frame_waiter.lock().unwrap().wait() {
+            Ok(a) => a,
+            Err(e) => {
+                warn!("error: {}", e);
+                return;
+            }
+        };
     }
     {
         let _span = info_span!("xr_begin_frame").entered();
