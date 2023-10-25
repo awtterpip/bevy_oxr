@@ -176,7 +176,7 @@ fn spawn_capsule(
     ));
 }
 
-#[derive(Component, PartialEq)]
+#[derive(Component, PartialEq, Debug)]
 pub enum PhysicsHandBone {
     Palm,
     Wrist,
@@ -238,57 +238,241 @@ fn spawn_physics_hands(mut commands: Commands) {
         // SolverGroups::new(self_group, interaction_group),
         PhysicsHandBone::ThumbMetacarpal,
         BoneInitState::False,
+        Hand::Right,
+    ));
+    //index
+    //spawn the thing
+    commands.spawn((
+        SpatialBundle::default(),
+        Collider::capsule(
+            Vec3 {
+                x: 0.0,
+                y: -0.0575,
+                z: 0.0,
+            },
+            Vec3 {
+                x: 0.0,
+                y: 0.0575,
+                z: 0.0,
+            },
+            radius,
+        ),
+        RigidBody::KinematicPositionBased,
+        // CollisionGroups::new(self_group, interaction_group),
+        // SolverGroups::new(self_group, interaction_group),
+        PhysicsHandBone::IndexMetacarpal,
+        BoneInitState::False,
+        Hand::Right,
+    ));
+    //middle
+    //spawn the thing
+    commands.spawn((
+        SpatialBundle::default(),
+        Collider::capsule(
+            Vec3 {
+                x: 0.0,
+                y: -0.0575,
+                z: 0.0,
+            },
+            Vec3 {
+                x: 0.0,
+                y: 0.0575,
+                z: 0.0,
+            },
+            radius,
+        ),
+        RigidBody::KinematicPositionBased,
+        // CollisionGroups::new(self_group, interaction_group),
+        // SolverGroups::new(self_group, interaction_group),
+        PhysicsHandBone::MiddleMetacarpal,
+        BoneInitState::False,
+        Hand::Right,
+    ));
+    //ring
+    //spawn the thing
+    commands.spawn((
+        SpatialBundle::default(),
+        Collider::capsule(
+            Vec3 {
+                x: 0.0,
+                y: -0.0575,
+                z: 0.0,
+            },
+            Vec3 {
+                x: 0.0,
+                y: 0.0575,
+                z: 0.0,
+            },
+            radius,
+        ),
+        RigidBody::KinematicPositionBased,
+        // CollisionGroups::new(self_group, interaction_group),
+        // SolverGroups::new(self_group, interaction_group),
+        PhysicsHandBone::RingMetacarpal,
+        BoneInitState::False,
+        Hand::Right,
+    ));
+    //little
+    //spawn the thing
+    commands.spawn((
+        SpatialBundle::default(),
+        Collider::capsule(
+            Vec3 {
+                x: 0.0,
+                y: -0.0575,
+                z: 0.0,
+            },
+            Vec3 {
+                x: 0.0,
+                y: 0.0575,
+                z: 0.0,
+            },
+            radius,
+        ),
+        RigidBody::KinematicPositionBased,
+        // CollisionGroups::new(self_group, interaction_group),
+        // SolverGroups::new(self_group, interaction_group),
+        PhysicsHandBone::LittleMetacarpal,
+        BoneInitState::False,
+        Hand::Right,
     ));
 }
 
 fn update_physics_hands(
-    HandRes: Option<Res<HandsResource>>,
+    hands_res: Option<Res<HandsResource>>,
     mut bone_query: Query<(
         &mut Transform,
         &mut Collider,
         &PhysicsHandBone,
         &mut BoneInitState,
+        &Hand,
     )>,
     hand_query: Query<(&Transform, &HandBone, &Hand, Without<PhysicsHandBone>)>,
 ) {
     //sanity check do we even have hands?
-    match HandRes {
+    match hands_res {
         Some(res) => {
+            //config stuff
             let radius = 0.010;
-            //lets just do the Right ThumbMetacarpal for now
-            let right_thumb_meta_entity = res.right.thumb.metacarpal;
-            let right_thumb_prox_entity = res.right.thumb.proximal;
-            
-            //now we need their transforms
-            let rtm = hand_query.get(right_thumb_meta_entity);
-            let rtp = hand_query.get(right_thumb_prox_entity);
-            let end = rtp.unwrap().0.translation - rtm.unwrap().0.translation;
-            if(end.length() < 0.001){ //i hate this but we need to skip init if the length is zero
-                return;
-            }
-            info!("end: {}", end.length());
             for mut bone in bone_query.iter_mut() {
+                let hand_res = match bone.4 {
+                    Hand::Left => res.left,
+                    Hand::Right => res.right,
+                };
+
+                //lets just do the Right ThumbMetacarpal for now
+                let (start_entity, end_entity) = get_start_and_end_entities(hand_res, bone.2);
+
+                //now we need their transforms
+                let start_components = hand_query.get(start_entity);
+                let end_components = hand_query.get(end_entity);
+                let direction =
+                    end_components.unwrap().0.translation - start_components.unwrap().0.translation;
+                if direction.length() < 0.001 {
+                    //i hate this but we need to skip init if the length is zero
+                    return;
+                }
+
                 match *bone.3 {
                     BoneInitState::True => {
                         //if we are init then we just move em?
-                        *bone.0 =  rtm.unwrap().0.clone().looking_at(rtp.unwrap().0.translation, Vec3::Y);
-
-                    },
+                        *bone.0 = start_components
+                            .unwrap()
+                            .0
+                            .clone()
+                            .looking_at(end_components.unwrap().0.translation, Vec3::Y);
+                    }
                     BoneInitState::False => {
-                        if (*bone.2 == PhysicsHandBone::ThumbMetacarpal) {
-                            //build a new collider?
-                            *bone.1 = Collider::capsule(
-                                Vec3::splat(0.0),
-                                Vec3 { x: 0.0, y: 0.0, z: -end.length() },
-                                radius,
-                            );
-                            *bone.3 = BoneInitState::True;
-                        }
+                        //build a new collider?
+                        *bone.1 = Collider::capsule(
+                            Vec3::splat(0.0),
+                            Vec3 {
+                                x: 0.0,
+                                y: 0.0,
+                                z: -direction.length(),
+                            },
+                            radius,
+                        );
+                        *bone.3 = BoneInitState::True;
                     }
                 }
             }
         }
         None => info!("hand states resource not initialized yet"),
+    }
+}
+
+fn get_start_and_end_entities(hand_res: HandResource, bone: &PhysicsHandBone) -> (Entity, Entity) {
+    match bone {
+        PhysicsHandBone::Palm => return (hand_res.thumb.metacarpal, hand_res.thumb.proximal),
+        PhysicsHandBone::Wrist => return (hand_res.thumb.metacarpal, hand_res.thumb.proximal),
+        PhysicsHandBone::ThumbMetacarpal => {
+            return (hand_res.thumb.metacarpal, hand_res.thumb.proximal)
+        }
+        PhysicsHandBone::ThumbProximal => {
+            return (hand_res.thumb.metacarpal, hand_res.thumb.proximal)
+        }
+        PhysicsHandBone::ThumbDistal => {
+            return (hand_res.thumb.metacarpal, hand_res.thumb.proximal)
+        }
+        PhysicsHandBone::ThumbTip => return (hand_res.thumb.metacarpal, hand_res.thumb.proximal),
+        PhysicsHandBone::IndexMetacarpal => {
+            return (hand_res.index.metacarpal, hand_res.index.proximal)
+        }
+        PhysicsHandBone::IndexProximal => {
+            return (hand_res.thumb.metacarpal, hand_res.thumb.proximal)
+        }
+        PhysicsHandBone::IndexIntermediate => {
+            return (hand_res.thumb.metacarpal, hand_res.thumb.proximal)
+        }
+        PhysicsHandBone::IndexDistal => {
+            return (hand_res.thumb.metacarpal, hand_res.thumb.proximal)
+        }
+        PhysicsHandBone::IndexTip => return (hand_res.thumb.metacarpal, hand_res.thumb.proximal),
+        PhysicsHandBone::MiddleMetacarpal => {
+            return (hand_res.middle.metacarpal, hand_res.middle.proximal)
+        }
+        PhysicsHandBone::MiddleProximal => {
+            return (hand_res.thumb.metacarpal, hand_res.thumb.proximal)
+        }
+        PhysicsHandBone::MiddleIntermediate => {
+            return (hand_res.thumb.metacarpal, hand_res.thumb.proximal)
+        }
+        PhysicsHandBone::MiddleDistal => {
+            return (hand_res.thumb.metacarpal, hand_res.thumb.proximal)
+        }
+        PhysicsHandBone::MiddleTip => return (hand_res.thumb.metacarpal, hand_res.thumb.proximal),
+        PhysicsHandBone::RingMetacarpal => {
+            return (hand_res.ring.metacarpal, hand_res.ring.proximal)
+        }
+        PhysicsHandBone::RingProximal => {
+            return (hand_res.thumb.metacarpal, hand_res.thumb.proximal)
+        }
+        PhysicsHandBone::RingIntermediate => {
+            return (hand_res.thumb.metacarpal, hand_res.thumb.proximal)
+        }
+        PhysicsHandBone::RingDistal => return (hand_res.thumb.metacarpal, hand_res.thumb.proximal),
+        PhysicsHandBone::RingTip => return (hand_res.thumb.metacarpal, hand_res.thumb.proximal),
+        PhysicsHandBone::LittleMetacarpal => {
+            return (hand_res.little.metacarpal, hand_res.little.proximal)
+        }
+        PhysicsHandBone::LittleProximal => {
+            return (hand_res.thumb.metacarpal, hand_res.thumb.proximal)
+        }
+        PhysicsHandBone::LittleIntermediate => {
+            return (hand_res.thumb.metacarpal, hand_res.thumb.proximal)
+        }
+        PhysicsHandBone::LittleDistal => {
+            return (hand_res.thumb.metacarpal, hand_res.thumb.proximal)
+        }
+        PhysicsHandBone::LittleTip => return (hand_res.thumb.metacarpal, hand_res.thumb.proximal),
+    };
+}
+
+fn get_hand_res(res: &Res<'_, HandsResource>, hand: Hand) -> HandResource {
+    match hand {
+        Hand::Left => res.left.clone(),
+        Hand::Right => res.right.clone(),
     }
 }
 
