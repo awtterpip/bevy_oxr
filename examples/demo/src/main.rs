@@ -1,11 +1,12 @@
 use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
+    ecs::schedule::ScheduleLabel,
     log::info,
     prelude::{
         default, shape, App, Assets, Color, Commands, Component, Entity, Event, EventReader,
-        EventWriter, GlobalTransform, IntoSystemConfigs, IntoSystemSetConfigs, Mesh, PbrBundle,
-        PostUpdate, Query, Res, ResMut, Resource, SpatialBundle, StandardMaterial, Startup,
-        Transform, Update, Vec3, With, Without,
+        EventWriter, FixedTime, FixedUpdate, GlobalTransform, IntoSystemConfigs,
+        IntoSystemSetConfigs, Mesh, PbrBundle, PostUpdate, Query, Res, ResMut, Resource, Schedule,
+        SpatialBundle, StandardMaterial, Startup, Transform, Update, Vec3, With, Without, World,
     },
     time::{Time, Timer},
     transform::TransformSystem,
@@ -90,6 +91,18 @@ fn main() {
         .add_systems(Update, update_physics_hands);
 
     //configure rapier sets
+    let mut physics_schedule = Schedule::new(PhysicsSchedule);
+
+    physics_schedule.configure_sets(
+        (
+            PhysicsSet::SyncBackend,
+            PhysicsSet::StepSimulation,
+            PhysicsSet::Writeback,
+        )
+            .chain()
+            .before(TransformSystem::TransformPropagate),
+    );
+
     app.configure_sets(
         PostUpdate,
         (
@@ -101,22 +114,37 @@ fn main() {
             .before(TransformSystem::TransformPropagate),
     );
     //add rapier systems
-    app.add_systems(
-        PostUpdate,
-        (
-            RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::SyncBackend)
-                .in_set(PhysicsSet::SyncBackend),
-            (
-                RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::StepSimulation),
-                // despawn_one_box,
-            )
-                .in_set(PhysicsSet::StepSimulation),
-            RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::Writeback)
-                .in_set(PhysicsSet::Writeback),
-        ),
-    );
-
+    physics_schedule.add_systems((
+        RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::SyncBackend)
+            .in_set(PhysicsSet::SyncBackend),
+        RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::StepSimulation)
+            .in_set(PhysicsSet::StepSimulation),
+        RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::Writeback)
+            .in_set(PhysicsSet::Writeback),
+    ));
+    app.add_schedule(physics_schedule) // configure our fixed timestep schedule to run at the rate we want
+        .insert_resource(FixedTime::new_from_secs(FIXED_TIMESTEP))
+        .add_systems(FixedUpdate, run_physics_schedule)
+        .add_systems(Startup, configure_physics);
     app.run();
+}
+
+//fixed timesteps?
+const FIXED_TIMESTEP: f32 = 1. / 90.;
+
+// A label for our new Schedule!
+#[derive(ScheduleLabel, Debug, Hash, PartialEq, Eq, Clone)]
+struct PhysicsSchedule;
+
+fn run_physics_schedule(world: &mut World) {
+    world.run_schedule(PhysicsSchedule);
+}
+
+fn configure_physics(mut rapier_config: ResMut<RapierConfiguration>) {
+    rapier_config.timestep_mode = TimestepMode::Fixed {
+        dt: FIXED_TIMESTEP,
+        substeps: 1,
+    }
 }
 
 fn spawn_controllers_example(mut commands: Commands) {
