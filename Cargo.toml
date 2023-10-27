@@ -20,7 +20,8 @@ wgpu-hal = "0.17.1"
 [dev-dependencies]
 bevy = { git = "https://github.com/bevyengine/bevy.git" }
 color-eyre = "0.6.2"
-bevy_rapier3d = { git = "https://github.com/alexichepura/bevy_rapier", version = "0.22.0", branch = "bevy-012"}
+bevy_rapier3d = { git = "https://github.com/Schmarni-Dev/bevy_rapier" }
+# bevy_rapier3d = { git = "https://github.com/alexichepura/bevy_rapier", version = "0.22.0", branch = "bevy-012"}
 
 [[example]]
 name = "xr"
