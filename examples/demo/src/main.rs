@@ -2,10 +2,10 @@ use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     log::info,
     prelude::{
-        default, shape, App, Assets, Color, Commands, Component, Event, EventReader, EventWriter,
-        GlobalTransform, IntoSystemConfigs, IntoSystemSetConfigs, Mesh, PbrBundle, PostUpdate,
-        Query, Res, ResMut, Resource, SpatialBundle, StandardMaterial, Startup, Transform, Update,
-        With, Without,
+        bevy_main, default, shape, App, Assets, Color, Commands, Component, Event, EventReader,
+        EventWriter, GlobalTransform, IntoSystemConfigs, IntoSystemSetConfigs, Mesh, PbrBundle,
+        PostUpdate, Query, Res, ResMut, Resource, SpatialBundle, StandardMaterial, Startup,
+        Transform, Update, With, Without,
     },
     time::{Time, Timer},
     transform::TransformSystem,
@@ -32,6 +32,7 @@ mod setup;
 use crate::setup::setup_scene;
 use bevy_rapier3d::prelude::*;
 
+#[bevy_main]
 fn main() {
     color_eyre::install().unwrap();
 
@@ -79,8 +80,7 @@ fn main() {
             bevy::time::TimerMode::Once,
         )))
         .add_systems(Update, request_cube_spawn)
-        .add_systems(Update, cube_spawner.after(request_cube_spawn))
-        ;
+        .add_systems(Update, cube_spawner.after(request_cube_spawn));
 
     //configure rapier sets
     app.configure_sets(
@@ -175,7 +175,7 @@ fn cube_spawner(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut events: EventReader<SpawnCubeRequest>,
 ) {
-    for request in events.read() {
+    for request in events.iter() {
         // cube
         commands.spawn((
             PbrBundle {

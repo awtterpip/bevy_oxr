@@ -36,7 +36,7 @@ openxr = { git = "https://github.com/Ralith/openxrs", features = ["mint"] }
 [profile.release]
 lto = "fat"
 codegen-units = 1
-panic = "abort"
+# panic = "abort"
 
 [package.metadata.android.application.activity]
 theme = "@android:style/Theme.Black.NoTitleBar.Fullscreen"

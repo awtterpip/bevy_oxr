@@ -5,6 +5,7 @@ pub mod resources;
 pub mod xr_input;
 
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use crate::xr_input::oculus_touch::ActionSets;
 use bevy::app::PluginGroupBuilder;
@@ -79,6 +80,7 @@ impl Plugin for OpenXrPlugin {
             views,
             frame_state,
         ) = graphics::initialize_xr_graphics(primary_window).unwrap();
+        std::thread::sleep(Duration::from_secs(5));
         debug!("Configured wgpu adapter Limits: {:#?}", device.limits());
         debug!("Configured wgpu adapter Features: {:#?}", device.features());
         let mut future_xr_resources_inner = future_xr_resources_wrapper.lock().unwrap();

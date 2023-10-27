@@ -1,0 +1,25 @@
+android:
+  runtime_libs:
+    - "runtime_libs"
+  manifest:
+    package: "org.bevyengine.demo_openxr_android"
+    application:
+      label: "Bevy Openxr Android"
+      theme: "@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen"
+      meta_data:
+        - name: "com.samsung.android.vr.application.mode"
+          value: "vr_only"
+        - name: "com.oculus.supportedDevices"
+          value: "quest|quest2|quest3"
+      activities:
+        - config_changes: "density|keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|uiMode"
+          launch_mode: "singleTask"
+          orientation: "landscape"
+          intent_filters:
+            - actions:
+                - "android.intent.action.MAIN"
+              categories:
+                - "com.oculus.intent.category.VR"
+                - "android.intent.category.LAUNCHER"
+    sdk:
+      target_sdk_version: 32
