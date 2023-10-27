@@ -11,7 +11,8 @@ crate-type = ["cdylib"]
 [dependencies]
 bevy = { git = "https://github.com/bevyengine/bevy.git" }
 # bevy = "0.11.3"
-bevy_openxr = { git = "file:///home/schmarni/Code/adeptus_bevy_oxr", default-features = false}
+# default-features is false because it for some reason complains when trying to statically link openxr
+bevy_openxr = { git = "https://github.com/Schmarni-Dev/bevy_openxr", default-features = false}
 bevy_rapier3d = { git = "https://github.com/Schmarni-Dev/bevy_rapier" }
 color-eyre = "0.6.2"
 
