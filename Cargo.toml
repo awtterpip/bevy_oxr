@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["linked"]
+# default = ["linked"]
 linked = ["openxr/linked", "openxr/static"]
 
 [dependencies]
@@ -22,6 +22,9 @@ bevy = { git = "https://github.com/bevyengine/bevy.git" }
 color-eyre = "0.6.2"
 bevy_rapier3d = { git = "https://github.com/Schmarni-Dev/bevy_rapier" }
 # bevy_rapier3d = { git = "https://github.com/alexichepura/bevy_rapier", version = "0.22.0", branch = "bevy-012"}
+
+[workspace]
+members = ["examples/demo"]
 
 [[example]]
 name = "xr"

@@ -15,6 +15,7 @@ use crate::{
 
 use super::{
     hand_poses::get_simulated_open_hand_transforms,
+    handtracking::HandTrackingTracker,
     oculus_touch::OculusController,
     trackers::{OpenXRLeftController, OpenXRRightController, OpenXRTracker},
     Hand,
@@ -318,6 +319,38 @@ pub enum HandBone {
     LittleIntermediate,
     LittleDistal,
     LittleTip,
+}
+impl HandBone {
+    pub fn get_all_bones() -> [HandBone; 26] {
+        [
+            HandBone::Palm,
+            HandBone::Wrist,
+            HandBone::ThumbMetacarpal,
+            HandBone::ThumbProximal,
+            HandBone::ThumbDistal,
+            HandBone::ThumbTip,
+            HandBone::IndexMetacarpal,
+            HandBone::IndexProximal,
+            HandBone::IndexIntermediate,
+            HandBone::IndexDistal,
+            HandBone::IndexTip,
+            HandBone::MiddleMetacarpal,
+            HandBone::MiddleProximal,
+            HandBone::MiddleIntermediate,
+            HandBone::MiddleDistal,
+            HandBone::MiddleTip,
+            HandBone::RingMetacarpal,
+            HandBone::RingProximal,
+            HandBone::RingIntermediate,
+            HandBone::RingDistal,
+            HandBone::RingTip,
+            HandBone::LittleMetacarpal,
+            HandBone::LittleProximal,
+            HandBone::LittleIntermediate,
+            HandBone::LittleDistal,
+            HandBone::LittleTip,
+        ]
+    }
 }
 
 pub fn update_hand_states(
@@ -1015,6 +1048,7 @@ pub fn update_hand_skeletons(
     hand_states_option: Option<ResMut<HandStatesResource>>,
     mut hand_bone_query: Query<(&mut Transform, &HandBone, &Hand)>,
     input_source: Option<Res<HandInputSource>>,
+    hand_tracking: Res<HandTrackingTracker>,
 ) {
     match input_source {
         Some(res) => match *res {
@@ -1048,10 +1082,7 @@ pub fn update_hand_skeletons(
                     None => info!("hand states resource not initialized yet"),
                 }
             }
-            HandInputSource::OpenXr => {
-                info!("hand input source is open XR: this is not implemented yet");
-                return;
-            }
+            HandInputSource::OpenXr => {}
         },
         None => {
             info!("hand input source not initialized");

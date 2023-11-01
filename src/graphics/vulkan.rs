@@ -51,10 +51,14 @@ pub fn initialize_xr_graphics(
 
     let mut enabled_extensions = xr::ExtensionSet::default();
     enabled_extensions.khr_vulkan_enable2 = true;
+    enabled_extensions.khr_convert_timespec_time = true;
     #[cfg(target_os = "android")]
     {
         enabled_extensions.khr_android_create_instance = true;
     }
+    enabled_extensions.ext_hand_tracking = available_extensions.ext_hand_tracking;
+    // enabled_extensions.ext_hand_joints_motion_range = available_extensions.ext_hand_joints_motion_range;
+    
 
     let available_layers = xr_entry.enumerate_layers()?;
     info!("available xr layers: {:#?}", available_layers);

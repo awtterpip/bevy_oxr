@@ -3,6 +3,14 @@ android:
     - "runtime_libs"
   manifest:
     package: "org.bevyengine.demo_openxr_android"
+    uses_feature:
+      - name: "android.hardware.vr.headtracking"
+        required: true
+      - name: "oculus.software.handtracking"
+        required: false 
+      - name: "com.oculus.experimental.enabled"
+    uses_permission:
+      - name: "com.oculus.permission.HAND_TRACKING"
     application:
       label: "Bevy Openxr Android"
       theme: "@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen"

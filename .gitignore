@@ -1,3 +1,3 @@
 **/target
 **/Cargo.lock
-**/runtime_libs
+**/runtime_libs/arm64-v8a/*

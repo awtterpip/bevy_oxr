@@ -21,6 +21,7 @@ use input::XrInput;
 use openxr as xr;
 use resources::*;
 use xr_input::controllers::XrControllerType;
+use xr_input::handtracking::HandTrackingTracker;
 use xr_input::OpenXrInput;
 
 const VIEW_TYPE: xr::ViewConfigurationType = xr::ViewConfigurationType::PRIMARY_STEREO;
@@ -145,7 +146,8 @@ impl Plugin for OpenXrPlugin {
                 .insert_resource(input.clone())
                 .insert_resource(views.clone())
                 .insert_resource(frame_state.clone())
-                .insert_resource(action_sets.clone());
+                .insert_resource(action_sets.clone())
+                .insert_resource(HandTrackingTracker::new(&session).unwrap());
 
             let (left, right) = swapchain.get_render_views();
             let left = ManualTextureView {
