@@ -36,7 +36,12 @@ pub fn draw_gizmos(
     xr_input: Res<XrInput>,
     instance: Res<XrInstance>,
     session: Res<XrSession>,
-    tracking_root_query: Query<(&mut Transform, With<OpenXRTrackingRoot>)>,
+    tracking_root_query: Query<(
+        &mut Transform,
+        With<OpenXRTrackingRoot>,
+        Without<OpenXRLeftController>,
+        Without<OpenXRRightController>,
+    )>,
     left_controller_query: Query<(
         &GlobalTransform,
         With<OpenXRLeftController>,
@@ -81,8 +86,7 @@ pub fn draw_gizmos(
                 Color::LIME_GREEN,
             );
         }
-    } else {
-        info!("right_hand_poses returned None");
+        return;
     }
     //lock frame
     let frame_state = *frame_state.lock().unwrap();

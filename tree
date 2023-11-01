@@ -1,0 +1,861 @@
+bevy_openxr v0.1.0 (/home/schmarni/Code/adeptus_bevy_oxr)
+├── anyhow v1.0.75
+├── ash v0.37.3+1.3.251
+│   └── libloading v0.7.4
+│       └── cfg-if v1.0.0
+├── bevy v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│   └── bevy_internal v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       ├── bevy_a11y v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   ├── accesskit v0.12.0
+│       │   ├── bevy_app v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   ├── bevy_derive v0.12.0-dev (proc-macro) (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   │   ├── bevy_macro_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   │   │   ├── proc-macro2 v1.0.69
+│       │   │   │   │   │   └── unicode-ident v1.0.12
+│       │   │   │   │   ├── quote v1.0.33
+│       │   │   │   │   │   └── proc-macro2 v1.0.69 (*)
+│       │   │   │   │   ├── rustc-hash v1.1.0
+│       │   │   │   │   ├── syn v2.0.38
+│       │   │   │   │   │   ├── proc-macro2 v1.0.69 (*)
+│       │   │   │   │   │   ├── quote v1.0.33 (*)
+│       │   │   │   │   │   └── unicode-ident v1.0.12
+│       │   │   │   │   └── toml_edit v0.20.2
+│       │   │   │   │       ├── indexmap v2.0.2
+│       │   │   │   │       │   ├── equivalent v1.0.1
+│       │   │   │   │       │   └── hashbrown v0.14.2
+│       │   │   │   │       ├── toml_datetime v0.6.3
+│       │   │   │   │       └── winnow v0.5.17
+│       │   │   │   ├── quote v1.0.33 (*)
+│       │   │   │   └── syn v2.0.38 (*)
+│       │   │   ├── bevy_ecs v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   │   ├── async-channel v1.9.0
+│       │   │   │   │   ├── concurrent-queue v2.3.0
+│       │   │   │   │   │   └── crossbeam-utils v0.8.16
+│       │   │   │   │   │       └── cfg-if v1.0.0
+│       │   │   │   │   ├── event-listener v2.5.3
+│       │   │   │   │   └── futures-core v0.3.28
+│       │   │   │   ├── bevy_ecs_macros v0.12.0-dev (proc-macro) (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   │   │   ├── bevy_macro_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   │   ├── proc-macro2 v1.0.69 (*)
+│       │   │   │   │   ├── quote v1.0.33 (*)
+│       │   │   │   │   └── syn v2.0.38 (*)
+│       │   │   │   ├── bevy_ptr v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   │   ├── bevy_reflect v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   │   │   ├── bevy_math v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   │   │   │   ├── glam v0.24.2
+│       │   │   │   │   │   │   ├── bytemuck v1.14.0
+│       │   │   │   │   │   │   │   └── bytemuck_derive v1.5.0 (proc-macro)
+│       │   │   │   │   │   │   │       ├── proc-macro2 v1.0.69 (*)
+│       │   │   │   │   │   │   │       ├── quote v1.0.33 (*)
+│       │   │   │   │   │   │   │       └── syn v2.0.38 (*)
+│       │   │   │   │   │   │   └── serde v1.0.189
+│       │   │   │   │   │   │       └── serde_derive v1.0.189 (proc-macro)
+│       │   │   │   │   │   │           ├── proc-macro2 v1.0.69 (*)
+│       │   │   │   │   │   │           ├── quote v1.0.33 (*)
+│       │   │   │   │   │   │           └── syn v2.0.38 (*)
+│       │   │   │   │   │   └── serde v1.0.189 (*)
+│       │   │   │   │   ├── bevy_ptr v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   │   │   ├── bevy_reflect_derive v0.12.0-dev (proc-macro) (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   │   │   │   ├── bevy_macro_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   │   │   ├── bit-set v0.5.3
+│       │   │   │   │   │   │   └── bit-vec v0.6.3
+│       │   │   │   │   │   ├── proc-macro2 v1.0.69 (*)
+│       │   │   │   │   │   ├── quote v1.0.33 (*)
+│       │   │   │   │   │   ├── syn v2.0.38 (*)
+│       │   │   │   │   │   └── uuid v1.5.0
+│       │   │   │   │   │       └── getrandom v0.2.10
+│       │   │   │   │   │           ├── cfg-if v1.0.0
+│       │   │   │   │   │           └── libc v0.2.149
+│       │   │   │   │   ├── bevy_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   │   │   │   ├── ahash v0.8.3
+│       │   │   │   │   │   │   ├── cfg-if v1.0.0
+│       │   │   │   │   │   │   ├── getrandom v0.2.10 (*)
+│       │   │   │   │   │   │   └── once_cell v1.18.0
+│       │   │   │   │   │   │   [build-dependencies]
+│       │   │   │   │   │   │   └── version_check v0.9.4
+│       │   │   │   │   │   ├── bevy_utils_proc_macros v0.12.0-dev (proc-macro) (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   │   │   │   │   ├── proc-macro2 v1.0.69 (*)
+│       │   │   │   │   │   │   ├── quote v1.0.33 (*)
+│       │   │   │   │   │   │   └── syn v2.0.38 (*)
+│       │   │   │   │   │   ├── hashbrown v0.14.2
+│       │   │   │   │   │   │   ├── ahash v0.8.3 (*)
+│       │   │   │   │   │   │   ├── allocator-api2 v0.2.16
+│       │   │   │   │   │   │   └── serde v1.0.189 (*)
+│       │   │   │   │   │   ├── instant v0.1.12
+│       │   │   │   │   │   │   └── cfg-if v1.0.0
+│       │   │   │   │   │   ├── nonmax v0.5.3
+│       │   │   │   │   │   ├── petgraph v0.6.4
+│       │   │   │   │   │   │   ├── fixedbitset v0.4.2
+│       │   │   │   │   │   │   └── indexmap v2.0.2 (*)
+│       │   │   │   │   │   ├── thiserror v1.0.50
+│       │   │   │   │   │   │   └── thiserror-impl v1.0.50 (proc-macro)
+│       │   │   │   │   │   │       ├── proc-macro2 v1.0.69 (*)
+│       │   │   │   │   │   │       ├── quote v1.0.33 (*)
+│       │   │   │   │   │   │       └── syn v2.0.38 (*)
+│       │   │   │   │   │   ├── tracing v0.1.40
+│       │   │   │   │   │   │   ├── pin-project-lite v0.2.13
+│       │   │   │   │   │   │   ├── tracing-attributes v0.1.27 (proc-macro)
+│       │   │   │   │   │   │   │   ├── proc-macro2 v1.0.69 (*)
+│       │   │   │   │   │   │   │   ├── quote v1.0.33 (*)
+│       │   │   │   │   │   │   │   └── syn v2.0.38 (*)
+│       │   │   │   │   │   │   └── tracing-core v0.1.32
+│       │   │   │   │   │   │       └── once_cell v1.18.0
+│       │   │   │   │   │   └── uuid v1.5.0
+│       │   │   │   │   │       ├── getrandom v0.2.10 (*)
+│       │   │   │   │   │       └── serde v1.0.189 (*)
+│       │   │   │   │   ├── downcast-rs v1.2.0
+│       │   │   │   │   ├── erased-serde v0.3.31
+│       │   │   │   │   │   └── serde v1.0.189 (*)
+│       │   │   │   │   ├── glam v0.24.2 (*)
+│       │   │   │   │   ├── serde v1.0.189 (*)
+│       │   │   │   │   ├── smallvec v1.11.1
+│       │   │   │   │   │   └── serde v1.0.189 (*)
+│       │   │   │   │   ├── smol_str v0.2.0
+│       │   │   │   │   └── thiserror v1.0.50 (*)
+│       │   │   │   ├── bevy_tasks v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   │   │   ├── async-channel v1.9.0 (*)
+│       │   │   │   │   ├── async-executor v1.6.0
+│       │   │   │   │   │   ├── async-lock v2.8.0
+│       │   │   │   │   │   │   └── event-listener v2.5.3
+│       │   │   │   │   │   ├── async-task v4.5.0
+│       │   │   │   │   │   ├── concurrent-queue v2.3.0 (*)
+│       │   │   │   │   │   ├── fastrand v2.0.1
+│       │   │   │   │   │   ├── futures-lite v1.13.0
+│       │   │   │   │   │   │   ├── fastrand v1.9.0
+│       │   │   │   │   │   │   ├── futures-core v0.3.28
+│       │   │   │   │   │   │   ├── futures-io v0.3.28
+│       │   │   │   │   │   │   ├── memchr v2.6.4
+│       │   │   │   │   │   │   ├── parking v2.2.0
+│       │   │   │   │   │   │   ├── pin-project-lite v0.2.13
+│       │   │   │   │   │   │   └── waker-fn v1.1.1
+│       │   │   │   │   │   └── slab v0.4.9
+│       │   │   │   │   │       [build-dependencies]
+│       │   │   │   │   │       └── autocfg v1.1.0
+│       │   │   │   │   ├── async-task v4.5.0
+│       │   │   │   │   ├── concurrent-queue v2.3.0 (*)
+│       │   │   │   │   └── futures-lite v1.13.0 (*)
+│       │   │   │   ├── bevy_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   ├── downcast-rs v1.2.0
+│       │   │   │   ├── event-listener v2.5.3
+│       │   │   │   ├── fixedbitset v0.4.2
+│       │   │   │   ├── rustc-hash v1.1.0
+│       │   │   │   ├── serde v1.0.189 (*)
+│       │   │   │   ├── thiserror v1.0.50 (*)
+│       │   │   │   └── thread_local v1.1.7
+│       │   │   │       ├── cfg-if v1.0.0
+│       │   │   │       └── once_cell v1.18.0
+│       │   │   ├── bevy_reflect v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_tasks v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   └── downcast-rs v1.2.0
+│       │   ├── bevy_derive v0.12.0-dev (proc-macro) (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   └── bevy_ecs v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       ├── bevy_animation v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   ├── bevy_app v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_asset v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   ├── async-broadcast v0.5.1
+│       │   │   │   ├── event-listener v2.5.3
+│       │   │   │   └── futures-core v0.3.28
+│       │   │   ├── async-fs v1.6.0
+│       │   │   │   ├── async-lock v2.8.0 (*)
+│       │   │   │   ├── blocking v1.4.1
+│       │   │   │   │   ├── async-channel v1.9.0 (*)
+│       │   │   │   │   ├── async-lock v2.8.0 (*)
+│       │   │   │   │   ├── async-task v4.5.0
+│       │   │   │   │   ├── fastrand v2.0.1
+│       │   │   │   │   ├── futures-io v0.3.28
+│       │   │   │   │   ├── futures-lite v1.13.0 (*)
+│       │   │   │   │   ├── piper v0.2.1
+│       │   │   │   │   │   ├── atomic-waker v1.1.2
+│       │   │   │   │   │   ├── fastrand v2.0.1
+│       │   │   │   │   │   └── futures-io v0.3.28
+│       │   │   │   │   └── tracing v0.1.40 (*)
+│       │   │   │   └── futures-lite v1.13.0 (*)
+│       │   │   │   [build-dependencies]
+│       │   │   │   └── autocfg v1.1.0
+│       │   │   ├── async-lock v2.8.0 (*)
+│       │   │   ├── bevy_app v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_asset_macros v0.12.0-dev (proc-macro) (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   │   ├── bevy_macro_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   ├── proc-macro2 v1.0.69 (*)
+│       │   │   │   ├── quote v1.0.33 (*)
+│       │   │   │   └── syn v2.0.38 (*)
+│       │   │   ├── bevy_ecs v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_log v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   │   ├── bevy_app v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   ├── bevy_ecs v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   ├── bevy_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   ├── tracing-log v0.1.3
+│       │   │   │   │   ├── lazy_static v1.4.0
+│       │   │   │   │   ├── log v0.4.20
+│       │   │   │   │   └── tracing-core v0.1.32 (*)
+│       │   │   │   └── tracing-subscriber v0.3.17
+│       │   │   │       ├── matchers v0.1.0
+│       │   │   │       │   └── regex-automata v0.1.10
+│       │   │   │       │       └── regex-syntax v0.6.29
+│       │   │   │       ├── nu-ansi-term v0.46.0
+│       │   │   │       │   └── overload v0.1.1
+│       │   │   │       ├── once_cell v1.18.0
+│       │   │   │       ├── regex v1.10.2
+│       │   │   │       │   ├── aho-corasick v1.1.2
+│       │   │   │       │   │   └── memchr v2.6.4
+│       │   │   │       │   ├── memchr v2.6.4
+│       │   │   │       │   ├── regex-automata v0.4.3
+│       │   │   │       │   │   ├── aho-corasick v1.1.2 (*)
+│       │   │   │       │   │   ├── memchr v2.6.4
+│       │   │   │       │   │   └── regex-syntax v0.8.2
+│       │   │   │       │   └── regex-syntax v0.8.2
+│       │   │   │       ├── sharded-slab v0.1.7
+│       │   │   │       │   └── lazy_static v1.4.0
+│       │   │   │       ├── smallvec v1.11.1 (*)
+│       │   │   │       ├── thread_local v1.1.7 (*)
+│       │   │   │       ├── tracing v0.1.40 (*)
+│       │   │   │       ├── tracing-core v0.1.32 (*)
+│       │   │   │       └── tracing-log v0.1.3 (*)
+│       │   │   ├── bevy_reflect v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_tasks v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── crossbeam-channel v0.5.8
+│       │   │   │   ├── cfg-if v1.0.0
+│       │   │   │   └── crossbeam-utils v0.8.16 (*)
+│       │   │   ├── downcast-rs v1.2.0
+│       │   │   ├── futures-io v0.3.28
+│       │   │   ├── futures-lite v1.13.0 (*)
+│       │   │   ├── md5 v0.7.0
+│       │   │   ├── parking_lot v0.12.1
+│       │   │   │   ├── lock_api v0.4.11
+│       │   │   │   │   └── scopeguard v1.2.0
+│       │   │   │   │   [build-dependencies]
+│       │   │   │   │   └── autocfg v1.1.0
+│       │   │   │   └── parking_lot_core v0.9.9
+│       │   │   │       ├── cfg-if v1.0.0
+│       │   │   │       ├── libc v0.2.149
+│       │   │   │       └── smallvec v1.11.1 (*)
+│       │   │   ├── ron v0.8.1
+│       │   │   │   ├── base64 v0.21.4
+│       │   │   │   ├── bitflags v2.4.1
+│       │   │   │   │   └── serde v1.0.189 (*)
+│       │   │   │   ├── serde v1.0.189 (*)
+│       │   │   │   └── serde_derive v1.0.189 (proc-macro) (*)
+│       │   │   ├── serde v1.0.189 (*)
+│       │   │   └── thiserror v1.0.50 (*)
+│       │   ├── bevy_core v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   ├── bevy_app v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_ecs v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_math v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_reflect v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_tasks v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   └── bytemuck v1.14.0 (*)
+│       │   ├── bevy_ecs v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_hierarchy v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   ├── bevy_app v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_core v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_ecs v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_log v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_reflect v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   └── smallvec v1.11.1 (*)
+│       │   ├── bevy_math v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_reflect v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_render v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   ├── async-channel v1.9.0 (*)
+│       │   │   ├── bevy_app v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_asset v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_core v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_derive v0.12.0-dev (proc-macro) (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_ecs v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_encase_derive v0.12.0-dev (proc-macro) (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   │   ├── bevy_macro_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   └── encase_derive_impl v0.6.1
+│       │   │   │       ├── proc-macro2 v1.0.69 (*)
+│       │   │   │       ├── quote v1.0.33 (*)
+│       │   │   │       └── syn v2.0.38 (*)
+│       │   │   ├── bevy_hierarchy v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_log v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_math v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_mikktspace v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   │   └── glam v0.24.2 (*)
+│       │   │   ├── bevy_reflect v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_render_macros v0.12.0-dev (proc-macro) (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   │   ├── bevy_macro_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   ├── proc-macro2 v1.0.69 (*)
+│       │   │   │   ├── quote v1.0.33 (*)
+│       │   │   │   └── syn v2.0.38 (*)
+│       │   │   ├── bevy_tasks v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_time v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   │   ├── bevy_app v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   ├── bevy_ecs v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   ├── bevy_reflect v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   ├── bevy_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   ├── crossbeam-channel v0.5.8 (*)
+│       │   │   │   └── thiserror v1.0.50 (*)
+│       │   │   ├── bevy_transform v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   │   ├── bevy_app v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   ├── bevy_ecs v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   ├── bevy_hierarchy v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   ├── bevy_math v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   └── bevy_reflect v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_window v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   │   ├── bevy_a11y v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   ├── bevy_app v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   ├── bevy_ecs v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   ├── bevy_input v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   │   │   ├── bevy_app v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   │   ├── bevy_ecs v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   │   ├── bevy_math v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   │   ├── bevy_reflect v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   │   ├── bevy_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   │   └── thiserror v1.0.50 (*)
+│       │   │   │   ├── bevy_math v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   ├── bevy_reflect v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   ├── bevy_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   │   └── raw-window-handle v0.5.2
+│       │   │   ├── bitflags v2.4.1 (*)
+│       │   │   ├── bytemuck v1.14.0 (*)
+│       │   │   ├── codespan-reporting v0.11.1
+│       │   │   │   ├── termcolor v1.3.0
+│       │   │   │   └── unicode-width v0.1.11
+│       │   │   ├── downcast-rs v1.2.0
+│       │   │   ├── encase v0.6.1
+│       │   │   │   ├── const_panic v0.2.8
+│       │   │   │   ├── encase_derive v0.6.1 (proc-macro)
+│       │   │   │   │   └── encase_derive_impl v0.6.1 (*)
+│       │   │   │   ├── glam v0.24.2 (*)
+│       │   │   │   └── thiserror v1.0.50 (*)
+│       │   │   ├── futures-lite v1.13.0 (*)
+│       │   │   ├── hexasphere v9.1.0
+│       │   │   │   ├── constgebra v0.1.3
+│       │   │   │   │   └── const_soft_float v0.1.4
+│       │   │   │   └── glam v0.24.2 (*)
+│       │   │   ├── image v0.24.7
+│       │   │   │   ├── bytemuck v1.14.0 (*)
+│       │   │   │   ├── byteorder v1.5.0
+│       │   │   │   ├── color_quant v1.1.0
+│       │   │   │   ├── num-rational v0.4.1
+│       │   │   │   │   ├── num-integer v0.1.45
+│       │   │   │   │   │   └── num-traits v0.2.17
+│       │   │   │   │   │       └── libm v0.2.8
+│       │   │   │   │   │       [build-dependencies]
+│       │   │   │   │   │       └── autocfg v1.1.0
+│       │   │   │   │   │   [build-dependencies]
+│       │   │   │   │   │   └── autocfg v1.1.0
+│       │   │   │   │   └── num-traits v0.2.17 (*)
+│       │   │   │   │   [build-dependencies]
+│       │   │   │   │   └── autocfg v1.1.0
+│       │   │   │   ├── num-traits v0.2.17 (*)
+│       │   │   │   └── png v0.17.10
+│       │   │   │       ├── bitflags v1.3.2
+│       │   │   │       ├── crc32fast v1.3.2
+│       │   │   │       │   └── cfg-if v1.0.0
+│       │   │   │       ├── fdeflate v0.3.0
+│       │   │   │       │   └── simd-adler32 v0.3.7
+│       │   │   │       ├── flate2 v1.0.28
+│       │   │   │       │   ├── crc32fast v1.3.2 (*)
+│       │   │   │       │   └── miniz_oxide v0.7.1
+│       │   │   │       │       ├── adler v1.0.2
+│       │   │   │       │       └── simd-adler32 v0.3.7
+│       │   │   │       └── miniz_oxide v0.7.1 (*)
+│       │   │   ├── ktx2 v0.3.0
+│       │   │   │   └── bitflags v1.3.2
+│       │   │   ├── naga v0.13.0
+│       │   │   │   ├── bit-set v0.5.3 (*)
+│       │   │   │   ├── bitflags v2.4.1 (*)
+│       │   │   │   ├── codespan-reporting v0.11.1 (*)
+│       │   │   │   ├── hexf-parse v0.2.1
+│       │   │   │   ├── indexmap v1.9.3
+│       │   │   │   │   └── hashbrown v0.12.3
+│       │   │   │   │   [build-dependencies]
+│       │   │   │   │   └── autocfg v1.1.0
+│       │   │   │   ├── log v0.4.20
+│       │   │   │   ├── num-traits v0.2.17 (*)
+│       │   │   │   ├── pp-rs v0.2.1
+│       │   │   │   │   └── unicode-xid v0.2.4
+│       │   │   │   ├── rustc-hash v1.1.0
+│       │   │   │   ├── spirv v0.2.0+1.5.4
+│       │   │   │   │   ├── bitflags v1.3.2
+│       │   │   │   │   └── num-traits v0.2.17 (*)
+│       │   │   │   ├── termcolor v1.3.0
+│       │   │   │   ├── thiserror v1.0.50 (*)
+│       │   │   │   └── unicode-xid v0.2.4
+│       │   │   ├── naga_oil v0.9.0
+│       │   │   │   ├── bit-set v0.5.3 (*)
+│       │   │   │   ├── codespan-reporting v0.11.1 (*)
+│       │   │   │   ├── data-encoding v2.4.0
+│       │   │   │   ├── indexmap v1.9.3 (*)
+│       │   │   │   ├── naga v0.13.0 (*)
+│       │   │   │   ├── once_cell v1.18.0
+│       │   │   │   ├── regex v1.10.2 (*)
+│       │   │   │   ├── regex-syntax v0.6.29
+│       │   │   │   ├── rustc-hash v1.1.0
+│       │   │   │   ├── thiserror v1.0.50 (*)
+│       │   │   │   ├── tracing v0.1.40 (*)
+│       │   │   │   └── unicode-ident v1.0.12
+│       │   │   ├── ruzstd v0.4.0
+│       │   │   │   ├── byteorder v1.5.0
+│       │   │   │   ├── thiserror-core v1.0.38
+│       │   │   │   │   └── thiserror-core-impl v1.0.38 (proc-macro)
+│       │   │   │   │       ├── proc-macro2 v1.0.69 (*)
+│       │   │   │   │       ├── quote v1.0.33 (*)
+│       │   │   │   │       └── syn v1.0.109
+│       │   │   │   │           ├── proc-macro2 v1.0.69 (*)
+│       │   │   │   │           ├── quote v1.0.33 (*)
+│       │   │   │   │           └── unicode-ident v1.0.12
+│       │   │   │   └── twox-hash v1.6.3
+│       │   │   │       ├── cfg-if v1.0.0
+│       │   │   │       └── static_assertions v1.1.0
+│       │   │   ├── serde v1.0.189 (*)
+│       │   │   ├── smallvec v1.11.1 (*)
+│       │   │   ├── thiserror v1.0.50 (*)
+│       │   │   ├── thread_local v1.1.7 (*)
+│       │   │   └── wgpu v0.17.1
+│       │   │       ├── arrayvec v0.7.4
+│       │   │       ├── cfg-if v1.0.0
+│       │   │       ├── log v0.4.20
+│       │   │       ├── naga v0.13.0 (*)
+│       │   │       ├── parking_lot v0.12.1 (*)
+│       │   │       ├── profiling v1.0.11
+│       │   │       ├── raw-window-handle v0.5.2
+│       │   │       ├── smallvec v1.11.1 (*)
+│       │   │       ├── static_assertions v1.1.0
+│       │   │       ├── wgpu-core v0.17.1
+│       │   │       │   ├── arrayvec v0.7.4
+│       │   │       │   ├── bit-vec v0.6.3
+│       │   │       │   ├── bitflags v2.4.1 (*)
+│       │   │       │   ├── codespan-reporting v0.11.1 (*)
+│       │   │       │   ├── log v0.4.20
+│       │   │       │   ├── naga v0.13.0 (*)
+│       │   │       │   ├── parking_lot v0.12.1 (*)
+│       │   │       │   ├── profiling v1.0.11
+│       │   │       │   ├── raw-window-handle v0.5.2
+│       │   │       │   ├── rustc-hash v1.1.0
+│       │   │       │   ├── smallvec v1.11.1 (*)
+│       │   │       │   ├── thiserror v1.0.50 (*)
+│       │   │       │   ├── wgpu-hal v0.17.2
+│       │   │       │   │   ├── arrayvec v0.7.4
+│       │   │       │   │   ├── ash v0.37.3+1.3.251 (*)
+│       │   │       │   │   ├── bitflags v2.4.1 (*)
+│       │   │       │   │   ├── glow v0.12.3
+│       │   │       │   │   ├── gpu-alloc v0.6.0
+│       │   │       │   │   │   ├── bitflags v2.4.1 (*)
+│       │   │       │   │   │   └── gpu-alloc-types v0.3.0
+│       │   │       │   │   │       └── bitflags v2.4.1 (*)
+│       │   │       │   │   ├── gpu-descriptor v0.2.4
+│       │   │       │   │   │   ├── bitflags v2.4.1 (*)
+│       │   │       │   │   │   ├── gpu-descriptor-types v0.1.2
+│       │   │       │   │   │   │   └── bitflags v2.4.1 (*)
+│       │   │       │   │   │   └── hashbrown v0.14.2 (*)
+│       │   │       │   │   ├── khronos-egl v4.1.0
+│       │   │       │   │   │   ├── libc v0.2.149
+│       │   │       │   │   │   └── libloading v0.7.4 (*)
+│       │   │       │   │   ├── libc v0.2.149
+│       │   │       │   │   ├── libloading v0.8.1
+│       │   │       │   │   │   └── cfg-if v1.0.0
+│       │   │       │   │   ├── log v0.4.20
+│       │   │       │   │   ├── naga v0.13.0 (*)
+│       │   │       │   │   ├── parking_lot v0.12.1 (*)
+│       │   │       │   │   ├── profiling v1.0.11
+│       │   │       │   │   ├── raw-window-handle v0.5.2
+│       │   │       │   │   ├── renderdoc-sys v1.0.0
+│       │   │       │   │   ├── rustc-hash v1.1.0
+│       │   │       │   │   ├── smallvec v1.11.1 (*)
+│       │   │       │   │   ├── thiserror v1.0.50 (*)
+│       │   │       │   │   └── wgpu-types v0.17.0
+│       │   │       │   │       └── bitflags v2.4.1 (*)
+│       │   │       │   └── wgpu-types v0.17.0 (*)
+│       │   │       ├── wgpu-hal v0.17.2 (*)
+│       │   │       └── wgpu-types v0.17.0 (*)
+│       │   ├── bevy_time v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_transform v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   └── bevy_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       ├── bevy_app v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       ├── bevy_asset v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       ├── bevy_audio v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   ├── bevy_app v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_asset v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_derive v0.12.0-dev (proc-macro) (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_ecs v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_math v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_reflect v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_transform v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   └── rodio v0.17.2
+│       │       ├── cpal v0.15.2
+│       │       │   ├── alsa v0.7.1
+│       │       │   │   ├── alsa-sys v0.3.1
+│       │       │   │   │   └── libc v0.2.149
+│       │       │   │   │   [build-dependencies]
+│       │       │   │   │   └── pkg-config v0.3.27
+│       │       │   │   ├── bitflags v1.3.2
+│       │       │   │   ├── libc v0.2.149
+│       │       │   │   └── nix v0.24.3
+│       │       │   │       ├── bitflags v1.3.2
+│       │       │   │       ├── cfg-if v1.0.0
+│       │       │   │       └── libc v0.2.149
+│       │       │   ├── dasp_sample v0.11.0
+│       │       │   ├── libc v0.2.149
+│       │       │   └── parking_lot v0.12.1 (*)
+│       │       └── lewton v0.10.2
+│       │           ├── byteorder v1.5.0
+│       │           ├── ogg v0.8.0
+│       │           │   └── byteorder v1.5.0
+│       │           └── tinyvec v1.6.0
+│       │               └── tinyvec_macros v0.1.1
+│       ├── bevy_core v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       ├── bevy_core_pipeline v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   ├── bevy_app v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_asset v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_core v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_derive v0.12.0-dev (proc-macro) (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_ecs v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_math v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_reflect v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_render v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_transform v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bitflags v2.4.1 (*)
+│       │   ├── radsort v0.1.0
+│       │   └── serde v1.0.189 (*)
+│       ├── bevy_derive v0.12.0-dev (proc-macro) (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       ├── bevy_diagnostic v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   ├── bevy_app v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_core v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_ecs v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_log v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_time v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   └── sysinfo v0.29.10
+│       │       ├── cfg-if v1.0.0
+│       │       ├── libc v0.2.149
+│       │       └── once_cell v1.18.0
+│       ├── bevy_ecs v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       ├── bevy_gilrs v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   ├── bevy_app v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_ecs v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_input v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_log v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_time v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── gilrs v0.10.2
+│       │   │   ├── fnv v1.0.7
+│       │   │   ├── gilrs-core v0.5.7
+│       │   │   │   ├── libc v0.2.149
+│       │   │   │   ├── libudev-sys v0.1.4
+│       │   │   │   │   └── libc v0.2.149
+│       │   │   │   │   [build-dependencies]
+│       │   │   │   │   └── pkg-config v0.3.27
+│       │   │   │   ├── log v0.4.20
+│       │   │   │   ├── nix v0.26.4
+│       │   │   │   │   ├── bitflags v1.3.2
+│       │   │   │   │   ├── cfg-if v1.0.0
+│       │   │   │   │   └── libc v0.2.149
+│       │   │   │   ├── uuid v1.5.0 (*)
+│       │   │   │   └── vec_map v0.8.2
+│       │   │   ├── log v0.4.20
+│       │   │   ├── uuid v1.5.0 (*)
+│       │   │   └── vec_map v0.8.2
+│       │   └── thiserror v1.0.50 (*)
+│       ├── bevy_gizmos v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   ├── bevy_app v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_asset v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_core v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_core_pipeline v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_ecs v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_math v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_pbr v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   ├── bevy_app v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_asset v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_core_pipeline v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_derive v0.12.0-dev (proc-macro) (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_ecs v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_math v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_reflect v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_render v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_transform v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_window v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bitflags v2.4.1 (*)
+│       │   │   ├── bytemuck v1.14.0 (*)
+│       │   │   ├── fixedbitset v0.4.2
+│       │   │   ├── naga_oil v0.9.0 (*)
+│       │   │   ├── radsort v0.1.0
+│       │   │   ├── smallvec v1.11.1 (*)
+│       │   │   └── thread_local v1.1.7 (*)
+│       │   ├── bevy_reflect v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_render v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_sprite v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   ├── bevy_app v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_asset v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_core_pipeline v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_derive v0.12.0-dev (proc-macro) (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_ecs v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_log v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_math v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_reflect v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_render v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_transform v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bitflags v2.4.1 (*)
+│       │   │   ├── bytemuck v1.14.0 (*)
+│       │   │   ├── fixedbitset v0.4.2
+│       │   │   ├── guillotiere v0.6.2
+│       │   │   │   ├── euclid v0.22.9
+│       │   │   │   │   └── num-traits v0.2.17 (*)
+│       │   │   │   └── svg_fmt v0.4.1
+│       │   │   ├── radsort v0.1.0
+│       │   │   ├── rectangle-pack v0.4.2
+│       │   │   └── thiserror v1.0.50 (*)
+│       │   ├── bevy_transform v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   └── bevy_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       ├── bevy_gltf v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   ├── base64 v0.13.1
+│       │   ├── bevy_animation v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_app v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_asset v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_core v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_core_pipeline v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_ecs v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_hierarchy v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_log v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_math v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_pbr v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_reflect v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_render v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_scene v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   │   ├── bevy_app v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_asset v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_derive v0.12.0-dev (proc-macro) (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_ecs v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_hierarchy v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_reflect v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_render v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_transform v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── bevy_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   │   ├── ron v0.8.1 (*)
+│       │   │   ├── serde v1.0.189 (*)
+│       │   │   ├── thiserror v1.0.50 (*)
+│       │   │   └── uuid v1.5.0 (*)
+│       │   ├── bevy_tasks v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_transform v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── gltf v1.3.0
+│       │   │   ├── byteorder v1.5.0
+│       │   │   ├── gltf-json v1.3.0
+│       │   │   │   ├── gltf-derive v1.3.0 (proc-macro)
+│       │   │   │   │   ├── inflections v1.1.1
+│       │   │   │   │   ├── proc-macro2 v1.0.69 (*)
+│       │   │   │   │   ├── quote v1.0.33 (*)
+│       │   │   │   │   └── syn v2.0.38 (*)
+│       │   │   │   ├── serde v1.0.189 (*)
+│       │   │   │   ├── serde_derive v1.0.189 (proc-macro) (*)
+│       │   │   │   └── serde_json v1.0.107
+│       │   │   │       ├── itoa v1.0.9
+│       │   │   │       ├── ryu v1.0.15
+│       │   │   │       └── serde v1.0.189 (*)
+│       │   │   └── lazy_static v1.4.0
+│       │   ├── percent-encoding v2.3.0
+│       │   ├── serde v1.0.189 (*)
+│       │   ├── serde_json v1.0.107 (*)
+│       │   └── thiserror v1.0.50 (*)
+│       ├── bevy_hierarchy v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       ├── bevy_input v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       ├── bevy_log v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       ├── bevy_math v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       ├── bevy_pbr v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       ├── bevy_ptr v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       ├── bevy_reflect v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       ├── bevy_render v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       ├── bevy_scene v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       ├── bevy_sprite v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       ├── bevy_tasks v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       ├── bevy_text v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   ├── ab_glyph v0.2.22
+│       │   │   ├── ab_glyph_rasterizer v0.1.8
+│       │   │   └── owned_ttf_parser v0.19.0
+│       │   │       └── ttf-parser v0.19.2
+│       │   ├── bevy_app v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_asset v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_ecs v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_math v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_reflect v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_render v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_sprite v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_transform v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_window v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── glyph_brush_layout v0.2.3
+│       │   │   ├── ab_glyph v0.2.22 (*)
+│       │   │   ├── approx v0.5.1
+│       │   │   │   └── num-traits v0.2.17 (*)
+│       │   │   └── xi-unicode v0.3.0
+│       │   ├── serde v1.0.189 (*)
+│       │   └── thiserror v1.0.50 (*)
+│       ├── bevy_time v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       ├── bevy_transform v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       ├── bevy_ui v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│       │   ├── bevy_a11y v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_app v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_asset v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_core_pipeline v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_derive v0.12.0-dev (proc-macro) (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_ecs v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_hierarchy v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_input v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_log v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_math v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_reflect v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_render v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_sprite v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_text v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_transform v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bevy_window v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       │   ├── bytemuck v1.14.0 (*)
+│       │   ├── serde v1.0.189 (*)
+│       │   ├── smallvec v1.11.1 (*)
+│       │   ├── taffy v0.3.16
+│       │   │   ├── arrayvec v0.7.4
+│       │   │   ├── grid v0.10.0
+│       │   │   ├── num-traits v0.2.17 (*)
+│       │   │   └── slotmap v1.0.6
+│       │   │       [build-dependencies]
+│       │   │       └── version_check v0.9.4
+│       │   └── thiserror v1.0.50 (*)
+│       ├── bevy_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       ├── bevy_window v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│       └── bevy_winit v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120)
+│           ├── accesskit_winit v0.15.0
+│           │   ├── accesskit v0.12.0
+│           │   └── winit v0.28.7
+│           │       ├── bitflags v1.3.2
+│           │       ├── instant v0.1.12 (*)
+│           │       ├── libc v0.2.149
+│           │       ├── log v0.4.20
+│           │       ├── mio v0.8.8
+│           │       │   ├── libc v0.2.149
+│           │       │   └── log v0.4.20
+│           │       ├── once_cell v1.18.0
+│           │       ├── percent-encoding v2.3.0
+│           │       ├── raw-window-handle v0.5.2
+│           │       └── x11-dl v2.21.0
+│           │           ├── libc v0.2.149
+│           │           └── once_cell v1.18.0
+│           │           [build-dependencies]
+│           │           └── pkg-config v0.3.27
+│           │       [build-dependencies]
+│           │       ├── cfg_aliases v0.1.1
+│           │       └── wayland-scanner v0.29.5
+│           │           ├── proc-macro2 v1.0.69 (*)
+│           │           ├── quote v1.0.33 (*)
+│           │           └── xml-rs v0.8.19
+│           ├── approx v0.5.1 (*)
+│           ├── bevy_a11y v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│           ├── bevy_app v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│           ├── bevy_derive v0.12.0-dev (proc-macro) (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│           ├── bevy_ecs v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│           ├── bevy_hierarchy v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│           ├── bevy_input v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│           ├── bevy_math v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│           ├── bevy_tasks v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│           ├── bevy_utils v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│           ├── bevy_window v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+│           ├── raw-window-handle v0.5.2
+│           └── winit v0.28.7 (*)
+├── mint v0.5.9
+├── openxr v0.17.1
+│   ├── libc v0.2.149
+│   ├── libloading v0.7.4 (*)
+│   └── openxr-sys v0.9.3
+│       ├── libc v0.2.149
+│       └── mint v0.5.9
+│       [build-dependencies]
+│       └── cmake v0.1.50
+│           └── cc v1.0.83
+│               └── libc v0.2.149
+├── wgpu v0.17.1 (*)
+├── wgpu-core v0.17.1 (*)
+└── wgpu-hal v0.17.2 (*)
+[dev-dependencies]
+├── bevy v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+└── bevy_rapier3d v0.22.0 (https://github.com/alexichepura/bevy_rapier?branch=bevy-012#9d98dd8e)
+    ├── bevy v0.12.0-dev (https://github.com/bevyengine/bevy.git#dcc35120) (*)
+    ├── bitflags v2.4.1 (*)
+    ├── log v0.4.20
+    ├── nalgebra v0.32.3
+    │   ├── approx v0.5.1 (*)
+    │   ├── glam v0.24.2 (*)
+    │   ├── matrixmultiply v0.3.8
+    │   │   └── rawpointer v0.2.1
+    │   │   [build-dependencies]
+    │   │   └── autocfg v1.1.0
+    │   ├── nalgebra-macros v0.2.1 (proc-macro)
+    │   │   ├── proc-macro2 v1.0.69 (*)
+    │   │   ├── quote v1.0.33 (*)
+    │   │   └── syn v1.0.109 (*)
+    │   ├── num-complex v0.4.4
+    │   │   └── num-traits v0.2.17 (*)
+    │   ├── num-rational v0.4.1 (*)
+    │   ├── num-traits v0.2.17 (*)
+    │   ├── simba v0.8.1
+    │   │   ├── approx v0.5.1 (*)
+    │   │   ├── num-complex v0.4.4 (*)
+    │   │   ├── num-traits v0.2.17 (*)
+    │   │   ├── paste v1.0.14 (proc-macro)
+    │   │   └── wide v0.7.13
+    │   │       ├── bytemuck v1.14.0 (*)
+    │   │       └── safe_arch v0.7.1
+    │   │           └── bytemuck v1.14.0 (*)
+    │   └── typenum v1.17.0
+    └── rapier3d v0.17.2
+        ├── approx v0.5.1 (*)
+        ├── arrayvec v0.7.4
+        ├── bit-vec v0.6.3
+        ├── bitflags v1.3.2
+        ├── crossbeam v0.8.2
+        │   ├── cfg-if v1.0.0
+        │   ├── crossbeam-channel v0.5.8 (*)
+        │   ├── crossbeam-deque v0.8.3
+        │   │   ├── cfg-if v1.0.0
+        │   │   ├── crossbeam-epoch v0.9.15
+        │   │   │   ├── cfg-if v1.0.0
+        │   │   │   ├── crossbeam-utils v0.8.16 (*)
+        │   │   │   ├── memoffset v0.9.0
+        │   │   │   │   [build-dependencies]
+        │   │   │   │   └── autocfg v1.1.0
+        │   │   │   └── scopeguard v1.2.0
+        │   │   │   [build-dependencies]
+        │   │   │   └── autocfg v1.1.0
+        │   │   └── crossbeam-utils v0.8.16 (*)
+        │   ├── crossbeam-epoch v0.9.15 (*)
+        │   ├── crossbeam-queue v0.3.8
+        │   │   ├── cfg-if v1.0.0
+        │   │   └── crossbeam-utils v0.8.16 (*)
+        │   └── crossbeam-utils v0.8.16 (*)
+        ├── downcast-rs v1.2.0
+        ├── nalgebra v0.32.3 (*)
+        ├── num-derive v0.3.3 (proc-macro)
+        │   ├── proc-macro2 v1.0.69 (*)
+        │   ├── quote v1.0.33 (*)
+        │   └── syn v1.0.109 (*)
+        ├── num-traits v0.2.17 (*)
+        ├── parry3d v0.13.5
+        │   ├── approx v0.5.1 (*)
+        │   ├── arrayvec v0.7.4
+        │   ├── bitflags v1.3.2
+        │   ├── downcast-rs v1.2.0
+        │   ├── either v1.9.0
+        │   ├── nalgebra v0.32.3 (*)
+        │   ├── num-derive v0.3.3 (proc-macro) (*)
+        │   ├── num-traits v0.2.17 (*)
+        │   ├── rustc-hash v1.1.0
+        │   ├── simba v0.8.1 (*)
+        │   ├── slab v0.4.9 (*)
+        │   ├── smallvec v1.11.1 (*)
+        │   └── spade v2.2.0
+        │       ├── num-traits v0.2.17 (*)
+        │       ├── optional v0.5.0
+        │       ├── robust v0.2.3
+        │       └── smallvec v1.11.1 (*)
+        ├── rustc-hash v1.1.0
+        └── simba v0.8.1 (*)
