@@ -30,7 +30,7 @@ target_sdk_version = 32
 
 [dependencies]
 bevy_openxr = { path = "../..", default-features = false }
-bevy = { git = "https://github.com/bevyengine/bevy.git" }
+bevy = "0.12"
 openxr = { git = "https://github.com/Ralith/openxrs", features = ["mint"] }
 
 [profile.release]
