@@ -19,7 +19,7 @@ jobs:
       - name: "Cache"
         uses: Swatinem/rust-cache@v2
       - name: "External dependencies"
-        run: sudo apt-get install -y libasound2-dev portaudio19-dev build-essential libpulse-dev libdbus-1-dev libudev-dev libopenxr-loader1
+        run: sudo apt-get install -y libasound2-dev portaudio19-dev build-essential libpulse-dev libdbus-1-dev libudev-dev libopenxr-loader1 libopenxr-dev
       - name: "Checks"
         run: |
           cargo update
