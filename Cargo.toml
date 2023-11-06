@@ -1,11 +1,14 @@
 [package]
-name = "bevy_openxr"
+name = "bevy_oxr"
 version = "0.1.0"
 edition = "2021"
 
 [features]
 default = ["openxr/mint", "linked"]
 linked = ["openxr/linked"]
+
+[workspace]
+members = [ "examples/android" ]
 
 [dependencies]
 anyhow = "1.0.75"
