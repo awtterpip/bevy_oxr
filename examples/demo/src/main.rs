@@ -1,3 +1,5 @@
+use std::{f32::consts::PI, ops::Mul};
+
 use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     ecs::schedule::ScheduleLabel,
@@ -5,8 +7,9 @@ use bevy::{
     prelude::{
         default, shape, App, Assets, Color, Commands, Component, Entity, Event, EventReader,
         EventWriter, FixedTime, FixedUpdate, GlobalTransform, IntoSystemConfigs,
-        IntoSystemSetConfigs, Mesh, PbrBundle, PostUpdate, Query, Res, ResMut, Resource, Schedule,
-        SpatialBundle, StandardMaterial, Startup, Transform, Update, Vec3, With, Without, World,
+        IntoSystemSetConfigs, Mesh, PbrBundle, PostUpdate, Quat, Query, Res, ResMut, Resource,
+        Schedule, SpatialBundle, StandardMaterial, Startup, Transform, Update, Vec3, With, Without,
+        World, Vec3Swizzles,
     },
     time::{Time, Timer},
     transform::TransformSystem,
@@ -88,7 +91,10 @@ fn main() {
         .add_plugins(OpenXrHandInput)
         .add_plugins(HandInputDebugRenderer)
         .add_systems(Startup, spawn_physics_hands)
-        .add_systems(Update, update_physics_hands);
+        .add_systems(
+            FixedUpdate,
+            update_physics_hands.before(PhysicsSet::SyncBackend),
+        );
 
     //configure rapier sets
     let mut physics_schedule = Schedule::new(PhysicsSchedule);
@@ -294,7 +300,8 @@ fn spawn_physics_hands(mut commands: Commands) {
                     },
                     radius,
                 ),
-                RigidBody::KinematicPositionBased,
+                RigidBody::KinematicVelocityBased,
+                Velocity::default(),
                 // CollisionGroups::new(self_group, interaction_group),
                 // SolverGroups::new(self_group, interaction_group),
                 bone.clone(),
@@ -305,6 +312,11 @@ fn spawn_physics_hands(mut commands: Commands) {
     }
 }
 
+pub enum MatchingType {
+    PositionMatching,
+    VelocityMatching,
+}
+
 fn update_physics_hands(
     hands_res: Option<Res<HandsResource>>,
     mut bone_query: Query<(
@@ -313,9 +325,12 @@ fn update_physics_hands(
         &PhysicsHandBone,
         &mut BoneInitState,
         &Hand,
+        &mut Velocity,
     )>,
     hand_query: Query<(&Transform, &HandBone, &Hand, Without<PhysicsHandBone>)>,
+    time: Res<FixedTime>,
 ) {
+    let matching = MatchingType::VelocityMatching;
     //sanity check do we even have hands?
     match hands_res {
         Some(res) => {
@@ -342,12 +357,36 @@ fn update_physics_hands(
 
                     match *bone.3 {
                         BoneInitState::True => {
-                            //if we are init then we just move em?
-                            *bone.0 = start_components
-                                .unwrap()
-                                .0
-                                .clone()
-                                .looking_at(end_components.unwrap().0.translation, Vec3::Y);
+                            match matching {
+                                MatchingType::PositionMatching => {
+                                    //if we are init then we just move em?
+                                    *bone.0 = start_components
+                                        .unwrap()
+                                        .0
+                                        .clone()
+                                        .looking_at(end_components.unwrap().0.translation, Vec3::Y);
+                                }
+                                MatchingType::VelocityMatching => {
+                                    //calculate position difference
+                                    let diff = (start_components.unwrap().0.translation
+                                        - bone.0.translation)
+                                        / time.period.as_secs_f32();
+                                    bone.5.linvel = diff;
+                                    //calculate angular velocity?
+                                    let why = direction.xy();
+                                    let desired_forward = Quat::from_rotation_arc(bone.0.forward(), direction.normalize());
+                                    let ang: Vec3 = why_god(
+                                        bone.0.rotation,
+                                        desired_forward,
+                                        time.period.as_secs_f32(),
+                                    );
+                                    if *bone.2 == PhysicsHandBone::IndexIntermediate && *bone.4 == Hand::Right {
+                                        info!("{}", ang);
+                                        // info!("{}", forward);
+                                    }
+                                    bone.5.angvel = ang * PI / 180.0;
+                                }
+                            }
                         }
                         BoneInitState::False => {
                             //build a new collider?
@@ -368,6 +407,17 @@ fn update_physics_hands(
         }
         None => info!("hand states resource not initialized yet"),
     }
+}
+
+fn why_god(q1: Quat, q2: Quat, dt: f32) -> Vec3 {
+    let huh = Vec3 {
+        x: (q1.w * q2.x) - (q1.x * q2.x) - (q1.y * q2.z) + (q1.z * q2.y),
+        y: (q1.w * q2.y) - (q1.x * q2.z) - (q1.y * q2.w) + (q1.z * q2.x),
+        z: (q1.w * q2.z) - (q1.x * q2.y) - (q1.y * q2.x) + (q1.z * q2.w),
+    };
+    let why = 2.0 / dt;
+    let help = why * huh;
+    return help;
 }
 
 fn get_start_and_end_entities(
