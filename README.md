@@ -7,8 +7,6 @@ To see it in action run the example in `examples` with `cargo run --example xr`
 
 ## Troubleshooting
 
-- I'm getting a `CMake error: ...` on Linux.
-    - Make sure you have the `openxr` package installed on your system.
-    - Append `--no-default-features` to your build command (example: `cargo run --example xr --no-default-features`)
+- Make sure, if you're on Linux, that you have the `openxr` package installed on your system.
 - I'm getting poor performance.
     - Like other bevy projects, make sure you're building in release (example: `cargo run --example xr --release`)
