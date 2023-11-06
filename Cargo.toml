@@ -19,7 +19,7 @@ wgpu-hal = "0.17.1"
 openxr = { version = "0.17.1", features = ["linked"] }
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
-openxr = { version = "0.17.1", features = ["linked", "static"] }
+openxr = { version = "0.17.1", features = ["static"] }
 
 [dev-dependencies]
 bevy = "0.12"
