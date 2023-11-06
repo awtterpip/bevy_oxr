@@ -10,7 +10,7 @@ linked = ["openxr/linked", "openxr/static"]
 [dependencies]
 anyhow = "1.0.75"
 ash = "0.37.3"
-bevy = { git = "https://github.com/bevyengine/bevy.git" }
+bevy = "0.12"
 openxr = { version = "0.17.1", features = ["mint"] }
 mint = "0.5.9"
 wgpu = "0.17.1"
@@ -18,7 +18,7 @@ wgpu-core = { version = "0.17.1", features = ["vulkan"] }
 wgpu-hal = "0.17.1"
 
 [dev-dependencies]
-bevy = { git = "https://github.com/bevyengine/bevy.git" }
+bevy = "0.12"
 color-eyre = "0.6.2"
 bevy_rapier3d = { git = "https://github.com/alexichepura/bevy_rapier", version = "0.22.0", branch = "bevy-012"}
 

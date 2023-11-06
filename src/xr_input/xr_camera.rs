@@ -1,6 +1,7 @@
 use crate::xr_input::{QuatConv, Vec3Conv};
 use crate::{LEFT_XR_TEXTURE_HANDLE, RIGHT_XR_TEXTURE_HANDLE};
 use bevy::core_pipeline::tonemapping::{DebandDither, Tonemapping};
+use bevy::math::Vec3A;
 use bevy::prelude::*;
 use bevy::render::camera::{CameraProjection, CameraRenderGraph, RenderTarget};
 use bevy::render::primitives::Frustum;
@@ -215,6 +216,26 @@ impl CameraProjection for XRProjection {
 
     fn far(&self) -> f32 {
         self.far
+    }
+
+    fn get_frustum_corners(&self, z_near: f32, z_far: f32) -> [Vec3A; 8] {
+        let tan_angle_left = self.fov.angle_left.tan();
+        let tan_angle_right = self.fov.angle_right.tan();
+
+        let tan_angle_bottom = self.fov.angle_down.tan();
+        let tan_angle_top = self.fov.angle_up.tan();
+
+        // NOTE: These vertices are in the specific order required by [`calculate_cascade`].
+        [
+            Vec3A::new(tan_angle_right, tan_angle_bottom, 1.0) * z_near, // bottom right
+            Vec3A::new(tan_angle_right, tan_angle_top, 1.0) * z_near,    // top right
+            Vec3A::new(tan_angle_left, tan_angle_top, 1.0) * z_near,     // top left
+            Vec3A::new(tan_angle_left, tan_angle_bottom, 1.0) * z_near,  // bottom left
+            Vec3A::new(tan_angle_right, tan_angle_bottom, 1.0) * z_far,  // bottom right
+            Vec3A::new(tan_angle_right, tan_angle_top, 1.0) * z_far,     // top right
+            Vec3A::new(tan_angle_left, tan_angle_top, 1.0) * z_far,      // top left
+            Vec3A::new(tan_angle_left, tan_angle_bottom, 1.0) * z_far,   // bottom left
+        ]
     }
 }
 
