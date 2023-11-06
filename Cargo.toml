@@ -4,18 +4,22 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["linked"]
-linked = ["openxr/linked", "openxr/static"]
+default = ["openxr/mint"]
 
 [dependencies]
 anyhow = "1.0.75"
 ash = "0.37.3"
 bevy = "0.12"
-openxr = { version = "0.17.1", features = ["mint"] }
 mint = "0.5.9"
 wgpu = "0.17.1"
 wgpu-core = { version = "0.17.1", features = ["vulkan"] }
 wgpu-hal = "0.17.1"
+
+[target.'cfg( target_os = "linux" )'.dependencies]
+openxr = { version = "0.17.1", features = ["linked"] }
+
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+openxr = { version = "0.17.1", features = ["linked", "static"] }
 
 [dev-dependencies]
 bevy = "0.12"
