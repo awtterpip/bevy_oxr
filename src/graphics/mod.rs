@@ -36,9 +36,9 @@ pub fn initialize_xr_graphics(
 }
 
 pub fn xr_entry() -> xr::Entry {
-    #[cfg(target_os = "linux")]
+    #[cfg(feature = "linked")]
     let entry = xr::Entry::linked();
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(not(feature = "linked"))]
     let entry = unsafe { xr::Entry::load().unwrap() };
     entry
 }
