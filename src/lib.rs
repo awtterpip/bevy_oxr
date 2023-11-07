@@ -340,7 +340,7 @@ pub fn end_frame(
             );
         match result {
             Ok(_) => {},
-            Err(_) => {},
+            Err(e) => warn!("error: {}", e),
         }
     }
 }
