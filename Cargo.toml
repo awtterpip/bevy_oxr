@@ -2,6 +2,8 @@
 name = "bevy_oxr"
 version = "0.1.0"
 edition = "2021"
+description = "Community crate for OpenXR in Bevy"
+license = "MIT/Apache-2.0"
 
 [features]
 default = ["openxr/mint", "linked"]
