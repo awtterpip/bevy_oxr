@@ -1,12 +1,12 @@
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
 use bevy::transform::components::Transform;
-use bevy_openxr::xr_input::debug_gizmos::OpenXrDebugRenderer;
-use bevy_openxr::xr_input::prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig};
-use bevy_openxr::xr_input::trackers::{
+use bevy_oxr::xr_input::debug_gizmos::OpenXrDebugRenderer;
+use bevy_oxr::xr_input::prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig};
+use bevy_oxr::xr_input::trackers::{
     OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker,
 };
-use bevy_openxr::DefaultXrPlugins;
+use bevy_oxr::DefaultXrPlugins;
 
 #[bevy_main]
 fn main() {
