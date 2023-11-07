@@ -330,15 +330,18 @@ pub fn end_frame(
     }
     {
         let _span = info_span!("xr_end_frame").entered();
-        swapchain
+        let result = swapchain
             .end(
                 xr_frame_state.lock().unwrap().predicted_display_time,
                 &*views.lock().unwrap(),
                 &input.stage,
                 **resolution,
                 **environment_blend_mode,
-            )
-            .unwrap();
+            );
+        match result {
+            Ok(_) => {},
+            Err(_) => {},
+        }
     }
 }
 
