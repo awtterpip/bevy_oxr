@@ -52,7 +52,7 @@ fn main() {
         .add_plugins(OpenXrDebugRenderer)
         //rapier goes here
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default().with_default_system_setup(false))
-        .add_plugins(RapierDebugRenderPlugin::default())
+        // .add_plugins(RapierDebugRenderPlugin::default())
         //lets setup the starting scene
         .add_systems(Startup, setup_scene)
         .add_systems(Startup, spawn_controllers_example) //you need to spawn controllers or it crashes TODO:: Fix this
@@ -277,13 +277,21 @@ fn spawn_physics_hands(mut commands: Commands) {
         PhysicsHandBone::LittleDistal,
         PhysicsHandBone::LittleTip,
     ];
-    //lets just do the Right ThumbMetacarpal for now
-    //i dont understand the groups yet
-    let self_group = Group::GROUP_1;
-    let interaction_group = Group::ALL;
     let radius = 0.010;
+    let left_hand_membership_group = Group::GROUP_1;
+    let right_hand_membership_group = Group::GROUP_2;
+    let floor_membership = Group::GROUP_3;
+
 
     for hand in hands.iter() {
+        let hand_membership =  match hand
+         {
+            Hand::Left => left_hand_membership_group,
+            Hand::Right => right_hand_membership_group,
+        };
+        let mut hand_filter: Group = Group::ALL;
+        hand_filter.remove(hand_membership);
+        hand_filter.remove(floor_membership);
         for bone in bones.iter() {
             //spawn the thing
             commands.spawn((
@@ -301,9 +309,9 @@ fn spawn_physics_hands(mut commands: Commands) {
                     },
                     radius,
                 ),
-                RigidBody::KinematicVelocityBased,
+                RigidBody::Dynamic,
                 Velocity::default(),
-                // CollisionGroups::new(Group::from_bits(0b1110).unwrap(), Group::from_bits(0b0001).unwrap()),
+                CollisionGroups::new(hand_membership, Group::from_bits(0b0001).unwrap()),
                 // SolverGroups::new(self_group, interaction_group),
                 bone.clone(),
                 BoneInitState::False,
