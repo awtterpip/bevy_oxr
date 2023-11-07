@@ -13,7 +13,7 @@ use bevy::{
     time::{Fixed, Time, Timer},
     transform::TransformSystem,
 };
-use bevy_openxr::{
+use bevy_oxr::{
     input::XrInput,
     resources::{XrFrameState, XrInstance, XrSession},
     xr_input::{

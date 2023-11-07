@@ -6,7 +6,7 @@ use bevy::{
     transform::TransformBundle,
     utils::default,
 };
-use bevy_openxr::xr_input::interactions::{Touched, XRInteractable, XRInteractableState};
+use bevy_oxr::xr_input::interactions::{Touched, XRInteractable, XRInteractableState};
 use bevy_rapier3d::{
     prelude::{Collider, RigidBody, Group, CollisionGroups},
     render::ColliderDebugColor,
