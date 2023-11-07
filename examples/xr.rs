@@ -4,22 +4,22 @@ use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 
 use bevy::prelude::*;
 use bevy::transform::components::Transform;
-use bevy_openxr::input::XrInput;
-use bevy_openxr::resources::{XrFrameState, XrInstance, XrSession};
+use bevy_oxr::input::XrInput;
+use bevy_oxr::resources::{XrFrameState, XrInstance, XrSession};
 
-use bevy_openxr::xr_input::hand::{OpenXrHandInput, HandInputDebugRenderer};
-use bevy_openxr::xr_input::interactions::{
+use bevy_oxr::xr_input::hand::{OpenXrHandInput, HandInputDebugRenderer};
+use bevy_oxr::xr_input::interactions::{
     draw_interaction_gizmos, draw_socket_gizmos, interactions, socket_interactions,
     update_interactable_states, InteractionEvent, Touched, XRDirectInteractor, XRInteractable,
     XRInteractableState, XRInteractorState, XRRayInteractor, XRSocketInteractor,
 };
-use bevy_openxr::xr_input::oculus_touch::OculusController;
-use bevy_openxr::xr_input::prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig};
-use bevy_openxr::xr_input::trackers::{
+use bevy_oxr::xr_input::oculus_touch::OculusController;
+use bevy_oxr::xr_input::prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig};
+use bevy_oxr::xr_input::trackers::{
     AimPose, OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker,
 };
-use bevy_openxr::xr_input::Hand;
-use bevy_openxr::DefaultXrPlugins;
+use bevy_oxr::xr_input::Hand;
+use bevy_oxr::DefaultXrPlugins;
 
 fn main() {
     color_eyre::install().unwrap();
