@@ -1,4 +1,4 @@
-use std::{f32::consts::PI, ops::Mul};
+use std::{f32::consts::PI, ops::Mul, time::Duration};
 
 use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
@@ -6,12 +6,12 @@ use bevy::{
     log::info,
     prelude::{
         default, shape, App, Assets, Color, Commands, Component, Entity, Event, EventReader,
-        EventWriter, FixedTime, FixedUpdate, GlobalTransform, IntoSystemConfigs,
+        EventWriter, FixedUpdate, GlobalTransform, IntoSystemConfigs,
         IntoSystemSetConfigs, Mesh, PbrBundle, PostUpdate, Quat, Query, Res, ResMut, Resource,
         Schedule, SpatialBundle, StandardMaterial, Startup, Transform, Update, Vec3, With, Without,
         World, Vec3Swizzles,
     },
-    time::{Time, Timer},
+    time::{Time, Timer, Fixed},
     transform::TransformSystem,
 };
 use bevy_openxr::{
@@ -129,7 +129,7 @@ fn main() {
             .in_set(PhysicsSet::Writeback),
     ));
     app.add_schedule(physics_schedule) // configure our fixed timestep schedule to run at the rate we want
-        .insert_resource(FixedTime::new_from_secs(FIXED_TIMESTEP))
+        .insert_resource(Time::<Fixed>::from_duration(Duration::from_secs_f32(FIXED_TIMESTEP)))
         .add_systems(FixedUpdate, run_physics_schedule)
         .add_systems(Startup, configure_physics);
     app.run();
@@ -328,7 +328,7 @@ fn update_physics_hands(
         &mut Velocity,
     )>,
     hand_query: Query<(&Transform, &HandBone, &Hand, Without<PhysicsHandBone>)>,
-    time: Res<FixedTime>,
+    time: Res<Time>,
 ) {
     let matching = MatchingType::VelocityMatching;
     //sanity check do we even have hands?
@@ -370,7 +370,7 @@ fn update_physics_hands(
                                     //calculate position difference
                                     let diff = (start_components.unwrap().0.translation
                                         - bone.0.translation)
-                                        / time.period.as_secs_f32();
+                                        / time.delta_seconds();
                                     bone.5.linvel = diff;
                                     //calculate angular velocity?
                                     let why = direction.xy();
@@ -378,7 +378,7 @@ fn update_physics_hands(
                                     let ang: Vec3 = why_god(
                                         bone.0.rotation,
                                         desired_forward,
-                                        time.period.as_secs_f32(),
+                                        time.delta_seconds(),
                                     );
                                     if *bone.2 == PhysicsHandBone::IndexIntermediate && *bone.4 == Hand::Right {
                                         info!("{}", ang);
