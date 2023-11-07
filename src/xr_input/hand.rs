@@ -38,7 +38,7 @@ impl Plugin for OpenXrHandInput {
 #[derive(Default)]
 pub struct HandInputDebugRenderer;
 
-impl Plugin for HandInputDebugRenderer{
+impl Plugin for HandInputDebugRenderer {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.add_systems(PostUpdate, draw_hand_entities);
     }
@@ -56,12 +56,12 @@ impl Default for HandInputSource {
     }
 }
 
-#[derive(Resource, Default)]
+#[derive(Resource, Default, Clone, Copy)]
 pub struct HandsResource {
     pub left: HandResource,
     pub right: HandResource,
 }
-
+#[derive(Clone, Copy)]
 pub struct HandResource {
     pub palm: Entity,
     pub wrist: Entity,
@@ -85,7 +85,7 @@ impl Default for HandResource {
         }
     }
 }
-
+#[derive(Clone, Copy)]
 pub struct ThumbResource {
     pub metacarpal: Entity,
     pub proximal: Entity,
@@ -103,6 +103,7 @@ impl Default for ThumbResource {
         }
     }
 }
+#[derive(Clone, Copy)]
 pub struct IndexResource {
     pub metacarpal: Entity,
     pub proximal: Entity,
@@ -122,6 +123,7 @@ impl Default for IndexResource {
         }
     }
 }
+#[derive(Clone, Copy)]
 pub struct MiddleResource {
     pub metacarpal: Entity,
     pub proximal: Entity,
@@ -140,6 +142,7 @@ impl Default for MiddleResource {
         }
     }
 }
+#[derive(Clone, Copy)]
 pub struct RingResource {
     pub metacarpal: Entity,
     pub proximal: Entity,
@@ -158,6 +161,7 @@ impl Default for RingResource {
         }
     }
 }
+#[derive(Clone, Copy)]
 pub struct LittleResource {
     pub metacarpal: Entity,
     pub proximal: Entity,
