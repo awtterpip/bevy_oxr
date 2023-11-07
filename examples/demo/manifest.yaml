@@ -7,8 +7,9 @@ android:
       - name: "android.hardware.vr.headtracking"
         required: true
       - name: "oculus.software.handtracking"
-        required: false 
+        required: false
       - name: "com.oculus.experimental.enabled"
+        required: true
     uses_permission:
       - name: "com.oculus.permission.HAND_TRACKING"
     application:
