@@ -6,12 +6,11 @@ use bevy::{
     log::info,
     prelude::{
         default, shape, App, Assets, Color, Commands, Component, Entity, Event, EventReader,
-        EventWriter, FixedUpdate, GlobalTransform, IntoSystemConfigs,
-        IntoSystemSetConfigs, Mesh, PbrBundle, PostUpdate, Quat, Query, Res, ResMut, Resource,
-        Schedule, SpatialBundle, StandardMaterial, Startup, Transform, Update, Vec3, With, Without,
-        World, Vec3Swizzles,
+        EventWriter, FixedUpdate, Gizmos, GlobalTransform, IntoSystemConfigs, IntoSystemSetConfigs,
+        Mesh, PbrBundle, PostUpdate, Quat, Query, Res, ResMut, Resource, Schedule, SpatialBundle,
+        StandardMaterial, Startup, Transform, Update, Vec3, Vec3Swizzles, With, Without, World,
     },
-    time::{Time, Timer, Fixed},
+    time::{Fixed, Time, Timer},
     transform::TransformSystem,
 };
 use bevy_openxr::{
@@ -129,7 +128,9 @@ fn main() {
             .in_set(PhysicsSet::Writeback),
     ));
     app.add_schedule(physics_schedule) // configure our fixed timestep schedule to run at the rate we want
-        .insert_resource(Time::<Fixed>::from_duration(Duration::from_secs_f32(FIXED_TIMESTEP)))
+        .insert_resource(Time::<Fixed>::from_duration(Duration::from_secs_f32(
+            FIXED_TIMESTEP,
+        )))
         .add_systems(FixedUpdate, run_physics_schedule)
         .add_systems(Startup, configure_physics);
     app.run();
@@ -302,7 +303,7 @@ fn spawn_physics_hands(mut commands: Commands) {
                 ),
                 RigidBody::KinematicVelocityBased,
                 Velocity::default(),
-                CollisionGroups::new(Group::from_bits(0b1110).unwrap(), Group::from_bits(0b0001).unwrap()),
+                // CollisionGroups::new(Group::from_bits(0b1110).unwrap(), Group::from_bits(0b0001).unwrap()),
                 // SolverGroups::new(self_group, interaction_group),
                 bone.clone(),
                 BoneInitState::False,
@@ -329,6 +330,7 @@ fn update_physics_hands(
     )>,
     hand_query: Query<(&Transform, &HandBone, &Hand, Without<PhysicsHandBone>)>,
     time: Res<Time>,
+    mut gizmos: Gizmos,
 ) {
     let matching = MatchingType::VelocityMatching;
     //sanity check do we even have hands?
@@ -354,7 +356,6 @@ fn update_physics_hands(
                         //i hate this but we need to skip init if the length is zero
                         return;
                     }
-                    
 
                     match *bone.3 {
                         BoneInitState::True => {
@@ -374,14 +375,27 @@ fn update_physics_hands(
                                         / time.delta_seconds();
                                     bone.5.linvel = diff;
                                     //calculate angular velocity?
-                                    let desired_forward = start_components.unwrap().0.clone().looking_at(end_components.unwrap().0.translation, Vec3::Y).rotation;
-                                    let some: Vec3 = help_me(bone.0.rotation,desired_forward);
+                                    // gizmos.ray(bone.0.translation, bone.0.forward(), Color::WHITE);
+                                    let desired_forward = start_components
+                                        .unwrap()
+                                        .0
+                                        .clone()
+                                        .looking_at(end_components.unwrap().0.translation, Vec3::Y)
+                                        .rotation;
+                                    // gizmos.ray(
+                                    //     bone.0.translation,
+                                    //     desired_forward.mul_vec3(-Vec3::Z),
+                                    //     Color::GREEN,
+                                    // );
+                                    let cross =
+                                        bone.0.forward().cross(desired_forward.mul_vec3(-Vec3::Z));
 
-                                    if *bone.2 == PhysicsHandBone::IndexIntermediate && *bone.4 == Hand::Right {
-                                        info!("{}", some);
-                                        // info!("{}", forward);
-                                    }
-                                    bone.5.angvel = 5.0 * some  / time.delta_seconds();
+                                    // gizmos.ray(
+                                    //     bone.0.translation,
+                                    //     cross,
+                                    //     Color::RED,
+                                    // );
+                                    bone.5.angvel = cross / time.delta_seconds();
                                 }
                             }
                         }
@@ -404,20 +418,6 @@ fn update_physics_hands(
         }
         None => info!("hand states resource not initialized yet"),
     }
-}
-
-fn help_me(rotation: Quat, desired_forward: Quat) -> Vec3 {
-    let conj = rotation.conjugate();
-    let diff = desired_forward.mul_quat(conj);
-    let mut test = diff.to_axis_angle();
-    if test.0.x.is_infinite() {
-        return Vec3::ZERO;
-    }
-    // if test.1 > 180.0 {
-    //     test.1 = test.1 - 360.0;
-    // }
-    let ang = (0.99 * (PI / 180.0) * test.1) * test.0;
-    return ang;
 }
 
 fn get_start_and_end_entities(

@@ -34,6 +34,7 @@ pub fn setup_scene(
             transform: Transform::from_xyz(0.0, ground_height, 0.0),
             ..default()
         },
+        RigidBody::Fixed,
         Collider::cuboid(ground_size, ground_thickness, ground_size),
     ));
     // cube
