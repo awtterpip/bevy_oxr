@@ -302,7 +302,7 @@ fn spawn_physics_hands(mut commands: Commands) {
                 ),
                 RigidBody::KinematicVelocityBased,
                 Velocity::default(),
-                // CollisionGroups::new(self_group, interaction_group),
+                CollisionGroups::new(Group::from_bits(0b1110).unwrap(), Group::from_bits(0b0001).unwrap()),
                 // SolverGroups::new(self_group, interaction_group),
                 bone.clone(),
                 BoneInitState::False,
@@ -354,6 +354,7 @@ fn update_physics_hands(
                         //i hate this but we need to skip init if the length is zero
                         return;
                     }
+                    
 
                     match *bone.3 {
                         BoneInitState::True => {
@@ -373,18 +374,14 @@ fn update_physics_hands(
                                         / time.delta_seconds();
                                     bone.5.linvel = diff;
                                     //calculate angular velocity?
-                                    let why = direction.xy();
-                                    let desired_forward = Quat::from_rotation_arc(bone.0.forward(), direction.normalize());
-                                    let ang: Vec3 = why_god(
-                                        bone.0.rotation,
-                                        desired_forward,
-                                        time.delta_seconds(),
-                                    );
+                                    let desired_forward = start_components.unwrap().0.clone().looking_at(end_components.unwrap().0.translation, Vec3::Y).rotation;
+                                    let some: Vec3 = help_me(bone.0.rotation,desired_forward);
+
                                     if *bone.2 == PhysicsHandBone::IndexIntermediate && *bone.4 == Hand::Right {
-                                        info!("{}", ang);
+                                        info!("{}", some);
                                         // info!("{}", forward);
                                     }
-                                    bone.5.angvel = ang * PI / 180.0;
+                                    bone.5.angvel = 5.0 * some  / time.delta_seconds();
                                 }
                             }
                         }
@@ -409,15 +406,18 @@ fn update_physics_hands(
     }
 }
 
-fn why_god(q1: Quat, q2: Quat, dt: f32) -> Vec3 {
-    let huh = Vec3 {
-        x: (q1.w * q2.x) - (q1.x * q2.x) - (q1.y * q2.z) + (q1.z * q2.y),
-        y: (q1.w * q2.y) - (q1.x * q2.z) - (q1.y * q2.w) + (q1.z * q2.x),
-        z: (q1.w * q2.z) - (q1.x * q2.y) - (q1.y * q2.x) + (q1.z * q2.w),
-    };
-    let why = 2.0 / dt;
-    let help = why * huh;
-    return help;
+fn help_me(rotation: Quat, desired_forward: Quat) -> Vec3 {
+    let conj = rotation.conjugate();
+    let diff = desired_forward.mul_quat(conj);
+    let mut test = diff.to_axis_angle();
+    if test.0.x.is_infinite() {
+        return Vec3::ZERO;
+    }
+    // if test.1 > 180.0 {
+    //     test.1 = test.1 - 360.0;
+    // }
+    let ang = (0.99 * (PI / 180.0) * test.1) * test.0;
+    return ang;
 }
 
 fn get_start_and_end_entities(
