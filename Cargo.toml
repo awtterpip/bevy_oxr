@@ -5,6 +5,9 @@ edition = "2021"
 description = "Community crate for OpenXR in Bevy"
 license = "MIT/Apache-2.0"
 
+[target.'cfg(not(target_os="android"))'.features]
+default = ["openxr/mint", "linked"]
+
 [features]
 default = ["openxr/mint"]
 linked = ["openxr/linked"]
