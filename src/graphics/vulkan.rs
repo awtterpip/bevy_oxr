@@ -113,7 +113,7 @@ pub fn initialize_xr_graphics(
     let flags = wgpu_hal::InstanceFlags::empty();
     let extensions =
         <V as Api>::Instance::required_extensions(&vk_entry, vk_target_version, flags)?;
-    let device_extensions = vec![
+    let device_extensions = [
         ash::extensions::khr::Swapchain::name(),
         ash::extensions::khr::DrawIndirectCount::name(),
         #[cfg(target_os = "android")]
