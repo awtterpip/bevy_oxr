@@ -186,12 +186,7 @@ pub fn spawn_hand_entities(mut commands: Commands) {
     for hand in hands.iter() {
         for bone in bones.iter() {
             let boneid = commands
-                .spawn((
-                    SpatialBundle::default(),
-                    *bone,
-                    OpenXRTracker,
-                    *hand,
-                ))
+                .spawn((SpatialBundle::default(), *bone, OpenXRTracker, *hand))
                 .id();
             match hand {
                 Hand::Left => match bone {
@@ -465,8 +460,7 @@ pub fn update_hand_states(
     }
 }
 
-#[derive(Clone, Copy)]
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 pub enum ButtonState {
     #[default]
     OFF,
@@ -474,9 +468,7 @@ pub enum ButtonState {
     PRESSED,
 }
 
-
-#[derive(Clone, Copy)]
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 pub enum ThumbstickState {
     #[default]
     OFF,
@@ -484,9 +476,7 @@ pub enum ThumbstickState {
     PRESSED,
 }
 
-
-#[derive(Clone, Copy)]
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 pub enum TriggerState {
     #[default]
     OFF,
@@ -494,16 +484,13 @@ pub enum TriggerState {
     PULLED,
 }
 
-
-
 #[derive(Default, Resource)]
 pub struct HandStatesResource {
     pub left: HandState,
     pub right: HandState,
 }
 
-#[derive(Clone, Copy)]
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 pub struct HandState {
     pub grip: f32,
     pub trigger_state: TriggerState,
@@ -543,7 +530,6 @@ impl HandState {
         0.0
     }
 }
-
 
 #[allow(clippy::type_complexity)]
 pub fn update_hand_bones_emulated(
@@ -895,7 +881,7 @@ fn get_bone_curl_angle(bone: HandJoint, curl: f32) -> f32 {
         HandJoint::THUMB_PROXIMAL => 0.0,
         _ => 1.0,
     };
-    
+
     -((mul * curl * 80.0) + 5.0)
 }
 
