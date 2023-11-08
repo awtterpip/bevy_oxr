@@ -1,4 +1,4 @@
-use std::{f32::consts::PI, ops::Mul, time::Duration};
+use std::time::Duration;
 
 use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
@@ -6,9 +6,9 @@ use bevy::{
     log::info,
     prelude::{
         default, shape, App, Assets, Color, Commands, Component, Entity, Event, EventReader,
-        EventWriter, FixedUpdate, Gizmos, GlobalTransform, IntoSystemConfigs, IntoSystemSetConfigs,
-        Mesh, PbrBundle, PostUpdate, Quat, Query, Res, ResMut, Resource, Schedule, SpatialBundle,
-        StandardMaterial, Startup, Transform, Update, Vec3, Vec3Swizzles, With, Without, World,
+        EventWriter, FixedUpdate, GlobalTransform, IntoSystemConfigs, IntoSystemSetConfigs, Mesh,
+        PbrBundle, PostUpdate, Query, Res, ResMut, Resource, Schedule, SpatialBundle,
+        StandardMaterial, Startup, Transform, Update, Vec3, With, Without, World,
     },
     time::{Fixed, Time, Timer},
     transform::TransformSystem,
@@ -282,10 +282,8 @@ fn spawn_physics_hands(mut commands: Commands) {
     let right_hand_membership_group = Group::GROUP_2;
     let floor_membership = Group::GROUP_3;
 
-
     for hand in hands.iter() {
-        let hand_membership =  match hand
-         {
+        let hand_membership = match hand {
             Hand::Left => left_hand_membership_group,
             Hand::Right => right_hand_membership_group,
         };
@@ -338,7 +336,6 @@ fn update_physics_hands(
     )>,
     hand_query: Query<(&Transform, &HandBone, &Hand, Without<PhysicsHandBone>)>,
     time: Res<Time>,
-    mut gizmos: Gizmos,
 ) {
     let matching = MatchingType::VelocityMatching;
     //sanity check do we even have hands?
@@ -383,26 +380,15 @@ fn update_physics_hands(
                                         / time.delta_seconds();
                                     bone.5.linvel = diff;
                                     //calculate angular velocity?
-                                    // gizmos.ray(bone.0.translation, bone.0.forward(), Color::WHITE);
                                     let desired_forward = start_components
                                         .unwrap()
                                         .0
                                         .clone()
                                         .looking_at(end_components.unwrap().0.translation, Vec3::Y)
                                         .rotation;
-                                    // gizmos.ray(
-                                    //     bone.0.translation,
-                                    //     desired_forward.mul_vec3(-Vec3::Z),
-                                    //     Color::GREEN,
-                                    // );
                                     let cross =
                                         bone.0.forward().cross(desired_forward.mul_vec3(-Vec3::Z));
 
-                                    // gizmos.ray(
-                                    //     bone.0.translation,
-                                    //     cross,
-                                    //     Color::RED,
-                                    // );
                                     bone.5.angvel = cross / time.delta_seconds();
                                 }
                             }
@@ -494,13 +480,6 @@ fn get_start_and_end_entities(
     };
 }
 
-fn get_hand_res(res: &Res<'_, HandsResource>, hand: Hand) -> HandResource {
-    match hand {
-        Hand::Left => res.left.clone(),
-        Hand::Right => res.right.clone(),
-    }
-}
-
 #[derive(Event, Default)]
 pub struct SpawnCubeRequest;
 
@@ -543,7 +522,7 @@ fn cube_spawner(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut events: EventReader<SpawnCubeRequest>,
 ) {
-    for request in events.read() {
+    for _request in events.read() {
         // cube
         commands.spawn((
             PbrBundle {
@@ -571,7 +550,7 @@ fn prototype_interaction_input(
     instance: Res<XrInstance>,
     session: Res<XrSession>,
     mut right_interactor_query: Query<
-        (&mut XRInteractorState),
+        &mut XRInteractorState,
         (
             With<XRDirectInteractor>,
             With<OpenXRRightController>,
@@ -579,7 +558,7 @@ fn prototype_interaction_input(
         ),
     >,
     mut left_interactor_query: Query<
-        (&mut XRInteractorState),
+        &mut XRInteractorState,
         (
             With<XRDirectInteractor>,
             With<OpenXRLeftController>,

@@ -1,9 +1,10 @@
 use std::f32::consts::PI;
 
+use bevy::log::info;
 use bevy::prelude::{
-    default, info, Color, Commands, Component, Deref, DerefMut, Entity, Gizmos, GlobalTransform,
-    Plugin, PostUpdate, PreUpdate, Quat, Query, Res, ResMut, Resource, SpatialBundle, Startup,
-    Transform, Update, Vec3, With, Without,
+    default, Color, Commands, Component, Deref, DerefMut, Entity, Gizmos, GlobalTransform, Plugin,
+    PostUpdate, PreUpdate, Quat, Query, Res, ResMut, Resource, SpatialBundle, Startup, Transform,
+    Update, Vec3, With, Without,
 };
 use openxr::{HandJoint, Posef};
 
@@ -918,6 +919,7 @@ fn get_bone_curl_angle(bone: HandJoint, curl: f32) -> f32 {
     return curl_angle;
 }
 
+#[allow(dead_code)]
 fn log_hand(hand_pose: [Posef; 26]) {
     let _palm_wrist = hand_pose[HandJoint::WRIST].position.to_vec3()
         - hand_pose[HandJoint::PALM].position.to_vec3();

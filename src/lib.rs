@@ -219,6 +219,7 @@ impl PluginGroup for DefaultXrPlugins {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn xr_begin_frame(
     instance: Res<XrInstance>,
     session: Res<XrSession>,
@@ -334,7 +335,7 @@ pub fn end_frame(
         let _span = info_span!("xr_end_frame").entered();
         let result = swapchain.end(
             xr_frame_state.lock().unwrap().predicted_display_time,
-            &*views.lock().unwrap(),
+            &views.lock().unwrap(),
             &input.stage,
             **resolution,
             **environment_blend_mode,

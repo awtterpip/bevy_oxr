@@ -32,6 +32,7 @@ pub fn setup_oculus_controller(
 #[derive(Resource, Clone)]
 pub struct ActionSets(pub Vec<ActionSet>);
 
+#[allow(dead_code)]
 pub struct OculusControllerRef<'a> {
     oculus_controller: &'a OculusController,
     instance: &'a Instance,

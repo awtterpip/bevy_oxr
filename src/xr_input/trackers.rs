@@ -1,6 +1,6 @@
+use bevy::log::info;
 use bevy::prelude::{
-    info, Added, BuildChildren, Commands, Component, Entity, Query, Res, Transform, Vec3, With,
-    Without,
+    Added, BuildChildren, Commands, Component, Entity, Query, Res, Transform, Vec3, With, Without,
 };
 
 use crate::{

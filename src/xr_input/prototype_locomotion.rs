@@ -55,7 +55,7 @@ impl Default for PrototypeLocomotionConfig {
         }
     }
 }
-
+#[allow(unused_assignments)]
 pub fn proto_locomotion(
     time: Res<Time>,
     mut tracking_root_query: Query<(&mut Transform, With<OpenXRTrackingRoot>)>,

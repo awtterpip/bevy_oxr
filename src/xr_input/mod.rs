@@ -1,13 +1,13 @@
 pub mod controllers;
 pub mod debug_gizmos;
+pub mod hand;
+pub mod hand_poses;
+pub mod handtracking;
 pub mod interactions;
 pub mod oculus_touch;
 pub mod prototype_locomotion;
 pub mod trackers;
 pub mod xr_camera;
-pub mod hand_poses;
-pub mod hand;
-pub mod handtracking;
 
 use crate::resources::XrSession;
 use crate::xr_begin_frame;
@@ -16,7 +16,7 @@ use crate::xr_input::oculus_touch::{setup_oculus_controller, ActionSets};
 use crate::xr_input::xr_camera::{xr_camera_head_sync, Eye, XRProjection, XrCameraBundle};
 use bevy::app::{App, PostUpdate, Startup};
 use bevy::log::warn;
-use bevy::prelude::{BuildChildren, IntoSystemConfigs, Component};
+use bevy::prelude::{BuildChildren, Component, IntoSystemConfigs};
 use bevy::prelude::{Commands, Plugin, PreUpdate, Quat, Res, SpatialBundle, Update, Vec3};
 use bevy::render::camera::CameraProjectionPlugin;
 use bevy::render::view::{update_frusta, VisibilitySystems};

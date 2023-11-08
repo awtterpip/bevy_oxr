@@ -1,14 +1,13 @@
 use bevy::{
     prelude::{
         shape, Assets, Camera3dBundle, Color, Commands, Mesh, PbrBundle, PointLight,
-        PointLightBundle, ResMut, SpatialBundle, StandardMaterial, Transform, Vec3,
+        PointLightBundle, ResMut, StandardMaterial, Transform, Vec3,
     },
-    transform::TransformBundle,
     utils::default,
 };
 use bevy_oxr::xr_input::interactions::{Touched, XRInteractable, XRInteractableState};
 use bevy_rapier3d::{
-    prelude::{Collider, RigidBody, Group, CollisionGroups},
+    prelude::{Collider, CollisionGroups, Group, RigidBody},
     render::ColliderDebugColor,
 };
 
