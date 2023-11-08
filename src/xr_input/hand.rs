@@ -30,8 +30,8 @@ impl Plugin for OpenXrHandInput {
         app.add_systems(Update, update_hand_skeletons)
             .add_systems(PreUpdate, update_hand_states)
             .add_systems(Startup, spawn_hand_entities)
-            .insert_resource(HandStatesResource::default())
-            .insert_resource(HandInputSource::default());
+            .insert_resource(HandStatesResource::default());
+            // .insert_resource(HandInputSource::default());
     }
 }
 

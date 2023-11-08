@@ -20,6 +20,7 @@ use input::XrInput;
 use openxr as xr;
 use resources::*;
 use xr_input::controllers::XrControllerType;
+use xr_input::hand::HandInputSource;
 use xr_input::handtracking::HandTrackingTracker;
 use xr_input::OpenXrInput;
 
@@ -148,6 +149,9 @@ impl Plugin for OpenXrPlugin {
             let hands = xr_instance.exts().ext_hand_tracking.is_some();
             if hands {
                 app.insert_resource(HandTrackingTracker::new(&session).unwrap());
+                app.insert_resource(HandInputSource::OpenXr);
+            } else {
+                app.insert_resource(HandInputSource::Emulated);
             }
 
             let (left, right) = swapchain.get_render_views();
