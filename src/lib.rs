@@ -144,8 +144,11 @@ impl Plugin for OpenXrPlugin {
                 .insert_resource(input.clone())
                 .insert_resource(views.clone())
                 .insert_resource(frame_state.clone())
-                .insert_resource(action_sets.clone())
-                .insert_resource(HandTrackingTracker::new(&session).unwrap());
+                .insert_resource(action_sets.clone());
+            let hands = xr_instance.exts().ext_hand_tracking.is_some();
+            if hands {
+                app.insert_resource(HandTrackingTracker::new(&session).unwrap());
+            }
 
             let (left, right) = swapchain.get_render_views();
             let left = ManualTextureView {
