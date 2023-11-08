@@ -30,7 +30,7 @@ openxr = { version = "0.17.1", features = ["mint", "static"] }
 
 
 [target.'cfg(not(target_os="android"))'.dependencies]
-openxr = { version = "0.17.1", features = ["linked"] }
+openxr = { version = "0.17.1", features = ["mint", "static", "linked"] }
 
 [dev-dependencies]
 bevy = "0.12"
