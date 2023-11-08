@@ -5,10 +5,11 @@ use bevy::{
     ecs::schedule::ScheduleLabel,
     log::info,
     prelude::{
-        default, shape, App, Assets, Color, Commands, Component, Entity, Event, EventReader,
-        EventWriter, FixedUpdate, Gizmos, GlobalTransform, IntoSystemConfigs, IntoSystemSetConfigs,
-        Mesh, PbrBundle, PostUpdate, Quat, Query, Res, ResMut, Resource, Schedule, SpatialBundle,
-        StandardMaterial, Startup, Transform, Update, Vec3, Vec3Swizzles, With, Without, World,
+        bevy_main, default, shape, App, Assets, Color, Commands, Component, Entity, Event,
+        EventReader, EventWriter, FixedUpdate, Gizmos, GlobalTransform, IntoSystemConfigs,
+        IntoSystemSetConfigs, Mesh, PbrBundle, PostUpdate, Quat, Query, Res, ResMut, Resource,
+        Schedule, SpatialBundle, StandardMaterial, Startup, Transform, Update, Vec3, Vec3Swizzles,
+        With, Without, World,
     },
     time::{Fixed, Time, Timer},
     transform::TransformSystem,
@@ -36,6 +37,7 @@ mod setup;
 use crate::setup::setup_scene;
 use bevy_rapier3d::prelude::*;
 
+#[bevy_main]
 pub fn main() {
     color_eyre::install().unwrap();
 
@@ -282,10 +284,8 @@ fn spawn_physics_hands(mut commands: Commands) {
     let right_hand_membership_group = Group::GROUP_2;
     let floor_membership = Group::GROUP_3;
 
-
     for hand in hands.iter() {
-        let hand_membership =  match hand
-         {
+        let hand_membership = match hand {
             Hand::Left => left_hand_membership_group,
             Hand::Right => right_hand_membership_group,
         };

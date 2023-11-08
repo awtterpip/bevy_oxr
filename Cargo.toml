@@ -6,11 +6,11 @@ description = "Community crate for OpenXR in Bevy"
 license = "MIT/Apache-2.0"
 
 [features]
-default = ["openxr/mint", "linked"]
+default = ["openxr/mint"]
 linked = ["openxr/linked"]
 
 [workspace]
-members = [ "examples/android" ]
+members = ["examples/android", "examples/demo"]
 
 [dependencies]
 anyhow = "1.0.75"
