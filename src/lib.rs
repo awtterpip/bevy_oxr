@@ -332,15 +332,17 @@ pub fn end_frame(
     }
     {
         let _span = info_span!("xr_end_frame").entered();
-        swapchain
-            .end(
-                xr_frame_state.lock().unwrap().predicted_display_time,
-                &*views.lock().unwrap(),
-                &input.stage,
-                **resolution,
-                **environment_blend_mode,
-            )
-            .unwrap();
+        let result = swapchain.end(
+            xr_frame_state.lock().unwrap().predicted_display_time,
+            &*views.lock().unwrap(),
+            &input.stage,
+            **resolution,
+            **environment_blend_mode,
+        );
+        match result {
+            Ok(_) => {}
+            Err(e) => warn!("error: {}", e),
+        }
     }
 }
 
