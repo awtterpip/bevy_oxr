@@ -545,7 +545,7 @@ impl HandState {
 }
 
 
-
+#[allow(clippy::type_complexity)]
 pub fn update_hand_bones_emulated(
     controller_transform: Transform,
     hand: Hand,
@@ -1035,6 +1035,7 @@ fn log_hand(hand_pose: [Posef; 26]) {
     );
 }
 
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn update_hand_skeletons(
     tracking_root_query: Query<(&Transform, With<OpenXRTrackingRoot>)>,
     right_controller_query: Query<(&GlobalTransform, With<OpenXRRightController>)>,

@@ -31,7 +31,7 @@ pub const RIGHT_XR_TEXTURE_HANDLE: ManualTextureViewHandle = ManualTextureViewHa
 /// Adds OpenXR support to an App
 #[derive(Default)]
 pub struct OpenXrPlugin;
-
+#[allow(clippy::type_complexity)]
 #[derive(Resource)]
 pub struct FutureXrResources(
     pub  Arc<

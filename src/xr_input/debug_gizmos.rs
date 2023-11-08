@@ -29,6 +29,7 @@ impl Plugin for OpenXrDebugRenderer {
     }
 }
 
+#[allow(clippy::type_complexity, clippy::too_many_arguments)]
 pub fn draw_gizmos(
     mut gizmos: Gizmos,
     oculus_controller: Res<OculusController>,

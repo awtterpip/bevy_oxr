@@ -47,6 +47,7 @@ pub fn adopt_open_xr_trackers(
     }
 }
 
+#[allow(clippy::type_complexity)]
 pub fn update_open_xr_controllers(
     oculus_controller: Res<OculusController>,
     mut left_controller_query: Query<(

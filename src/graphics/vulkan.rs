@@ -18,6 +18,7 @@ use crate::resources::{
 };
 use crate::VIEW_TYPE;
 
+#[allow(clippy::type_complexity)]
 pub fn initialize_xr_graphics(
     window: Option<RawHandleWrapper>,
 ) -> anyhow::Result<(
@@ -352,7 +353,7 @@ pub fn initialize_xr_graphics(
                     None,
                 )
             };
-            
+
             unsafe {
                 wgpu_device.create_texture_from_hal::<V>(
                     wgpu_hal_texture,

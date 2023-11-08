@@ -55,7 +55,7 @@ impl Default for PrototypeLocomotionConfig {
         }
     }
 }
-#[allow(unused_assignments)]
+#[allow(unused_assignments, clippy::too_many_arguments)]
 pub fn proto_locomotion(
     time: Res<Time>,
     mut tracking_root_query: Query<(&mut Transform, With<OpenXRTrackingRoot>)>,
@@ -136,16 +136,13 @@ pub fn proto_locomotion(
                     //apply rotation
                     let v = views.lock().unwrap();
                     let views = v.get(0);
-                    match views {
-                        Some(view) => {
-                            let mut hmd_translation = view.pose.position.to_vec3();
-                            hmd_translation.y = 0.0;
-                            let local = position.0.translation;
-                            let global = position.0.rotation.mul_vec3(hmd_translation) + local;
-                            gizmos.circle(global, Vec3::Y, 0.1, Color::GREEN);
-                            position.0.rotate_around(global, smoth_rot);
-                        }
-                        None => (),
+                    if let Some(view) = views {
+                        let mut hmd_translation = view.pose.position.to_vec3();
+                        hmd_translation.y = 0.0;
+                        let local = position.0.translation;
+                        let global = position.0.rotation.mul_vec3(hmd_translation) + local;
+                        gizmos.circle(global, Vec3::Y, 0.1, Color::GREEN);
+                        position.0.rotate_around(global, smoth_rot);
                     }
                 }
                 RotationType::Snap => {
