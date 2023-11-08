@@ -134,7 +134,7 @@ impl<G: xr::Graphics> SwapchainInner<G> {
             },
         };
         let swapchain = self.handle.lock().unwrap();
-        if views.len() == 0 {
+        if views.is_empty() {
             warn!("views are len of 0");
             return Ok(());
         }

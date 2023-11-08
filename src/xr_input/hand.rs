@@ -1,9 +1,10 @@
 use std::f32::consts::PI;
 
+use bevy::log::info;
 use bevy::prelude::{
-    default, info, Color, Commands, Component, Deref, DerefMut, Entity, Gizmos, GlobalTransform,
-    Plugin, PostUpdate, PreUpdate, Quat, Query, Res, ResMut, Resource, SpatialBundle, Startup,
-    Transform, Update, Vec3, With, Without,
+    default, Color, Commands, Component, Deref, DerefMut, Entity, Gizmos, GlobalTransform, Plugin,
+    PostUpdate, PreUpdate, Quat, Query, Res, ResMut, Resource, SpatialBundle, Startup, Transform,
+    Update, Vec3, With, Without,
 };
 use openxr::{HandJoint, Posef};
 
@@ -45,16 +46,11 @@ impl Plugin for HandInputDebugRenderer {
     }
 }
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub enum HandInputSource {
     Emulated,
+    #[default]
     OpenXr,
-}
-
-impl Default for HandInputSource {
-    fn default() -> Self {
-        HandInputSource::OpenXr
-    }
 }
 
 #[derive(Resource, Default, Clone, Copy)]
@@ -190,12 +186,7 @@ pub fn spawn_hand_entities(mut commands: Commands) {
     for hand in hands.iter() {
         for bone in bones.iter() {
             let boneid = commands
-                .spawn((
-                    SpatialBundle::default(),
-                    bone.clone(),
-                    OpenXRTracker,
-                    hand.clone(),
-                ))
+                .spawn((SpatialBundle::default(), *bone, OpenXRTracker, *hand))
                 .id();
             match hand {
                 Hand::Left => match bone {
@@ -469,41 +460,28 @@ pub fn update_hand_states(
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub enum ButtonState {
+    #[default]
     OFF,
     TOUCHED,
     PRESSED,
 }
 
-impl Default for ButtonState {
-    fn default() -> Self {
-        ButtonState::OFF
-    }
-}
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub enum ThumbstickState {
+    #[default]
     OFF,
     TOUCHED,
     PRESSED,
 }
 
-impl Default for ThumbstickState {
-    fn default() -> Self {
-        ThumbstickState::OFF
-    }
-}
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub enum TriggerState {
+    #[default]
     OFF,
     TOUCHED,
     PULLED,
-}
-
-impl Default for TriggerState {
-    fn default() -> Self {
-        TriggerState::OFF
-    }
 }
 
 #[derive(Default, Resource)]
@@ -512,7 +490,7 @@ pub struct HandStatesResource {
     pub right: HandState,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct HandState {
     pub grip: f32,
     pub trigger_state: TriggerState,
@@ -549,22 +527,11 @@ impl HandState {
             ButtonState::PRESSED => return 0.25,
         };
         //if no thumb actions taken return open position
-        return 0.0;
+        0.0
     }
 }
 
-impl Default for HandState {
-    fn default() -> Self {
-        Self {
-            grip: Default::default(),
-            trigger_state: Default::default(),
-            a_button: Default::default(),
-            b_button: Default::default(),
-            thumbstick: Default::default(),
-        }
-    }
-}
-
+#[allow(clippy::type_complexity)]
 pub fn update_hand_bones_emulated(
     controller_transform: Transform,
     hand: Hand,
@@ -914,10 +881,11 @@ fn get_bone_curl_angle(bone: HandJoint, curl: f32) -> f32 {
         HandJoint::THUMB_PROXIMAL => 0.0,
         _ => 1.0,
     };
-    let curl_angle = -((mul * curl * 80.0) + 5.0);
-    return curl_angle;
+
+    -((mul * curl * 80.0) + 5.0)
 }
 
+#[allow(dead_code)]
 fn log_hand(hand_pose: [Posef; 26]) {
     let _palm_wrist = hand_pose[HandJoint::WRIST].position.to_vec3()
         - hand_pose[HandJoint::PALM].position.to_vec3();
@@ -1053,6 +1021,7 @@ fn log_hand(hand_pose: [Posef; 26]) {
     );
 }
 
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn update_hand_skeletons(
     tracking_root_query: Query<(&Transform, With<OpenXRTrackingRoot>)>,
     right_controller_query: Query<(&GlobalTransform, With<OpenXRRightController>)>,
@@ -1136,7 +1105,6 @@ pub fn update_hand_skeletons(
         },
         None => {
             info!("hand input source not initialized");
-            return;
         }
     }
 }

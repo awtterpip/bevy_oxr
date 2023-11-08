@@ -23,9 +23,9 @@ jobs:
       - name: "Checks"
         run: |
           cargo update
-          #cargo fmt --check
-          #cargo clippy --no-deps --tests -- -D warnings
-          #cargo rustdoc -- -D warnings
+          cargo fmt --check
+          cargo clippy --no-deps --tests -- -D warnings
+          cargo rustdoc -- -D warnings
       - name: "Build"
         run: |
           cargo build

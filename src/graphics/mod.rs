@@ -12,6 +12,7 @@ use crate::resources::{
 
 use openxr as xr;
 
+#[allow(clippy::type_complexity)]
 pub fn initialize_xr_graphics(
     window: Option<RawHandleWrapper>,
 ) -> anyhow::Result<(

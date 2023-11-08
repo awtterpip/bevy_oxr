@@ -31,7 +31,7 @@ pub const RIGHT_XR_TEXTURE_HANDLE: ManualTextureViewHandle = ManualTextureViewHa
 /// Adds OpenXR support to an App
 #[derive(Default)]
 pub struct OpenXrPlugin;
-
+#[allow(clippy::type_complexity)]
 #[derive(Resource)]
 pub struct FutureXrResources(
     pub  Arc<
@@ -162,7 +162,8 @@ impl Plugin for OpenXrPlugin {
             let mut manual_texture_views = app.world.resource_mut::<ManualTextureViews>();
             manual_texture_views.insert(LEFT_XR_TEXTURE_HANDLE, left);
             manual_texture_views.insert(RIGHT_XR_TEXTURE_HANDLE, right);
-            drop(manual_texture_views);
+            //drop non drop
+            //drop(manual_texture_views);
             let render_app = app.sub_app_mut(RenderApp);
 
             render_app
@@ -219,6 +220,7 @@ impl PluginGroup for DefaultXrPlugins {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn xr_begin_frame(
     instance: Res<XrInstance>,
     session: Res<XrSession>,
@@ -334,7 +336,7 @@ pub fn end_frame(
         let _span = info_span!("xr_end_frame").entered();
         let result = swapchain.end(
             xr_frame_state.lock().unwrap().predicted_display_time,
-            &*views.lock().unwrap(),
+            &views.lock().unwrap(),
             &input.stage,
             **resolution,
             **environment_blend_mode,

@@ -1,11 +1,11 @@
-use bevy::prelude::{
-    info, Color, Gizmos, GlobalTransform, Plugin, Quat, Query, Res, Transform, Update, Vec2, Vec3,
-    With, Without,
-};
-
 use crate::{
     input::XrInput,
     resources::{XrFrameState, XrInstance, XrSession},
+};
+use bevy::log::info;
+use bevy::prelude::{
+    Color, Gizmos, GlobalTransform, Plugin, Quat, Query, Res, Transform, Update, Vec2, Vec3, With,
+    Without,
 };
 
 use crate::xr_input::{
@@ -14,7 +14,7 @@ use crate::xr_input::{
 };
 
 use super::{
-    handtracking::{HandTrackingRef, HandTrackingTracker},
+    handtracking::HandTrackingTracker,
     trackers::{OpenXRLeftController, OpenXRRightController, OpenXRTrackingRoot},
     QuatConv,
 };
@@ -29,6 +29,7 @@ impl Plugin for OpenXrDebugRenderer {
     }
 }
 
+#[allow(clippy::type_complexity, clippy::too_many_arguments)]
 pub fn draw_gizmos(
     mut gizmos: Gizmos,
     oculus_controller: Res<OculusController>,
@@ -93,7 +94,6 @@ pub fn draw_gizmos(
     //get controller
     let controller = oculus_controller.get_ref(&instance, &session, &frame_state, &xr_input);
     //tracking root?
-    let mut tracking_transform = &Transform::IDENTITY;
     let root = tracking_root_query.get_single();
     match root {
         Ok(position) => {
@@ -108,7 +108,6 @@ pub fn draw_gizmos(
                 0.2,
                 Color::RED,
             );
-            tracking_transform = position.0;
         }
         Err(_) => info!("too many tracking roots"),
     }

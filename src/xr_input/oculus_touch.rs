@@ -23,7 +23,7 @@ pub fn setup_oculus_controller(
     )
     .unwrap();
     session
-        .attach_action_sets(&action_sets.iter().map(|a| a).collect::<Vec<_>>())
+        .attach_action_sets(&action_sets.iter().collect::<Vec<_>>())
         .unwrap();
     commands.insert_resource(oculus_controller);
     commands.insert_resource(ActionSets(action_sets));
@@ -32,6 +32,7 @@ pub fn setup_oculus_controller(
 #[derive(Resource, Clone)]
 pub struct ActionSets(pub Vec<ActionSet>);
 
+#[allow(dead_code)]
 pub struct OculusControllerRef<'a> {
     oculus_controller: &'a OculusController,
     instance: &'a Instance,
@@ -85,7 +86,7 @@ impl OculusControllerRef<'_> {
     pub fn squeeze(&self, hand: Hand) -> f32 {
         let action = &self.oculus_controller.squeeze;
         action
-            .state(&self.session, subaction_path(hand))
+            .state(self.session, subaction_path(hand))
             .unwrap()
             .current_state
     }
@@ -93,7 +94,7 @@ impl OculusControllerRef<'_> {
         self.oculus_controller
             .trigger
             .inner
-            .state(&self.session, subaction_path(hand))
+            .state(self.session, subaction_path(hand))
             .unwrap()
             .current_state
     }
@@ -101,7 +102,7 @@ impl OculusControllerRef<'_> {
         self.oculus_controller
             .trigger
             .touch
-            .state(&self.session, subaction_path(hand))
+            .state(self.session, subaction_path(hand))
             .unwrap()
             .current_state
     }
@@ -109,7 +110,7 @@ impl OculusControllerRef<'_> {
         self.oculus_controller
             .x_button
             .inner
-            .state(&self.session, Path::NULL)
+            .state(self.session, Path::NULL)
             .unwrap()
             .current_state
     }
@@ -117,7 +118,7 @@ impl OculusControllerRef<'_> {
         self.oculus_controller
             .x_button
             .touch
-            .state(&self.session, Path::NULL)
+            .state(self.session, Path::NULL)
             .unwrap()
             .current_state
     }
@@ -125,7 +126,7 @@ impl OculusControllerRef<'_> {
         self.oculus_controller
             .y_button
             .inner
-            .state(&self.session, Path::NULL)
+            .state(self.session, Path::NULL)
             .unwrap()
             .current_state
     }
@@ -133,14 +134,14 @@ impl OculusControllerRef<'_> {
         self.oculus_controller
             .y_button
             .touch
-            .state(&self.session, Path::NULL)
+            .state(self.session, Path::NULL)
             .unwrap()
             .current_state
     }
     pub fn menu_button(&self) -> bool {
         self.oculus_controller
             .menu_button
-            .state(&self.session, Path::NULL)
+            .state(self.session, Path::NULL)
             .unwrap()
             .current_state
     }
@@ -148,7 +149,7 @@ impl OculusControllerRef<'_> {
         self.oculus_controller
             .a_button
             .inner
-            .state(&self.session, Path::NULL)
+            .state(self.session, Path::NULL)
             .unwrap()
             .current_state
     }
@@ -156,7 +157,7 @@ impl OculusControllerRef<'_> {
         self.oculus_controller
             .a_button
             .touch
-            .state(&self.session, Path::NULL)
+            .state(self.session, Path::NULL)
             .unwrap()
             .current_state
     }
@@ -164,7 +165,7 @@ impl OculusControllerRef<'_> {
         self.oculus_controller
             .b_button
             .inner
-            .state(&self.session, Path::NULL)
+            .state(self.session, Path::NULL)
             .unwrap()
             .current_state
     }
@@ -172,14 +173,14 @@ impl OculusControllerRef<'_> {
         self.oculus_controller
             .b_button
             .touch
-            .state(&self.session, Path::NULL)
+            .state(self.session, Path::NULL)
             .unwrap()
             .current_state
     }
     pub fn thumbstick_touch(&self, hand: Hand) -> bool {
         self.oculus_controller
             .thumbstick_touch
-            .state(&self.session, subaction_path(hand))
+            .state(self.session, subaction_path(hand))
             .unwrap()
             .current_state
     }
@@ -188,19 +189,19 @@ impl OculusControllerRef<'_> {
             x: self
                 .oculus_controller
                 .thumbstick_x
-                .state(&self.session, subaction_path(hand))
+                .state(self.session, subaction_path(hand))
                 .unwrap()
                 .current_state,
             y: self
                 .oculus_controller
                 .thumbstick_y
-                .state(&self.session, subaction_path(hand))
+                .state(self.session, subaction_path(hand))
                 .unwrap()
                 .current_state,
             click: self
                 .oculus_controller
                 .thumbstick_click
-                .state(&self.session, subaction_path(hand))
+                .state(self.session, subaction_path(hand))
                 .unwrap()
                 .current_state,
         }
@@ -208,7 +209,7 @@ impl OculusControllerRef<'_> {
     pub fn thumbrest_touch(&self, hand: Hand) -> bool {
         self.oculus_controller
             .thumbrest_touch
-            .state(&self.session, subaction_path(hand))
+            .state(self.session, subaction_path(hand))
             .unwrap()
             .current_state
     }
@@ -281,7 +282,7 @@ impl OculusController {
             },
             aim_space: Handed {
                 left: aim_pose.create_space(session.clone(), left_path, Posef::IDENTITY)?,
-                right: aim_pose.create_space(session.clone(), right_path, Posef::IDENTITY)?,
+                right: aim_pose.create_space(session, right_path, Posef::IDENTITY)?,
             },
             grip_pose,
             aim_pose,
