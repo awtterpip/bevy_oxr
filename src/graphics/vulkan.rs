@@ -51,7 +51,6 @@ pub fn initialize_xr_graphics(
 
     let mut enabled_extensions = xr::ExtensionSet::default();
     enabled_extensions.khr_vulkan_enable2 = true;
-    enabled_extensions.khr_convert_timespec_time = true;
     #[cfg(target_os = "android")]
     {
         enabled_extensions.khr_android_create_instance = true;
