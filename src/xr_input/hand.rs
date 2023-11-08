@@ -31,7 +31,7 @@ impl Plugin for OpenXrHandInput {
             .add_systems(PreUpdate, update_hand_states)
             .add_systems(Startup, spawn_hand_entities)
             .insert_resource(HandStatesResource::default());
-            // .insert_resource(HandInputSource::default());
+        // .insert_resource(HandInputSource::default());
     }
 }
 
@@ -1068,7 +1068,7 @@ pub fn update_hand_skeletons(
         Without<OpenXRTrackingRoot>,
     )>,
     input_source: Option<Res<HandInputSource>>,
-    hand_tracking: Res<HandTrackingTracker>,
+    hand_tracking: Option<Res<HandTrackingTracker>>,
     xr_input: Res<XrInput>,
     xr_frame_state: Res<XrFrameState>,
 ) {
@@ -1104,35 +1104,39 @@ pub fn update_hand_skeletons(
                     None => info!("hand states resource not initialized yet"),
                 }
             }
-            HandInputSource::OpenXr => {
-                let hand_ref = hand_tracking.get_ref(&xr_input, &xr_frame_state);
-                let (root_transform, _) = tracking_root_query.get_single().unwrap();
-                let left_data = hand_ref.get_left_poses();
-                let right_data = hand_ref.get_right_poses();
+            HandInputSource::OpenXr => match hand_tracking {
+                Some(tracking) => {
+                    let hand_ref = tracking.get_ref(&xr_input, &xr_frame_state);
+                    let (root_transform, _) = tracking_root_query.get_single().unwrap();
+                    let left_data = hand_ref.get_left_poses();
+                    let right_data = hand_ref.get_right_poses();
 
-                for (entity, mut transform, bone, hand, radius, _) in hand_bone_query.iter_mut() {
-                    let bone_data = match (hand, left_data, right_data) {
-                        (Hand::Left, Some(data), _) => data[bone.get_index_from_bone()],
-                        (Hand::Right, _, Some(data)) => data[bone.get_index_from_bone()],
-                        _ => continue,
-                    };
-                    match radius {
-                        Some(mut r) => r.0 = bone_data.radius,
-                        None => {
-                            commands
-                                .entity(entity)
-                                .insert(HandBoneRadius(bone_data.radius));
+                    for (entity, mut transform, bone, hand, radius, _) in hand_bone_query.iter_mut()
+                    {
+                        let bone_data = match (hand, left_data, right_data) {
+                            (Hand::Left, Some(data), _) => data[bone.get_index_from_bone()],
+                            (Hand::Right, _, Some(data)) => data[bone.get_index_from_bone()],
+                            _ => continue,
+                        };
+                        match radius {
+                            Some(mut r) => r.0 = bone_data.radius,
+                            None => {
+                                commands
+                                    .entity(entity)
+                                    .insert(HandBoneRadius(bone_data.radius));
+                            }
                         }
+                        *transform = transform
+                            .with_translation(
+                                root_transform.transform_point(bone_data.pose.position.to_vec3()),
+                            )
+                            .with_rotation(
+                                root_transform.rotation * bone_data.pose.orientation.to_quat(),
+                            )
                     }
-                    *transform = transform
-                        .with_translation(
-                            root_transform.transform_point(bone_data.pose.position.to_vec3()),
-                        )
-                        .with_rotation(
-                            root_transform.rotation * bone_data.pose.orientation.to_quat(),
-                        )
                 }
-            }
+                None => {}
+            },
         },
         None => {
             info!("hand input source not initialized");
