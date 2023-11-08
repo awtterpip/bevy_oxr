@@ -5,6 +5,7 @@ pub mod resources;
 pub mod xr_input;
 
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use crate::xr_input::oculus_touch::ActionSets;
 use bevy::app::PluginGroupBuilder;
@@ -20,6 +21,7 @@ use input::XrInput;
 use openxr as xr;
 use resources::*;
 use xr_input::controllers::XrControllerType;
+use xr_input::handtracking::HandTrackingTracker;
 use xr_input::OpenXrInput;
 
 const VIEW_TYPE: xr::ViewConfigurationType = xr::ViewConfigurationType::PRIMARY_STEREO;
@@ -79,6 +81,7 @@ impl Plugin for OpenXrPlugin {
             views,
             frame_state,
         ) = graphics::initialize_xr_graphics(primary_window).unwrap();
+        // std::thread::sleep(Duration::from_secs(5));
         debug!("Configured wgpu adapter Limits: {:#?}", device.limits());
         debug!("Configured wgpu adapter Features: {:#?}", device.features());
         let mut future_xr_resources_inner = future_xr_resources_wrapper.lock().unwrap();
@@ -143,7 +146,8 @@ impl Plugin for OpenXrPlugin {
                 .insert_resource(input.clone())
                 .insert_resource(views.clone())
                 .insert_resource(frame_state.clone())
-                .insert_resource(action_sets.clone());
+                .insert_resource(action_sets.clone())
+                .insert_resource(HandTrackingTracker::new(&session).unwrap());
 
             let (left, right) = swapchain.get_render_views();
             let left = ManualTextureView {
@@ -330,18 +334,15 @@ pub fn end_frame(
     }
     {
         let _span = info_span!("xr_end_frame").entered();
-        let result = swapchain
+        swapchain
             .end(
                 xr_frame_state.lock().unwrap().predicted_display_time,
                 &*views.lock().unwrap(),
                 &input.stage,
                 **resolution,
                 **environment_blend_mode,
-            );
-        match result {
-            Ok(_) => {},
-            Err(e) => warn!("error: {}", e),
-        }
+            )
+            .unwrap();
     }
 }
 
