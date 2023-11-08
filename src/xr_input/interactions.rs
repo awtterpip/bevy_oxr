@@ -21,38 +21,32 @@ pub struct XRSocketInteractor;
 pub struct Touched(pub bool);
 
 #[derive(Component, Clone, Copy, PartialEq, PartialOrd, Debug)]
+#[derive(Default)]
 pub enum XRInteractableState {
+    #[default]
     Idle,
     Hover,
     Select,
 }
 
-impl Default for XRInteractableState {
-    fn default() -> Self {
-        XRInteractableState::Idle
-    }
-}
+
 
 #[derive(Component)]
+#[derive(Default)]
 pub enum XRInteractorState {
+    #[default]
     Idle,
     Selecting,
 }
-impl Default for XRInteractorState {
-    fn default() -> Self {
-        XRInteractorState::Idle
-    }
-}
+
 #[derive(Component)]
+#[derive(Default)]
 pub enum XRSelection {
+    #[default]
     Empty,
     Full(Entity),
 }
-impl Default for XRSelection {
-    fn default() -> Self {
-        XRSelection::Empty
-    }
-}
+
 
 #[derive(Component)]
 pub struct XRInteractable;
@@ -67,7 +61,7 @@ pub fn draw_socket_gizmos(
     )>,
 ) {
     for (global, state, _entity, _socket) in interactor_query.iter() {
-        let mut transform = global.compute_transform().clone();
+        let mut transform = global.compute_transform();
         transform.scale = Vec3::splat(0.1);
         let color = match state {
             XRInteractorState::Idle => Color::BLUE,
@@ -111,7 +105,7 @@ pub fn draw_interaction_gizmos(
         let transform = interactor_global_transform.compute_transform();
         match direct {
             Some(_) => {
-                let mut local = transform.clone();
+                let mut local = transform;
                 local.scale = Vec3::splat(0.1);
                 let quat = Quat::from_euler(
                     bevy::prelude::EulerRot::XYZ,
@@ -377,5 +371,5 @@ fn ray_sphere_intersection(center: Vec3, radius: f32, ray_origin: Vec3, ray_dir:
     }
 
     // let distance = if t0 < t1 { t0 } else { t1 };
-    return true;
+    true
 }

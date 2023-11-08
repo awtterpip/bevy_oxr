@@ -352,7 +352,8 @@ pub fn initialize_xr_graphics(
                     None,
                 )
             };
-            let texture = unsafe {
+            
+            unsafe {
                 wgpu_device.create_texture_from_hal::<V>(
                     wgpu_hal_texture,
                     &wgpu::TextureDescriptor {
@@ -371,8 +372,7 @@ pub fn initialize_xr_graphics(
                         view_formats: &[],
                     },
                 )
-            };
-            texture
+            }
         })
         .collect();
 

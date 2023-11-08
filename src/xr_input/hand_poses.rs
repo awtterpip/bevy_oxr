@@ -137,7 +137,7 @@ pub fn get_simulated_open_hand_transforms(hand: Hand) -> [Transform; 26] {
         },
     ];
     let result = bones_to_transforms(test_hand_bones, hand);
-    return result;
+    result
 }
 
 fn bones_to_transforms(hand_bones: [Vec3; 26], hand: Hand) -> [Transform; 26] {
@@ -155,7 +155,7 @@ fn bones_to_transforms(hand_bones: [Vec3; 26], hand: Hand) -> [Transform; 26] {
                     scale: Vec3::splat(1.0),
                 }
             }
-            return result_array;
+            result_array
         }
         Hand::Right => {
             let mut result_array: [Transform; 26] = [Transform::default(); 26];
@@ -170,7 +170,7 @@ fn bones_to_transforms(hand_bones: [Vec3; 26], hand: Hand) -> [Transform; 26] {
                     scale: Vec3::splat(1.0),
                 }
             }
-            return result_array;
+            result_array
         }
     }
 }
@@ -516,5 +516,5 @@ pub fn get_test_hand_pose_array() -> [Posef; 26] {
             },
         },
     ];
-    return test_hand_pose;
+    test_hand_pose
 }

@@ -145,7 +145,7 @@ pub fn proto_locomotion(
                             gizmos.circle(global, Vec3::Y, 0.1, Color::GREEN);
                             position.0.rotate_around(global, smoth_rot);
                         }
-                        None => return,
+                        None => (),
                     }
                 }
                 RotationType::Snap => {

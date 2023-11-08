@@ -188,9 +188,9 @@ pub fn spawn_hand_entities(mut commands: Commands) {
             let boneid = commands
                 .spawn((
                     SpatialBundle::default(),
-                    bone.clone(),
+                    *bone,
                     OpenXRTracker,
-                    hand.clone(),
+                    *hand,
                 ))
                 .id();
             match hand {
@@ -466,41 +466,35 @@ pub fn update_hand_states(
 }
 
 #[derive(Clone, Copy)]
+#[derive(Default)]
 pub enum ButtonState {
+    #[default]
     OFF,
     TOUCHED,
     PRESSED,
 }
 
-impl Default for ButtonState {
-    fn default() -> Self {
-        ButtonState::OFF
-    }
-}
+
 #[derive(Clone, Copy)]
+#[derive(Default)]
 pub enum ThumbstickState {
+    #[default]
     OFF,
     TOUCHED,
     PRESSED,
 }
 
-impl Default for ThumbstickState {
-    fn default() -> Self {
-        ThumbstickState::OFF
-    }
-}
+
 #[derive(Clone, Copy)]
+#[derive(Default)]
 pub enum TriggerState {
+    #[default]
     OFF,
     TOUCHED,
     PULLED,
 }
 
-impl Default for TriggerState {
-    fn default() -> Self {
-        TriggerState::OFF
-    }
-}
+
 
 #[derive(Default, Resource)]
 pub struct HandStatesResource {
@@ -509,6 +503,7 @@ pub struct HandStatesResource {
 }
 
 #[derive(Clone, Copy)]
+#[derive(Default)]
 pub struct HandState {
     pub grip: f32,
     pub trigger_state: TriggerState,
@@ -545,21 +540,11 @@ impl HandState {
             ButtonState::PRESSED => return 0.25,
         };
         //if no thumb actions taken return open position
-        return 0.0;
+        0.0
     }
 }
 
-impl Default for HandState {
-    fn default() -> Self {
-        Self {
-            grip: Default::default(),
-            trigger_state: Default::default(),
-            a_button: Default::default(),
-            b_button: Default::default(),
-            thumbstick: Default::default(),
-        }
-    }
-}
+
 
 pub fn update_hand_bones_emulated(
     controller_transform: Transform,
@@ -911,7 +896,7 @@ fn get_bone_curl_angle(bone: HandJoint, curl: f32) -> f32 {
         _ => 1.0,
     };
     let curl_angle = -((mul * curl * 80.0) + 5.0);
-    return curl_angle;
+    curl_angle
 }
 
 #[allow(dead_code)]
@@ -1133,7 +1118,6 @@ pub fn update_hand_skeletons(
         },
         None => {
             info!("hand input source not initialized");
-            return;
         }
     }
 }
