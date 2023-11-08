@@ -895,8 +895,8 @@ fn get_bone_curl_angle(bone: HandJoint, curl: f32) -> f32 {
         HandJoint::THUMB_PROXIMAL => 0.0,
         _ => 1.0,
     };
-    let curl_angle = -((mul * curl * 80.0) + 5.0);
-    curl_angle
+    
+    -((mul * curl * 80.0) + 5.0)
 }
 
 #[allow(dead_code)]
