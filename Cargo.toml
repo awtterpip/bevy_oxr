@@ -7,7 +7,7 @@ repository = "https://github.com/awtterpip/bevy_openxr"
 license = "MIT/Apache-2.0"
 
 [features]
-default = ["openxr/mint", "linked"]
+default = ["openxr/mint"]
 linked = ["openxr/linked"]
 
 [workspace]
