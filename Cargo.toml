@@ -39,9 +39,5 @@ bevy_rapier3d = { git = "https://github.com/devil-ira/bevy_rapier", branch = "be
 name = "xr"
 path = "examples/xr.rs"
 
-[[example]]
-name = "demo"
-path = "examples/demo/src/main.rs"
-
 [profile.release]
 debug = true
