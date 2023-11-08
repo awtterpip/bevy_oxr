@@ -55,6 +55,9 @@ pub fn initialize_xr_graphics(
     {
         enabled_extensions.khr_android_create_instance = true;
     }
+    enabled_extensions.ext_hand_tracking = available_extensions.ext_hand_tracking;
+    // enabled_extensions.ext_hand_joints_motion_range = available_extensions.ext_hand_joints_motion_range;
+    
 
     let available_layers = xr_entry.enumerate_layers()?;
     info!("available xr layers: {:#?}", available_layers);

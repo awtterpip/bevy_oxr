@@ -7,6 +7,7 @@ pub mod trackers;
 pub mod xr_camera;
 pub mod hand_poses;
 pub mod hand;
+pub mod handtracking;
 
 use crate::resources::XrSession;
 use crate::xr_begin_frame;

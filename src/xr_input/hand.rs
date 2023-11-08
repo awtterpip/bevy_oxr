@@ -1,9 +1,9 @@
 use std::f32::consts::PI;
 
 use bevy::prelude::{
-    default, info, Color, Commands, Component, Entity, Gizmos, GlobalTransform, Plugin, PostUpdate,
-    PreUpdate, Quat, Query, Res, ResMut, Resource, SpatialBundle, Startup, Transform, Update, Vec3,
-    With,
+    default, info, Color, Commands, Component, Deref, DerefMut, Entity, Gizmos, GlobalTransform,
+    Plugin, PostUpdate, PreUpdate, Quat, Query, Res, ResMut, Resource, SpatialBundle, Startup,
+    Transform, Update, Vec3, With, Without,
 };
 use openxr::{HandJoint, Posef};
 
@@ -15,9 +15,10 @@ use crate::{
 
 use super::{
     hand_poses::get_simulated_open_hand_transforms,
+    handtracking::HandTrackingTracker,
     oculus_touch::OculusController,
-    trackers::{OpenXRLeftController, OpenXRRightController, OpenXRTracker},
-    Hand,
+    trackers::{OpenXRLeftController, OpenXRRightController, OpenXRTracker, OpenXRTrackingRoot},
+    Hand, QuatConv,
 };
 
 /// add debug renderer for controllers
@@ -52,7 +53,7 @@ pub enum HandInputSource {
 
 impl Default for HandInputSource {
     fn default() -> Self {
-        HandInputSource::Emulated
+        HandInputSource::OpenXr
     }
 }
 
@@ -183,34 +184,7 @@ impl Default for LittleResource {
 
 pub fn spawn_hand_entities(mut commands: Commands) {
     let hands = [Hand::Left, Hand::Right];
-    let bones = [
-        HandBone::Palm,
-        HandBone::Wrist,
-        HandBone::ThumbMetacarpal,
-        HandBone::ThumbProximal,
-        HandBone::ThumbDistal,
-        HandBone::ThumbTip,
-        HandBone::IndexMetacarpal,
-        HandBone::IndexProximal,
-        HandBone::IndexIntermediate,
-        HandBone::IndexDistal,
-        HandBone::IndexTip,
-        HandBone::MiddleMetacarpal,
-        HandBone::MiddleProximal,
-        HandBone::MiddleIntermediate,
-        HandBone::MiddleDistal,
-        HandBone::MiddleTip,
-        HandBone::RingMetacarpal,
-        HandBone::RingProximal,
-        HandBone::RingIntermediate,
-        HandBone::RingDistal,
-        HandBone::RingTip,
-        HandBone::LittleMetacarpal,
-        HandBone::LittleProximal,
-        HandBone::LittleIntermediate,
-        HandBone::LittleDistal,
-        HandBone::LittleTip,
-    ];
+    let bones = HandBone::get_all_bones();
     //hand resource
     let mut hand_resource = HandsResource { ..default() };
     for hand in hands.iter() {
@@ -318,6 +292,68 @@ pub enum HandBone {
     LittleIntermediate,
     LittleDistal,
     LittleTip,
+}
+impl HandBone {
+    pub const fn get_all_bones() -> [HandBone; 26] {
+        [
+            HandBone::Palm,
+            HandBone::Wrist,
+            HandBone::ThumbMetacarpal,
+            HandBone::ThumbProximal,
+            HandBone::ThumbDistal,
+            HandBone::ThumbTip,
+            HandBone::IndexMetacarpal,
+            HandBone::IndexProximal,
+            HandBone::IndexIntermediate,
+            HandBone::IndexDistal,
+            HandBone::IndexTip,
+            HandBone::MiddleMetacarpal,
+            HandBone::MiddleProximal,
+            HandBone::MiddleIntermediate,
+            HandBone::MiddleDistal,
+            HandBone::MiddleTip,
+            HandBone::RingMetacarpal,
+            HandBone::RingProximal,
+            HandBone::RingIntermediate,
+            HandBone::RingDistal,
+            HandBone::RingTip,
+            HandBone::LittleMetacarpal,
+            HandBone::LittleProximal,
+            HandBone::LittleIntermediate,
+            HandBone::LittleDistal,
+            HandBone::LittleTip,
+        ]
+    }
+    pub fn get_index_from_bone(&self) -> usize {
+        match &self {
+            HandBone::Palm => 0,
+            HandBone::Wrist => 1,
+            HandBone::ThumbMetacarpal => 2,
+            HandBone::ThumbProximal => 3,
+            HandBone::ThumbDistal => 4,
+            HandBone::ThumbTip => 5,
+            HandBone::IndexMetacarpal => 6,
+            HandBone::IndexProximal => 7,
+            HandBone::IndexIntermediate => 8,
+            HandBone::IndexDistal => 9,
+            HandBone::IndexTip => 10,
+            HandBone::MiddleMetacarpal => 11,
+            HandBone::MiddleProximal => 12,
+            HandBone::MiddleIntermediate => 13,
+            HandBone::MiddleDistal => 14,
+            HandBone::MiddleTip => 15,
+            HandBone::RingMetacarpal => 16,
+            HandBone::RingProximal => 17,
+            HandBone::RingIntermediate => 18,
+            HandBone::RingDistal => 19,
+            HandBone::RingTip => 20,
+            HandBone::LittleMetacarpal => 21,
+            HandBone::LittleProximal => 22,
+            HandBone::LittleIntermediate => 23,
+            HandBone::LittleDistal => 24,
+            HandBone::LittleTip => 25,
+        }
+    }
 }
 
 pub fn update_hand_states(
@@ -533,7 +569,15 @@ pub fn update_hand_bones_emulated(
     controller_transform: Transform,
     hand: Hand,
     hand_state: HandState,
-    hand_bone_query: &mut Query<(&mut Transform, &HandBone, &Hand)>,
+
+    hand_bone_query: &mut Query<(
+        Entity,
+        &mut Transform,
+        &HandBone,
+        &Hand,
+        Option<&mut HandBoneRadius>,
+        Without<OpenXRTrackingRoot>,
+    )>,
 ) {
     let left_hand_rot = Quat::from_rotation_y(180.0 * PI / 180.0);
     let hand_translation: Vec3 = match hand {
@@ -821,7 +865,7 @@ pub fn update_hand_bones_emulated(
     }
 
     //now that we have all the transforms lets assign them
-    for (mut transform, handbone, bonehand) in hand_bone_query.iter_mut() {
+    for (_, mut transform, handbone, bonehand, _, _) in hand_bone_query.iter_mut() {
         if *bonehand == hand {
             //if the hands match lets go
             let index = match_index(handbone);
@@ -1010,11 +1054,23 @@ fn log_hand(hand_pose: [Posef; 26]) {
 }
 
 pub fn update_hand_skeletons(
+    tracking_root_query: Query<(&Transform, With<OpenXRTrackingRoot>)>,
     right_controller_query: Query<(&GlobalTransform, With<OpenXRRightController>)>,
     left_controller_query: Query<(&GlobalTransform, With<OpenXRLeftController>)>,
     hand_states_option: Option<ResMut<HandStatesResource>>,
-    mut hand_bone_query: Query<(&mut Transform, &HandBone, &Hand)>,
+    mut commands: Commands,
+    mut hand_bone_query: Query<(
+        Entity,
+        &mut Transform,
+        &HandBone,
+        &Hand,
+        Option<&mut HandBoneRadius>,
+        Without<OpenXRTrackingRoot>,
+    )>,
     input_source: Option<Res<HandInputSource>>,
+    hand_tracking: Res<HandTrackingTracker>,
+    xr_input: Res<XrInput>,
+    xr_frame_state: Res<XrFrameState>,
 ) {
     match input_source {
         Some(res) => match *res {
@@ -1049,8 +1105,33 @@ pub fn update_hand_skeletons(
                 }
             }
             HandInputSource::OpenXr => {
-                info!("hand input source is open XR: this is not implemented yet");
-                return;
+                let hand_ref = hand_tracking.get_ref(&xr_input, &xr_frame_state);
+                let (root_transform, _) = tracking_root_query.get_single().unwrap();
+                let left_data = hand_ref.get_left_poses();
+                let right_data = hand_ref.get_right_poses();
+
+                for (entity, mut transform, bone, hand, radius, _) in hand_bone_query.iter_mut() {
+                    let bone_data = match (hand, left_data, right_data) {
+                        (Hand::Left, Some(data), _) => data[bone.get_index_from_bone()],
+                        (Hand::Right, _, Some(data)) => data[bone.get_index_from_bone()],
+                        _ => continue,
+                    };
+                    match radius {
+                        Some(mut r) => r.0 = bone_data.radius,
+                        None => {
+                            commands
+                                .entity(entity)
+                                .insert(HandBoneRadius(bone_data.radius));
+                        }
+                    }
+                    *transform = transform
+                        .with_translation(
+                            root_transform.transform_point(bone_data.pose.position.to_vec3()),
+                        )
+                        .with_rotation(
+                            root_transform.rotation * bone_data.pose.orientation.to_quat(),
+                        )
+                }
             }
         },
         None => {
@@ -1060,10 +1141,21 @@ pub fn update_hand_skeletons(
     }
 }
 
-pub fn draw_hand_entities(mut gizmos: Gizmos, query: Query<(&Transform, &HandBone)>) {
-    for (transform, hand_bone) in query.iter() {
+#[derive(Debug, Component, DerefMut, Deref)]
+pub struct HandBoneRadius(pub f32);
+
+pub fn draw_hand_entities(
+    mut gizmos: Gizmos,
+    query: Query<(&Transform, &HandBone, Option<&HandBoneRadius>)>,
+) {
+    for (transform, hand_bone, hand_bone_radius) in query.iter() {
         let (radius, color) = get_bone_gizmo_style(hand_bone);
-        gizmos.sphere(transform.translation, transform.rotation, radius, color);
+        gizmos.sphere(
+            transform.translation,
+            transform.rotation,
+            hand_bone_radius.map_or(radius, |r| r.0),
+            color,
+        );
     }
 }
 

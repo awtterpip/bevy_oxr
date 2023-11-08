@@ -13,7 +13,11 @@ use crate::xr_input::{
     Hand,
 };
 
-use super::trackers::{OpenXRLeftController, OpenXRRightController, OpenXRTrackingRoot};
+use super::{
+    handtracking::{HandTrackingRef, HandTrackingTracker},
+    trackers::{OpenXRLeftController, OpenXRRightController, OpenXRTrackingRoot},
+    QuatConv,
+};
 
 /// add debug renderer for controllers
 #[derive(Default)]
@@ -32,7 +36,12 @@ pub fn draw_gizmos(
     xr_input: Res<XrInput>,
     instance: Res<XrInstance>,
     session: Res<XrSession>,
-    tracking_root_query: Query<(&mut Transform, With<OpenXRTrackingRoot>)>,
+    tracking_root_query: Query<(
+        &mut Transform,
+        With<OpenXRTrackingRoot>,
+        Without<OpenXRLeftController>,
+        Without<OpenXRRightController>,
+    )>,
     left_controller_query: Query<(
         &GlobalTransform,
         With<OpenXRLeftController>,
@@ -45,7 +54,40 @@ pub fn draw_gizmos(
         Without<OpenXRLeftController>,
         Without<OpenXRTrackingRoot>,
     )>,
+    hand_tracking: Res<HandTrackingTracker>,
 ) {
+    let handtracking_ref = hand_tracking.get_ref(&xr_input, &frame_state);
+    if let Some(joints) = handtracking_ref.get_left_poses() {
+        for joint in joints {
+            let p = joint.pose.position;
+            let r = joint.pose.orientation;
+            let quat = r.to_quat();
+            let trans = Transform::from_rotation(quat);
+            gizmos.circle(
+                (p.x, p.y, p.z).into(),
+                trans.forward(),
+                joint.radius,
+                Color::ORANGE_RED,
+            );
+        }
+    } else {
+        info!("left_hand_poses returned None");
+    }
+    if let Some(joints) = handtracking_ref.get_right_poses() {
+        for joint in joints {
+            let p = joint.pose.position;
+            let r = joint.pose.orientation;
+            let quat = r.to_quat();
+            let trans = Transform::from_rotation(quat);
+            gizmos.circle(
+                (p.x, p.y, p.z).into(),
+                trans.forward(),
+                joint.radius,
+                Color::LIME_GREEN,
+            );
+        }
+        return;
+    }
     //lock frame
     let frame_state = *frame_state.lock().unwrap();
     //get controller

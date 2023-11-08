@@ -20,6 +20,7 @@ use input::XrInput;
 use openxr as xr;
 use resources::*;
 use xr_input::controllers::XrControllerType;
+use xr_input::handtracking::HandTrackingTracker;
 use xr_input::OpenXrInput;
 
 const VIEW_TYPE: xr::ViewConfigurationType = xr::ViewConfigurationType::PRIMARY_STEREO;
@@ -143,7 +144,8 @@ impl Plugin for OpenXrPlugin {
                 .insert_resource(input.clone())
                 .insert_resource(views.clone())
                 .insert_resource(frame_state.clone())
-                .insert_resource(action_sets.clone());
+                .insert_resource(action_sets.clone())
+                .insert_resource(HandTrackingTracker::new(&session).unwrap());
 
             let (left, right) = swapchain.get_render_views();
             let left = ManualTextureView {
@@ -330,16 +332,15 @@ pub fn end_frame(
     }
     {
         let _span = info_span!("xr_end_frame").entered();
-        let result = swapchain
-            .end(
-                xr_frame_state.lock().unwrap().predicted_display_time,
-                &*views.lock().unwrap(),
-                &input.stage,
-                **resolution,
-                **environment_blend_mode,
-            );
+        let result = swapchain.end(
+            xr_frame_state.lock().unwrap().predicted_display_time,
+            &*views.lock().unwrap(),
+            &input.stage,
+            **resolution,
+            **environment_blend_mode,
+        );
         match result {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => warn!("error: {}", e),
         }
     }
