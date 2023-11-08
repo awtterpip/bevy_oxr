@@ -88,11 +88,8 @@ fn action_set_system(action_sets: Res<ActionSets>, session: Res<XrSession>) {
         active_action_sets.push(openxr::ActiveActionSet::new(i));
     }
     //info!("action sets: {:#?}", action_sets.0.len());
-    match session.sync_actions(&active_action_sets) {
-        Err(err) => {
-            warn!("{}", err);
-        }
-        _ => {}
+    if let Err(err) = session.sync_actions(&active_action_sets) {
+        warn!("{}", err);
     }
 }
 

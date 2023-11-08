@@ -162,7 +162,8 @@ impl Plugin for OpenXrPlugin {
             let mut manual_texture_views = app.world.resource_mut::<ManualTextureViews>();
             manual_texture_views.insert(LEFT_XR_TEXTURE_HANDLE, left);
             manual_texture_views.insert(RIGHT_XR_TEXTURE_HANDLE, right);
-            drop(manual_texture_views);
+            //drop non drop
+            //drop(manual_texture_views);
             let render_app = app.sub_app_mut(RenderApp);
 
             render_app

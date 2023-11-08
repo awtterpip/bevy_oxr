@@ -75,15 +75,12 @@ pub fn update_open_xr_controllers(
     let left_aim_space = controller.aim_space(Hand::Left);
     let left_postion = left_grip_space.0.pose.position.to_vec3();
     let left_aim_pose = left_controller_query.get_single_mut().unwrap().1;
-    match left_aim_pose {
-        Some(mut pose) => {
-            *pose = AimPose(Transform {
-                translation: left_aim_space.0.pose.position.to_vec3(),
-                rotation: left_aim_space.0.pose.orientation.to_quat(),
-                scale: Vec3::splat(1.0),
-            });
-        }
-        None => (),
+    if let Some(mut pose) = left_aim_pose {
+        *pose = AimPose(Transform {
+            translation: left_aim_space.0.pose.position.to_vec3(),
+            rotation: left_aim_space.0.pose.orientation.to_quat(),
+            scale: Vec3::splat(1.0),
+        });
     }
 
     left_controller_query
@@ -100,15 +97,12 @@ pub fn update_open_xr_controllers(
     let right_postion = right_grip_space.0.pose.position.to_vec3();
 
     let right_aim_pose = right_controller_query.get_single_mut().unwrap().1;
-    match right_aim_pose {
-        Some(mut pose) => {
-            *pose = AimPose(Transform {
-                translation: right_aim_space.0.pose.position.to_vec3(),
-                rotation: right_aim_space.0.pose.orientation.to_quat(),
-                scale: Vec3::splat(1.0),
-            });
-        }
-        None => (),
+    if let Some(mut pose) = right_aim_pose {
+        *pose = AimPose(Transform {
+            translation: right_aim_space.0.pose.position.to_vec3(),
+            rotation: right_aim_space.0.pose.orientation.to_quat(),
+            scale: Vec3::splat(1.0),
+        });
     }
 
     right_controller_query

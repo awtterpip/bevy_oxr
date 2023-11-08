@@ -46,16 +46,11 @@ impl Plugin for HandInputDebugRenderer {
     }
 }
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub enum HandInputSource {
     Emulated,
+    #[default]
     OpenXr,
-}
-
-impl Default for HandInputSource {
-    fn default() -> Self {
-        HandInputSource::OpenXr
-    }
 }
 
 #[derive(Resource, Default, Clone, Copy)]
