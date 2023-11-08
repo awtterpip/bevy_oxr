@@ -18,7 +18,7 @@ use super::{
     handtracking::HandTrackingTracker,
     oculus_touch::OculusController,
     trackers::{OpenXRLeftController, OpenXRRightController, OpenXRTracker, OpenXRTrackingRoot},
-    Hand, QuatConv, hands::HandBone,
+    Hand, QuatConv, hands::{HandBone, BoneTrackingStatus},
 };
 
 /// add debug renderer for controllers
@@ -27,11 +27,12 @@ pub struct OpenXrHandInput;
 
 impl Plugin for OpenXrHandInput {
     fn build(&self, app: &mut bevy::prelude::App) {
-        app.add_systems(Update, update_hand_skeletons)
-            .add_systems(PreUpdate, update_hand_states)
-            .add_systems(Startup, spawn_hand_entities)
-            .insert_resource(HandStatesResource::default())
-            .insert_resource(HandInputSource::default());
+        app
+            // .add_systems(Update, update_hand_skeletons)
+            // .add_systems(PreUpdate, update_hand_states)
+            .add_systems(Startup, spawn_hand_entities);
+            // .insert_resource(HandStatesResource::default())
+            // .insert_resource(HandInputSource::default());
     }
 }
 
@@ -195,6 +196,7 @@ pub fn spawn_hand_entities(mut commands: Commands) {
                     bone.clone(),
                     OpenXRTracker,
                     hand.clone(),
+                    BoneTrackingStatus::Emulated,
                 ))
                 .id();
             match hand {

@@ -117,7 +117,7 @@ impl<'a> HandTrackingRef<'a> {
 impl Plugin for HandTrackingPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
-            Update,
+            PreUpdate,
             (update_hand_bones).run_if(|dh: Option<Res<DisableHandTracking>>| {
                 !dh.is_some_and(|v| *v == DisableHandTracking::Both)
             }),
@@ -126,6 +126,7 @@ impl Plugin for HandTrackingPlugin {
 }
 
 pub fn update_hand_bones(
+    disabled_tracking: Res<DisableHandTracking>,
     hand_tracking: Res<HandTrackingData>,
     xr_input: Res<XrInput>,
     xr_frame_state: Res<XrFrameState>,
@@ -145,6 +146,17 @@ pub fn update_hand_bones(
     bones
         .par_iter_mut()
         .for_each(|(mut transform, hand, bone, mut radius, mut status)| {
+            match (&hand, disabled_tracking.as_ref()) {
+                (Hand::Left, DisableHandTracking::OnlyLeft) => {
+                    *status = BoneTrackingStatus::Emulated;
+                    return;
+                }
+                (Hand::Right, DisableHandTracking::OnlyRight) => {
+                    *status = BoneTrackingStatus::Emulated;
+                    return;
+                }
+                _ => {}
+            }
             let bone_data = match (hand, &left_hand_data, &right_hand_data) {
                 (Hand::Left, Some(data), _) => data.get_joint(*bone),
                 (Hand::Right, _, Some(data)) => data.get_joint(*bone),

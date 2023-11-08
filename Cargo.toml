@@ -10,7 +10,7 @@ default = ["openxr/mint", "linked"]
 linked = ["openxr/linked"]
 
 [workspace]
-members = [ "examples/android" ]
+members = ["examples/android", "examples/demo"]
 
 [dependencies]
 anyhow = "1.0.75"
@@ -31,10 +31,7 @@ openxr = { version = "0.17.1", features = ["static"] }
 bevy = "0.12"
 color-eyre = "0.6.2"
 # bevy_rapier3d = { git = "https://github.com/Schmarni-Dev/bevy_rapier" }
-bevy_rapier3d = { git = "https://github.com/alexichepura/bevy_rapier", version = "0.22.0", branch = "bevy-012"}
-
-[workspace]
-members = ["examples/demo"]
+bevy_rapier3d = { git = "https://github.com/devil-ira/bevy_rapier", version = "0.22.0", branch = "bevy-0.12" }
 
 [[example]]
 name = "xr"

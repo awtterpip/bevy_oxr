@@ -7,6 +7,7 @@ pub mod xr_input;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use crate::xr_input::hands::hand_tracking::DisableHandTracking;
 use crate::xr_input::oculus_touch::ActionSets;
 use bevy::app::PluginGroupBuilder;
 use bevy::ecs::system::SystemState;
@@ -21,6 +22,8 @@ use input::XrInput;
 use openxr as xr;
 use resources::*;
 use xr_input::controllers::XrControllerType;
+use xr_input::hands::emulated::EmulatedHandsPlugin;
+use xr_input::hands::hand_tracking::HandTrackingPlugin;
 use xr_input::handtracking::HandTrackingTracker;
 use xr_input::OpenXrInput;
 
@@ -30,8 +33,13 @@ pub const LEFT_XR_TEXTURE_HANDLE: ManualTextureViewHandle = ManualTextureViewHan
 pub const RIGHT_XR_TEXTURE_HANDLE: ManualTextureViewHandle = ManualTextureViewHandle(3383858418);
 
 /// Adds OpenXR support to an App
-#[derive(Default)]
-pub struct OpenXrPlugin;
+pub struct OpenXrPlugin(pub bool);
+
+impl Default for OpenXrPlugin {
+    fn default() -> Self {
+        OpenXrPlugin(true)
+    }
+}
 
 #[derive(Resource)]
 pub struct FutureXrResources(
@@ -80,7 +88,8 @@ impl Plugin for OpenXrPlugin {
             input,
             views,
             frame_state,
-        ) = graphics::initialize_xr_graphics(primary_window).unwrap();
+            hand_tracking_enabled,
+        ) = graphics::initialize_xr_graphics(primary_window,self.0).unwrap();
         // std::thread::sleep(Duration::from_secs(5));
         debug!("Configured wgpu adapter Limits: {:#?}", device.limits());
         debug!("Configured wgpu adapter Features: {:#?}", device.features());
@@ -98,6 +107,9 @@ impl Plugin for OpenXrPlugin {
             views,
             frame_state,
         ));
+        if !hand_tracking_enabled {
+            app.insert_resource(DisableHandTracking::Both);
+        }
         app.insert_resource(ActionSets(vec![]));
         app.add_plugins(RenderPlugin {
             render_creation: RenderCreation::Manual(
@@ -202,8 +214,9 @@ impl PluginGroup for DefaultXrPlugins {
             .build()
             .disable::<RenderPlugin>()
             .disable::<PipelinedRenderingPlugin>()
-            .add_before::<RenderPlugin, _>(OpenXrPlugin)
+            .add_before::<RenderPlugin, _>(OpenXrPlugin::default())
             .add_after::<OpenXrPlugin, _>(OpenXrInput::new(XrControllerType::OculusTouch))
+            .add(EmulatedHandsPlugin).add(HandTrackingPlugin)
             .set(WindowPlugin {
                 #[cfg(not(target_os = "android"))]
                 primary_window: Some(Window {

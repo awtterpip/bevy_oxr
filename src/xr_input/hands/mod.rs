@@ -45,6 +45,23 @@ pub enum HandBone {
     LittleTip,
 }
 impl HandBone {
+    pub fn is_finger(&self) -> bool {
+        match &self {
+            HandBone::Wrist => false,
+            HandBone::Palm => false,
+            _ => true,
+        }
+    }
+    pub fn is_metacarpal(&self) -> bool {
+        match &self {
+            HandBone::ThumbMetacarpal => true,
+            HandBone::IndexMetacarpal => true,
+            HandBone::MiddleMetacarpal => true,
+            HandBone::RingMetacarpal => true,
+            HandBone::LittleTip => true,
+            _ => false,
+        }
+    }
     pub const fn get_all_bones() -> [HandBone; 26] {
         [
             HandBone::Palm,

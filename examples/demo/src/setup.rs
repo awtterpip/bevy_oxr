@@ -6,9 +6,9 @@ use bevy::{
     transform::TransformBundle,
     utils::default,
 };
-use bevy_openxr::xr_input::interactions::{Touched, XRInteractable, XRInteractableState};
+use bevy_oxr::xr_input::interactions::{Touched, XRInteractable, XRInteractableState};
 use bevy_rapier3d::{
-    prelude::{Collider, RigidBody},
+    prelude::{Collider, RigidBody, Group, CollisionGroups},
     render::ColliderDebugColor,
 };
 
@@ -34,7 +34,9 @@ pub fn setup_scene(
             transform: Transform::from_xyz(0.0, ground_height, 0.0),
             ..default()
         },
+        RigidBody::Fixed,
         Collider::cuboid(ground_size, ground_thickness, ground_size),
+        CollisionGroups::new(Group::GROUP_3, Group::ALL),
     ));
     // cube
     commands.spawn((

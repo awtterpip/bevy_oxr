@@ -20,6 +20,9 @@ use crate::VIEW_TYPE;
 
 pub fn initialize_xr_graphics(
     window: Option<RawHandleWrapper>,
+    // Horrible hack to get the Handtacking extension Loaded, Replace with good system to load
+    // any extension at some point
+    enable_hand_tracking: bool,
 ) -> anyhow::Result<(
     RenderDevice,
     RenderQueue,
@@ -37,6 +40,9 @@ pub fn initialize_xr_graphics(
     XrInput,
     XrViews,
     XrFrameState,
+    // Horrible hack to get the Handtacking extension Loaded, Replace with good system to load
+    // any extension at some point
+    bool,
 )> {
     use wgpu_hal::{api::Vulkan as V, Api};
 
@@ -51,15 +57,15 @@ pub fn initialize_xr_graphics(
 
     let mut enabled_extensions = xr::ExtensionSet::default();
     enabled_extensions.khr_vulkan_enable2 = true;
-    enabled_extensions.khr_convert_timespec_time = true;
-    enabled_extensions.other.push("XR_METAX2_detached_controllers".into());
     #[cfg(target_os = "android")]
     {
         enabled_extensions.khr_android_create_instance = true;
     }
-    enabled_extensions.ext_hand_tracking = available_extensions.ext_hand_tracking;
+    // Horrible hack to get the Handtacking extension Loaded, Replace with good system to load
+    // any extension at some point
+    enabled_extensions.ext_hand_tracking =
+        available_extensions.ext_hand_tracking && enable_hand_tracking;
     // enabled_extensions.ext_hand_joints_motion_range = available_extensions.ext_hand_joints_motion_range;
-    
 
     let available_layers = xr_entry.enumerate_layers()?;
     info!("available xr layers: {:#?}", available_layers);
@@ -407,6 +413,9 @@ pub fn initialize_xr_graphics(
             should_render: true,
         })
         .into(),
+        // Horrible hack to get the Handtacking extension Loaded, Replace with good system to load
+        // any extension at some point
+        available_extensions.ext_hand_tracking && enable_hand_tracking,
     ))
 }
 
