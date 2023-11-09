@@ -8,8 +8,24 @@ license = "MIT OR Apache-2.0"
 
 [lib]
 name = "bevy_openxr_android"
-crate-type = ["staticlib", "cdylib"]
+crate-type = ["rlib", "cdylib"]
 
+[target.'cfg(not(target_os="android"))'.dependencies.bevy_oxr]
+path = "../../"
+default-features = true
+
+
+[dependencies]
+bevy_oxr = { path = "../..", default-features = false }
+bevy = "0.12"
+openxr = { git = "https://github.com/Ralith/openxrs", features = ["mint"] }
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+
+# This metadata is used by `cargo-apk` - `xbuild` uses the `manifest.yaml` instead.
 [package.metadata.android]
 package = "org.bevyengine.example_openxr_android"
 build_targets = ["aarch64-linux-android"]
@@ -21,27 +37,12 @@ icon = "@mipmap/ic_launcher"
 label = "Bevy Openxr Android"
 strip = "strip"
 
-[package.metadata.android.sdk]
-target_sdk_version = 32
-
-
-[target.'cfg(not(target_os="android"))'.dependencies.bevy_oxr]
-path = "../../"
-default-features = true
-
 # [package.metadata.android.application]
 # icon = "@mipmap/ic_launcher"
 # label = "Bevy Example"
 
-[dependencies]
-bevy_oxr = { path = "../..", default-features = false }
-bevy = "0.12"
-openxr = { git = "https://github.com/Ralith/openxrs", features = ["mint"] }
-
-[profile.release]
-lto = "fat"
-codegen-units = 1
-panic = "abort"
+[package.metadata.android.sdk]
+target_sdk_version = 32
 
 [package.metadata.android.application.activity]
 theme = "@android:style/Theme.Black.NoTitleBar.Fullscreen"
