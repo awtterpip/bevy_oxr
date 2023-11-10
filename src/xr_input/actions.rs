@@ -104,6 +104,7 @@ pub fn setup_oxr_actions(world: &mut World) {
             )
         })
     {
+        info!(dev);
         instance
             .suggest_interaction_profile_bindings(instance.string_to_path(dev).unwrap(), &bindings)
             .unwrap();
