@@ -1,28 +1,30 @@
+pub mod actions;
 pub mod controllers;
 pub mod debug_gizmos;
+pub mod hand;
+pub mod hand_poses;
+pub mod handtracking;
 pub mod interactions;
 pub mod oculus_touch;
 pub mod prototype_locomotion;
 pub mod trackers;
 pub mod xr_camera;
-pub mod hand_poses;
-pub mod hand;
-pub mod handtracking;
-pub mod actions;
 
 use crate::resources::XrSession;
 use crate::xr_begin_frame;
 use crate::xr_input::controllers::XrControllerType;
-use crate::xr_input::oculus_touch::{setup_oculus_controller, ActionSets};
+use crate::xr_input::oculus_touch::setup_oculus_controller;
 use crate::xr_input::xr_camera::{xr_camera_head_sync, Eye, XRProjection, XrCameraBundle};
 use bevy::app::{App, PostUpdate, Startup};
 use bevy::log::warn;
-use bevy::prelude::{BuildChildren, IntoSystemConfigs, Component};
+use bevy::prelude::{BuildChildren, Component, IntoSystemConfigs};
 use bevy::prelude::{Commands, Plugin, PreUpdate, Quat, Res, SpatialBundle, Update, Vec3};
 use bevy::render::camera::CameraProjectionPlugin;
 use bevy::render::view::{update_frusta, VisibilitySystems};
 use bevy::transform::TransformSystem;
 
+use self::actions::{setup_oxr_actions, OpenXrActionsPlugin};
+use self::oculus_touch::post_action_setup_oculus_controller;
 use self::trackers::{
     adopt_open_xr_trackers, update_open_xr_controllers, OpenXRLeftEye, OpenXRRightEye,
     OpenXRTrackingRoot,
@@ -47,6 +49,11 @@ impl OpenXrInput {
 impl Plugin for OpenXrInput {
     fn build(&self, app: &mut App) {
         app.add_plugins(CameraProjectionPlugin::<XRProjection>::default());
+        app.add_plugins(OpenXrActionsPlugin);
+        app.add_systems(
+            PreUpdate,
+            (post_action_setup_oculus_controller.after(setup_oxr_actions),),
+        );
         match self.controller_type {
             XrControllerType::OculusTouch => {
                 app.add_systems(Startup, setup_oculus_controller);
@@ -54,7 +61,7 @@ impl Plugin for OpenXrInput {
         }
         //adopt any new trackers
         app.add_systems(PreUpdate, adopt_open_xr_trackers);
-        app.add_systems(PreUpdate, action_set_system);
+        // app.add_systems(PreUpdate, action_set_system);
         app.add_systems(PreUpdate, xr_camera_head_sync.after(xr_begin_frame));
         //update controller trackers
         app.add_systems(Update, update_open_xr_controllers);
@@ -83,19 +90,19 @@ fn setup_xr_cameras(mut commands: Commands) {
     commands.entity(tracking_root).push_children(&[right, left]);
 }
 
-fn action_set_system(action_sets: Res<ActionSets>, session: Res<XrSession>) {
-    let mut active_action_sets = vec![];
-    for i in &action_sets.0 {
-        active_action_sets.push(openxr::ActiveActionSet::new(i));
-    }
-    //info!("action sets: {:#?}", action_sets.0.len());
-    match session.sync_actions(&active_action_sets) {
-        Err(err) => {
-            warn!("{}", err);
-        }
-        _ => {}
-    }
-}
+// fn action_set_system(action_sets: Res<ActionSets>, session: Res<XrSession>) {
+//     let mut active_action_sets = vec![];
+//     for i in &action_sets.0 {
+//         active_action_sets.push(openxr::ActiveActionSet::new(i));
+//     }
+//     //info!("action sets: {:#?}", action_sets.0.len());
+//     match session.sync_actions(&active_action_sets) {
+//         Err(err) => {
+//             warn!("{}", err);
+//         }
+//         _ => {}
+//     }
+// }
 
 pub trait Vec3Conv {
     fn to_vec3(&self) -> Vec3;

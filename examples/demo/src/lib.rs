@@ -18,6 +18,7 @@ use bevy_oxr::{
     input::XrInput,
     resources::{XrFrameState, XrInstance, XrSession},
     xr_input::{
+        actions::ActionSets,
         debug_gizmos::OpenXrDebugRenderer,
         hand::{HandBone, HandInputDebugRenderer, HandResource, HandsResource, OpenXrHandInput},
         interactions::{
@@ -516,13 +517,14 @@ fn request_cube_spawn(
     mut writer: EventWriter<SpawnCubeRequest>,
     time: Res<Time>,
     mut timer: ResMut<SpawnCubeTimer>,
+    action_sets: Res<ActionSets>,
 ) {
     timer.0.tick(time.delta());
     if timer.0.finished() {
         //lock frame
         let frame_state = *frame_state.lock().unwrap();
         //get controller
-        let controller = oculus_controller.get_ref(&instance, &session, &frame_state, &xr_input);
+        let controller = oculus_controller.get_ref(&session, &frame_state, &xr_input, &action_sets);
         //get controller triggers
         let left_main_button = controller.a_button();
         if left_main_button {
@@ -568,7 +570,6 @@ fn prototype_interaction_input(
     oculus_controller: Res<OculusController>,
     frame_state: Res<XrFrameState>,
     xr_input: Res<XrInput>,
-    instance: Res<XrInstance>,
     session: Res<XrSession>,
     mut right_interactor_query: Query<
         (&mut XRInteractorState),
@@ -586,11 +587,12 @@ fn prototype_interaction_input(
             Without<OpenXRRightController>,
         ),
     >,
+    action_sets: Res<ActionSets>,
 ) {
     //lock frame
     let frame_state = *frame_state.lock().unwrap();
     //get controller
-    let controller = oculus_controller.get_ref(&instance, &session, &frame_state, &xr_input);
+    let controller = oculus_controller.get_ref(&session, &frame_state, &xr_input, &action_sets);
     //get controller triggers
     let left_trigger = controller.trigger(Hand::Left);
     let right_trigger = controller.trigger(Hand::Right);

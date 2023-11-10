@@ -14,6 +14,7 @@ use crate::xr_input::{
 };
 
 use super::{
+    actions::ActionSets,
     handtracking::{HandTrackingRef, HandTrackingTracker},
     trackers::{OpenXRLeftController, OpenXRRightController, OpenXRTrackingRoot},
     QuatConv,
@@ -54,44 +55,48 @@ pub fn draw_gizmos(
         Without<OpenXRLeftController>,
         Without<OpenXRTrackingRoot>,
     )>,
-    hand_tracking: Res<HandTrackingTracker>,
+    hand_tracking: Option<Res<HandTrackingTracker>>,
+    action_sets: Res<ActionSets>,
 ) {
-    let handtracking_ref = hand_tracking.get_ref(&xr_input, &frame_state);
-    if let Some(joints) = handtracking_ref.get_left_poses() {
-        for joint in joints {
-            let p = joint.pose.position;
-            let r = joint.pose.orientation;
-            let quat = r.to_quat();
-            let trans = Transform::from_rotation(quat);
-            gizmos.circle(
-                (p.x, p.y, p.z).into(),
-                trans.forward(),
-                joint.radius,
-                Color::ORANGE_RED,
-            );
+    if let Some(hand_tracking) = hand_tracking {
+        let handtracking_ref = hand_tracking.get_ref(&xr_input, &frame_state);
+        if let Some(joints) = handtracking_ref.get_left_poses() {
+            for joint in joints {
+                let p = joint.pose.position;
+                let r = joint.pose.orientation;
+                let quat = r.to_quat();
+                let trans = Transform::from_rotation(quat);
+                gizmos.circle(
+                    (p.x, p.y, p.z).into(),
+                    trans.forward(),
+                    joint.radius,
+                    Color::ORANGE_RED,
+                );
+            }
+        } else {
+            info!("left_hand_poses returned None");
         }
-    } else {
-        info!("left_hand_poses returned None");
-    }
-    if let Some(joints) = handtracking_ref.get_right_poses() {
-        for joint in joints {
-            let p = joint.pose.position;
-            let r = joint.pose.orientation;
-            let quat = r.to_quat();
-            let trans = Transform::from_rotation(quat);
-            gizmos.circle(
-                (p.x, p.y, p.z).into(),
-                trans.forward(),
-                joint.radius,
-                Color::LIME_GREEN,
-            );
+        if let Some(joints) = handtracking_ref.get_right_poses() {
+            for joint in joints {
+                let p = joint.pose.position;
+                let r = joint.pose.orientation;
+                let quat = r.to_quat();
+                let trans = Transform::from_rotation(quat);
+                gizmos.circle(
+                    (p.x, p.y, p.z).into(),
+                    trans.forward(),
+                    joint.radius,
+                    Color::LIME_GREEN,
+                );
+            }
+            return;
         }
-        return;
     }
     //lock frame
     let frame_state = *frame_state.lock().unwrap();
     //get controller
-    let controller = oculus_controller.get_ref(&instance, &session, &frame_state, &xr_input);
+    let controller = oculus_controller.get_ref(&session, &frame_state, &xr_input, &action_sets);
+    info!("{}",controller.x_button());
     //tracking root?
     let mut tracking_transform = &Transform::IDENTITY;
     let root = tracking_root_query.get_single();

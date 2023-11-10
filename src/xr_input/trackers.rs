@@ -8,7 +8,7 @@ use crate::{
     resources::{XrFrameState, XrInstance, XrSession},
 };
 
-use super::{oculus_touch::OculusController, Hand, QuatConv, Vec3Conv};
+use super::{actions::ActionSets, oculus_touch::OculusController, Hand, QuatConv, Vec3Conv};
 
 #[derive(Component)]
 pub struct OpenXRTrackingRoot;
@@ -62,14 +62,14 @@ pub fn update_open_xr_controllers(
         Without<OpenXRLeftController>,
     )>,
     frame_state: Res<XrFrameState>,
-    instance: Res<XrInstance>,
     xr_input: Res<XrInput>,
     session: Res<XrSession>,
+    action_sets: Res<ActionSets>,
 ) {
     //lock dat frame?
     let frame_state = *frame_state.lock().unwrap();
     //get controller
-    let controller = oculus_controller.get_ref(&instance, &session, &frame_state, &xr_input);
+    let controller = oculus_controller.get_ref(&session, &frame_state, &xr_input, &action_sets);
     //get left controller
     let left_grip_space = controller.grip_space(Hand::Left);
     let left_aim_space = controller.aim_space(Hand::Left);

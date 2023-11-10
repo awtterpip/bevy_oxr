@@ -1,15 +1,27 @@
 use bevy::{prelude::*, utils::HashMap};
 use openxr as xr;
-use xr::{Action, Binding, Posef};
+use xr::{Action, Binding, Haptic, Posef};
 
-use crate::resources::XrInstance;
+use crate::resources::{XrInstance, XrSession};
 
-pub fn setup_oxr_actions(world: &mut World, instance: Ref<XrInstance>) {
+pub struct OpenXrActionsPlugin;
+impl Plugin for OpenXrActionsPlugin {
+    fn build(&self, app: &mut App) {
+        app.insert_resource(SetupActionSets {
+            sets: HashMap::new(),
+        });
+        app.add_systems(PostStartup, setup_oxr_actions);
+    }
+}
+
+pub fn setup_oxr_actions(world: &mut World) {
+    let actions = world.remove_resource::<SetupActionSets>().unwrap();
+    let instance = world.get_resource::<XrInstance>().unwrap();
+    let session = world.get_resource::<XrSession>().unwrap();
     let left_path = instance.string_to_path("/user/hand/left").unwrap();
     let right_path = instance.string_to_path("/user/hand/right").unwrap();
     let hands = [left_path, right_path];
 
-    let actions = world.remove_resource::<SetupActionSets>().unwrap();
     let mut action_sets = ActionSets { sets: default() };
     let mut action_bindings: HashMap<&'static str, Vec<xr::Path>> = HashMap::new();
     let mut a_iter = actions.sets.into_iter();
@@ -31,12 +43,20 @@ pub fn setup_oxr_actions(world: &mut World, instance: Ref<XrInstance>) {
                 ActionType::Bool => TypedAction::Bool(match action.handednes {
                     ActionHandednes::Single => oxr_action_set
                         .create_action(action_name, action.pretty_name, &[])
-                        .unwrap(),
+                        .expect(action.pretty_name),
                     ActionHandednes::Double => oxr_action_set
                         .create_action(action_name, action.pretty_name, &hands)
                         .unwrap(),
                 }),
                 ActionType::PoseF => TypedAction::PoseF(match action.handednes {
+                    ActionHandednes::Single => oxr_action_set
+                        .create_action(action_name, action.pretty_name, &[])
+                        .unwrap(),
+                    ActionHandednes::Double => oxr_action_set
+                        .create_action(action_name, action.pretty_name, &hands)
+                        .unwrap(),
+                }),
+                ActionType::Haptic => TypedAction::Haptic(match action.handednes {
                     ActionHandednes::Single => oxr_action_set
                         .create_action(action_name, action.pretty_name, &[])
                         .unwrap(),
@@ -60,6 +80,7 @@ pub fn setup_oxr_actions(world: &mut World, instance: Ref<XrInstance>) {
             ActionSet {
                 oxr_action_set,
                 actions,
+                enabled: true,
             },
         );
     }
@@ -77,6 +98,7 @@ pub fn setup_oxr_actions(world: &mut World, instance: Ref<XrInstance>) {
                         TypedAction::F32(a) => Binding::new(a, binding),
                         TypedAction::Bool(a) => Binding::new(a, binding),
                         TypedAction::PoseF(a) => Binding::new(a, binding),
+                        TypedAction::Haptic(a) => Binding::new(a, binding),
                     })
                     .collect::<Vec<_>>(),
             )
@@ -86,6 +108,17 @@ pub fn setup_oxr_actions(world: &mut World, instance: Ref<XrInstance>) {
             .suggest_interaction_profile_bindings(instance.string_to_path(dev).unwrap(), &bindings)
             .unwrap();
     }
+    session
+        .attach_action_sets(
+            &action_sets
+                .sets
+                .iter()
+                .map(|(_, set)| &set.oxr_action_set)
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+
+    world.insert_resource(action_sets);
 }
 
 pub enum ActionHandednes {
@@ -97,12 +130,14 @@ pub enum ActionType {
     F32,
     Bool,
     PoseF,
+    Haptic,
 }
 
 pub enum TypedAction {
     F32(Action<f32>),
     Bool(Action<bool>),
     PoseF(Action<Posef>),
+    Haptic(Action<Haptic>),
 }
 
 pub struct SetupAction {
@@ -136,19 +171,30 @@ impl SetupActionSet {
             },
         );
     }
-    pub fn suggest_binding(
-        &mut self,
-        action_name: &'static str,
-        device_path: &'static str,
-        action_path: &'static str,
-    ) {
-        self.actions
-            .get_mut(action_name)
-            .unwrap()
-            .bindings
-            .entry(device_path)
-            .or_default()
-            .push(action_path);
+    pub fn suggest_binding(&mut self, device_path: &'static str, bindings: &[XrBinding]) {
+        for binding in bindings {
+            self.actions
+                .get_mut(binding.action)
+                .ok_or(anyhow::anyhow!("Missing Action: {}", binding.action))
+                .unwrap()
+                .bindings
+                .entry(device_path)
+                .or_default()
+                .push(binding.path);
+        }
+    }
+}
+pub struct XrBinding {
+    action: &'static str,
+    path: &'static str,
+}
+
+impl XrBinding {
+    pub fn new(action_name: &'static str, binding_path: &'static str) -> XrBinding {
+        XrBinding {
+            action: action_name,
+            path: binding_path,
+        }
     }
 }
 
@@ -178,10 +224,82 @@ impl SetupActionSets {
 
 pub struct ActionSet {
     oxr_action_set: xr::ActionSet,
+    enabled: bool,
     actions: HashMap<&'static str, TypedAction>,
 }
 
 #[derive(Resource)]
 pub struct ActionSets {
     sets: HashMap<&'static str, ActionSet>,
+}
+
+impl ActionSets {
+    pub fn get_action_f32(
+        &self,
+        action_set: &'static str,
+        action_name: &'static str,
+    ) -> anyhow::Result<&Action<f32>> {
+        let action = self
+            .sets
+            .get(action_set)
+            .ok_or(anyhow::anyhow!("Action Set Not Found!"))?
+            .actions
+            .get(action_name)
+            .ok_or(anyhow::anyhow!("Action Not Found!"))?;
+        match action {
+            TypedAction::F32(a) => Ok(a),
+            _ => anyhow::bail!("wrong action type"),
+        }
+    }
+    pub fn get_action_bool(
+        &self,
+        action_set: &'static str,
+        action_name: &'static str,
+    ) -> anyhow::Result<&Action<bool>> {
+        let action = self
+            .sets
+            .get(action_set)
+            .ok_or(anyhow::anyhow!("Action Set Not Found!"))?
+            .actions
+            .get(action_name)
+            .ok_or(anyhow::anyhow!("Action Not Found!"))?;
+        match action {
+            TypedAction::Bool(a) => Ok(a),
+            _ => anyhow::bail!("wrong action type"),
+        }
+    }
+    pub fn get_action_posef(
+        &self,
+        action_set: &'static str,
+        action_name: &'static str,
+    ) -> anyhow::Result<&Action<Posef>> {
+        let action = self
+            .sets
+            .get(action_set)
+            .ok_or(anyhow::anyhow!("Action Set Not Found!"))?
+            .actions
+            .get(action_name)
+            .ok_or(anyhow::anyhow!("Action Not Found!"))?;
+        match action {
+            TypedAction::PoseF(a) => Ok(a),
+            _ => anyhow::bail!("wrong action type"),
+        }
+    }
+    pub fn get_action_haptic(
+        &self,
+        action_set: &'static str,
+        action_name: &'static str,
+    ) -> anyhow::Result<&Action<Haptic>> {
+        let action = self
+            .sets
+            .get(action_set)
+            .ok_or(anyhow::anyhow!("Action Set Not Found!"))?
+            .actions
+            .get(action_name)
+            .ok_or(anyhow::anyhow!("Action Not Found!"))?;
+        match action {
+            TypedAction::Haptic(a) => Ok(a),
+            _ => anyhow::bail!("wrong action type"),
+        }
+    }
 }

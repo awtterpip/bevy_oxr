@@ -14,6 +14,7 @@ use crate::{
 };
 
 use super::{
+    actions::ActionSets,
     hand_poses::get_simulated_open_hand_transforms,
     handtracking::HandTrackingTracker,
     oculus_touch::OculusController,
@@ -363,6 +364,7 @@ pub fn update_hand_states(
     xr_input: Res<XrInput>,
     instance: Res<XrInstance>,
     session: Res<XrSession>,
+    action_sets: Res<ActionSets>,
 ) {
     match hand_states_option {
         Some(mut hands) => {
@@ -370,7 +372,7 @@ pub fn update_hand_states(
             let frame_state = *frame_state.lock().unwrap();
             //get controller
             let controller =
-                oculus_controller.get_ref(&instance, &session, &frame_state, &xr_input);
+                oculus_controller.get_ref(&session, &frame_state, &xr_input, &action_sets);
 
             //right hand
             let squeeze = controller.squeeze(Hand::Right);

@@ -1,5 +1,3 @@
-
-
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 
 use bevy::prelude::*;
@@ -7,7 +5,8 @@ use bevy::transform::components::Transform;
 use bevy_oxr::input::XrInput;
 use bevy_oxr::resources::{XrFrameState, XrInstance, XrSession};
 
-use bevy_oxr::xr_input::hand::{OpenXrHandInput, HandInputDebugRenderer};
+use bevy_oxr::xr_input::actions::ActionSets;
+use bevy_oxr::xr_input::hand::{HandInputDebugRenderer, OpenXrHandInput};
 use bevy_oxr::xr_input::interactions::{
     draw_interaction_gizmos, draw_socket_gizmos, interactions, socket_interactions,
     update_interactable_states, InteractionEvent, Touched, XRDirectInteractor, XRInteractable,
@@ -143,7 +142,6 @@ fn prototype_interaction_input(
     oculus_controller: Res<OculusController>,
     frame_state: Res<XrFrameState>,
     xr_input: Res<XrInput>,
-    instance: Res<XrInstance>,
     session: Res<XrSession>,
     mut right_interactor_query: Query<
         (&mut XRInteractorState),
@@ -161,11 +159,12 @@ fn prototype_interaction_input(
             Without<OpenXRRightController>,
         ),
     >,
+    action_sets: Res<ActionSets>,
 ) {
     //lock frame
     let frame_state = *frame_state.lock().unwrap();
     //get controller
-    let controller = oculus_controller.get_ref(&instance, &session, &frame_state, &xr_input);
+    let controller = oculus_controller.get_ref(&session, &frame_state, &xr_input, &action_sets);
     //get controller triggers
     let left_trigger = controller.trigger(Hand::Left);
     let right_trigger = controller.trigger(Hand::Right);
