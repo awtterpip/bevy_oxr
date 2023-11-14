@@ -5,7 +5,7 @@ use bevy::transform::components::Transform;
 use bevy_oxr::input::XrInput;
 use bevy_oxr::resources::{XrFrameState, XrInstance, XrSession};
 
-use bevy_oxr::xr_input::actions::ActionSets;
+use bevy_oxr::xr_input::actions::XrActionSets;
 use bevy_oxr::xr_input::hand::{HandInputDebugRenderer, OpenXrHandInput};
 use bevy_oxr::xr_input::interactions::{
     draw_interaction_gizmos, draw_socket_gizmos, interactions, socket_interactions,
@@ -159,7 +159,7 @@ fn prototype_interaction_input(
             Without<OpenXRRightController>,
         ),
     >,
-    action_sets: Res<ActionSets>,
+    action_sets: Res<XrActionSets>,
 ) {
     //lock frame
     let frame_state = *frame_state.lock().unwrap();

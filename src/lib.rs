@@ -23,6 +23,8 @@ use xr_input::hand::HandInputSource;
 use xr_input::handtracking::HandTrackingTracker;
 use xr_input::OpenXrInput;
 
+use crate::xr_input::oculus_touch::ActionSets;
+
 const VIEW_TYPE: xr::ViewConfigurationType = xr::ViewConfigurationType::PRIMARY_STEREO;
 
 pub const LEFT_XR_TEXTURE_HANDLE: ManualTextureViewHandle = ManualTextureViewHandle(1208214591);
@@ -96,7 +98,7 @@ impl Plugin for OpenXrPlugin {
             views,
             frame_state,
         ));
-        // app.insert_resource(ActionSets(vec![]));
+        app.insert_resource(ActionSets(vec![]));
         app.add_plugins(RenderPlugin {
             render_creation: RenderCreation::Manual(
                 device,
@@ -131,7 +133,7 @@ impl Plugin for OpenXrPlugin {
                 frame_state,
             ) = future_renderer_resources.0.lock().unwrap().take().unwrap();
 
-            // let action_sets = app.world.resource::<ActionSets>().clone();
+            let action_sets = app.world.resource::<ActionSets>().clone();
 
             app.insert_resource(xr_instance.clone())
                 .insert_resource(session.clone())
@@ -143,8 +145,8 @@ impl Plugin for OpenXrPlugin {
                 .insert_resource(swapchain.clone())
                 .insert_resource(input.clone())
                 .insert_resource(views.clone())
-                .insert_resource(frame_state.clone());
-                // .insert_resource(action_sets.clone());
+                .insert_resource(frame_state.clone())
+                .insert_resource(action_sets.clone());
             let hands = xr_instance.exts().ext_hand_tracking.is_some();
             let hands = false;
             if hands {
@@ -183,8 +185,8 @@ impl Plugin for OpenXrPlugin {
                 .insert_resource(swapchain)
                 .insert_resource(input)
                 .insert_resource(views)
-                .insert_resource(frame_state);
-                // .insert_resource(action_sets);
+                .insert_resource(frame_state)
+                .insert_resource(action_sets);
 
             render_app.add_systems(
                 Render,

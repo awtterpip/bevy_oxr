@@ -11,7 +11,7 @@ use crate::{
 };
 
 use super::{
-    actions::ActionSets, oculus_touch::OculusController, trackers::OpenXRTrackingRoot, Hand,
+    actions::XrActionSets, oculus_touch::OculusController, trackers::OpenXRTrackingRoot, Hand,
     QuatConv, Vec3Conv,
 };
 
@@ -68,7 +68,7 @@ pub fn proto_locomotion(
     views: ResMut<XrViews>,
     mut gizmos: Gizmos,
     config_option: Option<ResMut<PrototypeLocomotionConfig>>,
-    action_sets: Res<ActionSets>,
+    action_sets: Res<XrActionSets>,
 ) {
     match config_option {
         Some(_) => (),

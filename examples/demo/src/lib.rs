@@ -18,7 +18,7 @@ use bevy_oxr::{
     input::XrInput,
     resources::{XrFrameState, XrInstance, XrSession},
     xr_input::{
-        actions::ActionSets,
+        actions::XrActionSets,
         debug_gizmos::OpenXrDebugRenderer,
         hand::{HandBone, HandInputDebugRenderer, HandResource, HandsResource, OpenXrHandInput},
         interactions::{
@@ -517,7 +517,7 @@ fn request_cube_spawn(
     mut writer: EventWriter<SpawnCubeRequest>,
     time: Res<Time>,
     mut timer: ResMut<SpawnCubeTimer>,
-    action_sets: Res<ActionSets>,
+    action_sets: Res<XrActionSets>,
 ) {
     timer.0.tick(time.delta());
     if timer.0.finished() {
@@ -587,7 +587,7 @@ fn prototype_interaction_input(
             Without<OpenXRRightController>,
         ),
     >,
-    action_sets: Res<ActionSets>,
+    action_sets: Res<XrActionSets>,
 ) {
     //lock frame
     let frame_state = *frame_state.lock().unwrap();

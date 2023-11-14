@@ -14,7 +14,7 @@ use crate::{
 };
 
 use super::{
-    actions::ActionSets,
+    actions::XrActionSets,
     hand_poses::get_simulated_open_hand_transforms,
     handtracking::HandTrackingTracker,
     oculus_touch::OculusController,
@@ -364,7 +364,7 @@ pub fn update_hand_states(
     xr_input: Res<XrInput>,
     instance: Res<XrInstance>,
     session: Res<XrSession>,
-    action_sets: Res<ActionSets>,
+    action_sets: Res<XrActionSets>,
 ) {
     match hand_states_option {
         Some(mut hands) => {

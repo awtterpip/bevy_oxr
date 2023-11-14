@@ -8,7 +8,7 @@ use crate::{
     resources::{XrFrameState, XrInstance, XrSession},
 };
 
-use super::{actions::ActionSets, oculus_touch::OculusController, Hand, QuatConv, Vec3Conv};
+use super::{actions::XrActionSets, oculus_touch::OculusController, Hand, QuatConv, Vec3Conv};
 
 #[derive(Component)]
 pub struct OpenXRTrackingRoot;
@@ -64,7 +64,7 @@ pub fn update_open_xr_controllers(
     frame_state: Res<XrFrameState>,
     xr_input: Res<XrInput>,
     session: Res<XrSession>,
-    action_sets: Res<ActionSets>,
+    action_sets: Res<XrActionSets>,
 ) {
     //lock dat frame?
     let frame_state = *frame_state.lock().unwrap();

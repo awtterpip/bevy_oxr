@@ -14,7 +14,7 @@ use crate::xr_input::{
 };
 
 use super::{
-    actions::ActionSets,
+    actions::XrActionSets,
     handtracking::{HandTrackingRef, HandTrackingTracker},
     trackers::{OpenXRLeftController, OpenXRRightController, OpenXRTrackingRoot},
     QuatConv,
@@ -56,7 +56,7 @@ pub fn draw_gizmos(
         Without<OpenXRTrackingRoot>,
     )>,
     hand_tracking: Option<Res<HandTrackingTracker>>,
-    action_sets: Res<ActionSets>,
+    action_sets: Res<XrActionSets>,
 ) {
     if let Some(hand_tracking) = hand_tracking {
         let handtracking_ref = hand_tracking.get_ref(&xr_input, &frame_state);
@@ -96,7 +96,6 @@ pub fn draw_gizmos(
     let frame_state = *frame_state.lock().unwrap();
     //get controller
     let controller = oculus_controller.get_ref(&session, &frame_state, &xr_input, &action_sets);
-    info!("{}",controller.x_button());
     //tracking root?
     let mut tracking_transform = &Transform::IDENTITY;
     let root = tracking_root_query.get_single();

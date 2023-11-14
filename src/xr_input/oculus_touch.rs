@@ -11,10 +11,10 @@ use openxr::{
 use std::convert::identity;
 use std::sync::OnceLock;
 
-use super::actions::{ActionHandednes, ActionSets, ActionType, SetupActionSets, XrBinding};
+use super::actions::{ActionHandednes, XrActionSets, ActionType, SetupActionSets, XrBinding};
 
 pub fn post_action_setup_oculus_controller(
-    action_sets: Res<ActionSets>,
+    action_sets: Res<XrActionSets>,
     mut controller: ResMut<OculusController>,
     instance: Res<XrInstance>,
     session: Res<XrSession>,
@@ -64,19 +64,19 @@ pub fn post_action_setup_oculus_controller(
 pub fn setup_oculus_controller(
     mut commands: Commands,
     instance: Res<XrInstance>,
-    mut action_sets: ResMut<SetupActionSets>,
+    action_sets: ResMut<SetupActionSets>,
 ) {
     let oculus_controller = OculusController::new(action_sets).unwrap();
     init_subaction_path(&instance);
     commands.insert_resource(oculus_controller);
 }
 
-// #[derive(Resource, Clone)]
-// pub struct ActionSets(pub Vec<ActionSet>);
+#[derive(Resource, Clone)]
+pub struct ActionSets(pub Vec<ActionSet>);
 
 pub struct OculusControllerRef<'a> {
     oculus_controller: &'a OculusController,
-    action_sets: &'a ActionSets,
+    action_sets: &'a XrActionSets,
     session: &'a Session<AnyGraphics>,
     frame_state: &'a FrameState,
     xr_input: &'a XrInput,
@@ -278,7 +278,7 @@ impl OculusController {
         session: &'a Session<AnyGraphics>,
         frame_state: &'a FrameState,
         xr_input: &'a XrInput,
-        action_sets: &'a ActionSets,
+        action_sets: &'a XrActionSets,
     ) -> OculusControllerRef {
         OculusControllerRef {
             oculus_controller: self,
