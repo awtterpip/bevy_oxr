@@ -148,7 +148,6 @@ impl Plugin for OpenXrPlugin {
                 .insert_resource(frame_state.clone())
                 .insert_resource(action_sets.clone());
             let hands = xr_instance.exts().ext_hand_tracking.is_some();
-            let hands = false;
             if hands {
                 app.insert_resource(HandTrackingTracker::new(&session).unwrap());
                 app.insert_resource(HandInputSource::OpenXr);
