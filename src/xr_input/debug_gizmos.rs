@@ -1,11 +1,12 @@
 use bevy::prelude::{
-    info, Color, Gizmos, GlobalTransform, Plugin, Quat, Query, Res, Transform, Update, Vec2, Vec3,
-    With, Without,
+    Color, Gizmos, GlobalTransform, Plugin, Quat, Query, Res, Transform, Update, Vec2, Vec3, With,
+    Without,
 };
+use bevy::log::info;
 
 use crate::{
     input::XrInput,
-    resources::{XrFrameState, XrInstance, XrSession},
+    resources::{XrFrameState, XrSession},
 };
 
 use crate::xr_input::{
@@ -15,9 +16,8 @@ use crate::xr_input::{
 
 use super::{
     actions::XrActionSets,
-    handtracking::{HandTrackingRef, HandTrackingTracker},
+    hands::hand_tracking::HandTrackingData,
     trackers::{OpenXRLeftController, OpenXRRightController, OpenXRTrackingRoot},
-    QuatConv, hands::hand_tracking::HandTrackingData,
 };
 
 /// add debug renderer for controllers
@@ -35,7 +35,6 @@ pub fn draw_gizmos(
     oculus_controller: Res<OculusController>,
     frame_state: Res<XrFrameState>,
     xr_input: Res<XrInput>,
-    instance: Res<XrInstance>,
     session: Res<XrSession>,
     tracking_root_query: Query<(
         &mut Transform,

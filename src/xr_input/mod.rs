@@ -4,7 +4,6 @@ pub mod debug_gizmos;
 pub mod hand;
 pub mod hand_poses;
 pub mod hands;
-pub mod handtracking;
 pub mod interactions;
 pub mod oculus_touch;
 pub mod prototype_locomotion;

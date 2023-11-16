@@ -21,10 +21,10 @@ use bevy::window::{PresentMode, PrimaryWindow, RawHandleWrapper};
 use input::XrInput;
 use openxr as xr;
 use resources::*;
+use xr::FormFactor;
 use xr_input::controllers::XrControllerType;
 use xr_input::hands::emulated::EmulatedHandsPlugin;
-use xr_input::hands::hand_tracking::{HandTrackingPlugin, HandTrackingData};
-use xr_input::handtracking::HandTrackingTracker;
+use xr_input::hands::hand_tracking::{HandTrackingData, HandTrackingPlugin};
 use xr_input::OpenXrInput;
 
 const VIEW_TYPE: xr::ViewConfigurationType = xr::ViewConfigurationType::PRIMARY_STEREO;
@@ -159,7 +159,14 @@ impl Plugin for OpenXrPlugin {
                 .insert_resource(views.clone())
                 .insert_resource(frame_state.clone())
                 .insert_resource(action_sets.clone());
-            let hands = xr_instance.exts().ext_hand_tracking.is_some();
+            let hands = xr_instance.exts().ext_hand_tracking.is_some()
+                && xr_instance
+                    .supports_hand_tracking(
+                        xr_instance
+                            .system(FormFactor::HEAD_MOUNTED_DISPLAY)
+                            .unwrap(),
+                    )
+                    .is_ok_and(|v| v);
             if hands {
                 app.insert_resource(HandTrackingData::new(&session).unwrap());
             } else {

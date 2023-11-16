@@ -1,9 +1,10 @@
 use std::f32::consts::PI;
 
+use bevy::log::info;
 use bevy::prelude::{
-    default, info, Color, Commands, Component, Deref, DerefMut, Entity, Gizmos, GlobalTransform,
-    Plugin, PostUpdate, PreUpdate, Quat, Query, Res, ResMut, Resource, SpatialBundle, Startup,
-    Transform, Update, Vec3, With, Without,
+    default, Color, Commands, Component, Deref, DerefMut, Entity, Gizmos, GlobalTransform, Plugin,
+    PostUpdate, Quat, Query, Res, ResMut, Resource, SpatialBundle, Startup, Transform,
+    Vec3, With, Without,
 };
 use openxr::{HandJoint, Posef};
 
@@ -17,10 +18,9 @@ use super::{
     actions::XrActionSets,
     hand_poses::get_simulated_open_hand_transforms,
     hands::{BoneTrackingStatus, HandBone},
-    handtracking::HandTrackingTracker,
     oculus_touch::OculusController,
     trackers::{OpenXRLeftController, OpenXRRightController, OpenXRTracker, OpenXRTrackingRoot},
-    Hand, QuatConv,
+    Hand,
 };
 
 /// add debug renderer for controllers
@@ -967,97 +967,6 @@ fn log_hand(hand_pose: [Posef; 26]) {
     );
 }
 
-pub fn update_hand_skeletons(
-    tracking_root_query: Query<(&Transform, With<OpenXRTrackingRoot>)>,
-    right_controller_query: Query<(&GlobalTransform, With<OpenXRRightController>)>,
-    left_controller_query: Query<(&GlobalTransform, With<OpenXRLeftController>)>,
-    hand_states_option: Option<ResMut<HandStatesResource>>,
-    mut commands: Commands,
-    mut hand_bone_query: Query<(
-        Entity,
-        &mut Transform,
-        &HandBone,
-        &Hand,
-        Option<&mut HandBoneRadius>,
-        Without<OpenXRTrackingRoot>,
-    )>,
-    input_source: Option<Res<HandInputSource>>,
-    hand_tracking: Option<Res<HandTrackingTracker>>,
-    xr_input: Res<XrInput>,
-    xr_frame_state: Res<XrFrameState>,
-) {
-    match input_source {
-        Some(res) => match *res {
-            HandInputSource::Emulated => {
-                // info!("hand input source is emulated");
-                match hand_states_option {
-                    Some(hands) => {
-                        let left_hand_transform = left_controller_query
-                            .get_single()
-                            .unwrap()
-                            .0
-                            .compute_transform();
-                        update_hand_bones_emulated(
-                            left_hand_transform,
-                            Hand::Left,
-                            hands.left,
-                            &mut hand_bone_query,
-                        );
-                        let right_hand_transform = right_controller_query
-                            .get_single()
-                            .unwrap()
-                            .0
-                            .compute_transform();
-                        update_hand_bones_emulated(
-                            right_hand_transform,
-                            Hand::Right,
-                            hands.right,
-                            &mut hand_bone_query,
-                        );
-                    }
-                    None => info!("hand states resource not initialized yet"),
-                }
-            }
-            HandInputSource::OpenXr => match hand_tracking {
-                Some(tracking) => {
-                    let hand_ref = tracking.get_ref(&xr_input, &xr_frame_state);
-                    let (root_transform, _) = tracking_root_query.get_single().unwrap();
-                    let left_data = hand_ref.get_left_poses();
-                    let right_data = hand_ref.get_right_poses();
-
-                    for (entity, mut transform, bone, hand, radius, _) in hand_bone_query.iter_mut()
-                    {
-                        let bone_data = match (hand, left_data, right_data) {
-                            (Hand::Left, Some(data), _) => data[bone.get_index_from_bone()],
-                            (Hand::Right, _, Some(data)) => data[bone.get_index_from_bone()],
-                            _ => continue,
-                        };
-                        match radius {
-                            Some(mut r) => r.0 = bone_data.radius,
-                            None => {
-                                commands
-                                    .entity(entity)
-                                    .insert(HandBoneRadius(bone_data.radius));
-                            }
-                        }
-                        *transform = transform
-                            .with_translation(
-                                root_transform.transform_point(bone_data.pose.position.to_vec3()),
-                            )
-                            .with_rotation(
-                                root_transform.rotation * bone_data.pose.orientation.to_quat(),
-                            )
-                    }
-                }
-                None => {}
-            },
-        },
-        None => {
-            info!("hand input source not initialized");
-            return;
-        }
-    }
-}
 
 #[derive(Debug, Component, DerefMut, Deref)]
 pub struct HandBoneRadius(pub f32);
