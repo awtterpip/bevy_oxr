@@ -6,7 +6,6 @@ pub mod xr_input;
 
 use std::sync::{Arc, Mutex};
 
-use crate::xr_input::oculus_touch::ActionSets;
 use bevy::app::PluginGroupBuilder;
 use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
@@ -23,6 +22,8 @@ use xr_input::controllers::XrControllerType;
 use xr_input::hand::HandInputSource;
 use xr_input::handtracking::HandTrackingTracker;
 use xr_input::OpenXrInput;
+
+use crate::xr_input::oculus_touch::ActionSets;
 
 const VIEW_TYPE: xr::ViewConfigurationType = xr::ViewConfigurationType::PRIMARY_STEREO;
 

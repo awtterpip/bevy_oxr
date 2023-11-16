@@ -11,7 +11,8 @@ use crate::{
 };
 
 use super::{
-    oculus_touch::OculusController, trackers::OpenXRTrackingRoot, Hand, QuatConv, Vec3Conv,
+    actions::XrActionSets, oculus_touch::OculusController, trackers::OpenXRTrackingRoot, Hand,
+    QuatConv, Vec3Conv,
 };
 
 pub enum LocomotionType {
@@ -67,6 +68,7 @@ pub fn proto_locomotion(
     views: ResMut<XrViews>,
     mut gizmos: Gizmos,
     config_option: Option<ResMut<PrototypeLocomotionConfig>>,
+    action_sets: Res<XrActionSets>,
 ) {
     match config_option {
         Some(_) => (),
@@ -80,7 +82,7 @@ pub fn proto_locomotion(
     //lock frame
     let frame_state = *frame_state.lock().unwrap();
     //get controller
-    let controller = oculus_controller.get_ref(&instance, &session, &frame_state, &xr_input);
+    let controller = oculus_controller.get_ref(&session, &frame_state, &xr_input, &action_sets);
     let root = tracking_root_query.get_single_mut();
     match root {
         Ok(mut position) => {
