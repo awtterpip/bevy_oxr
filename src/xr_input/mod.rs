@@ -1,3 +1,4 @@
+pub mod actions;
 pub mod controllers;
 pub mod debug_gizmos;
 pub mod hand;
@@ -9,12 +10,11 @@ pub mod oculus_touch;
 pub mod prototype_locomotion;
 pub mod trackers;
 pub mod xr_camera;
-pub mod actions;
 
 use crate::resources::{XrInstance, XrSession};
 use crate::xr_begin_frame;
 use crate::xr_input::controllers::XrControllerType;
-use crate::xr_input::oculus_touch::{setup_oculus_controller, ActionSets};
+use crate::xr_input::oculus_touch::setup_oculus_controller;
 use crate::xr_input::xr_camera::{xr_camera_head_sync, Eye, XRProjection, XrCameraBundle};
 use bevy::app::{App, PostUpdate, Startup};
 use bevy::log::warn;
@@ -26,6 +26,8 @@ use bevy::transform::TransformSystem;
 use bevy::utils::HashMap;
 use openxr::Binding;
 
+use self::actions::{setup_oxr_actions, OpenXrActionsPlugin};
+use self::oculus_touch::{post_action_setup_oculus_controller, ActionSets};
 use self::trackers::{
     adopt_open_xr_trackers, update_open_xr_controllers, OpenXRLeftEye, OpenXRRightEye,
     OpenXRTrackingRoot,
@@ -50,6 +52,11 @@ impl OpenXrInput {
 impl Plugin for OpenXrInput {
     fn build(&self, app: &mut App) {
         app.add_plugins(CameraProjectionPlugin::<XRProjection>::default());
+        app.add_plugins(OpenXrActionsPlugin);
+        app.add_systems(
+            PreUpdate,
+            (post_action_setup_oculus_controller.after(setup_oxr_actions),),
+        );
         match self.controller_type {
             XrControllerType::OculusTouch => {
                 app.add_systems(Startup, setup_oculus_controller);

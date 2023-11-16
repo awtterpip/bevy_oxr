@@ -1,10 +1,14 @@
+use std::mem::MaybeUninit;
+
 use bevy::prelude::*;
 use openxr::{HandJointLocationEXT, HandTracker, Result};
 
 use crate::{
     input::XrInput,
-    resources::{XrFrameState, XrSession},
+    resources::{XrFrameState, XrFrameWaiter, XrSession},
 };
+
+use super::hands::HandBone;
 
 #[derive(Resource)]
 pub struct HandTrackingTracker {
@@ -40,8 +44,9 @@ pub struct HandTrackingRef<'a> {
     frame_state: &'a XrFrameState,
 }
 
+
 impl<'a> HandTrackingRef<'a> {
-    pub fn get_left_poses(&self) -> Option<[HandJointLocationEXT; 26]> {
+    pub fn get_left_poses(&self) -> Option<[HandJointLocationEXT;26]> {
         self.input
             .stage
             .locate_hand_joints(

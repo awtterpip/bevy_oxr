@@ -1,3 +1,3 @@
 fn main() {
-    demo::main();    
+    demo::main();
 }

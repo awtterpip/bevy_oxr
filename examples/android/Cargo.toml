@@ -24,6 +24,11 @@ strip = "strip"
 [package.metadata.android.sdk]
 target_sdk_version = 32
 
+
+[target.'cfg(not(target_os="android"))'.dependencies.bevy_oxr]
+path = "../../"
+default-features = true
+
 # [package.metadata.android.application]
 # icon = "@mipmap/ic_launcher"
 # label = "Bevy Example"

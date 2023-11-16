@@ -2,31 +2,73 @@ use crate::input::XrInput;
 use crate::resources::{XrInstance, XrSession};
 use crate::xr_input::controllers::{Handed, Touchable};
 use crate::xr_input::Hand;
-use bevy::prelude::{Commands, Res, Resource};
+use bevy::prelude::{Commands, Res, ResMut, Resource};
 use openxr::{
     Action, ActionSet, AnyGraphics, Binding, FrameState, Haptic, Instance, Path, Posef, Session,
     Space, SpaceLocation, SpaceVelocity,
 };
 
+use std::convert::identity;
 use std::sync::OnceLock;
 
-pub fn setup_oculus_controller(
-    mut commands: Commands,
+use super::actions::{ActionHandednes, XrActionSets, ActionType, SetupActionSets, XrBinding};
+
+pub fn post_action_setup_oculus_controller(
+    action_sets: Res<XrActionSets>,
+    mut controller: ResMut<OculusController>,
     instance: Res<XrInstance>,
     session: Res<XrSession>,
 ) {
-    let mut action_sets = vec![];
-    let oculus_controller = OculusController::new(
-        Instance::clone(&instance),
-        Session::clone(&session),
-        &mut action_sets,
-    )
-    .unwrap();
-    session
-        .attach_action_sets(&action_sets.iter().map(|a| a).collect::<Vec<_>>())
+    let s = Session::<AnyGraphics>::clone(&session);
+    let left_path = instance.string_to_path("/user/hand/left").unwrap();
+    let right_path = instance.string_to_path("/user/hand/right").unwrap();
+    let grip_action = action_sets
+        .get_action_posef("oculus_input", "hand_pose")
         .unwrap();
+    let aim_action = action_sets
+        .get_action_posef("oculus_input", "pointer_pose")
+        .unwrap();
+    controller.grip_space = Some(Handed {
+        left: grip_action
+            .create_space(
+                s.clone(),
+                left_path,
+                Posef::IDENTITY,
+            )
+            .unwrap(),
+        right: grip_action
+            .create_space(
+                s.clone(),
+                right_path,
+                Posef::IDENTITY,
+            )
+            .unwrap(),
+    });
+    controller.aim_space = Some(Handed {
+        left: aim_action
+            .create_space(
+                s.clone(),
+                left_path,
+                Posef::IDENTITY,
+            )
+            .unwrap(),
+        right: aim_action
+            .create_space(
+                s.clone(),
+                right_path,
+                Posef::IDENTITY,
+            )
+            .unwrap(),
+    })
+}
+pub fn setup_oculus_controller(
+    mut commands: Commands,
+    instance: Res<XrInstance>,
+    action_sets: ResMut<SetupActionSets>,
+) {
+    let oculus_controller = OculusController::new(action_sets).unwrap();
+    init_subaction_path(&instance);
     commands.insert_resource(oculus_controller);
-    commands.insert_resource(ActionSets(action_sets));
 }
 
 #[derive(Resource, Clone)]
@@ -34,7 +76,7 @@ pub struct ActionSets(pub Vec<ActionSet>);
 
 pub struct OculusControllerRef<'a> {
     oculus_controller: &'a OculusController,
-    instance: &'a Instance,
+    action_sets: &'a XrActionSets,
     session: &'a Session<AnyGraphics>,
     frame_state: &'a FrameState,
     xr_input: &'a XrInput,
@@ -58,11 +100,11 @@ pub fn subaction_path(hand: Hand) -> Path {
 impl OculusControllerRef<'_> {
     pub fn grip_space(&self, hand: Hand) -> (SpaceLocation, SpaceVelocity) {
         match hand {
-            Hand::Left => self.oculus_controller.grip_space.left.relate(
+            Hand::Left => self.oculus_controller.grip_space.as_ref().unwrap().left.relate(
                 &self.xr_input.stage,
                 self.frame_state.predicted_display_time,
             ),
-            Hand::Right => self.oculus_controller.grip_space.right.relate(
+            Hand::Right => self.oculus_controller.grip_space.as_ref().unwrap().right.relate(
                 &self.xr_input.stage,
                 self.frame_state.predicted_display_time,
             ),
@@ -71,11 +113,11 @@ impl OculusControllerRef<'_> {
     }
     pub fn aim_space(&self, hand: Hand) -> (SpaceLocation, SpaceVelocity) {
         match hand {
-            Hand::Left => self.oculus_controller.aim_space.left.relate(
+            Hand::Left => self.oculus_controller.aim_space.as_ref().unwrap().left.relate(
                 &self.xr_input.stage,
                 self.frame_state.predicted_display_time,
             ),
-            Hand::Right => self.oculus_controller.aim_space.right.relate(
+            Hand::Right => self.oculus_controller.aim_space.as_ref().unwrap().right.relate(
                 &self.xr_input.stage,
                 self.frame_state.predicted_display_time,
             ),
@@ -83,102 +125,107 @@ impl OculusControllerRef<'_> {
         .unwrap()
     }
     pub fn squeeze(&self, hand: Hand) -> f32 {
-        let action = &self.oculus_controller.squeeze;
+        let action = &self
+            .action_sets
+            .get_action_f32("oculus_input", "squeeze")
+            .unwrap();
         action
             .state(&self.session, subaction_path(hand))
             .unwrap()
             .current_state
     }
     pub fn trigger(&self, hand: Hand) -> f32 {
-        self.oculus_controller
-            .trigger
-            .inner
+        self.action_sets
+            .get_action_f32("oculus_input", "trigger")
+            .unwrap()
             .state(&self.session, subaction_path(hand))
             .unwrap()
             .current_state
     }
     pub fn trigger_touched(&self, hand: Hand) -> bool {
-        self.oculus_controller
-            .trigger
-            .touch
+        self.action_sets
+            .get_action_bool("oculus_input", "trigger_touched")
+            .unwrap()
             .state(&self.session, subaction_path(hand))
             .unwrap()
             .current_state
     }
     pub fn x_button(&self) -> bool {
-        self.oculus_controller
-            .x_button
-            .inner
+        self.action_sets
+            .get_action_bool("oculus_input", "x_button")
+            .unwrap()
             .state(&self.session, Path::NULL)
             .unwrap()
             .current_state
     }
     pub fn x_button_touched(&self) -> bool {
-        self.oculus_controller
-            .x_button
-            .touch
+        self.action_sets
+            .get_action_bool("oculus_input", "x_button_touch")
+            .unwrap()
             .state(&self.session, Path::NULL)
             .unwrap()
             .current_state
     }
     pub fn y_button(&self) -> bool {
-        self.oculus_controller
-            .y_button
-            .inner
+        self.action_sets
+            .get_action_bool("oculus_input", "y_button")
+            .unwrap()
             .state(&self.session, Path::NULL)
             .unwrap()
             .current_state
     }
     pub fn y_button_touched(&self) -> bool {
-        self.oculus_controller
-            .y_button
-            .touch
+        self.action_sets
+            .get_action_bool("oculus_input", "y_button_touch")
+            .unwrap()
             .state(&self.session, Path::NULL)
             .unwrap()
             .current_state
     }
     pub fn menu_button(&self) -> bool {
-        self.oculus_controller
-            .menu_button
+        self.action_sets
+            .get_action_bool("oculus_input", "menu_button")
+            .unwrap()
             .state(&self.session, Path::NULL)
             .unwrap()
             .current_state
     }
     pub fn a_button(&self) -> bool {
-        self.oculus_controller
-            .a_button
-            .inner
+        self.action_sets
+            .get_action_bool("oculus_input", "a_button")
+            .unwrap()
             .state(&self.session, Path::NULL)
             .unwrap()
             .current_state
     }
     pub fn a_button_touched(&self) -> bool {
-        self.oculus_controller
-            .a_button
-            .touch
+        self.action_sets
+            .get_action_bool("oculus_input", "a_button_touch")
+            .unwrap()
             .state(&self.session, Path::NULL)
             .unwrap()
             .current_state
     }
     pub fn b_button(&self) -> bool {
-        self.oculus_controller
-            .b_button
-            .inner
+        self.action_sets
+            .get_action_bool("oculus_input", "b_button")
+            .unwrap()
             .state(&self.session, Path::NULL)
             .unwrap()
             .current_state
     }
     pub fn b_button_touched(&self) -> bool {
-        self.oculus_controller
-            .b_button
-            .touch
+        self.action_sets
+            .get_action_bool("oculus_input", "b_button_touch")
+            .unwrap()
             .state(&self.session, Path::NULL)
             .unwrap()
             .current_state
     }
     pub fn thumbstick_touch(&self, hand: Hand) -> bool {
-        self.oculus_controller
-            .thumbstick_touch
+        self.action_sets
+            .get_action_bool("oculus_input", "thumbstick_touch")
+            .unwrap()
             .state(&self.session, subaction_path(hand))
             .unwrap()
             .current_state
@@ -186,28 +233,32 @@ impl OculusControllerRef<'_> {
     pub fn thumbstick(&self, hand: Hand) -> Thumbstick {
         Thumbstick {
             x: self
-                .oculus_controller
-                .thumbstick_x
+                .action_sets
+                .get_action_f32("oculus_input", "thumbstick_x")
+                .unwrap()
                 .state(&self.session, subaction_path(hand))
                 .unwrap()
                 .current_state,
             y: self
-                .oculus_controller
-                .thumbstick_y
+                .action_sets
+                .get_action_f32("oculus_input", "thumbstick_y")
+                .unwrap()
                 .state(&self.session, subaction_path(hand))
                 .unwrap()
                 .current_state,
             click: self
-                .oculus_controller
-                .thumbstick_click
+                .action_sets
+                .get_action_bool("oculus_input", "thumbstick_click")
+                .unwrap()
                 .state(&self.session, subaction_path(hand))
                 .unwrap()
                 .current_state,
         }
     }
     pub fn thumbrest_touch(&self, hand: Hand) -> bool {
-        self.oculus_controller
-            .thumbrest_touch
+        self.action_sets
+            .get_action_bool("oculus_input", "thumbrest_touch")
+            .unwrap()
             .state(&self.session, subaction_path(hand))
             .unwrap()
             .current_state
@@ -224,244 +275,197 @@ pub struct Thumbstick {
 impl OculusController {
     pub fn get_ref<'a>(
         &'a self,
-        instance: &'a Instance,
         session: &'a Session<AnyGraphics>,
         frame_state: &'a FrameState,
         xr_input: &'a XrInput,
+        action_sets: &'a XrActionSets,
     ) -> OculusControllerRef {
         OculusControllerRef {
             oculus_controller: self,
-            instance,
             session,
             frame_state,
             xr_input,
+            action_sets,
         }
     }
 }
 
 #[derive(Resource)]
 pub struct OculusController {
-    pub grip_space: Handed<Space>,
-    pub aim_space: Handed<Space>,
-    pub grip_pose: Action<Posef>,
-    pub aim_pose: Action<Posef>,
-    pub squeeze: Action<f32>,
-    pub trigger: Touchable<f32>,
-    pub haptic_feedback: Action<Haptic>,
-    pub x_button: Touchable<bool>,
-    pub y_button: Touchable<bool>,
-    pub menu_button: Action<bool>,
-    pub a_button: Touchable<bool>,
-    pub b_button: Touchable<bool>,
-    pub thumbstick_x: Action<f32>,
-    pub thumbstick_y: Action<f32>,
-    pub thumbstick_touch: Action<bool>,
-    pub thumbstick_click: Action<bool>,
-    pub thumbrest_touch: Action<bool>,
+    pub grip_space: Option<Handed<Space>>,
+    pub aim_space: Option<Handed<Space>>,
 }
 impl OculusController {
-    pub fn new(
-        instance: Instance,
-        session: Session<AnyGraphics>,
-        action_sets: &mut Vec<ActionSet>,
-    ) -> anyhow::Result<Self> {
+    pub fn new(mut action_sets: ResMut<SetupActionSets>) -> anyhow::Result<Self> {
         let action_set =
-            instance.create_action_set("oculus_input", "Oculus Touch Controller Input", 0)?;
-        init_subaction_path(&instance);
-        let left_path = instance.string_to_path("/user/hand/left").unwrap();
-        let right_path = instance.string_to_path("/user/hand/right").unwrap();
-        let hands = [left_path, right_path];
-        let grip_pose = action_set.create_action::<Posef>("hand_pose", "Hand Pose", &hands)?;
-        let aim_pose = action_set.create_action::<Posef>("pointer_pose", "Pointer Pose", &hands)?;
+            action_sets.add_action_set("oculus_input", "Oculus Touch Controller Input", 0);
+        action_set.new_action(
+            "hand_pose",
+            "Hand Pose",
+            ActionType::PoseF,
+            ActionHandednes::Double,
+        );
+        action_set.new_action(
+            "pointer_pose",
+            "Pointer Pose",
+            ActionType::PoseF,
+            ActionHandednes::Double,
+        );
+        action_set.new_action(
+            "squeeze",
+            "Grip Pull",
+            ActionType::F32,
+            ActionHandednes::Double,
+        );
+        action_set.new_action(
+            "trigger",
+            "Trigger Pull",
+            ActionType::F32,
+            ActionHandednes::Double,
+        );
+        action_set.new_action(
+            "trigger_touched",
+            "Trigger Touch",
+            ActionType::Bool,
+            ActionHandednes::Double,
+        );
+        action_set.new_action(
+            "haptic_feedback",
+            "Haptic Feedback",
+            ActionType::Haptic,
+            ActionHandednes::Double,
+        );
+        action_set.new_action(
+            "x_button",
+            "X Button",
+            ActionType::Bool,
+            ActionHandednes::Single,
+        );
+        action_set.new_action(
+            "x_button_touch",
+            "X Button Touch",
+            ActionType::Bool,
+            ActionHandednes::Single,
+        );
+        action_set.new_action(
+            "y_button",
+            "Y Button",
+            ActionType::Bool,
+            ActionHandednes::Single,
+        );
+        action_set.new_action(
+            "y_button_touch",
+            "Y Button Touch",
+            ActionType::Bool,
+            ActionHandednes::Single,
+        );
+        action_set.new_action(
+            "a_button",
+            "A Button",
+            ActionType::Bool,
+            ActionHandednes::Single,
+        );
+        action_set.new_action(
+            "a_button_touch",
+            "A Button Touch",
+            ActionType::Bool,
+            ActionHandednes::Single,
+        );
+        action_set.new_action(
+            "b_button",
+            "B Button",
+            ActionType::Bool,
+            ActionHandednes::Single,
+        );
+        action_set.new_action(
+            "b_button_touch",
+            "B Button Touch",
+            ActionType::Bool,
+            ActionHandednes::Single,
+        );
+        action_set.new_action(
+            "menu_button",
+            "Menu Button",
+            ActionType::Bool,
+            ActionHandednes::Single,
+        );
+        action_set.new_action(
+            "thumbstick_x",
+            "Thumbstick X",
+            ActionType::F32,
+            ActionHandednes::Double,
+        );
+        action_set.new_action(
+            "thumbstick_y",
+            "Thumbstick y",
+            ActionType::F32,
+            ActionHandednes::Double,
+        );
+        action_set.new_action(
+            "thumbstick_touch",
+            "Thumbstick Touch",
+            ActionType::Bool,
+            ActionHandednes::Double,
+        );
+        action_set.new_action(
+            "thumbstick_click",
+            "Thumbstick Click",
+            ActionType::Bool,
+            ActionHandednes::Double,
+        );
+        action_set.new_action(
+            "thumbrest_touch",
+            "Thumbrest Touch",
+            ActionType::Bool,
+            ActionHandednes::Double,
+        );
 
         let this = OculusController {
-            grip_space: Handed {
-                left: grip_pose.create_space(session.clone(), left_path, Posef::IDENTITY)?,
-                right: grip_pose.create_space(session.clone(), right_path, Posef::IDENTITY)?,
-            },
-            aim_space: Handed {
-                left: aim_pose.create_space(session.clone(), left_path, Posef::IDENTITY)?,
-                right: aim_pose.create_space(session.clone(), right_path, Posef::IDENTITY)?,
-            },
-            grip_pose,
-            aim_pose,
-            squeeze: action_set.create_action("squeeze", "Grip Pull", &hands)?,
-            trigger: Touchable {
-                inner: action_set.create_action("trigger", "Trigger Pull", &hands)?,
-                touch: action_set.create_action("trigger_touched", "Trigger Touch", &hands)?,
-            },
-            haptic_feedback: action_set.create_action(
-                "haptic_feedback",
-                "Haptic Feedback",
-                &hands,
-            )?,
-            x_button: Touchable {
-                inner: action_set.create_action("x_button", "X Button", &[])?,
-                touch: action_set.create_action("x_button_touch", "X Button Touch", &[])?,
-            },
-            y_button: Touchable {
-                inner: action_set.create_action("y_button", "Y Button", &[])?,
-                touch: action_set.create_action("y_button_touch", "Y Button Touch", &[])?,
-            },
-            menu_button: action_set.create_action("menu_button", "Menu Button", &[])?,
-            a_button: Touchable {
-                inner: action_set.create_action("a_button", "A Button", &[])?,
-                touch: action_set.create_action("a_button_touch", "A Button Touch", &[])?,
-            },
-            b_button: Touchable {
-                inner: action_set.create_action("b_button", "B Button", &[])?,
-                touch: action_set.create_action("b_button_touch", "B Button Touch", &[])?,
-            },
-            thumbstick_x: action_set.create_action("thumbstick_x", "Thumbstick X", &hands)?,
-            thumbstick_y: action_set.create_action("thumbstick_y", "Thumbstick Y", &hands)?,
-            thumbstick_touch: action_set.create_action(
-                "thumbstick_touch",
-                "Thumbstick Touch",
-                &hands,
-            )?,
-            thumbstick_click: action_set.create_action(
-                "thumbstick_click",
-                "Thumbstick Click",
-                &hands,
-            )?,
-            thumbrest_touch: action_set.create_action(
-                "thumbrest_touch",
-                "Thumbrest Touch",
-                &hands,
-            )?,
+            grip_space: None,
+            aim_space: None,
         };
-        let i = instance;
-        i.suggest_interaction_profile_bindings(
-            i.string_to_path("/interaction_profiles/oculus/touch_controller")?,
+        action_set.suggest_binding(
+            "/interaction_profiles/oculus/touch_controller",
             &[
-                Binding::new(
-                    &this.grip_pose,
-                    i.string_to_path("/user/hand/left/input/grip/pose")?,
+                XrBinding::new("hand_pose", "/user/hand/left/input/grip/pose"),
+                XrBinding::new("hand_pose", "/user/hand/right/input/grip/pose"),
+                XrBinding::new("pointer_pose", "/user/hand/left/input/aim/pose"),
+                XrBinding::new("pointer_pose", "/user/hand/right/input/aim/pose"),
+                XrBinding::new("squeeze", "/user/hand/left/input/squeeze/value"),
+                XrBinding::new("squeeze", "/user/hand/right/input/squeeze/value"),
+                XrBinding::new("trigger", "/user/hand/left/input/trigger/value"),
+                XrBinding::new("trigger", "/user/hand/right/input/trigger/value"),
+                XrBinding::new("trigger_touched", "/user/hand/left/input/trigger/touch"),
+                XrBinding::new("trigger_touched", "/user/hand/right/input/trigger/touch"),
+                XrBinding::new("haptic_feedback", "/user/hand/left/output/haptic"),
+                XrBinding::new("haptic_feedback", "/user/hand/right/output/haptic"),
+                XrBinding::new("x_button", "/user/hand/left/input/x/click"),
+                XrBinding::new("x_button_touch", "/user/hand/left/input/x/touch"),
+                XrBinding::new("y_button", "/user/hand/left/input/y/click"),
+                XrBinding::new("y_button_touch", "/user/hand/left/input/y/touch"),
+                XrBinding::new("a_button", "/user/hand/right/input/a/click"),
+                XrBinding::new("a_button_touch", "/user/hand/right/input/a/touch"),
+                XrBinding::new("b_button", "/user/hand/right/input/b/click"),
+                XrBinding::new("b_button_touch", "/user/hand/right/input/b/touch"),
+                XrBinding::new("menu_button", "/user/hand/left/input/menu/click"),
+                XrBinding::new("thumbstick_x", "/user/hand/left/input/thumbstick/x"),
+                XrBinding::new("thumbstick_y", "/user/hand/left/input/thumbstick/y"),
+                XrBinding::new("thumbstick_x", "/user/hand/right/input/thumbstick/x"),
+                XrBinding::new("thumbstick_y", "/user/hand/right/input/thumbstick/y"),
+                XrBinding::new("thumbstick_click", "/user/hand/left/input/thumbstick/click"),
+                XrBinding::new(
+                    "thumbstick_click",
+                    "/user/hand/right/input/thumbstick/click",
                 ),
-                Binding::new(
-                    &this.grip_pose,
-                    i.string_to_path("/user/hand/right/input/grip/pose")?,
+                XrBinding::new("thumbstick_touch", "/user/hand/left/input/thumbstick/touch"),
+                XrBinding::new(
+                    "thumbstick_touch",
+                    "/user/hand/right/input/thumbstick/touch",
                 ),
-                Binding::new(
-                    &this.aim_pose,
-                    i.string_to_path("/user/hand/left/input/aim/pose")?,
-                ),
-                Binding::new(
-                    &this.aim_pose,
-                    i.string_to_path("/user/hand/left/input/aim/pose")?,
-                ),
-                Binding::new(
-                    &this.squeeze,
-                    i.string_to_path("/user/hand/left/input/squeeze/value")?,
-                ),
-                Binding::new(
-                    &this.squeeze,
-                    i.string_to_path("/user/hand/right/input/squeeze/value")?,
-                ),
-                Binding::new(
-                    &this.trigger.inner,
-                    i.string_to_path("/user/hand/right/input/trigger/value")?,
-                ),
-                Binding::new(
-                    &this.trigger.inner,
-                    i.string_to_path("/user/hand/left/input/trigger/value")?,
-                ),
-                Binding::new(
-                    &this.trigger.touch,
-                    i.string_to_path("/user/hand/right/input/trigger/touch")?,
-                ),
-                Binding::new(
-                    &this.trigger.touch,
-                    i.string_to_path("/user/hand/left/input/trigger/touch")?,
-                ),
-                Binding::new(
-                    &this.haptic_feedback,
-                    i.string_to_path("/user/hand/right/output/haptic")?,
-                ),
-                Binding::new(
-                    &this.haptic_feedback,
-                    i.string_to_path("/user/hand/left/output/haptic")?,
-                ),
-                Binding::new(
-                    &this.x_button.inner,
-                    i.string_to_path("/user/hand/left/input/x/click")?,
-                ),
-                Binding::new(
-                    &this.x_button.touch,
-                    i.string_to_path("/user/hand/left/input/x/touch")?,
-                ),
-                Binding::new(
-                    &this.y_button.inner,
-                    i.string_to_path("/user/hand/left/input/y/click")?,
-                ),
-                Binding::new(
-                    &this.y_button.touch,
-                    i.string_to_path("/user/hand/left/input/y/touch")?,
-                ),
-                Binding::new(
-                    &this.menu_button,
-                    i.string_to_path("/user/hand/left/input/menu/click")?,
-                ),
-                Binding::new(
-                    &this.a_button.inner,
-                    i.string_to_path("/user/hand/right/input/a/click")?,
-                ),
-                Binding::new(
-                    &this.a_button.touch,
-                    i.string_to_path("/user/hand/right/input/a/touch")?,
-                ),
-                Binding::new(
-                    &this.b_button.inner,
-                    i.string_to_path("/user/hand/right/input/b/click")?,
-                ),
-                Binding::new(
-                    &this.b_button.touch,
-                    i.string_to_path("/user/hand/right/input/b/touch")?,
-                ),
-                Binding::new(
-                    &this.thumbstick_x,
-                    i.string_to_path("/user/hand/left/input/thumbstick/x")?,
-                ),
-                Binding::new(
-                    &this.thumbstick_x,
-                    i.string_to_path("/user/hand/right/input/thumbstick/x")?,
-                ),
-                Binding::new(
-                    &this.thumbstick_y,
-                    i.string_to_path("/user/hand/left/input/thumbstick/y")?,
-                ),
-                Binding::new(
-                    &this.thumbstick_y,
-                    i.string_to_path("/user/hand/right/input/thumbstick/y")?,
-                ),
-                Binding::new(
-                    &this.thumbstick_click,
-                    i.string_to_path("/user/hand/left/input/thumbstick/click")?,
-                ),
-                Binding::new(
-                    &this.thumbstick_click,
-                    i.string_to_path("/user/hand/right/input/thumbstick/click")?,
-                ),
-                Binding::new(
-                    &this.thumbstick_touch,
-                    i.string_to_path("/user/hand/left/input/thumbstick/touch")?,
-                ),
-                Binding::new(
-                    &this.thumbstick_touch,
-                    i.string_to_path("/user/hand/right/input/thumbstick/touch")?,
-                ),
-                Binding::new(
-                    &this.thumbrest_touch,
-                    i.string_to_path("/user/hand/left/input/thumbrest/touch")?,
-                ),
-                Binding::new(
-                    &this.thumbrest_touch,
-                    i.string_to_path("/user/hand/right/input/thumbrest/touch")?,
-                ),
+                XrBinding::new("thumbrest_touch", "/user/hand/left/input/thumbrest/touch"),
+                XrBinding::new("thumbrest_touch", "/user/hand/right/input/thumbrest/touch"),
             ],
-        )?;
-
-        action_sets.push(action_set);
+        );
         Ok(this)
     }
 }

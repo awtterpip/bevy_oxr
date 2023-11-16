@@ -3,13 +3,18 @@ name = "demo"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [lib]
-crate-type = ["cdylib", "lib"]
+crate-type = ["rlib", "cdylib"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 bevy = "0.12"
 bevy_oxr = { path = "../../", default-features = false }
 bevy_rapier3d = { git = "https://github.com/devil-ira/bevy_rapier", branch = "bevy-0.12" }
 color-eyre = "0.6.2"
+
+
+[target.'cfg(not(target_os="android"))'.dependencies.bevy_oxr]
+path = "../../"
+default-features = true

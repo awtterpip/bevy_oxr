@@ -14,6 +14,7 @@ use crate::{
 };
 
 use super::{
+    actions::XrActionSets,
     hand_poses::get_simulated_open_hand_transforms,
     handtracking::HandTrackingTracker,
     oculus_touch::OculusController,
@@ -274,6 +275,7 @@ pub fn update_hand_states(
     xr_input: Res<XrInput>,
     instance: Res<XrInstance>,
     session: Res<XrSession>,
+    action_sets: Res<XrActionSets>,
 ) {
     match hand_states_option {
         Some(mut hands) => {
@@ -281,7 +283,7 @@ pub fn update_hand_states(
             let frame_state = *frame_state.lock().unwrap();
             //get controller
             let controller =
-                oculus_controller.get_ref(&instance, &session, &frame_state, &xr_input);
+                oculus_controller.get_ref(&session, &frame_state, &xr_input, &action_sets);
 
             //right hand
             let squeeze = controller.squeeze(Hand::Right);
@@ -979,7 +981,7 @@ pub fn update_hand_skeletons(
         Without<OpenXRTrackingRoot>,
     )>,
     input_source: Option<Res<HandInputSource>>,
-    hand_tracking: Res<HandTrackingTracker>,
+    hand_tracking: Option<Res<HandTrackingTracker>>,
     xr_input: Res<XrInput>,
     xr_frame_state: Res<XrFrameState>,
 ) {
@@ -1015,35 +1017,39 @@ pub fn update_hand_skeletons(
                     None => info!("hand states resource not initialized yet"),
                 }
             }
-            HandInputSource::OpenXr => {
-                let hand_ref = hand_tracking.get_ref(&xr_input, &xr_frame_state);
-                let (root_transform, _) = tracking_root_query.get_single().unwrap();
-                let left_data = hand_ref.get_left_poses();
-                let right_data = hand_ref.get_right_poses();
+            HandInputSource::OpenXr => match hand_tracking {
+                Some(tracking) => {
+                    let hand_ref = tracking.get_ref(&xr_input, &xr_frame_state);
+                    let (root_transform, _) = tracking_root_query.get_single().unwrap();
+                    let left_data = hand_ref.get_left_poses();
+                    let right_data = hand_ref.get_right_poses();
 
-                for (entity, mut transform, bone, hand, radius, _) in hand_bone_query.iter_mut() {
-                    let bone_data = match (hand, left_data, right_data) {
-                        (Hand::Left, Some(data), _) => data[bone.get_index_from_bone()],
-                        (Hand::Right, _, Some(data)) => data[bone.get_index_from_bone()],
-                        _ => continue,
-                    };
-                    match radius {
-                        Some(mut r) => r.0 = bone_data.radius,
-                        None => {
-                            commands
-                                .entity(entity)
-                                .insert(HandBoneRadius(bone_data.radius));
+                    for (entity, mut transform, bone, hand, radius, _) in hand_bone_query.iter_mut()
+                    {
+                        let bone_data = match (hand, left_data, right_data) {
+                            (Hand::Left, Some(data), _) => data[bone.get_index_from_bone()],
+                            (Hand::Right, _, Some(data)) => data[bone.get_index_from_bone()],
+                            _ => continue,
+                        };
+                        match radius {
+                            Some(mut r) => r.0 = bone_data.radius,
+                            None => {
+                                commands
+                                    .entity(entity)
+                                    .insert(HandBoneRadius(bone_data.radius));
+                            }
                         }
+                        *transform = transform
+                            .with_translation(
+                                root_transform.transform_point(bone_data.pose.position.to_vec3()),
+                            )
+                            .with_rotation(
+                                root_transform.rotation * bone_data.pose.orientation.to_quat(),
+                            )
                     }
-                    *transform = transform
-                        .with_translation(
-                            root_transform.transform_point(bone_data.pose.position.to_vec3()),
-                        )
-                        .with_rotation(
-                            root_transform.rotation * bone_data.pose.orientation.to_quat(),
-                        )
                 }
-            }
+                None => {}
+            },
         },
         None => {
             info!("hand input source not initialized");

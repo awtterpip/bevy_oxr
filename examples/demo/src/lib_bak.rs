@@ -1,26 +1,22 @@
-use std::{f32::consts::PI, ops::Mul, time::Duration};
-
 use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
-    ecs::schedule::ScheduleLabel,
     log::info,
     prelude::{
-        bevy_main, default, shape, App, Assets, Color, Commands, Component, Entity, Event,
-        EventReader, EventWriter, FixedUpdate, Gizmos, GlobalTransform, IntoSystemConfigs,
-        IntoSystemSetConfigs, Mesh, PbrBundle, PostUpdate, Quat, Query, Res, ResMut, Resource,
-        Schedule, SpatialBundle, StandardMaterial, Startup, Transform, Update, Vec3, Vec3Swizzles,
-        With, Without, World,
+        *,
+        bevy_main, default, shape, App, Assets, Color, Commands, Component, Event, EventReader,
+        EventWriter, GlobalTransform, IntoSystemConfigs, IntoSystemSetConfigs, Mesh, PbrBundle,
+        PostUpdate, Query, Res, ResMut, Resource, SpatialBundle, StandardMaterial, Startup,
+        Transform, Update, With, Without,
     },
-    time::{Fixed, Time, Timer},
+    time::{Time, Timer},
     transform::TransformSystem,
 };
-use bevy_oxr::{
+use bevy_openxr::{
     input::XrInput,
     resources::{XrFrameState, XrInstance, XrSession},
     xr_input::{
         debug_gizmos::OpenXrDebugRenderer,
-        hand::{ HandInputDebugRenderer, HandResource, HandsResource, OpenXrHandInput},
-        hands::HandBone,
+        hand::{HandBone, HandInputDebugRenderer, HandResource, HandsResource, OpenXrHandInput},
         interactions::{
             draw_interaction_gizmos, draw_socket_gizmos, interactions, socket_interactions,
             update_interactable_states, InteractionEvent, Touched, XRDirectInteractor,
@@ -55,7 +51,7 @@ pub fn main() {
         .add_plugins(OpenXrDebugRenderer)
         //rapier goes here
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default().with_default_system_setup(false))
-        // .add_plugins(RapierDebugRenderPlugin::default())
+        .add_plugins(RapierDebugRenderPlugin::default())
         //lets setup the starting scene
         .add_systems(Startup, setup_scene)
         .add_systems(Startup, spawn_controllers_example) //you need to spawn controllers or it crashes TODO:: Fix this
@@ -93,24 +89,9 @@ pub fn main() {
         .add_plugins(OpenXrHandInput)
         .add_plugins(HandInputDebugRenderer)
         .add_systems(Startup, spawn_physics_hands)
-        .add_systems(
-            FixedUpdate,
-            update_physics_hands.before(PhysicsSet::SyncBackend),
-        );
+        .add_systems(Update, update_physics_hands);
 
     //configure rapier sets
-    let mut physics_schedule = Schedule::new(PhysicsSchedule);
-
-    physics_schedule.configure_sets(
-        (
-            PhysicsSet::SyncBackend,
-            PhysicsSet::StepSimulation,
-            PhysicsSet::Writeback,
-        )
-            .chain()
-            .before(TransformSystem::TransformPropagate),
-    );
-
     app.configure_sets(
         PostUpdate,
         (
@@ -122,39 +103,22 @@ pub fn main() {
             .before(TransformSystem::TransformPropagate),
     );
     //add rapier systems
-    physics_schedule.add_systems((
-        RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::SyncBackend)
-            .in_set(PhysicsSet::SyncBackend),
-        RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::StepSimulation)
-            .in_set(PhysicsSet::StepSimulation),
-        RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::Writeback)
-            .in_set(PhysicsSet::Writeback),
-    ));
-    app.add_schedule(physics_schedule) // configure our fixed timestep schedule to run at the rate we want
-        .insert_resource(Time::<Fixed>::from_duration(Duration::from_secs_f32(
-            FIXED_TIMESTEP,
-        )))
-        .add_systems(FixedUpdate, run_physics_schedule)
-        .add_systems(Startup, configure_physics);
+    app.add_systems(
+        PostUpdate,
+        (
+            RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::SyncBackend)
+                .in_set(PhysicsSet::SyncBackend),
+            (
+                RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::StepSimulation),
+                // despawn_one_box,
+            )
+                .in_set(PhysicsSet::StepSimulation),
+            RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::Writeback)
+                .in_set(PhysicsSet::Writeback),
+        ),
+    );
+
     app.run();
-}
-
-//fixed timesteps?
-const FIXED_TIMESTEP: f32 = 1. / 90.;
-
-// A label for our new Schedule!
-#[derive(ScheduleLabel, Debug, Hash, PartialEq, Eq, Clone)]
-struct PhysicsSchedule;
-
-fn run_physics_schedule(world: &mut World) {
-    world.run_schedule(PhysicsSchedule);
-}
-
-fn configure_physics(mut rapier_config: ResMut<RapierConfiguration>) {
-    rapier_config.timestep_mode = TimestepMode::Fixed {
-        dt: FIXED_TIMESTEP,
-        substeps: 1,
-    }
 }
 
 fn spawn_controllers_example(mut commands: Commands) {
@@ -280,19 +244,13 @@ fn spawn_physics_hands(mut commands: Commands) {
         PhysicsHandBone::LittleDistal,
         PhysicsHandBone::LittleTip,
     ];
+    //lets just do the Right ThumbMetacarpal for now
+    //i dont understand the groups yet
+    let self_group = Group::GROUP_1;
+    let interaction_group = Group::ALL;
     let radius = 0.010;
-    let left_hand_membership_group = Group::GROUP_1;
-    let right_hand_membership_group = Group::GROUP_2;
-    let floor_membership = Group::GROUP_3;
 
     for hand in hands.iter() {
-        let hand_membership = match hand {
-            Hand::Left => left_hand_membership_group,
-            Hand::Right => right_hand_membership_group,
-        };
-        let mut hand_filter: Group = Group::ALL;
-        hand_filter.remove(hand_membership);
-        hand_filter.remove(floor_membership);
         for bone in bones.iter() {
             //spawn the thing
             commands.spawn((
@@ -310,9 +268,8 @@ fn spawn_physics_hands(mut commands: Commands) {
                     },
                     radius,
                 ),
-                RigidBody::Dynamic,
-                Velocity::default(),
-                CollisionGroups::new(hand_membership, Group::from_bits(0b0001).unwrap()),
+                RigidBody::KinematicPositionBased,
+                // CollisionGroups::new(self_group, interaction_group),
                 // SolverGroups::new(self_group, interaction_group),
                 bone.clone(),
                 BoneInitState::False,
@@ -320,11 +277,6 @@ fn spawn_physics_hands(mut commands: Commands) {
             ));
         }
     }
-}
-
-pub enum MatchingType {
-    PositionMatching,
-    VelocityMatching,
 }
 
 fn update_physics_hands(
@@ -335,13 +287,9 @@ fn update_physics_hands(
         &PhysicsHandBone,
         &mut BoneInitState,
         &Hand,
-        &mut Velocity,
     )>,
     hand_query: Query<(&Transform, &HandBone, &Hand, Without<PhysicsHandBone>)>,
-    time: Res<Time>,
-    mut gizmos: Gizmos,
 ) {
-    let matching = MatchingType::VelocityMatching;
     //sanity check do we even have hands?
     match hands_res {
         Some(res) => {
@@ -368,45 +316,12 @@ fn update_physics_hands(
 
                     match *bone.3 {
                         BoneInitState::True => {
-                            match matching {
-                                MatchingType::PositionMatching => {
-                                    //if we are init then we just move em?
-                                    *bone.0 = start_components
-                                        .unwrap()
-                                        .0
-                                        .clone()
-                                        .looking_at(end_components.unwrap().0.translation, Vec3::Y);
-                                }
-                                MatchingType::VelocityMatching => {
-                                    //calculate position difference
-                                    let diff = (start_components.unwrap().0.translation
-                                        - bone.0.translation)
-                                        / time.delta_seconds();
-                                    bone.5.linvel = diff;
-                                    //calculate angular velocity?
-                                    // gizmos.ray(bone.0.translation, bone.0.forward(), Color::WHITE);
-                                    let desired_forward = start_components
-                                        .unwrap()
-                                        .0
-                                        .clone()
-                                        .looking_at(end_components.unwrap().0.translation, Vec3::Y)
-                                        .rotation;
-                                    // gizmos.ray(
-                                    //     bone.0.translation,
-                                    //     desired_forward.mul_vec3(-Vec3::Z),
-                                    //     Color::GREEN,
-                                    // );
-                                    let cross =
-                                        bone.0.forward().cross(desired_forward.mul_vec3(-Vec3::Z));
-
-                                    // gizmos.ray(
-                                    //     bone.0.translation,
-                                    //     cross,
-                                    //     Color::RED,
-                                    // );
-                                    bone.5.angvel = cross / time.delta_seconds();
-                                }
-                            }
+                            //if we are init then we just move em?
+                            *bone.0 = start_components
+                                .unwrap()
+                                .0
+                                .clone()
+                                .looking_at(end_components.unwrap().0.translation, Vec3::Y);
                         }
                         BoneInitState::False => {
                             //build a new collider?
@@ -517,14 +432,13 @@ fn request_cube_spawn(
     mut writer: EventWriter<SpawnCubeRequest>,
     time: Res<Time>,
     mut timer: ResMut<SpawnCubeTimer>,
-    action_sets: Res<XrActionSets>,
 ) {
     timer.0.tick(time.delta());
     if timer.0.finished() {
         //lock frame
         let frame_state = *frame_state.lock().unwrap();
         //get controller
-        let controller = oculus_controller.get_ref(&session, &frame_state, &xr_input, &action_sets);
+        let controller = oculus_controller.get_ref(&instance, &session, &frame_state, &xr_input);
         //get controller triggers
         let left_main_button = controller.a_button();
         if left_main_button {
@@ -545,7 +459,7 @@ fn cube_spawner(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut events: EventReader<SpawnCubeRequest>,
 ) {
-    for request in events.read() {
+    for request in events.iter() {
         // cube
         commands.spawn((
             PbrBundle {
@@ -570,6 +484,7 @@ fn prototype_interaction_input(
     oculus_controller: Res<OculusController>,
     frame_state: Res<XrFrameState>,
     xr_input: Res<XrInput>,
+    instance: Res<XrInstance>,
     session: Res<XrSession>,
     mut right_interactor_query: Query<
         (&mut XRInteractorState),
@@ -587,12 +502,11 @@ fn prototype_interaction_input(
             Without<OpenXRRightController>,
         ),
     >,
-    action_sets: Res<XrActionSets>,
 ) {
     //lock frame
     let frame_state = *frame_state.lock().unwrap();
     //get controller
-    let controller = oculus_controller.get_ref(&session, &frame_state, &xr_input, &action_sets);
+    let controller = oculus_controller.get_ref(&instance, &session, &frame_state, &xr_input);
     //get controller triggers
     let left_trigger = controller.trigger(Hand::Left);
     let right_trigger = controller.trigger(Hand::Right);

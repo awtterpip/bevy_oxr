@@ -10,7 +10,7 @@ use crate::{
         hand_poses::get_simulated_open_hand_transforms,
         oculus_touch::ActionSets,
         trackers::{OpenXRLeftController, OpenXRRightController},
-        Hand,
+        Hand, InteractionProfileBindings,
     },
 };
 
@@ -54,6 +54,7 @@ fn setup_hand_emulation_action_set(
     session: Res<XrSession>,
     mut action_sets: ResMut<ActionSets>,
     mut commands: Commands,
+    mut bindings: ResMut<InteractionProfileBindings>
 ) -> anyhow::Result<()> {
     let left_path = instance.string_to_path("/user/hand/left").unwrap();
     let right_path = instance.string_to_path("/user/hand/right").unwrap();
@@ -85,7 +86,7 @@ fn setup_hand_emulation_action_set(
         },
     };
 
-    suggest_oculus_touch_profile(&instance, &hand_action_set)?;
+    suggest_oculus_touch_profile(&instance, &hand_action_set,bindings)?;
 
     session.attach_action_sets(&[&action_set])?;
 
@@ -137,8 +138,9 @@ fn bind_single<'a, T: ActionTy>(
 fn suggest_oculus_touch_profile(
     i: &XrInstance,
     action_set: &HandEmulationActionSet,
+    mut bindings: ResMut<InteractionProfileBindings>
 ) -> anyhow::Result<()> {
-    let mut b: Vec<Binding> = Vec::new();
+    let mut b = bindings.entry("/interaction_profiles/oculus/touch_controller").or_default();
     bind(&action_set.thumb_x, "/thumbstick/x", i, &mut b)?;
     bind(&action_set.thumb_y, "/thumbstick/y", i, &mut b)?;
     bind(&action_set.thumb_touch, "/thumbstick/touch", i, &mut b)?;

@@ -3,10 +3,12 @@ name = "bevy_oxr"
 version = "0.1.0"
 edition = "2021"
 description = "Community crate for OpenXR in Bevy"
+repository = "https://github.com/awtterpip/bevy_openxr"
 license = "MIT/Apache-2.0"
 
+
 [features]
-default = ["openxr/mint", "linked"]
+default = ["linked"]
 linked = ["openxr/linked"]
 
 [workspace]
@@ -22,24 +24,19 @@ wgpu-core = { version = "0.17.1", features = ["vulkan"] }
 wgpu-hal = "0.17.1"
 
 [target.'cfg( target_family = "unix" )'.dependencies]
-openxr = "0.17.1"
+openxr = { version = "0.17.1", features = ["mint"] }
 
 [target.'cfg(not(target_family = "unix"))'.dependencies]
-openxr = { version = "0.17.1", features = ["static"] }
+openxr = { version = "0.17.1", features = ["mint", "static"] }
 
 [dev-dependencies]
 bevy = "0.12"
 color-eyre = "0.6.2"
-# bevy_rapier3d = { git = "https://github.com/Schmarni-Dev/bevy_rapier" }
-bevy_rapier3d = { git = "https://github.com/devil-ira/bevy_rapier", version = "0.22.0", branch = "bevy-0.12" }
+bevy_rapier3d = { git = "https://github.com/devil-ira/bevy_rapier", branch = "bevy-0.12" }
 
 [[example]]
 name = "xr"
 path = "examples/xr.rs"
-
-[[example]]
-name = "demo"
-path = "examples/demo/src/main.rs"
 
 [profile.release]
 debug = true
