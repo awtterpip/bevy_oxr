@@ -6,15 +6,19 @@ use openxr::{Action, ActionTy, Binding, HandJoint};
 use crate::{
     resources::{XrInstance, XrSession},
     xr_input::{
+        actions::{
+            ActionHandednes, ActionType, SetupActionSet, SetupActionSets, XrActionSets, XrBinding,
+        },
         controllers::Touchable,
+        hand::{get_bone_gizmo_style, HandBoneRadius},
         hand_poses::get_simulated_open_hand_transforms,
         oculus_touch::ActionSets,
-        trackers::{OpenXRLeftController, OpenXRRightController},
+        trackers::{OpenXRLeftController, OpenXRRightController, OpenXRTrackingRoot},
         Hand, InteractionProfileBindings,
     },
 };
 
-use super::HandBone;
+use super::{BoneTrackingStatus, HandBone};
 
 pub enum TouchValue<T: ActionTy> {
     None,
@@ -32,152 +36,119 @@ pub struct EmulatedHandsPlugin;
 impl Plugin for EmulatedHandsPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(PreUpdate, update_hand_skeleton_from_emulated);
-        app.add_systems(
-            Startup,
-            setup_hand_emulation_action_set.map(|res| res.unwrap()),
-        );
+        app.add_systems(Startup, setup_hand_emulation_action_set);
     }
 }
-#[derive(Resource)]
-pub struct HandEmulationActionSet {
-    thumb_touch: Action<bool>,
-    thumb_x: Action<f32>,
-    thumb_y: Action<f32>,
-    index: Touchable<f32>,
-    middle: Touchable<f32>,
-    ring: Touchable<f32>,
-    little: Touchable<f32>,
-}
 
-fn setup_hand_emulation_action_set(
-    instance: Res<XrInstance>,
-    session: Res<XrSession>,
-    mut action_sets: ResMut<ActionSets>,
-    mut commands: Commands,
-    mut bindings: ResMut<InteractionProfileBindings>
-) -> anyhow::Result<()> {
-    let left_path = instance.string_to_path("/user/hand/left").unwrap();
-    let right_path = instance.string_to_path("/user/hand/right").unwrap();
-    let hands = [left_path, right_path];
-    // This unwrap Should not trigger since both strings are not empty
-    let action_set = instance
-        .create_action_set("hand_pose_approximation_set", "Hand Pose Approximaiton", 0)
-        .unwrap();
-    let hand_action_set = HandEmulationActionSet {
-        thumb_touch: action_set.create_action::<bool>("thumb_touch", "Thumb Touched", &hands)?,
-        thumb_x: action_set.create_action::<f32>("thumb_x", "Thumb X", &hands)?,
-        thumb_y: action_set.create_action::<f32>("thumb_y", "Thumb Y", &hands)?,
+const HAND_ACTION_SET: &'static str = "hand_pose_approx";
 
-        index: Touchable::<f32> {
-            inner: action_set.create_action("index_value", "Index Finger Pull", &hands)?,
-            touch: action_set.create_action("index_touch", "Index Finger Touch", &hands)?,
-        },
-        middle: Touchable::<f32> {
-            inner: action_set.create_action("middle_value", "Middle Finger Pull", &hands)?,
-            touch: action_set.create_action("middle_touch", "Middle Finger Touch", &hands)?,
-        },
-        ring: Touchable::<f32> {
-            inner: action_set.create_action("ring_value", "Ring Finger Pull", &hands)?,
-            touch: action_set.create_action("ring_touch", "Ring Finger Touch", &hands)?,
-        },
-        little: Touchable::<f32> {
-            inner: action_set.create_action("little_value", "Little Finger Pull", &hands)?,
-            touch: action_set.create_action("little_touch", "Little Finger Touch", &hands)?,
-        },
-    };
+fn setup_hand_emulation_action_set(mut action_sets: ResMut<SetupActionSets>) {
+    let mut action_set = action_sets.add_action_set(HAND_ACTION_SET, "Hand Pose Approximaiton", 0);
+    action_set.new_action(
+        "thumb_touch",
+        "Thumb Touched",
+        ActionType::Bool,
+        ActionHandednes::Double,
+    );
+    action_set.new_action(
+        "thumb_x",
+        "Thumb X",
+        ActionType::F32,
+        ActionHandednes::Double,
+    );
+    action_set.new_action(
+        "thumb_y",
+        "Thumb Y",
+        ActionType::F32,
+        ActionHandednes::Double,
+    );
 
-    suggest_oculus_touch_profile(&instance, &hand_action_set,bindings)?;
+    action_set.new_action(
+        "index_touch",
+        "Index Finger Touched",
+        ActionType::Bool,
+        ActionHandednes::Double,
+    );
+    action_set.new_action(
+        "index_value",
+        "Index Finger Pull",
+        ActionType::F32,
+        ActionHandednes::Double,
+    );
 
-    session.attach_action_sets(&[&action_set])?;
+    action_set.new_action(
+        "middle_value",
+        "Middle Finger Pull",
+        ActionType::F32,
+        ActionHandednes::Double,
+    );
+    action_set.new_action(
+        "ring_value",
+        "Ring Finger Pull",
+        ActionType::F32,
+        ActionHandednes::Double,
+    );
+    action_set.new_action(
+        "little_value",
+        "Little Finger Pull",
+        ActionType::F32,
+        ActionHandednes::Double,
+    );
 
-    action_sets.0.push(action_set);
-
-    commands.insert_resource(hand_action_set);
-
-    Ok(())
+    suggest_oculus_touch_profile(&mut action_set);
 }
 
 pub struct EmulatedHandPoseData {}
 
-fn bind<'a, T: ActionTy>(
-    action: &'a Action<T>,
-    path: &str,
-    i: &XrInstance,
-    bindings: &mut Vec<Binding<'a>>,
-) -> anyhow::Result<()> {
-    bindings.push(Binding::new(
-        &action,
-        i.string_to_path(&("/user/hand/left/input".to_string() + path))?,
-    ));
-    bindings.push(Binding::new(
-        &action,
-        i.string_to_path(&("/user/hand/right/input".to_string() + path))?,
-    ));
-    Ok(())
-}
-fn bind_single<'a, T: ActionTy>(
-    action: &'a Action<T>,
-    path: &str,
-    hand: Hand,
-    i: &XrInstance,
-    bindings: &mut Vec<Binding<'a>>,
-) -> anyhow::Result<()> {
-    match hand {
-        Hand::Left => bindings.push(Binding::new(
-            &action,
-            i.string_to_path(&("/user/hand/left/input".to_string() + path))?,
-        )),
-        Hand::Right => bindings.push(Binding::new(
-            &action,
-            i.string_to_path(&("/user/hand/right/input".to_string() + path))?,
-        )),
-    }
-    Ok(())
-}
-
-fn suggest_oculus_touch_profile(
-    i: &XrInstance,
-    action_set: &HandEmulationActionSet,
-    mut bindings: ResMut<InteractionProfileBindings>
-) -> anyhow::Result<()> {
-    let mut b = bindings.entry("/interaction_profiles/oculus/touch_controller").or_default();
-    bind(&action_set.thumb_x, "/thumbstick/x", i, &mut b)?;
-    bind(&action_set.thumb_y, "/thumbstick/y", i, &mut b)?;
-    bind(&action_set.thumb_touch, "/thumbstick/touch", i, &mut b)?;
-    bind(&action_set.thumb_touch, "/thumbrest/touch", i, &mut b)?;
-    // bind_single(&action_set.thumb_touch, "/x/touch", Hand::Left, i, &mut b)?;
-    // bind_single(&action_set.thumb_touch, "/y/touch", Hand::Left, i, &mut b)?;
-    // bind_single(&action_set.thumb_touch, "/a/touch", Hand::Right, i, &mut b)?;
-    // bind_single(&action_set.thumb_touch, "/b/touch", Hand::Right, i, &mut b)?;
-    
-    // bind(&action_set.index.touch, "/trigger/touch", i, &mut b)?;
-    // bind(&action_set.index.inner, "/trigger/value", i, &mut b)?;
-    //
-    // bind(&action_set.middle.touch, "/squeeze/touch", i, &mut b)?;
-    // bind(&action_set.middle.inner, "/squeeze/value", i, &mut b)?;
-    // bind(&action_set.ring.touch, "/squeeze/touch", i, &mut b)?;
-    // bind(&action_set.ring.inner, "/squeeze/value", i, &mut b)?;
-    // bind(&action_set.little.touch, "/squeeze/touch", i, &mut b)?;
-    // bind(&action_set.little.inner, "/squeeze/value", i, &mut b)?;
-
-    i.suggest_interaction_profile_bindings(
-        i.string_to_path("/interaction_profiles/oculus/touch_controller")?,
-        &b,
-    )?;
-    Ok(())
+fn suggest_oculus_touch_profile(action_set: &mut SetupActionSet) {
+    action_set.suggest_binding(
+        "/interaction_profiles/oculus/touch_controller",
+        &[
+            XrBinding::new("thumb_x", "/user/hand/left/input/thumbstick/x"),
+            XrBinding::new("thumb_x", "/user/hand/right/input/thumbstick/x"),
+            XrBinding::new("thumb_y", "/user/hand/left/input/thumbstick/y"),
+            XrBinding::new("thumb_y", "/user/hand/right/input/thumbstick/y"),
+            XrBinding::new("thumb_touch", "/user/hand/left/input/thumbstick/touch"),
+            XrBinding::new("thumb_touch", "/user/hand/right/input/thumbstick/touch"),
+            XrBinding::new("thumb_touch", "/user/hand/left/input/x/touch"),
+            XrBinding::new("thumb_touch", "/user/hand/left/input/y/touch"),
+            XrBinding::new("thumb_touch", "/user/hand/right/input/a/touch"),
+            XrBinding::new("thumb_touch", "/user/hand/right/input/b/touch"),
+            XrBinding::new("thumb_touch", "/user/hand/left/input/thumbrest/touch"),
+            XrBinding::new("thumb_touch", "/user/hand/right/input/thumbrest/touch"),
+            XrBinding::new("index_touch", "/user/hand/left/input/trigger/touch"),
+            XrBinding::new("index_value", "/user/hand/left/input/trigger/value"),
+            XrBinding::new("index_touch", "/user/hand/right/input/trigger/touch"),
+            XrBinding::new("index_value", "/user/hand/right/input/trigger/value"),
+            XrBinding::new("middle_value", "/user/hand/left/input/squeeze/value"),
+            XrBinding::new("middle_value", "/user/hand/right/input/squeeze/value"),
+            XrBinding::new("ring_value", "/user/hand/left/input/squeeze/value"),
+            XrBinding::new("ring_value", "/user/hand/right/input/squeeze/value"),
+            XrBinding::new("little_value", "/user/hand/left/input/squeeze/value"),
+            XrBinding::new("little_value", "/user/hand/right/input/squeeze/value"),
+        ],
+    );
 }
 
 pub(crate) fn update_hand_skeleton_from_emulated(
     session: Res<XrSession>,
     instance: Res<XrInstance>,
-    action_set: Res<HandEmulationActionSet>,
+    action_sets: Res<XrActionSets>,
     left_controller_transform: Query<&Transform, With<OpenXRLeftController>>,
     right_controller_transform: Query<&Transform, With<OpenXRRightController>>,
+    tracking_root_transform: Query<&Transform, With<OpenXRTrackingRoot>>,
     mut bones: Query<
-        (&mut Transform, &HandBone, &Hand),
+        (
+            &mut Transform,
+            &HandBone,
+            &Hand,
+            &BoneTrackingStatus,
+            &mut HandBoneRadius,
+        ),
         (
             Without<OpenXRLeftController>,
             Without<OpenXRRightController>,
+            Without<OpenXRTrackingRoot>,
         ),
     >,
 ) {
@@ -192,8 +163,9 @@ pub(crate) fn update_hand_skeleton_from_emulated(
             Hand::Right,
         ),
     ] {
-        let thumb_curl = match action_set
-            .thumb_touch
+        let thumb_curl = match action_sets
+            .get_action_bool(HAND_ACTION_SET, "thumb_touch")
+            .unwrap()
             .state(&session, subaction_path)
             .unwrap()
             .current_state
@@ -201,27 +173,27 @@ pub(crate) fn update_hand_skeleton_from_emulated(
             true => 1.0,
             false => 0.0,
         };
-        let index_curl = action_set
-            .index
-            .inner
+        let index_curl = action_sets
+            .get_action_f32(HAND_ACTION_SET, "index_value")
+            .unwrap()
             .state(&session, subaction_path)
             .unwrap()
             .current_state;
-        let middle_curl = action_set
-            .middle
-            .inner
+        let middle_curl = action_sets
+            .get_action_f32(HAND_ACTION_SET, "middle_value")
+            .unwrap()
             .state(&session, subaction_path)
             .unwrap()
             .current_state;
-        let ring_curl = action_set
-            .ring
-            .inner
+        let ring_curl = action_sets
+            .get_action_f32(HAND_ACTION_SET, "ring_value")
+            .unwrap()
             .state(&session, subaction_path)
             .unwrap()
             .current_state;
-        let little_curl = action_set
-            .little
-            .inner
+        let little_curl = action_sets
+            .get_action_f32(HAND_ACTION_SET, "little_value")
+            .unwrap()
             .state(&session, subaction_path)
             .unwrap()
             .current_state;
@@ -241,11 +213,21 @@ pub(crate) fn update_hand_skeleton_from_emulated(
             little_curl,
         );
     }
-    for (mut t, bone, hand) in bones.iter_mut() {
+    let trt = tracking_root_transform.single();
+    for (mut t, bone, hand, status, mut radius) in bones.iter_mut() {
+        match status {
+            BoneTrackingStatus::Emulated => {}
+            BoneTrackingStatus::Tracked => continue,
+        }
+        radius.0 = get_bone_gizmo_style(bone).0;
+
         *t = data[match hand {
             Hand::Left => 0,
             Hand::Right => 1,
-        }][bone.get_index_from_bone()]
+        }][bone.get_index_from_bone()];
+        *t = t.with_scale(trt.scale);
+        *t = t.with_rotation(trt.rotation * t.rotation);
+        *t = t.with_translation(trt.transform_point(t.translation));
     }
 }
 pub fn update_hand_bones_emulated(
@@ -537,6 +519,15 @@ pub fn update_hand_bones_emulated(
     calc_transforms
 }
 
-fn get_bone_curl_angle(bone: HandJoint, thumb_curl: f32) -> f32 {
-    todo!()
+fn get_bone_curl_angle(bone: HandJoint, curl: f32) -> f32 {
+    let mul: f32 = match bone {
+        HandJoint::INDEX_PROXIMAL => 0.0,
+        HandJoint::MIDDLE_PROXIMAL => 0.0,
+        HandJoint::RING_PROXIMAL => 0.0,
+        HandJoint::LITTLE_PROXIMAL => 0.0,
+        HandJoint::THUMB_PROXIMAL => 0.0,
+        _ => 1.0,
+    };
+    let curl_angle = -((mul * curl * 80.0) + 5.0);
+    return curl_angle;
 }

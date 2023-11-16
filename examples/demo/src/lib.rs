@@ -29,7 +29,7 @@ use bevy_oxr::{
         oculus_touch::OculusController,
         prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig},
         trackers::{OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker},
-        Hand,
+        Hand, actions::XrActionSets,
     },
     DefaultXrPlugins,
 };

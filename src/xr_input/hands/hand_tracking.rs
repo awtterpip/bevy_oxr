@@ -55,17 +55,22 @@ pub struct HandTrackingRef<'a> {
 }
 #[derive(Debug)]
 pub struct HandJoint {
-    position: Vec3,
-    position_valid: bool,
-    position_tracked: bool,
-    orientaion: Quat,
-    orientaion_valid: bool,
-    orientaion_tracked: bool,
-    radius: f32,
+    pub position: Vec3,
+    pub position_valid: bool,
+    pub position_tracked: bool,
+    pub orientation: Quat,
+    pub orientation_valid: bool,
+    pub orientation_tracked: bool,
+    pub radius: f32,
 }
 
 pub struct HandJoints {
     inner: [HandJoint; 26],
+}
+impl HandJoints {
+    pub fn inner(&self) -> &[HandJoint; 26] {
+        &self.inner
+    }
 }
 
 impl HandJoints {
@@ -91,17 +96,17 @@ impl<'a> HandTrackingRef<'a> {
                     .into_iter()
                     .map(|joint| HandJoint {
                         position: joint.pose.position.to_vec3(),
-                        orientaion: joint.pose.orientation.to_quat(),
+                        orientation: joint.pose.orientation.to_quat(),
                         position_valid: joint
                             .location_flags
                             .contains(SpaceLocationFlags::POSITION_VALID),
                         position_tracked: joint
                             .location_flags
                             .contains(SpaceLocationFlags::POSITION_TRACKED),
-                        orientaion_valid: joint
+                        orientation_valid: joint
                             .location_flags
                             .contains(SpaceLocationFlags::ORIENTATION_VALID),
-                        orientaion_tracked: joint
+                        orientation_tracked: joint
                             .location_flags
                             .contains(SpaceLocationFlags::ORIENTATION_TRACKED),
                         radius: joint.radius,
@@ -126,8 +131,8 @@ impl Plugin for HandTrackingPlugin {
 }
 
 pub fn update_hand_bones(
-    disabled_tracking: Res<DisableHandTracking>,
-    hand_tracking: Res<HandTrackingData>,
+    disabled_tracking: Option<Res<DisableHandTracking>>,
+    hand_tracking: Option<Res<HandTrackingData>>,
     xr_input: Res<XrInput>,
     xr_frame_state: Res<XrFrameState>,
     root_query: Query<(&Transform, With<OpenXRTrackingRoot>, Without<HandBone>)>,
@@ -139,19 +144,25 @@ pub fn update_hand_bones(
         &mut BoneTrackingStatus,
     )>,
 ) {
-    let hand_ref = hand_tracking.get_ref(&xr_input, &xr_frame_state);
+    let hand_ref = match hand_tracking.as_ref() {
+        Some(h) => h.get_ref(&xr_input, &xr_frame_state),
+        None => {
+            warn!("No Handtracking data!");
+            return;
+        }
+    };
     let (root_transform, _, _) = root_query.get_single().unwrap();
     let left_hand_data = hand_ref.get_poses(Hand::Left);
     let right_hand_data = hand_ref.get_poses(Hand::Right);
     bones
         .par_iter_mut()
         .for_each(|(mut transform, hand, bone, mut radius, mut status)| {
-            match (&hand, disabled_tracking.as_ref()) {
-                (Hand::Left, DisableHandTracking::OnlyLeft) => {
+            match (&hand, disabled_tracking.as_ref().map(|d| d.as_ref())) {
+                (Hand::Left, Some(DisableHandTracking::OnlyLeft)) => {
                     *status = BoneTrackingStatus::Emulated;
                     return;
                 }
-                (Hand::Right, DisableHandTracking::OnlyRight) => {
+                (Hand::Right, Some(DisableHandTracking::OnlyRight)) => {
                     *status = BoneTrackingStatus::Emulated;
                     return;
                 }
@@ -171,6 +182,6 @@ pub fn update_hand_bones(
             radius.0 = bone_data.radius;
             *transform = transform
                 .with_translation(root_transform.transform_point(bone_data.position))
-                .with_rotation(root_transform.rotation * bone_data.orientaion)
+                .with_rotation(root_transform.rotation * bone_data.orientation)
         });
 }

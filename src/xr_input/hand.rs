@@ -16,10 +16,11 @@ use crate::{
 use super::{
     actions::XrActionSets,
     hand_poses::get_simulated_open_hand_transforms,
+    hands::{BoneTrackingStatus, HandBone},
     handtracking::HandTrackingTracker,
     oculus_touch::OculusController,
     trackers::{OpenXRLeftController, OpenXRRightController, OpenXRTracker, OpenXRTrackingRoot},
-    Hand, QuatConv, hands::{HandBone, BoneTrackingStatus},
+    Hand, QuatConv,
 };
 
 /// add debug renderer for controllers
@@ -32,8 +33,8 @@ impl Plugin for OpenXrHandInput {
             // .add_systems(Update, update_hand_skeletons)
             // .add_systems(PreUpdate, update_hand_states)
             .add_systems(Startup, spawn_hand_entities);
-            // .insert_resource(HandStatesResource::default())
-            // .insert_resource(HandInputSource::default());
+        // .insert_resource(HandStatesResource::default())
+        // .insert_resource(HandInputSource::default());
     }
 }
 
@@ -198,6 +199,7 @@ pub fn spawn_hand_entities(mut commands: Commands) {
                     OpenXRTracker,
                     hand.clone(),
                     BoneTrackingStatus::Emulated,
+                    HandBoneRadius(1.0),
                 ))
                 .id();
             match hand {
@@ -266,7 +268,6 @@ pub fn spawn_hand_entities(mut commands: Commands) {
     }
     commands.insert_resource(hand_resource);
 }
-
 
 pub fn update_hand_states(
     oculus_controller: Res<OculusController>,
@@ -1063,20 +1064,20 @@ pub struct HandBoneRadius(pub f32);
 
 pub fn draw_hand_entities(
     mut gizmos: Gizmos,
-    query: Query<(&Transform, &HandBone, Option<&HandBoneRadius>)>,
+    query: Query<(&Transform, &HandBone, &HandBoneRadius)>,
 ) {
     for (transform, hand_bone, hand_bone_radius) in query.iter() {
-        let (radius, color) = get_bone_gizmo_style(hand_bone);
+        let (_, color) = get_bone_gizmo_style(hand_bone);
         gizmos.sphere(
             transform.translation,
             transform.rotation,
-            hand_bone_radius.map_or(radius, |r| r.0),
+            hand_bone_radius.0,
             color,
         );
     }
 }
 
-fn get_bone_gizmo_style(hand_bone: &HandBone) -> (f32, Color) {
+pub(crate) fn get_bone_gizmo_style(hand_bone: &HandBone) -> (f32, Color) {
     match hand_bone {
         HandBone::Palm => (0.01, Color::WHITE),
         HandBone::Wrist => (0.01, Color::GRAY),

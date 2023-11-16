@@ -23,11 +23,9 @@ use openxr as xr;
 use resources::*;
 use xr_input::controllers::XrControllerType;
 use xr_input::hands::emulated::EmulatedHandsPlugin;
-use xr_input::hands::hand_tracking::HandTrackingPlugin;
+use xr_input::hands::hand_tracking::{HandTrackingPlugin, HandTrackingData};
 use xr_input::handtracking::HandTrackingTracker;
 use xr_input::OpenXrInput;
-
-use crate::xr_input::oculus_touch::ActionSets;
 
 const VIEW_TYPE: xr::ViewConfigurationType = xr::ViewConfigurationType::PRIMARY_STEREO;
 
@@ -91,7 +89,7 @@ impl Plugin for OpenXrPlugin {
             views,
             frame_state,
             hand_tracking_enabled,
-        ) = graphics::initialize_xr_graphics(primary_window,self.0).unwrap();
+        ) = graphics::initialize_xr_graphics(primary_window, self.0).unwrap();
         // std::thread::sleep(Duration::from_secs(5));
         debug!("Configured wgpu adapter Limits: {:#?}", device.limits());
         debug!("Configured wgpu adapter Features: {:#?}", device.features());
@@ -163,10 +161,9 @@ impl Plugin for OpenXrPlugin {
                 .insert_resource(action_sets.clone());
             let hands = xr_instance.exts().ext_hand_tracking.is_some();
             if hands {
-                app.insert_resource(HandTrackingTracker::new(&session).unwrap());
-                app.insert_resource(HandInputSource::OpenXr);
+                app.insert_resource(HandTrackingData::new(&session).unwrap());
             } else {
-                app.insert_resource(HandInputSource::Emulated);
+                app.insert_resource(DisableHandTracking::Both);
             }
 
             let (left, right) = swapchain.get_render_views();
@@ -224,7 +221,8 @@ impl PluginGroup for DefaultXrPlugins {
             .disable::<PipelinedRenderingPlugin>()
             .add_before::<RenderPlugin, _>(OpenXrPlugin::default())
             .add_after::<OpenXrPlugin, _>(OpenXrInput::new(XrControllerType::OculusTouch))
-            .add(EmulatedHandsPlugin).add(HandTrackingPlugin)
+            .add(EmulatedHandsPlugin)
+            .add(HandTrackingPlugin)
             .set(WindowPlugin {
                 #[cfg(not(target_os = "android"))]
                 primary_window: Some(Window {
