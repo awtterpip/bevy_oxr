@@ -5,16 +5,22 @@ Get libopenxr_loader.so from the Oculus OpenXR Mobile SDK and add it to `example
 https://developer.oculus.com/downloads/package/oculus-openxr-mobile-sdk/
 `examples/android/runtime_libs/arm64-v8a/libopenxr_loader.so`
 
+Also, install either `cargo-apk` (marked as deprecated):
+```sh
+cargo install cargo-apk
+```
+or, install `xbuild` as it supersedes `cargo-apk`. Note that the `--git` is 
+very important here.
+```sh
+cargo install --git https://github.com/rust-mobile/xbuild
+```
+
 ## Run
 Running on Meta Quest can be done with https://github.com/rust-mobile/cargo-apk. 
 ```sh 
 cargo apk run --release
 ```
 But cargo-apk is deprecated in favour of xbuild https://github.com/rust-mobile/xbuild.
-```sh 
-# Install latest version of xbuild
-cargo install --git https://github.com/rust-mobile/xbuild
-```
 ```sh 
 # List devices and copy device string "adb:***"
 x devices
