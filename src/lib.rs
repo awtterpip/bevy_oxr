@@ -5,7 +5,6 @@ pub mod resources;
 pub mod xr_input;
 
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 use crate::xr_input::hands::hand_tracking::DisableHandTracking;
 use crate::xr_input::oculus_touch::ActionSets;
@@ -23,7 +22,7 @@ use openxr as xr;
 use resources::*;
 use xr::FormFactor;
 use xr_input::controllers::XrControllerType;
-use xr_input::hands::emulated::EmulatedHandsPlugin;
+use xr_input::hands::emulated::HandEmulationPlugin;
 use xr_input::hands::hand_tracking::{HandTrackingData, HandTrackingPlugin};
 use xr_input::OpenXrInput;
 
@@ -228,7 +227,7 @@ impl PluginGroup for DefaultXrPlugins {
             .disable::<PipelinedRenderingPlugin>()
             .add_before::<RenderPlugin, _>(OpenXrPlugin::default())
             .add_after::<OpenXrPlugin, _>(OpenXrInput::new(XrControllerType::OculusTouch))
-            .add(EmulatedHandsPlugin)
+            .add(HandEmulationPlugin)
             .add(HandTrackingPlugin)
             .set(WindowPlugin {
                 #[cfg(not(target_os = "android"))]

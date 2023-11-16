@@ -1,11 +1,11 @@
+use bevy::log::info;
 use bevy::prelude::{
-    info, Added, BuildChildren, Commands, Component, Entity, Query, Res, Transform, Vec3, With,
-    Without,
+    Added, BuildChildren, Commands, Component, Entity, Query, Res, Transform, Vec3, With, Without,
 };
 
 use crate::{
     input::XrInput,
-    resources::{XrFrameState, XrInstance, XrSession},
+    resources::{XrFrameState, XrSession},
 };
 
 use super::{actions::XrActionSets, oculus_touch::OculusController, Hand, QuatConv, Vec3Conv};

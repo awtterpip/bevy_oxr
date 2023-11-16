@@ -1,7 +1,8 @@
 use std::f32::consts::PI;
 
+use bevy::log::info;
 use bevy::prelude::{
-    info, Color, Component, Entity, Event, EventReader, EventWriter, Gizmos, GlobalTransform, Quat,
+    Color, Component, Entity, Event, EventReader, EventWriter, Gizmos, GlobalTransform, Quat,
     Query, Transform, Vec3, With, Without,
 };
 
@@ -45,7 +46,7 @@ impl Default for XRInteractorState {
 #[derive(Component)]
 pub enum XRSelection {
     Empty,
-    Full(Entity)
+    Full(Entity),
 }
 impl Default for XRSelection {
     fn default() -> Self {

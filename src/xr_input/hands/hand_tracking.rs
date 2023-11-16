@@ -3,12 +3,14 @@ use openxr::{HandTracker, Result, SpaceLocationFlags};
 
 use crate::{
     input::XrInput,
+
     resources::{XrFrameState, XrSession},
     xr_input::{
-        hand::HandBoneRadius, hands::HandBone, trackers::OpenXRTrackingRoot, Hand, QuatConv,
+         hands::HandBone, trackers::OpenXRTrackingRoot, Hand, QuatConv,
         Vec3Conv,
     },
 };
+use super::common::HandBoneRadius;
 
 use super::BoneTrackingStatus;
 
@@ -123,11 +125,33 @@ impl Plugin for HandTrackingPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             PreUpdate,
-            (update_hand_bones).run_if(|dh: Option<Res<DisableHandTracking>>| {
-                !dh.is_some_and(|v| *v == DisableHandTracking::Both)
-            }),
+            (
+                update_hand_bones.run_if(|dh: Option<Res<DisableHandTracking>>| {
+                    !dh.is_some_and(|v| *v == DisableHandTracking::Both)
+                }),
+                update_tracking_state_on_disable,
+            ),
         );
     }
+}
+
+fn update_tracking_state_on_disable(
+    mut is_off: Local<bool>,
+    disabled_tracking: Option<Res<DisableHandTracking>>,
+    mut tracking_states: Query<&mut BoneTrackingStatus>,
+) {
+    if !*is_off
+        && disabled_tracking
+            .as_ref()
+            .is_some_and(|t| **t == DisableHandTracking::Both)
+    {
+        tracking_states
+            .par_iter_mut()
+            .for_each(|mut state| *state = BoneTrackingStatus::Emulated);
+    }
+    *is_off = disabled_tracking
+        .as_ref()
+        .is_some_and(|t| **t == DisableHandTracking::Both);
 }
 
 pub fn update_hand_bones(

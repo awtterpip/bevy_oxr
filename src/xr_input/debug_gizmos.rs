@@ -16,7 +16,6 @@ use crate::xr_input::{
 
 use super::{
     actions::XrActionSets,
-    hands::hand_tracking::HandTrackingData,
     trackers::{OpenXRLeftController, OpenXRRightController, OpenXRTrackingRoot},
 };
 
@@ -54,43 +53,38 @@ pub fn draw_gizmos(
         Without<OpenXRLeftController>,
         Without<OpenXRTrackingRoot>,
     )>,
-    hand_tracking: Option<Res<HandTrackingData>>,
     action_sets: Res<XrActionSets>,
 ) {
-    if let Some(hand_tracking) = hand_tracking {
-        let handtracking_ref = hand_tracking.get_ref(&xr_input, &frame_state);
-        if let Some(joints) = handtracking_ref.get_poses(Hand::Left) {
-            for joint in joints.inner() {
-                let trans = Transform::from_rotation(joint.orientation);
-                gizmos.circle(
-                    joint.position,
-                    trans.forward(),
-                    joint.radius,
-                    Color::ORANGE_RED,
-                );
-            }
-        } else {
-            info!("left_hand_poses returned None");
-        }
-        if let Some(joints) = handtracking_ref.get_poses(Hand::Right) {
-            for joint in joints.inner() {
-                let trans = Transform::from_rotation(joint.orientation);
-                gizmos.circle(
-                    joint.position,
-                    trans.forward(),
-                    joint.radius,
-                    Color::LIME_GREEN,
-                );
-            }
-            return;
-        }
-    }
+    // if let Some(hand_tracking) = hand_tracking {
+    //     let handtracking_ref = hand_tracking.get_ref(&xr_input, &frame_state);
+    //     if let Some(joints) = handtracking_ref.get_poses(Hand::Left) {
+    //         for joint in joints.inner() {
+    //             let trans = Transform::from_rotation(joint.orientation);
+    //             gizmos.circle(
+    //                 joint.position,
+    //                 trans.forward(),
+    //                 joint.radius,
+    //                 Color::ORANGE_RED,
+    //             );
+    //         }
+    //     }
+    //     if let Some(joints) = handtracking_ref.get_poses(Hand::Right) {
+    //         for joint in joints.inner() {
+    //             let trans = Transform::from_rotation(joint.orientation);
+    //             gizmos.circle(
+    //                 joint.position,
+    //                 trans.forward(),
+    //                 joint.radius,
+    //                 Color::LIME_GREEN,
+    //             );
+    //         }
+    //         return;
+    //     }
+    // }
     //lock frame
     let frame_state = *frame_state.lock().unwrap();
     //get controller
     let controller = oculus_controller.get_ref(&session, &frame_state, &xr_input, &action_sets);
-    //tracking root?
-    let mut tracking_transform = &Transform::IDENTITY;
     let root = tracking_root_query.get_single();
     match root {
         Ok(position) => {
@@ -105,7 +99,6 @@ pub fn draw_gizmos(
                 0.2,
                 Color::RED,
             );
-            tracking_transform = position.0;
         }
         Err(_) => info!("too many tracking roots"),
     }

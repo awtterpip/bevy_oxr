@@ -1,12 +1,20 @@
-use bevy::prelude::*;
+use bevy::{app::PluginGroupBuilder, prelude::*};
+
+use self::{emulated::HandEmulationPlugin, hand_tracking::HandTrackingPlugin};
 
 pub mod emulated;
 pub mod hand_tracking;
+pub mod common;
 
-pub struct HandsPlugin;
+pub struct XrHandPlugins;
 
-impl Plugin for HandsPlugin {
-    fn build(&self, app: &mut bevy::prelude::App) {}
+impl PluginGroup for XrHandPlugins {
+    fn build(self) -> PluginGroupBuilder {
+        PluginGroupBuilder::start::<Self>()
+            .add(HandTrackingPlugin)
+            .add(HandEmulationPlugin)
+            .build()
+    }
 }
 
 #[derive(Component, Debug, Clone, Copy, PartialEq)]

@@ -1,20 +1,18 @@
 use std::f32::consts::PI;
 
 use bevy::prelude::*;
-use openxr::{Action, ActionTy, Binding, HandJoint};
+use openxr::{ActionTy, HandJoint};
 
+use super::common::{get_bone_gizmo_style, HandBoneRadius};
 use crate::{
     resources::{XrInstance, XrSession},
     xr_input::{
         actions::{
             ActionHandednes, ActionType, SetupActionSet, SetupActionSets, XrActionSets, XrBinding,
         },
-        controllers::Touchable,
-        hand::{get_bone_gizmo_style, HandBoneRadius},
         hand_poses::get_simulated_open_hand_transforms,
-        oculus_touch::ActionSets,
         trackers::{OpenXRLeftController, OpenXRRightController, OpenXRTrackingRoot},
-        Hand, InteractionProfileBindings,
+        Hand,
     },
 };
 
@@ -25,22 +23,16 @@ pub enum TouchValue<T: ActionTy> {
     Touched(T),
 }
 
-// #[derive(Deref, DerefMut, Resource)]
-// pub struct EmulatedHandPoseFunctions {
-//     pub get_base_pose: Box<dyn Fn(Hand) -> [Transform; 26] + Send + Sync>,
-//     pub map_data: Box<dyn Fn(Hand) -> [Transform; 26] + Send + Sync>,
-// }
+pub struct HandEmulationPlugin;
 
-pub struct EmulatedHandsPlugin;
-
-impl Plugin for EmulatedHandsPlugin {
+impl Plugin for HandEmulationPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(PreUpdate, update_hand_skeleton_from_emulated);
         app.add_systems(Startup, setup_hand_emulation_action_set);
     }
 }
 
-const HAND_ACTION_SET: &'static str = "hand_pose_approx";
+const HAND_ACTION_SET: &str = "hand_pose_approx";
 
 fn setup_hand_emulation_action_set(mut action_sets: ResMut<SetupActionSets>) {
     let mut action_set = action_sets.add_action_set(HAND_ACTION_SET, "Hand Pose Approximaiton", 0);

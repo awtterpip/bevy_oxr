@@ -1,7 +1,6 @@
 pub mod actions;
 pub mod controllers;
 pub mod debug_gizmos;
-pub mod hand;
 pub mod hand_poses;
 pub mod hands;
 pub mod interactions;

@@ -19,7 +19,7 @@ use bevy_oxr::{
     resources::{XrFrameState, XrInstance, XrSession},
     xr_input::{
         debug_gizmos::OpenXrDebugRenderer,
-        hand::{ HandInputDebugRenderer, HandResource, HandsResource, OpenXrHandInput},
+        hands::common::{ HandInputDebugRenderer, HandResource, HandsResource, OpenXrHandInput},
         hands::HandBone,
         interactions::{
             draw_interaction_gizmos, draw_socket_gizmos, interactions, socket_interactions,
