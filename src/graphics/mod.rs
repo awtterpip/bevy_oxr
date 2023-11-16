@@ -14,9 +14,6 @@ use openxr as xr;
 
 pub fn initialize_xr_graphics(
     window: Option<RawHandleWrapper>,
-    // Horrible hack to get the Handtacking extension Loaded, Replace with good system to load
-    // any extension at some point
-    enable_hand_tracking: bool,
 ) -> anyhow::Result<(
     RenderDevice,
     RenderQueue,
@@ -34,11 +31,8 @@ pub fn initialize_xr_graphics(
     XrInput,
     XrViews,
     XrFrameState,
-    // Horrible hack to get the Handtacking extension Loaded, Replace with good system to load
-    // any extension at some point
-    bool,
 )> {
-    vulkan::initialize_xr_graphics(window,enable_hand_tracking)
+    vulkan::initialize_xr_graphics(window)
 }
 
 pub fn xr_entry() -> xr::Entry {

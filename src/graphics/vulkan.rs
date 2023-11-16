@@ -22,7 +22,6 @@ pub fn initialize_xr_graphics(
     window: Option<RawHandleWrapper>,
     // Horrible hack to get the Handtacking extension Loaded, Replace with good system to load
     // any extension at some point
-    enable_hand_tracking: bool,
 ) -> anyhow::Result<(
     RenderDevice,
     RenderQueue,
@@ -42,7 +41,6 @@ pub fn initialize_xr_graphics(
     XrFrameState,
     // Horrible hack to get the Handtacking extension Loaded, Replace with good system to load
     // any extension at some point
-    bool,
 )> {
     use wgpu_hal::{api::Vulkan as V, Api};
 
@@ -413,7 +411,6 @@ pub fn initialize_xr_graphics(
         .into(),
         // Horrible hack to get the Handtacking extension Loaded, Replace with good system to load
         // any extension at some point
-        available_extensions.ext_hand_tracking && enable_hand_tracking,
     ))
 }
 

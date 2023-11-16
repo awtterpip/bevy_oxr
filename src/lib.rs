@@ -32,11 +32,11 @@ pub const LEFT_XR_TEXTURE_HANDLE: ManualTextureViewHandle = ManualTextureViewHan
 pub const RIGHT_XR_TEXTURE_HANDLE: ManualTextureViewHandle = ManualTextureViewHandle(3383858418);
 
 /// Adds OpenXR support to an App
-pub struct OpenXrPlugin(pub bool);
+pub struct OpenXrPlugin;
 
 impl Default for OpenXrPlugin {
     fn default() -> Self {
-        OpenXrPlugin(true)
+        OpenXrPlugin
     }
 }
 
@@ -87,8 +87,7 @@ impl Plugin for OpenXrPlugin {
             input,
             views,
             frame_state,
-            hand_tracking_enabled,
-        ) = graphics::initialize_xr_graphics(primary_window, self.0).unwrap();
+        ) = graphics::initialize_xr_graphics(primary_window).unwrap();
         // std::thread::sleep(Duration::from_secs(5));
         debug!("Configured wgpu adapter Limits: {:#?}", device.limits());
         debug!("Configured wgpu adapter Features: {:#?}", device.features());
@@ -106,9 +105,6 @@ impl Plugin for OpenXrPlugin {
             views,
             frame_state,
         ));
-        if !hand_tracking_enabled {
-            app.insert_resource(DisableHandTracking::Both);
-        }
         app.insert_resource(ActionSets(vec![]));
         app.add_plugins(RenderPlugin {
             render_creation: RenderCreation::Manual(
