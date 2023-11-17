@@ -1,5 +1,0 @@
-[1/3] Fetch precompiled artifacts
-Downloading `platforms;android-33`
-Extracting `platforms;android-33`
-[1/3] Fetch precompiled artifacts [3378ms]
-[2/3] Build rust `bevy_openxr`
