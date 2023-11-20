@@ -6,6 +6,8 @@ pub mod xr_input;
 
 use std::sync::{Arc, Mutex};
 
+use crate::xr_input::hands::hand_tracking::DisableHandTracking;
+use crate::xr_input::oculus_touch::ActionSets;
 use bevy::app::PluginGroupBuilder;
 use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
@@ -18,12 +20,11 @@ use bevy::window::{PresentMode, PrimaryWindow, RawHandleWrapper};
 use input::XrInput;
 use openxr as xr;
 use resources::*;
+use xr::FormFactor;
 use xr_input::controllers::XrControllerType;
-use xr_input::hand::HandInputSource;
-use xr_input::handtracking::HandTrackingTracker;
+use xr_input::hands::emulated::HandEmulationPlugin;
+use xr_input::hands::hand_tracking::{HandTrackingData, HandTrackingPlugin};
 use xr_input::OpenXrInput;
-
-use crate::xr_input::oculus_touch::ActionSets;
 
 const VIEW_TYPE: xr::ViewConfigurationType = xr::ViewConfigurationType::PRIMARY_STEREO;
 
@@ -31,8 +32,13 @@ pub const LEFT_XR_TEXTURE_HANDLE: ManualTextureViewHandle = ManualTextureViewHan
 pub const RIGHT_XR_TEXTURE_HANDLE: ManualTextureViewHandle = ManualTextureViewHandle(3383858418);
 
 /// Adds OpenXR support to an App
-#[derive(Default)]
 pub struct OpenXrPlugin;
+
+impl Default for OpenXrPlugin {
+    fn default() -> Self {
+        OpenXrPlugin
+    }
+}
 
 #[derive(Resource)]
 pub struct FutureXrResources(
@@ -82,6 +88,7 @@ impl Plugin for OpenXrPlugin {
             views,
             frame_state,
         ) = graphics::initialize_xr_graphics(primary_window).unwrap();
+        // std::thread::sleep(Duration::from_secs(5));
         debug!("Configured wgpu adapter Limits: {:#?}", device.limits());
         debug!("Configured wgpu adapter Features: {:#?}", device.features());
         let mut future_xr_resources_inner = future_xr_resources_wrapper.lock().unwrap();
@@ -147,12 +154,18 @@ impl Plugin for OpenXrPlugin {
                 .insert_resource(views.clone())
                 .insert_resource(frame_state.clone())
                 .insert_resource(action_sets.clone());
-            let hands = xr_instance.exts().ext_hand_tracking.is_some();
+            let hands = xr_instance.exts().ext_hand_tracking.is_some()
+                && xr_instance
+                    .supports_hand_tracking(
+                        xr_instance
+                            .system(FormFactor::HEAD_MOUNTED_DISPLAY)
+                            .unwrap(),
+                    )
+                    .is_ok_and(|v| v);
             if hands {
-                app.insert_resource(HandTrackingTracker::new(&session).unwrap());
-                app.insert_resource(HandInputSource::OpenXr);
+                app.insert_resource(HandTrackingData::new(&session).unwrap());
             } else {
-                app.insert_resource(HandInputSource::Emulated);
+                app.insert_resource(DisableHandTracking::Both);
             }
 
             let (left, right) = swapchain.get_render_views();
@@ -208,8 +221,10 @@ impl PluginGroup for DefaultXrPlugins {
             .build()
             .disable::<RenderPlugin>()
             .disable::<PipelinedRenderingPlugin>()
-            .add_before::<RenderPlugin, _>(OpenXrPlugin)
+            .add_before::<RenderPlugin, _>(OpenXrPlugin::default())
             .add_after::<OpenXrPlugin, _>(OpenXrInput::new(XrControllerType::OculusTouch))
+            .add(HandEmulationPlugin)
+            .add(HandTrackingPlugin)
             .set(WindowPlugin {
                 #[cfg(not(target_os = "android"))]
                 primary_window: Some(Window {

@@ -1,27 +1,28 @@
 pub mod actions;
 pub mod controllers;
 pub mod debug_gizmos;
-pub mod hand;
 pub mod hand_poses;
-pub mod handtracking;
+pub mod hands;
 pub mod interactions;
 pub mod oculus_touch;
 pub mod prototype_locomotion;
 pub mod trackers;
 pub mod xr_camera;
 
-use crate::resources::XrSession;
+use crate::resources::{XrInstance, XrSession};
 use crate::xr_begin_frame;
 use crate::xr_input::controllers::XrControllerType;
 use crate::xr_input::oculus_touch::setup_oculus_controller;
 use crate::xr_input::xr_camera::{xr_camera_head_sync, Eye, XRProjection, XrCameraBundle};
 use bevy::app::{App, PostUpdate, Startup};
 use bevy::log::warn;
-use bevy::prelude::{BuildChildren, Component, IntoSystemConfigs};
+use bevy::prelude::{BuildChildren, Component, Deref, DerefMut, IntoSystemConfigs, Resource};
 use bevy::prelude::{Commands, Plugin, PreUpdate, Quat, Res, SpatialBundle, Update, Vec3};
 use bevy::render::camera::CameraProjectionPlugin;
 use bevy::render::view::{update_frusta, VisibilitySystems};
 use bevy::transform::TransformSystem;
+use bevy::utils::HashMap;
+use openxr::Binding;
 
 use self::actions::{setup_oxr_actions, OpenXrActionsPlugin};
 use self::oculus_touch::{post_action_setup_oculus_controller, ActionSets};
@@ -73,6 +74,17 @@ impl Plugin for OpenXrInput {
         );
         app.add_systems(Startup, setup_xr_cameras);
     }
+}
+
+#[derive(Deref, DerefMut, Resource)]
+pub struct InteractionProfileBindings(pub HashMap<&'static str, Vec<Binding<'static>>>);
+
+fn setup_binding_recommendations(
+    mut commands: Commands,
+    instance: Res<XrInstance>,
+    bindings: Res<InteractionProfileBindings>,
+) {
+    commands.remove_resource::<InteractionProfileBindings>();
 }
 
 fn setup_xr_cameras(mut commands: Commands) {

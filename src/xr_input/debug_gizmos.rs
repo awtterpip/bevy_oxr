@@ -1,11 +1,12 @@
 use bevy::prelude::{
-    info, Color, Gizmos, GlobalTransform, Plugin, Quat, Query, Res, Transform, Update, Vec2, Vec3,
-    With, Without,
+    Color, Gizmos, GlobalTransform, Plugin, Quat, Query, Res, Transform, Update, Vec2, Vec3, With,
+    Without,
 };
+use bevy::log::info;
 
 use crate::{
     input::XrInput,
-    resources::{XrFrameState, XrInstance, XrSession},
+    resources::{XrFrameState, XrSession},
 };
 
 use crate::xr_input::{
@@ -15,9 +16,7 @@ use crate::xr_input::{
 
 use super::{
     actions::XrActionSets,
-    handtracking::{HandTrackingRef, HandTrackingTracker},
     trackers::{OpenXRLeftController, OpenXRRightController, OpenXRTrackingRoot},
-    QuatConv,
 };
 
 /// add debug renderer for controllers
@@ -35,7 +34,6 @@ pub fn draw_gizmos(
     oculus_controller: Res<OculusController>,
     frame_state: Res<XrFrameState>,
     xr_input: Res<XrInput>,
-    instance: Res<XrInstance>,
     session: Res<XrSession>,
     tracking_root_query: Query<(
         &mut Transform,
@@ -55,49 +53,38 @@ pub fn draw_gizmos(
         Without<OpenXRLeftController>,
         Without<OpenXRTrackingRoot>,
     )>,
-    hand_tracking: Option<Res<HandTrackingTracker>>,
     action_sets: Res<XrActionSets>,
 ) {
-    if let Some(hand_tracking) = hand_tracking {
-        let handtracking_ref = hand_tracking.get_ref(&xr_input, &frame_state);
-        if let Some(joints) = handtracking_ref.get_left_poses() {
-            for joint in joints {
-                let p = joint.pose.position;
-                let r = joint.pose.orientation;
-                let quat = r.to_quat();
-                let trans = Transform::from_rotation(quat);
-                gizmos.circle(
-                    (p.x, p.y, p.z).into(),
-                    trans.forward(),
-                    joint.radius,
-                    Color::ORANGE_RED,
-                );
-            }
-        } else {
-            info!("left_hand_poses returned None");
-        }
-        if let Some(joints) = handtracking_ref.get_right_poses() {
-            for joint in joints {
-                let p = joint.pose.position;
-                let r = joint.pose.orientation;
-                let quat = r.to_quat();
-                let trans = Transform::from_rotation(quat);
-                gizmos.circle(
-                    (p.x, p.y, p.z).into(),
-                    trans.forward(),
-                    joint.radius,
-                    Color::LIME_GREEN,
-                );
-            }
-            return;
-        }
-    }
+    // if let Some(hand_tracking) = hand_tracking {
+    //     let handtracking_ref = hand_tracking.get_ref(&xr_input, &frame_state);
+    //     if let Some(joints) = handtracking_ref.get_poses(Hand::Left) {
+    //         for joint in joints.inner() {
+    //             let trans = Transform::from_rotation(joint.orientation);
+    //             gizmos.circle(
+    //                 joint.position,
+    //                 trans.forward(),
+    //                 joint.radius,
+    //                 Color::ORANGE_RED,
+    //             );
+    //         }
+    //     }
+    //     if let Some(joints) = handtracking_ref.get_poses(Hand::Right) {
+    //         for joint in joints.inner() {
+    //             let trans = Transform::from_rotation(joint.orientation);
+    //             gizmos.circle(
+    //                 joint.position,
+    //                 trans.forward(),
+    //                 joint.radius,
+    //                 Color::LIME_GREEN,
+    //             );
+    //         }
+    //         return;
+    //     }
+    // }
     //lock frame
     let frame_state = *frame_state.lock().unwrap();
     //get controller
     let controller = oculus_controller.get_ref(&session, &frame_state, &xr_input, &action_sets);
-    //tracking root?
-    let mut tracking_transform = &Transform::IDENTITY;
     let root = tracking_root_query.get_single();
     match root {
         Ok(position) => {
@@ -112,7 +99,6 @@ pub fn draw_gizmos(
                 0.2,
                 Color::RED,
             );
-            tracking_transform = position.0;
         }
         Err(_) => info!("too many tracking roots"),
     }

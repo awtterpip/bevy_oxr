@@ -1,17 +1,16 @@
 use crate::input::XrInput;
 use crate::resources::{XrInstance, XrSession};
-use crate::xr_input::controllers::{Handed, Touchable};
+use crate::xr_input::controllers::Handed;
 use crate::xr_input::Hand;
 use bevy::prelude::{Commands, Res, ResMut, Resource};
 use openxr::{
-    Action, ActionSet, AnyGraphics, Binding, FrameState, Haptic, Instance, Path, Posef, Session,
-    Space, SpaceLocation, SpaceVelocity,
+    ActionSet, AnyGraphics, FrameState, Instance, Path, Posef, Session, Space, SpaceLocation,
+    SpaceVelocity,
 };
 
-use std::convert::identity;
 use std::sync::OnceLock;
 
-use super::actions::{ActionHandednes, XrActionSets, ActionType, SetupActionSets, XrBinding};
+use super::actions::{ActionHandednes, ActionType, SetupActionSets, XrActionSets, XrBinding};
 
 pub fn post_action_setup_oculus_controller(
     action_sets: Res<XrActionSets>,
@@ -30,34 +29,18 @@ pub fn post_action_setup_oculus_controller(
         .unwrap();
     controller.grip_space = Some(Handed {
         left: grip_action
-            .create_space(
-                s.clone(),
-                left_path,
-                Posef::IDENTITY,
-            )
+            .create_space(s.clone(), left_path, Posef::IDENTITY)
             .unwrap(),
         right: grip_action
-            .create_space(
-                s.clone(),
-                right_path,
-                Posef::IDENTITY,
-            )
+            .create_space(s.clone(), right_path, Posef::IDENTITY)
             .unwrap(),
     });
     controller.aim_space = Some(Handed {
         left: aim_action
-            .create_space(
-                s.clone(),
-                left_path,
-                Posef::IDENTITY,
-            )
+            .create_space(s.clone(), left_path, Posef::IDENTITY)
             .unwrap(),
         right: aim_action
-            .create_space(
-                s.clone(),
-                right_path,
-                Posef::IDENTITY,
-            )
+            .create_space(s.clone(), right_path, Posef::IDENTITY)
             .unwrap(),
     })
 }
@@ -100,27 +83,51 @@ pub fn subaction_path(hand: Hand) -> Path {
 impl OculusControllerRef<'_> {
     pub fn grip_space(&self, hand: Hand) -> (SpaceLocation, SpaceVelocity) {
         match hand {
-            Hand::Left => self.oculus_controller.grip_space.as_ref().unwrap().left.relate(
-                &self.xr_input.stage,
-                self.frame_state.predicted_display_time,
-            ),
-            Hand::Right => self.oculus_controller.grip_space.as_ref().unwrap().right.relate(
-                &self.xr_input.stage,
-                self.frame_state.predicted_display_time,
-            ),
+            Hand::Left => self
+                .oculus_controller
+                .grip_space
+                .as_ref()
+                .unwrap()
+                .left
+                .relate(
+                    &self.xr_input.stage,
+                    self.frame_state.predicted_display_time,
+                ),
+            Hand::Right => self
+                .oculus_controller
+                .grip_space
+                .as_ref()
+                .unwrap()
+                .right
+                .relate(
+                    &self.xr_input.stage,
+                    self.frame_state.predicted_display_time,
+                ),
         }
         .unwrap()
     }
     pub fn aim_space(&self, hand: Hand) -> (SpaceLocation, SpaceVelocity) {
         match hand {
-            Hand::Left => self.oculus_controller.aim_space.as_ref().unwrap().left.relate(
-                &self.xr_input.stage,
-                self.frame_state.predicted_display_time,
-            ),
-            Hand::Right => self.oculus_controller.aim_space.as_ref().unwrap().right.relate(
-                &self.xr_input.stage,
-                self.frame_state.predicted_display_time,
-            ),
+            Hand::Left => self
+                .oculus_controller
+                .aim_space
+                .as_ref()
+                .unwrap()
+                .left
+                .relate(
+                    &self.xr_input.stage,
+                    self.frame_state.predicted_display_time,
+                ),
+            Hand::Right => self
+                .oculus_controller
+                .aim_space
+                .as_ref()
+                .unwrap()
+                .right
+                .relate(
+                    &self.xr_input.stage,
+                    self.frame_state.predicted_display_time,
+                ),
         }
         .unwrap()
     }
