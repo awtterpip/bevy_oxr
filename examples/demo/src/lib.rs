@@ -11,7 +11,7 @@ use bevy::{
         Schedule, SpatialBundle, StandardMaterial, Startup, Transform, Update, Vec3, Vec3Swizzles,
         With, Without, World,
     },
-    time::{Fixed, Time, Timer},
+    time::{Fixed, Time, Timer, TimerMode},
     transform::TransformSystem,
 };
 use bevy_oxr::{
@@ -96,7 +96,14 @@ pub fn main() {
         .add_systems(
             FixedUpdate,
             update_physics_hands.before(PhysicsSet::SyncBackend),
-        );
+        )
+        .add_event::<GhostHandEvent>()
+        .add_systems(Update, handle_ghost_hand_events.after(update_grabbables))
+        .insert_resource(GhostTimers {
+            left: Timer::from_seconds(0.25, TimerMode::Once),
+            right: Timer::from_seconds(0.25, TimerMode::Once),
+        })
+        .add_systems(Update, watch_ghost_timers.before(handle_ghost_hand_events));
 
     //configure rapier sets
     let mut physics_schedule = Schedule::new(PhysicsSchedule);
@@ -167,6 +174,7 @@ fn spawn_controllers_example(mut commands: Commands) {
         XRDirectInteractor,
         XRInteractorState::default(),
         XRSelection::default(),
+        Hand::Left,
     ));
     //right hand
     commands.spawn((
@@ -177,6 +185,7 @@ fn spawn_controllers_example(mut commands: Commands) {
         XRDirectInteractor,
         XRInteractorState::default(),
         XRSelection::default(),
+        Hand::Right,
     ));
 }
 
@@ -611,6 +620,63 @@ fn prototype_interaction_input(
     }
 }
 
+//this event is for transitioning the physics hand in an out of existent so we can drop things better
+#[derive(Event)]
+pub struct GhostHandEvent {
+    pub hand: Hand,
+    pub desired_state: bool, //true for no interactions, false for normal interactions
+}
+#[derive(Resource)]
+pub struct GhostTimers {
+    pub left: Timer,
+    pub right: Timer,
+}
+
+pub fn handle_ghost_hand_events(
+    mut events: EventReader<GhostHandEvent>,
+    mut bones: Query<(&Hand, &mut CollisionGroups, With<PhysicsHandBone>)>,
+) {
+    for event in events.read() {
+        // info!(
+        //     "Ghost hand Event: {:?}, {:?}",
+        //     event.hand, event.desired_state
+        // );
+        //do work
+        for mut bone in bones.iter_mut() {
+            match *bone.0 == event.hand {
+                true => match event.desired_state {
+                    true => bone.1.filters = Group::NONE,
+                    false => bone.1.filters = Group::from_bits(0b0001).unwrap(),
+                },
+                false => (),
+            }
+        }
+    }
+}
+
+pub fn watch_ghost_timers(
+    mut timers: ResMut<GhostTimers>,
+    mut writer: EventWriter<GhostHandEvent>,
+    time: Res<Time>,
+) {
+    //tick both timers
+    timers.left.tick(time.delta());
+    timers.right.tick(time.delta());
+    //if they finish send events to make the hands physical again
+    if timers.left.just_finished() {
+        writer.send(GhostHandEvent {
+            hand: Hand::Left,
+            desired_state: false,
+        });
+    }
+    if timers.right.just_finished() {
+        writer.send(GhostHandEvent {
+            hand: Hand::Right,
+            desired_state: false,
+        });
+    }
+}
+
 #[derive(Component)]
 pub struct Grabbable;
 
@@ -627,8 +693,11 @@ pub fn update_grabbables(
         &GlobalTransform,
         &XRInteractorState,
         &mut XRSelection,
+        &Hand,
         Without<Grabbable>,
     )>,
+    mut writer: EventWriter<GhostHandEvent>,
+    mut timers: ResMut<GhostTimers>,
 ) {
     //so basically the idea is to try all the events?
     for event in events.read() {
@@ -656,6 +725,11 @@ pub fn update_grabbables(
                                                 *thing = RigidBody::KinematicPositionBased;
                                                 *interactor_transform.2 =
                                                     XRSelection::Full(grabbable_transform.0);
+                                                //raise enter ghost hand event
+                                                writer.send(GhostHandEvent {
+                                                    hand: *interactor_transform.3,
+                                                    desired_state: true,
+                                                });
                                             }
                                             None => (),
                                         }
@@ -675,7 +749,12 @@ pub fn update_grabbables(
                                 }
                                 match interactor_transform.1 {
                                     XRInteractorState::Idle => {
-                                        *interactor_transform.2 = XRSelection::Empty
+                                        *interactor_transform.2 = XRSelection::Empty;
+                                        //reset timers to make hands physical again
+                                        match *interactor_transform.3 {
+                                            Hand::Left => timers.left.reset(),
+                                            Hand::Right => timers.right.reset(),
+                                        }
                                     }
                                     XRInteractorState::Selecting => {}
                                 }
