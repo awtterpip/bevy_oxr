@@ -54,7 +54,7 @@ pub fn main() {
         .add_plugins(OpenXrDebugRenderer)
         //rapier goes here
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default().with_default_system_setup(false))
-        .add_plugins(RapierDebugRenderPlugin::default())
+        // .add_plugins(RapierDebugRenderPlugin::default())
         //lets setup the starting scene
         .add_systems(Startup, setup_scene)
         .add_systems(Startup, spawn_controllers_example) //you need to spawn controllers or it crashes TODO:: Fix this
@@ -618,11 +618,11 @@ fn prototype_interaction_input(
     }
 }
 
-//this terribly named event is for transitioning the physics hand in an out of existent so we can drop things better
+//this event is for transitioning the physics hand in an out of existent so we can drop things better
 #[derive(Event)]
 pub struct GhostHandEvent {
     pub hand: Hand,
-    pub desired_state: bool,
+    pub desired_state: bool, //true for no interactions, false for normal interactions
 }
 #[derive(Resource)]
 pub struct GhostTimers {
@@ -635,10 +635,10 @@ pub fn handle_ghost_hand_events(
     mut bones: Query<(&Hand, &mut CollisionGroups, With<PhysicsHandBone>)>,
 ) {
     for event in events.read() {
-        info!(
-            "Ghost hand Event: {:?}, {:?}",
-            event.hand, event.desired_state
-        );
+        // info!(
+        //     "Ghost hand Event: {:?}, {:?}",
+        //     event.hand, event.desired_state
+        // );
         //do work
         for mut bone in bones.iter_mut() {
             match *bone.0 == event.hand {
@@ -657,19 +657,17 @@ pub fn watch_ghost_timers(
     mut writer: EventWriter<GhostHandEvent>,
     time: Res<Time>,
 ) {
+    //tick both timers
     timers.left.tick(time.delta());
     timers.right.tick(time.delta());
-
+    //if they finish send events to make the hands physical again
     if timers.left.just_finished() {
-        info!("hey");
         writer.send(GhostHandEvent {
             hand: Hand::Left,
             desired_state: false,
         });
     }
     if timers.right.just_finished() {
-        info!("hey");
-
         writer.send(GhostHandEvent {
             hand: Hand::Right,
             desired_state: false,
@@ -750,7 +748,7 @@ pub fn update_grabbables(
                                 match interactor_transform.1 {
                                     XRInteractorState::Idle => {
                                         *interactor_transform.2 = XRSelection::Empty;
-                                        //raise leave ghost hand event
+                                        //reset timers to make hands physical again
                                         match *interactor_transform.3 {
                                             Hand::Left => timers.left.reset(),
                                             Hand::Right => timers.right.reset(),
