@@ -1,8 +1,8 @@
+use bevy::log::{debug, info};
 use bevy::prelude::{
     Color, Gizmos, GlobalTransform, Plugin, Quat, Query, Res, Transform, Update, Vec2, Vec3, With,
     Without,
 };
-use bevy::log::info;
 
 use crate::{
     input::XrInput,
@@ -103,11 +103,22 @@ pub fn draw_gizmos(
         Err(_) => info!("too many tracking roots"),
     }
     //draw the hands
-    let left_transform = left_controller_query.get_single().unwrap().0;
-    let right_transform = right_controller_query.get_single().unwrap().0;
-
-    draw_hand_gizmo(&mut gizmos, &controller, Hand::Right, right_transform);
-    draw_hand_gizmo(&mut gizmos, &controller, Hand::Left, left_transform);
+    //left
+    let left_transform = left_controller_query.get_single();
+    match left_transform {
+        Ok(left_entity) => {
+            draw_hand_gizmo(&mut gizmos, &controller, Hand::Left, left_entity.0);
+        }
+        Err(_) => debug!("no left controller entity for debug gizmos"),
+    }
+    //right
+    let right_transform = right_controller_query.get_single();
+    match right_transform {
+        Ok(right_entity) => {
+            draw_hand_gizmo(&mut gizmos, &controller, Hand::Right, right_entity.0);
+        }
+        Err(_) => debug!("no right controller entity for debug gizmos"),
+    }
 }
 
 fn draw_hand_gizmo(

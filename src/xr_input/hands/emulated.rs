@@ -144,6 +144,9 @@ pub(crate) fn update_hand_skeleton_from_emulated(
         ),
     >,
 ) {
+    //get the transforms outside the loop
+    let left = left_controller_transform.get_single();
+    let right = right_controller_transform.get_single();
     let mut data: [[Transform; 26]; 2] = [[Transform::default(); 26]; 2];
     for (subaction_path, hand) in [
         (
@@ -189,21 +192,36 @@ pub(crate) fn update_hand_skeleton_from_emulated(
             .state(&session, subaction_path)
             .unwrap()
             .current_state;
-        data[match hand {
-            Hand::Left => 0,
-            Hand::Right => 1,
-        }] = update_hand_bones_emulated(
-            match hand {
-                Hand::Left => left_controller_transform.single(),
-                Hand::Right => right_controller_transform.single(),
+        match hand {
+            Hand::Left => match left {
+                Ok(hand_transform) => {
+                    data[0] = update_hand_bones_emulated(
+                        hand_transform,
+                        hand,
+                        thumb_curl,
+                        index_curl,
+                        middle_curl,
+                        ring_curl,
+                        little_curl,
+                    );
+                }
+                Err(_) => debug!("no left controller transform for hand bone emulation"),
             },
-            hand,
-            thumb_curl,
-            index_curl,
-            middle_curl,
-            ring_curl,
-            little_curl,
-        );
+            Hand::Right => match right {
+                Ok(hand_transform) => {
+                    data[1] = update_hand_bones_emulated(
+                        hand_transform,
+                        hand,
+                        thumb_curl,
+                        index_curl,
+                        middle_curl,
+                        ring_curl,
+                        little_curl,
+                    );
+                }
+                Err(_) => debug!("no right controller transform for hand bone emulation"),
+            },
+        }
     }
     let trt = tracking_root_transform.single();
     for (mut t, bone, hand, status, mut radius) in bones.iter_mut() {
