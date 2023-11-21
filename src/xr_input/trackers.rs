@@ -74,7 +74,9 @@ pub fn update_open_xr_controllers(
     let left_grip_space = controller.grip_space(Hand::Left);
     let left_aim_space = controller.aim_space(Hand::Left);
     let left_postion = left_grip_space.0.pose.position.to_vec3();
+    //TODO figure out how to not get the entity multiple times
     let left_aim_pose = left_controller_query.get_single_mut();
+    //set aim pose
     match left_aim_pose {
         Ok(left_entity) => match left_entity.1 {
             Some(mut pose) => {
@@ -88,15 +90,20 @@ pub fn update_open_xr_controllers(
         },
         Err(_) => debug!("no left controlelr entity found"),
     }
-
-    left_controller_query
-        .get_single_mut()
-        .unwrap()
-        .0
-        .translation = left_postion;
-
-    left_controller_query.get_single_mut().unwrap().0.rotation =
-        left_grip_space.0.pose.orientation.to_quat();
+    //set translation
+    let left_translation = left_controller_query.get_single_mut();
+    match left_translation {
+        Ok(mut left_entity) => left_entity.0.translation = left_postion,
+        Err(_) => (),
+    }
+    //set rotation
+    let left_rotataion = left_controller_query.get_single_mut();
+    match left_rotataion {
+        Ok(mut left_entity) => {
+            left_entity.0.rotation = left_grip_space.0.pose.orientation.to_quat()
+        }
+        Err(_) => (),
+    }
     //get right controller
     let right_grip_space = controller.grip_space(Hand::Right);
     let right_aim_space = controller.aim_space(Hand::Right);
@@ -116,13 +123,18 @@ pub fn update_open_xr_controllers(
         },
         Err(_) => debug!("no right controlelr entity found"),
     }
-
-    right_controller_query
-        .get_single_mut()
-        .unwrap()
-        .0
-        .translation = right_postion;
-
-    right_controller_query.get_single_mut().unwrap().0.rotation =
-        right_grip_space.0.pose.orientation.to_quat();
+    //set translation
+    let right_translation = right_controller_query.get_single_mut();
+    match right_translation {
+        Ok(mut right_entity) => right_entity.0.translation = right_postion,
+        Err(_) => (),
+    }
+    //set rotation
+    let right_rotataion = right_controller_query.get_single_mut();
+    match right_rotataion {
+        Ok(mut right_entity) => {
+            right_entity.0.rotation = right_grip_space.0.pose.orientation.to_quat()
+        }
+        Err(_) => (),
+    }
 }
