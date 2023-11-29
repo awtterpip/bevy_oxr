@@ -88,37 +88,27 @@ pub fn proto_locomotion(
         Ok(mut position) => {
             //get the stick input and do some maths
             let stick = controller.thumbstick(Hand::Left);
-            let input = Vec3::new(stick.x, 0.0, -stick.y);
-
-            let mut reference_quat = Quat::IDENTITY;
+            let input = stick.x * position.0.right() + stick.y * position.0.forward();
+            let reference_quat;
             match config.locomotion_type {
                 LocomotionType::Head => {
                     let v = views.lock().unwrap();
                     let views = v.get(0);
                     match views {
                         Some(view) => {
-                            reference_quat = view
-                                .pose
-                                .orientation
-                                .to_quat()
-                                .mul_quat(position.0.rotation);
+                            reference_quat = view.pose.orientation.to_quat();
                         }
                         None => return,
                     }
                 }
                 LocomotionType::Hand => {
                     let grip = controller.grip_space(Hand::Left);
-                    reference_quat = grip
-                        .0
-                        .pose
-                        .orientation
-                        .to_quat()
-                        .mul_quat(position.0.rotation);
+                    reference_quat = grip.0.pose.orientation.to_quat();
                 }
             }
-            //TODO: do this correctly as just removing the y from the resultant vec3 isnt correct, but works well enough for now
-            let mut locomotion_vec = reference_quat.mul_vec3(input);
-            locomotion_vec.y = 0.0;
+            let (yaw, _pitch, _roll) = reference_quat.to_euler(EulerRot::YXZ);
+            let reference_quat = Quat::from_axis_angle(position.0.up(), yaw);
+            let locomotion_vec = reference_quat.mul_vec3(input);
             position.0.translation +=
                 locomotion_vec * config.locomotion_speed * time.delta_seconds();
 
@@ -132,7 +122,8 @@ pub fn proto_locomotion(
                     if rot_input.abs() <= config.rotation_stick_deadzone {
                         return;
                     }
-                    let smoth_rot = Quat::from_rotation_y(
+                    let smoth_rot = Quat::from_axis_angle(
+                        position.0.up(),
                         rot_input * config.smooth_rotation_speed * time.delta_seconds(),
                     );
                     //apply rotation
@@ -144,7 +135,7 @@ pub fn proto_locomotion(
                             hmd_translation.y = 0.0;
                             let local = position.0.translation;
                             let global = position.0.rotation.mul_vec3(hmd_translation) + local;
-                            gizmos.circle(global, Vec3::Y, 0.1, Color::GREEN);
+                            gizmos.circle(global, position.0.up(), 0.1, Color::GREEN);
                             position.0.rotate_around(global, smoth_rot);
                         }
                         None => return,
@@ -165,7 +156,8 @@ pub fn proto_locomotion(
                             true => 1.0,
                             false => -1.0,
                         };
-                        let smoth_rot = Quat::from_rotation_y(config.snap_angle * dir);
+                        let smoth_rot =
+                            Quat::from_axis_angle(position.0.up(), config.snap_angle * dir);
                         //apply rotation
                         let v = views.lock().unwrap();
                         let views = v.get(0);
@@ -175,7 +167,7 @@ pub fn proto_locomotion(
                                 hmd_translation.y = 0.0;
                                 let local = position.0.translation;
                                 let global = position.0.rotation.mul_vec3(hmd_translation) + local;
-                                gizmos.circle(global, Vec3::Y, 0.1, Color::GREEN);
+                                gizmos.circle(global, position.0.up(), 0.1, Color::GREEN);
                                 position.0.rotate_around(global, smoth_rot);
                             }
                             None => return,
