@@ -157,6 +157,7 @@ fn spawn_controllers_example(mut commands: Commands) {
 }
 
 fn pull_to_ground(
+    time: Res<Time>,
     mut tracking_root_query: Query<&mut Transform, (With<OpenXRTrackingRoot>, Without<Globe>)>,
     globe: Query<(&Transform, &Globe), Without<OpenXRTrackingRoot>>,
     views: ResMut<XrViews>,
@@ -173,12 +174,15 @@ fn pull_to_ground(
     let offset = root.rotation.mul_vec3(hmd_translation);
     let global = offset + local;
 
+    let adjustment_rate = (time.delta_seconds() * 10.0).min(1.0);
+
     // Lower player onto sphere
     let up = (global - globe_pos.translation).normalize();
-    root.translation = up * globe.radius + globe_pos.translation - offset;
+    let diff = up * globe.radius + globe_pos.translation - offset - root.translation;
+    root.translation += diff * adjustment_rate;
 
     // Rotate player to be upright on sphere
     let angle_diff = Quat::from_rotation_arc(root.up(), up);
     let point = root.translation + offset;
-    root.rotate_around(point, angle_diff);
+    root.rotate_around(point, Quat::IDENTITY.slerp(angle_diff, adjustment_rate));
 }
