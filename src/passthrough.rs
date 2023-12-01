@@ -195,17 +195,25 @@ pub fn supports_passthrough(instance: &XrInstance, system: xr::SystemId) -> xr::
 pub fn create_passthrough(
     xr_session: &XrSession,
 ) -> xr::Result<(xr::Passthrough, xr::PassthroughLayer)> {
+    let flags = xr::PassthroughFlagsFB::IS_RUNNING_AT_CREATION;
+    let purpose = xr::PassthroughLayerPurposeFB::RECONSTRUCTION;
     let passthrough = match xr_session {
+        #[cfg(feature = "vulkan")]
         XrSession::Vulkan(session) => {
+            session.create_passthrough(xr::PassthroughFlagsFB::IS_RUNNING_AT_CREATION)
+        }
+        #[cfg(feature = "d3d12")]
+        XrSession::D3D12(session) => {
             session.create_passthrough(xr::PassthroughFlagsFB::IS_RUNNING_AT_CREATION)
         }
     }?;
     let passthrough_layer = match xr_session {
-        XrSession::Vulkan(session) => session.create_passthrough_layer(
-            &passthrough,
-            xr::PassthroughFlagsFB::IS_RUNNING_AT_CREATION,
-            xr::PassthroughLayerPurposeFB::RECONSTRUCTION,
-        ),
+        #[cfg(feature = "vulkan")]
+        XrSession::Vulkan(session) => {
+            session.create_passthrough_layer(&passthrough, flags, purpose)
+        }
+        #[cfg(feature = "d3d12")]
+        XrSession::D3D12(session) => session.create_passthrough_layer(&passthrough, flags, purpose),
     }?;
     Ok((passthrough, passthrough_layer))
 }

@@ -14,6 +14,8 @@ use bevy::render::extract_component::ExtractComponent;
 use bevy::render::extract_resource::{ExtractResource, ExtractResourcePlugin};
 use core::ptr;
 use openxr as xr;
+#[cfg(feature = "d3d12")]
+use winapi::um::d3d12::{ID3D12CommandQueue, ID3D12Device};
 
 xr_resource_wrapper!(XrInstance, xr::Instance);
 xr_resource_wrapper_copy!(XrEnvironmentBlendMode, xr::EnvironmentBlendMode);
@@ -27,7 +29,10 @@ xr_no_clone_resource_wrapper!(XrFrameWaiter, xr::FrameWaiter);
 
 #[derive(Clone, Resource, ExtractResource)]
 pub enum XrSession {
+    #[cfg(feature = "vulkan")]
     Vulkan(xr::Session<xr::Vulkan>),
+    #[cfg(feature = "d3d12")]
+    D3D12(xr::Session<xr::D3D12>),
 }
 
 impl std::ops::Deref for XrSession {
@@ -37,12 +42,16 @@ impl std::ops::Deref for XrSession {
         // SAFTEY: should be fine i think -Schmarni
         unsafe {
             match self {
+                #[cfg(feature = "vulkan")]
                 XrSession::Vulkan(sess) => std::mem::transmute(sess),
+                #[cfg(feature = "d3d12")]
+                XrSession::D3D12(sess) => std::mem::transmute(sess),
             }
         }
     }
 }
 
+#[cfg(feature = "vulkan")]
 pub struct VulkanOXrSessionSetupInfo {
     pub(crate) device_ptr: *const c_void,
     pub(crate) physical_device_ptr: *const c_void,
@@ -51,8 +60,18 @@ pub struct VulkanOXrSessionSetupInfo {
     pub(crate) xr_system_id: xr::SystemId,
 }
 
+#[cfg(feature = "d3d12")]
+pub struct D3D12OXrSessionSetupInfo {
+    pub(crate) raw_device: *mut ID3D12Device,
+    pub(crate) raw_queue: *mut ID3D12CommandQueue,
+    pub(crate) xr_system_id: xr::SystemId,
+}
+
 pub enum OXrSessionSetupInfo {
+    #[cfg(feature = "vulkan")]
     Vulkan(VulkanOXrSessionSetupInfo),
+    #[cfg(feature = "d3d12")]
+    D3D12(D3D12OXrSessionSetupInfo),
 }
 
 pub struct XrResourcePlugin;
@@ -72,37 +91,55 @@ impl Plugin for XrResourcePlugin {
 }
 
 pub enum Swapchain {
+    #[cfg(feature = "vulkan")]
     Vulkan(SwapchainInner<xr::Vulkan>),
+    #[cfg(feature = "d3d12")]
+    D3D12(SwapchainInner<xr::D3D12>),
 }
 
 impl Swapchain {
     pub(crate) fn begin(&self) -> xr::Result<()> {
         match self {
+            #[cfg(feature = "vulkan")]
             Swapchain::Vulkan(swapchain) => swapchain.begin(),
+            #[cfg(feature = "d3d12")]
+            Swapchain::D3D12(swapchain) => swapchain.begin(),
         }
     }
 
     pub(crate) fn get_render_views(&self) -> (wgpu::TextureView, wgpu::TextureView) {
         match self {
+            #[cfg(feature = "vulkan")]
             Swapchain::Vulkan(swapchain) => swapchain.get_render_views(),
+            #[cfg(feature = "d3d12")]
+            Swapchain::D3D12(swapchain) => swapchain.get_render_views(),
         }
     }
 
     pub(crate) fn acquire_image(&self) -> xr::Result<()> {
         match self {
+            #[cfg(feature = "vulkan")]
             Swapchain::Vulkan(swapchain) => swapchain.acquire_image(),
+            #[cfg(feature = "d3d12")]
+            Swapchain::D3D12(swapchain) => swapchain.acquire_image(),
         }
     }
 
     pub(crate) fn wait_image(&self) -> xr::Result<()> {
         match self {
+            #[cfg(feature = "vulkan")]
             Swapchain::Vulkan(swapchain) => swapchain.wait_image(),
+            #[cfg(feature = "d3d12")]
+            Swapchain::D3D12(swapchain) => swapchain.wait_image(),
         }
     }
 
     pub(crate) fn release_image(&self) -> xr::Result<()> {
         match self {
+            #[cfg(feature = "vulkan")]
             Swapchain::Vulkan(swapchain) => swapchain.release_image(),
+            #[cfg(feature = "d3d12")]
+            Swapchain::D3D12(swapchain) => swapchain.release_image(),
         }
     }
 
@@ -116,7 +153,17 @@ impl Swapchain {
         passthrough_layer: Option<&XrPassthroughLayer>,
     ) -> xr::Result<()> {
         match self {
+            #[cfg(feature = "vulkan")]
             Swapchain::Vulkan(swapchain) => swapchain.end(
+                predicted_display_time,
+                views,
+                stage,
+                resolution,
+                environment_blend_mode,
+                passthrough_layer,
+            ),
+            #[cfg(feature = "d3d12")]
+            Swapchain::D3D12(swapchain) => swapchain.end(
                 predicted_display_time,
                 views,
                 stage,

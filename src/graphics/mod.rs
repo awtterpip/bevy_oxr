@@ -1,4 +1,8 @@
 pub mod extensions;
+
+#[cfg(feature = "d3d12")]
+mod d3d12;
+#[cfg(feature = "vulkan")]
 mod vulkan;
 
 use bevy::ecs::query::With;
@@ -63,14 +67,28 @@ pub fn start_xr_session(
     XrViews,
     XrFrameState,
 )> {
-    vulkan::start_xr_session(
-        window,
-        session_setup_data,
-        xr_instance,
-        render_device,
-        render_adapter,
-        wgpu_instance,
-    )
+    #[cfg(feature = "vulkan")]
+    {
+        vulkan::start_xr_session(
+            window,
+            session_setup_data,
+            xr_instance,
+            render_device,
+            render_adapter,
+            wgpu_instance,
+        )
+    }
+    #[cfg(feature = "d3d12")]
+    {
+        d3d12::start_xr_session(
+            window,
+            session_setup_data,
+            xr_instance,
+            render_device,
+            render_adapter,
+            wgpu_instance,
+        )
+    }
 }
 pub fn initialize_xr_instance(
     window: Option<RawHandleWrapper>,
@@ -87,7 +105,14 @@ pub fn initialize_xr_instance(
     RenderAdapter,
     Instance,
 )> {
-    vulkan::initialize_xr_instance(window, reqeusted_extensions, prefered_blend_mode, app_info)
+    #[cfg(feature = "vulkan")]
+    {
+        vulkan::initialize_xr_instance(window, reqeusted_extensions, prefered_blend_mode, app_info)
+    }
+    #[cfg(feature = "d3d12")]
+    {
+        d3d12::initialize_xr_instance(window, reqeusted_extensions, prefered_blend_mode, app_info)
+    }
 }
 
 pub fn try_full_init(

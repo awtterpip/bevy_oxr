@@ -212,19 +212,21 @@ fn xr_skip_frame(
     environment_blend_mode: Res<XrEnvironmentBlendMode>,
 ) {
     let swapchain: &Swapchain = &xr_swapchain;
-    match swapchain {
-        Swapchain::Vulkan(swap) => {
-            swap.stream
-                .lock()
-                .unwrap()
-                .end(
-                    xr_frame_state.predicted_display_time,
-                    **environment_blend_mode,
-                    &[],
-                )
-                .unwrap();
-        }
-    }
+    let stream = match swapchain {
+        #[cfg(feature = "vulkan")]
+        Swapchain::Vulkan(swap) => &swap.stream,
+        #[cfg(feature = "d3d12")]
+        Swapchain::D3D12(swap) => &swap.stream,
+    };
+    stream
+        .lock()
+        .unwrap()
+        .end(
+            xr_frame_state.predicted_display_time,
+            **environment_blend_mode,
+            &[],
+        )
+        .unwrap();
 }
 
 pub struct DefaultXrPlugins {

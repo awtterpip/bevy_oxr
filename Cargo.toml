@@ -8,8 +8,10 @@ license = "MIT/Apache-2.0"
 
 
 [features]
-default = []
+default = ["vulkan"]
 force-link = ["openxr/linked"]
+vulkan = ["wgpu-core/vulkan"]
+d3d12 = ["wgpu-core/dx12", "dep:winapi", "dep:d3d12"]
 
 [workspace]
 members = ["examples/android", "examples/demo"]
@@ -20,9 +22,11 @@ ash = "0.37.3"
 bevy = "0.13"
 futures-lite = "2.0.1"
 mint = "0.5.9"
+winapi = { version = "0.3.9", optional = true }
 wgpu = "0.19"
-wgpu-core = { version = "0.19", features = ["vulkan"] }
+wgpu-core = { version = "0.19" }
 wgpu-hal = "0.19"
+d3d12 = { version = "0.19", features = ["libloading"], optional = true }
 eyre = "0.6.11"
 
 [target.'cfg(windows)'.dependencies]
