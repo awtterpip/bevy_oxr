@@ -47,6 +47,7 @@ pub const RIGHT_XR_TEXTURE_HANDLE: ManualTextureViewHandle = ManualTextureViewHa
 
 /// Adds OpenXR support to an App
 pub struct OpenXrPlugin {
+    pub backend_preference: Vec<Backend>,
     pub reqeusted_extensions: XrExtensions,
     pub prefered_blend_mode: XrPreferdBlendMode,
     pub app_info: XrAppInfo,
@@ -59,6 +60,7 @@ impl Plugin for OpenXrPlugin {
         app.insert_resource(ExitAppOnSessionExit::default());
         #[cfg(not(target_arch = "wasm32"))]
         match graphics::initialize_xr_instance(
+            &self.backend_preference,
             SystemState::<Query<&RawHandleWrapper, With<PrimaryWindow>>>::new(&mut app.world)
                 .get(&app.world)
                 .get_single()
@@ -169,6 +171,14 @@ impl Plugin for OpenXrPlugin {
     }
 }
 
+#[derive(Debug)]
+pub enum Backend {
+    #[cfg(feature = "vulkan")]
+    Vulkan,
+    #[cfg(feature = "d3d12")]
+    D3D12,
+}
+
 #[derive(Resource)]
 struct DoPipelinedRendering;
 
@@ -230,6 +240,7 @@ fn xr_skip_frame(
 }
 
 pub struct DefaultXrPlugins {
+    pub backend_preference: Vec<Backend>,
     pub reqeusted_extensions: XrExtensions,
     pub prefered_blend_mode: XrPreferdBlendMode,
     pub app_info: XrAppInfo,
@@ -238,6 +249,12 @@ pub struct DefaultXrPlugins {
 impl Default for DefaultXrPlugins {
     fn default() -> Self {
         Self {
+            backend_preference: vec![
+                #[cfg(feature = "vulkan")]
+                Backend::Vulkan,
+                #[cfg(feature = "d3d12")]
+                Backend::D3D12,
+            ],
             reqeusted_extensions: default(),
             prefered_blend_mode: default(),
             app_info: default(),
@@ -263,6 +280,7 @@ impl PluginGroup for DefaultXrPlugins {
             })
             .disable::<RenderPlugin>()
             .add_before::<RenderPlugin, _>(OpenXrPlugin {
+                backend_preference: self.backend_preference,
                 prefered_blend_mode: self.prefered_blend_mode,
                 reqeusted_extensions: self.reqeusted_extensions,
                 app_info: self.app_info.clone(),

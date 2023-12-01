@@ -21,6 +21,8 @@ use crate::resources::{
 };
 use crate::OXrSessionSetupInfo;
 
+use crate::Backend;
+
 use openxr as xr;
 
 use self::extensions::XrExtensions;
@@ -91,6 +93,7 @@ pub fn start_xr_session(
     }
 }
 pub fn initialize_xr_instance(
+    backend_preference: &[Backend],
     window: Option<RawHandleWrapper>,
     reqeusted_extensions: XrExtensions,
     prefered_blend_mode: XrPreferdBlendMode,
@@ -105,18 +108,57 @@ pub fn initialize_xr_instance(
     RenderAdapter,
     Instance,
 )> {
-    #[cfg(feature = "vulkan")]
-    {
-        vulkan::initialize_xr_instance(window, reqeusted_extensions, prefered_blend_mode, app_info)
+    if backend_preference.is_empty() {
+        eyre::bail!("Cannot initialize with no backend selected");
     }
-    #[cfg(feature = "d3d12")]
-    {
-        d3d12::initialize_xr_instance(window, reqeusted_extensions, prefered_blend_mode, app_info)
+    let xr_entry = xr_entry()?;
+
+    #[cfg(target_os = "android")]
+    xr_entry.initialize_android_loader()?;
+
+    let available_extensions: XrExtensions = xr_entry.enumerate_extensions()?.into();
+
+    for backend in backend_preference {
+        match backend {
+            #[cfg(feature = "vulkan")]
+            Backend::Vulkan => {
+                if !available_extensions.raw().khr_vulkan_enable2 {
+                    continue;
+                }
+                return vulkan::initialize_xr_instance(
+                    window,
+                    xr_entry,
+                    reqeusted_extensions,
+                    available_extensions,
+                    prefered_blend_mode,
+                    app_info,
+                );
+            }
+            #[cfg(feature = "d3d12")]
+            Backend::D3D12 => {
+                if !available_extensions.raw().khr_d3d12_enable {
+                    continue;
+                }
+                return d3d12::initialize_xr_instance(
+                    window,
+                    xr_entry,
+                    reqeusted_extensions,
+                    available_extensions,
+                    prefered_blend_mode,
+                    app_info,
+                );
+            }
+        }
     }
+    eyre::bail!(
+        "No selected backend was supported by the runtime. Selected: {:?}",
+        backend_preference
+    );
 }
 
 pub fn try_full_init(
     world: &mut World,
+    backend_preference: &[Backend],
     reqeusted_extensions: XrExtensions,
     prefered_blend_mode: XrPreferdBlendMode,
     app_info: XrAppInfo,
@@ -140,6 +182,7 @@ pub fn try_full_init(
         render_adapter,
         wgpu_instance,
     ) = initialize_xr_instance(
+        backend_preference,
         primary_window.clone(),
         reqeusted_extensions,
         prefered_blend_mode,

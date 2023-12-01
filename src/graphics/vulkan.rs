@@ -28,7 +28,9 @@ use super::{XrAppInfo, XrPreferdBlendMode};
 
 pub fn initialize_xr_instance(
     window: Option<RawHandleWrapper>,
+    xr_entry: xr::Entry,
     reqeusted_extensions: XrExtensions,
+    available_extensions: XrExtensions,
     prefered_blend_mode: XrPreferdBlendMode,
     app_info: XrAppInfo,
 ) -> eyre::Result<(
@@ -41,12 +43,9 @@ pub fn initialize_xr_instance(
     RenderAdapter,
     Instance,
 )> {
-    let xr_entry = super::xr_entry()?;
-
     #[cfg(target_os = "android")]
     xr_entry.initialize_android_loader()?;
 
-    let available_extensions: XrExtensions = xr_entry.enumerate_extensions()?.into();
     assert!(available_extensions.raw().khr_vulkan_enable2);
     //info!("available xr exts: {:#?}", available_extensions);
 
