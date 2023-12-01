@@ -1,3 +1,6 @@
+#[cfg(feature = "d3d12")]
+mod d3d12;
+#[cfg(feature = "vulkan")]
 mod vulkan;
 
 use bevy::render::renderer::{RenderAdapter, RenderAdapterInfo, RenderDevice, RenderQueue};
@@ -32,7 +35,14 @@ pub fn initialize_xr_graphics(
     XrViews,
     XrFrameState,
 )> {
-    vulkan::initialize_xr_graphics(window)
+    #[cfg(feature = "vulkan")]
+    {
+        vulkan::initialize_xr_graphics(window)
+    }
+    #[cfg(feature = "d3d12")]
+    {
+        d3d12::initialize_xr_graphics(window)
+    }
 }
 
 pub fn xr_entry() -> anyhow::Result<xr::Entry> {
