@@ -202,7 +202,7 @@ pub fn create_passthrough(
         XrSession::Vulkan(session) => {
             session.create_passthrough(xr::PassthroughFlagsFB::IS_RUNNING_AT_CREATION)
         }
-        #[cfg(feature = "d3d12")]
+        #[cfg(all(feature = "d3d12", windows))]
         XrSession::D3D12(session) => {
             session.create_passthrough(xr::PassthroughFlagsFB::IS_RUNNING_AT_CREATION)
         }
@@ -212,7 +212,7 @@ pub fn create_passthrough(
         XrSession::Vulkan(session) => {
             session.create_passthrough_layer(&passthrough, flags, purpose)
         }
-        #[cfg(feature = "d3d12")]
+        #[cfg(all(feature = "d3d12", windows))]
         XrSession::D3D12(session) => session.create_passthrough_layer(&passthrough, flags, purpose),
     }?;
     Ok((passthrough, passthrough_layer))

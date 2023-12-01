@@ -23,7 +23,7 @@ use crate::resources::{
     XrFrameWaiter, XrInstance, XrResolution, XrSession, XrSessionRunning, XrSwapchain, XrViews,
 };
 
-#[cfg(feature = "d3d12")]
+#[cfg(all(feature = "d3d12", windows))]
 use crate::resources::D3D12OXrSessionSetupInfo;
 #[cfg(feature = "vulkan")]
 use crate::resources::VulkanOXrSessionSetupInfo;

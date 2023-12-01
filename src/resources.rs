@@ -14,7 +14,7 @@ use bevy::render::extract_component::ExtractComponent;
 use bevy::render::extract_resource::{ExtractResource, ExtractResourcePlugin};
 use core::ptr;
 use openxr as xr;
-#[cfg(feature = "d3d12")]
+#[cfg(all(feature = "d3d12", windows))]
 use winapi::um::d3d12::{ID3D12CommandQueue, ID3D12Device};
 
 xr_resource_wrapper!(XrInstance, xr::Instance);
@@ -31,7 +31,7 @@ xr_no_clone_resource_wrapper!(XrFrameWaiter, xr::FrameWaiter);
 pub enum XrSession {
     #[cfg(feature = "vulkan")]
     Vulkan(xr::Session<xr::Vulkan>),
-    #[cfg(feature = "d3d12")]
+    #[cfg(all(feature = "d3d12", windows))]
     D3D12(xr::Session<xr::D3D12>),
 }
 
@@ -44,7 +44,7 @@ impl std::ops::Deref for XrSession {
             match self {
                 #[cfg(feature = "vulkan")]
                 XrSession::Vulkan(sess) => std::mem::transmute(sess),
-                #[cfg(feature = "d3d12")]
+                #[cfg(all(feature = "d3d12", windows))]
                 XrSession::D3D12(sess) => std::mem::transmute(sess),
             }
         }
@@ -60,7 +60,7 @@ pub struct VulkanOXrSessionSetupInfo {
     pub(crate) xr_system_id: xr::SystemId,
 }
 
-#[cfg(feature = "d3d12")]
+#[cfg(all(feature = "d3d12", windows))]
 pub struct D3D12OXrSessionSetupInfo {
     pub(crate) raw_device: *mut ID3D12Device,
     pub(crate) raw_queue: *mut ID3D12CommandQueue,
@@ -70,7 +70,7 @@ pub struct D3D12OXrSessionSetupInfo {
 pub enum OXrSessionSetupInfo {
     #[cfg(feature = "vulkan")]
     Vulkan(VulkanOXrSessionSetupInfo),
-    #[cfg(feature = "d3d12")]
+    #[cfg(all(feature = "d3d12", windows))]
     D3D12(D3D12OXrSessionSetupInfo),
 }
 
@@ -93,7 +93,7 @@ impl Plugin for XrResourcePlugin {
 pub enum Swapchain {
     #[cfg(feature = "vulkan")]
     Vulkan(SwapchainInner<xr::Vulkan>),
-    #[cfg(feature = "d3d12")]
+    #[cfg(all(feature = "d3d12", windows))]
     D3D12(SwapchainInner<xr::D3D12>),
 }
 
@@ -102,7 +102,7 @@ impl Swapchain {
         match self {
             #[cfg(feature = "vulkan")]
             Swapchain::Vulkan(swapchain) => swapchain.begin(),
-            #[cfg(feature = "d3d12")]
+            #[cfg(all(feature = "d3d12", windows))]
             Swapchain::D3D12(swapchain) => swapchain.begin(),
         }
     }
@@ -111,7 +111,7 @@ impl Swapchain {
         match self {
             #[cfg(feature = "vulkan")]
             Swapchain::Vulkan(swapchain) => swapchain.get_render_views(),
-            #[cfg(feature = "d3d12")]
+            #[cfg(all(feature = "d3d12", windows))]
             Swapchain::D3D12(swapchain) => swapchain.get_render_views(),
         }
     }
@@ -120,7 +120,7 @@ impl Swapchain {
         match self {
             #[cfg(feature = "vulkan")]
             Swapchain::Vulkan(swapchain) => swapchain.acquire_image(),
-            #[cfg(feature = "d3d12")]
+            #[cfg(all(feature = "d3d12", windows))]
             Swapchain::D3D12(swapchain) => swapchain.acquire_image(),
         }
     }
@@ -129,7 +129,7 @@ impl Swapchain {
         match self {
             #[cfg(feature = "vulkan")]
             Swapchain::Vulkan(swapchain) => swapchain.wait_image(),
-            #[cfg(feature = "d3d12")]
+            #[cfg(all(feature = "d3d12", windows))]
             Swapchain::D3D12(swapchain) => swapchain.wait_image(),
         }
     }
@@ -138,7 +138,7 @@ impl Swapchain {
         match self {
             #[cfg(feature = "vulkan")]
             Swapchain::Vulkan(swapchain) => swapchain.release_image(),
-            #[cfg(feature = "d3d12")]
+            #[cfg(all(feature = "d3d12", windows))]
             Swapchain::D3D12(swapchain) => swapchain.release_image(),
         }
     }
@@ -162,7 +162,7 @@ impl Swapchain {
                 environment_blend_mode,
                 passthrough_layer,
             ),
-            #[cfg(feature = "d3d12")]
+            #[cfg(all(feature = "d3d12", windows))]
             Swapchain::D3D12(swapchain) => swapchain.end(
                 predicted_display_time,
                 views,

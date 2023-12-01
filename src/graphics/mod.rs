@@ -1,6 +1,6 @@
 pub mod extensions;
 
-#[cfg(feature = "d3d12")]
+#[cfg(all(feature = "d3d12", windows))]
 mod d3d12;
 #[cfg(feature = "vulkan")]
 mod vulkan;
@@ -69,27 +69,25 @@ pub fn start_xr_session(
     XrViews,
     XrFrameState,
 )> {
-    #[cfg(feature = "vulkan")]
-    {
-        vulkan::start_xr_session(
+    match session_setup_data {
+        #[cfg(feature = "vulkan")]
+        OXrSessionSetupInfo::Vulkan(_) => vulkan::start_xr_session(
             window,
             session_setup_data,
             xr_instance,
             render_device,
             render_adapter,
             wgpu_instance,
-        )
-    }
-    #[cfg(feature = "d3d12")]
-    {
-        d3d12::start_xr_session(
+        ),
+        #[cfg(all(feature = "d3d12", windows))]
+        OXrSessionSetupInfo::D3D12(_) => d3d12::start_xr_session(
             window,
             session_setup_data,
             xr_instance,
             render_device,
             render_adapter,
             wgpu_instance,
-        )
+        ),
     }
 }
 pub fn initialize_xr_instance(
@@ -134,7 +132,7 @@ pub fn initialize_xr_instance(
                     app_info,
                 );
             }
-            #[cfg(feature = "d3d12")]
+            #[cfg(all(feature = "d3d12", windows))]
             Backend::D3D12 => {
                 if !available_extensions.raw().khr_d3d12_enable {
                     continue;

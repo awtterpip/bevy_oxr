@@ -175,7 +175,7 @@ impl Plugin for OpenXrPlugin {
 pub enum Backend {
     #[cfg(feature = "vulkan")]
     Vulkan,
-    #[cfg(feature = "d3d12")]
+    #[cfg(all(feature = "d3d12", windows))]
     D3D12,
 }
 
@@ -222,21 +222,30 @@ fn xr_skip_frame(
     environment_blend_mode: Res<XrEnvironmentBlendMode>,
 ) {
     let swapchain: &Swapchain = &xr_swapchain;
-    let stream = match swapchain {
+    match swapchain {
         #[cfg(feature = "vulkan")]
-        Swapchain::Vulkan(swap) => &swap.stream,
-        #[cfg(feature = "d3d12")]
-        Swapchain::D3D12(swap) => &swap.stream,
+        Swapchain::Vulkan(swap) => &swap
+            .stream
+            .lock()
+            .unwrap()
+            .end(
+                xr_frame_state.predicted_display_time,
+                **environment_blend_mode,
+                &[],
+            )
+            .unwrap(),
+        #[cfg(all(feature = "d3d12", windows))]
+        Swapchain::D3D12(swap) => &swap
+            .stream
+            .lock()
+            .unwrap()
+            .end(
+                xr_frame_state.predicted_display_time,
+                **environment_blend_mode,
+                &[],
+            )
+            .unwrap(),
     };
-    stream
-        .lock()
-        .unwrap()
-        .end(
-            xr_frame_state.predicted_display_time,
-            **environment_blend_mode,
-            &[],
-        )
-        .unwrap();
 }
 
 pub struct DefaultXrPlugins {
@@ -252,7 +261,7 @@ impl Default for DefaultXrPlugins {
             backend_preference: vec![
                 #[cfg(feature = "vulkan")]
                 Backend::Vulkan,
-                #[cfg(feature = "d3d12")]
+                #[cfg(all(feature = "d3d12", windows))]
                 Backend::D3D12,
             ],
             reqeusted_extensions: default(),
