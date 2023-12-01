@@ -1,4 +1,4 @@
-#[cfg(feature = "d3d12")]
+#[cfg(all(feature = "d3d12", windows))]
 mod d3d12;
 #[cfg(feature = "vulkan")]
 mod vulkan;
@@ -57,7 +57,7 @@ pub fn initialize_xr_graphics(
                 }
                 return vulkan::initialize_xr_graphics(window, xr_entry, available_extensions)
             }
-            #[cfg(feature = "d3d12")]
+            #[cfg(all(feature = "d3d12", windows))]
             Backend::D3D12 => {
                 if !available_extensions.khr_d3d12_enable {
                     continue;

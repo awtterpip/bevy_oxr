@@ -57,7 +57,7 @@ impl Default for OpenXrPlugin {
         OpenXrPlugin{backend_preference: vec![
             #[cfg(feature = "vulkan")]
             Backend::Vulkan,
-            #[cfg(feature = "d3d12")]
+            #[cfg(all(feature = "d3d12", windows))]
             Backend::D3D12,
         ]}
     }
@@ -66,7 +66,7 @@ impl Default for OpenXrPlugin {
 pub enum Backend {
     #[cfg(feature = "vulkan")]
     Vulkan,
-    #[cfg(feature = "d3d12")]
+    #[cfg(all(feature = "d3d12", windows))]
     D3D12,
 }
 

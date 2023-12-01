@@ -19,7 +19,7 @@ xr_arc_resource_wrapper!(XrViews, Mutex<Vec<xr::View>>);
 pub enum Swapchain {
     #[cfg(feature = "vulkan")]
     Vulkan(SwapchainInner<xr::Vulkan>),
-    #[cfg(feature = "d3d12")]
+    #[cfg(all(feature = "d3d12", windows))]
     D3D12(SwapchainInner<xr::D3D12>),
 }
 
@@ -28,7 +28,7 @@ impl Swapchain {
         match self {
             #[cfg(feature = "vulkan")]
             Swapchain::Vulkan(swapchain) => swapchain.begin(),
-            #[cfg(feature = "d3d12")]
+            #[cfg(all(feature = "d3d12", windows))]
             Swapchain::D3D12(swapchain) => swapchain.begin(),
         }
     }
@@ -37,7 +37,7 @@ impl Swapchain {
         match self {
             #[cfg(feature = "vulkan")]
             Swapchain::Vulkan(swapchain) => swapchain.get_render_views(),
-            #[cfg(feature = "d3d12")]
+            #[cfg(all(feature = "d3d12", windows))]
             Swapchain::D3D12(swapchain) => swapchain.get_render_views(),
         }
     }
@@ -46,7 +46,7 @@ impl Swapchain {
         match self {
             #[cfg(feature = "vulkan")]
             Swapchain::Vulkan(swapchain) => swapchain.acquire_image(),
-            #[cfg(feature = "d3d12")]
+            #[cfg(all(feature = "d3d12", windows))]
             Swapchain::D3D12(swapchain) => swapchain.acquire_image(),
         }
     }
@@ -55,7 +55,7 @@ impl Swapchain {
         match self {
             #[cfg(feature = "vulkan")]
             Swapchain::Vulkan(swapchain) => swapchain.wait_image(),
-            #[cfg(feature = "d3d12")]
+            #[cfg(all(feature = "d3d12", windows))]
             Swapchain::D3D12(swapchain) => swapchain.wait_image(),
         }
     }
@@ -64,7 +64,7 @@ impl Swapchain {
         match self {
             #[cfg(feature = "vulkan")]
             Swapchain::Vulkan(swapchain) => swapchain.release_image(),
-            #[cfg(feature = "d3d12")]
+            #[cfg(all(feature = "d3d12", windows))]
             Swapchain::D3D12(swapchain) => swapchain.release_image(),
         }
     }
@@ -86,7 +86,7 @@ impl Swapchain {
                 resolution,
                 environment_blend_mode,
             ),
-            #[cfg(feature = "d3d12")]
+            #[cfg(all(feature = "d3d12", windows))]
             Swapchain::D3D12(swapchain) => swapchain.end(
                 predicted_display_time,
                 views,
