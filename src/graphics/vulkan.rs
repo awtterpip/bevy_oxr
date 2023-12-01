@@ -123,7 +123,7 @@ pub fn initialize_xr_instance(
         || vk_target_version_xr.major() > reqs.max_api_version_supported.major()
     {
         panic!(
-            "OpenXR runtime requires Vulkan version > {}, < {}.0.0",
+            "OpenXR runtime requires Vulkan version >= {}, < {}.0.0",
             reqs.min_api_version_supported,
             reqs.max_api_version_supported.major() + 1
         );
