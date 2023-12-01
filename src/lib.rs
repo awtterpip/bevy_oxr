@@ -48,12 +48,26 @@ pub const LEFT_XR_TEXTURE_HANDLE: ManualTextureViewHandle = ManualTextureViewHan
 pub const RIGHT_XR_TEXTURE_HANDLE: ManualTextureViewHandle = ManualTextureViewHandle(3383858418);
 
 /// Adds OpenXR support to an App
-pub struct OpenXrPlugin;
+pub struct OpenXrPlugin{
+    backend_preference: Vec<Backend>,
+}
 
 impl Default for OpenXrPlugin {
     fn default() -> Self {
-        OpenXrPlugin
+        OpenXrPlugin{backend_preference: vec![
+            #[cfg(feature = "vulkan")]
+            Backend::Vulkan,
+            #[cfg(feature = "d3d12")]
+            Backend::D3D12,
+        ]}
     }
+}
+
+pub enum Backend {
+    #[cfg(feature = "vulkan")]
+    Vulkan,
+    #[cfg(feature = "d3d12")]
+    D3D12,
 }
 
 #[derive(Resource)]
@@ -99,7 +113,7 @@ impl Plugin for OpenXrPlugin {
             input,
             views,
             frame_state,
-        )) = graphics::initialize_xr_graphics(primary_window.clone())
+        )) = graphics::initialize_xr_graphics(&self.backend_preference, primary_window.clone())
         {
             // std::thread::sleep(Duration::from_secs(5));
             debug!("Configured wgpu adapter Limits: {:#?}", device.limits());
@@ -223,7 +237,7 @@ impl PluginGroup for DefaultXrPlugins {
             .build()
             .disable::<RenderPlugin>()
             .disable::<PipelinedRenderingPlugin>()
-            .add_before::<RenderPlugin, _>(OpenXrPlugin)
+            .add_before::<RenderPlugin, _>(OpenXrPlugin::default())
             .add_after::<OpenXrPlugin, _>(OpenXrInput::new(XrControllerType::OculusTouch))
             .add_before::<OpenXrPlugin, _>(RenderRestartPlugin)
             .add(HandEmulationPlugin)

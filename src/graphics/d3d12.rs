@@ -21,6 +21,8 @@ use crate::VIEW_TYPE;
 
 pub fn initialize_xr_graphics(
     window: Option<RawHandleWrapper>,
+    xr_entry: xr::Entry,
+    available_extensions: xr::ExtensionSet,
 ) -> anyhow::Result<(
     RenderDevice,
     RenderQueue,
@@ -41,9 +43,6 @@ pub fn initialize_xr_graphics(
 )> {
     use wgpu_hal::{api::Dx12, Api};
 
-    let xr_entry = super::xr_entry()?;
-
-    let available_extensions = xr_entry.enumerate_extensions()?;
     assert!(available_extensions.khr_d3d12_enable);
     info!("available xr exts: {:#?}", available_extensions);
 
