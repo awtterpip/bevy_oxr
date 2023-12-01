@@ -298,10 +298,28 @@ pub fn initialize_xr_graphics(
             .create_surface(&handle)
             .expect("Failed to create wgpu surface")
     });
-    let swapchain_format = surface
+    let (wgpu_format, vk_format) = surface
         .as_ref()
-        .map(|surface| surface.get_capabilities(&wgpu_adapter).formats[0])
-        .unwrap_or(wgpu::TextureFormat::Rgba8UnormSrgb);
+        .map(|surface| -> anyhow::Result<_> {
+            let surface_supported_formats = surface
+                .get_capabilities(&wgpu_adapter)
+                .formats
+                .into_iter()
+                .filter_map(|w| wgpu_to_vulkan(w).map(|v| (v, w)))
+                .collect::<std::collections::HashMap<vk::Format, wgpu::TextureFormat>>();
+            let runtime_supported_formats = session.enumerate_swapchain_formats()?;
+            let first_supported_format = runtime_supported_formats
+                .into_iter()
+                .map(|f| (vk::Format::from_raw(f as i32)))
+                .find_map(|v| surface_supported_formats.get(&v).map(|w|(*w, v)))
+                .context("Could not find runtime-supported format that was also supported on the surface \
+                          and that we know how to convert")?;
+                Ok(first_supported_format)
+        })
+        .transpose()?
+        .unwrap_or((wgpu::TextureFormat::Rgba8UnormSrgb, vk::Format::R8G8B8A8_SRGB));
+
+    assert_eq!(wgpu_to_vulkan(wgpu_format), Some(vk_format));
 
     let resolution = uvec2(
         views[0].recommended_image_rect_width,
@@ -313,7 +331,7 @@ pub fn initialize_xr_graphics(
             create_flags: xr::SwapchainCreateFlags::EMPTY,
             usage_flags: xr::SwapchainUsageFlags::COLOR_ATTACHMENT
                 | xr::SwapchainUsageFlags::SAMPLED,
-            format: wgpu_to_vulkan(swapchain_format).as_raw() as _,
+            format: vk_format.as_raw() as _,
             // The Vulkan graphics pipeline we create is not set up for multisampling,
             // so we hardcode this to 1. If we used a proper multisampling setup, we
             // could set this to `views[0].recommended_swapchain_sample_count`.
@@ -344,7 +362,7 @@ pub fn initialize_xr_graphics(
                         mip_level_count: 1,
                         sample_count: 1,
                         dimension: wgpu::TextureDimension::D2,
-                        format: swapchain_format,
+                        format: wgpu_format,
                         usage: wgpu_hal::TextureUses::COLOR_TARGET
                             | wgpu_hal::TextureUses::COPY_DST,
                         memory_flags: wgpu_hal::MemoryFlags::empty(),
@@ -366,7 +384,7 @@ pub fn initialize_xr_graphics(
                         mip_level_count: 1,
                         sample_count: 1,
                         dimension: wgpu::TextureDimension::D2,
-                        format: swapchain_format,
+                        format: wgpu_format,
                         usage: wgpu::TextureUsages::RENDER_ATTACHMENT
                             | wgpu::TextureUsages::COPY_DST,
                         view_formats: &[],
@@ -387,7 +405,7 @@ pub fn initialize_xr_graphics(
         session.clone().into_any_graphics().into(),
         blend_mode.into(),
         resolution.into(),
-        swapchain_format.into(),
+        wgpu_format.into(),
         AtomicBool::new(false).into(),
         Mutex::new(frame_wait).into(),
         Swapchain::Vulkan(SwapchainInner {
@@ -408,9 +426,9 @@ pub fn initialize_xr_graphics(
     ))
 }
 
-fn wgpu_to_vulkan(format: wgpu::TextureFormat) -> vk::Format {
+fn wgpu_to_vulkan(format: wgpu::TextureFormat) -> Option<vk::Format> {
     use vk::Format;
-    match format {
+    Some(match format {
         wgpu::TextureFormat::R8Unorm => Format::R8_UNORM,
         wgpu::TextureFormat::R8Snorm => Format::R8_SNORM,
         wgpu::TextureFormat::R8Uint => Format::R8_UINT,
@@ -471,5 +489,5 @@ fn wgpu_to_vulkan(format: wgpu::TextureFormat) -> vk::Format {
         wgpu::TextureFormat::EacRg11Snorm => Format::EAC_R11G11_SNORM_BLOCK,
         wgpu::TextureFormat::Astc { .. } => panic!("please god kill me now"),
         _ => panic!("fuck no")
-    }
+    })
 }
