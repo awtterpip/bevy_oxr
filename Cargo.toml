@@ -18,6 +18,7 @@ members = ["examples/android", "examples/demo"]
 anyhow = "1.0.75"
 ash = "0.37.3"
 bevy = "0.12"
+futures-lite = "2.1.0"
 mint = "0.5.9"
 wgpu = "0.17.1"
 wgpu-core = { version = "0.17.1", features = ["vulkan"] }

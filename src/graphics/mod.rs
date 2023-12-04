@@ -42,3 +42,4 @@ pub fn xr_entry() -> xr::Entry {
     let entry = unsafe { xr::Entry::load().unwrap() };
     entry
 }
+

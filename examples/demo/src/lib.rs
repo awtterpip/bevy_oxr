@@ -3,6 +3,7 @@ use std::{f32::consts::PI, ops::Mul, time::Duration};
 use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     ecs::schedule::ScheduleLabel,
+    input::{keyboard::KeyCode, Input},
     log::info,
     prelude::{
         bevy_main, default, shape, App, Assets, Color, Commands, Component, Entity, Event,
@@ -16,10 +17,12 @@ use bevy::{
 };
 use bevy_oxr::{
     input::XrInput,
+    render_restart::{XrEnableRequest, XrEnableStatus},
     resources::{XrFrameState, XrInstance, XrSession},
     xr_input::{
+        actions::XrActionSets,
         debug_gizmos::OpenXrDebugRenderer,
-        hands::common::{ HandInputDebugRenderer, HandResource, HandsResource, OpenXrHandInput},
+        hands::common::{HandInputDebugRenderer, HandResource, HandsResource, OpenXrHandInput},
         hands::HandBone,
         interactions::{
             draw_interaction_gizmos, draw_socket_gizmos, interactions, socket_interactions,
@@ -29,10 +32,24 @@ use bevy_oxr::{
         oculus_touch::OculusController,
         prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig},
         trackers::{OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker},
-        Hand, actions::XrActionSets,
+        Hand,
     },
     DefaultXrPlugins,
 };
+
+fn input_stuff(
+    keys: Res<Input<KeyCode>>,
+    status: Res<XrEnableStatus>,
+    mut request: EventWriter<XrEnableRequest>,
+) {
+    if keys.just_pressed(KeyCode::Space) {
+        match status.into_inner() {
+            XrEnableStatus::Enabled => request.send(XrEnableRequest::TryDisable),
+            XrEnableStatus::Disabled => request.send(XrEnableRequest::TryEnable),
+            XrEnableStatus::Waiting => (),
+        }
+    }
+}
 
 mod setup;
 use crate::setup::setup_scene;
@@ -45,7 +62,7 @@ pub fn main() {
     info!("Running bevy_openxr demo");
     let mut app = App::new();
 
-    app
+    app.add_systems(Update, input_stuff)
         //lets get the usual diagnostic stuff added
         .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(FrameTimeDiagnosticsPlugin)
