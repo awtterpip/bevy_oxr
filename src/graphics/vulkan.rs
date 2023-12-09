@@ -44,10 +44,10 @@ pub fn initialize_xr_graphics(
 )> {
     use wgpu_hal::{api::Vulkan as V, Api};
 
-    let xr_entry = super::xr_entry();
+    let xr_entry = super::xr_entry()?;
 
     #[cfg(target_os = "android")]
-    xr_entry.initialize_android_loader().unwrap();
+    xr_entry.initialize_android_loader()?;
 
     let available_extensions = xr_entry.enumerate_extensions()?;
     assert!(available_extensions.khr_vulkan_enable2);

@@ -9,7 +9,7 @@ pub mod prototype_locomotion;
 pub mod trackers;
 pub mod xr_camera;
 
-use crate::xr_init::{XrPostSetup, XrSetup};
+use crate::xr_init::{XrPostSetup, XrSetup, xr_only};
 use crate::resources::{XrInstance, XrSession};
 use crate::xr_begin_frame;
 use crate::xr_input::controllers::XrControllerType;
@@ -62,11 +62,11 @@ impl Plugin for OpenXrInput {
             }
         }
         //adopt any new trackers
-        app.add_systems(PreUpdate, adopt_open_xr_trackers);
+        app.add_systems(PreUpdate, adopt_open_xr_trackers.run_if(xr_only()));
         // app.add_systems(PreUpdate, action_set_system);
-        app.add_systems(PreUpdate, xr_camera_head_sync.after(xr_begin_frame));
+        app.add_systems(PreUpdate, xr_camera_head_sync.run_if(xr_only()).after(xr_begin_frame));
         //update controller trackers
-        app.add_systems(Update, update_open_xr_controllers);
+        app.add_systems(Update, update_open_xr_controllers.run_if(xr_only()));
         app.add_systems(
             PostUpdate,
             update_frusta::<XRProjection>

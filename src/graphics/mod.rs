@@ -35,11 +35,10 @@ pub fn initialize_xr_graphics(
     vulkan::initialize_xr_graphics(window)
 }
 
-pub fn xr_entry() -> xr::Entry {
+pub fn xr_entry() -> anyhow::Result<xr::Entry> {
     #[cfg(feature = "linked")]
-    let entry = xr::Entry::linked();
+    let entry = Ok(xr::Entry::linked());
     #[cfg(not(feature = "linked"))]
-    let entry = unsafe { xr::Entry::load().unwrap() };
+    let entry = unsafe { xr::Entry::load().map_err(|e| anyhow::anyhow!(e)) };
     entry
 }
-

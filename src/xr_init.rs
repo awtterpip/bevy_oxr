@@ -1,3 +1,6 @@
+// Just a lot of code that is meant for something way more complex but hey.
+// maybe will work on that soon
+
 use std::sync::Arc;
 
 use bevy::{
@@ -114,9 +117,9 @@ impl Plugin for RenderRestartPlugin {
                 XrRenderUpdate,
                 (
                     cleanup_xr.run_if(resource_exists_and_equals(XrNextEnabledState::Disabled)),
-                    handle_xr_enable_requests,
+                    // handle_xr_enable_requests,
                     apply_deferred,
-                    setup_xr.run_if(resource_exists_and_equals(XrEnableStatus::Enabled)),
+                    setup_xr/* .run_if(resource_exists_and_equals(XrEnableStatus::Enabled)) */,
                 )
                     .chain(),
             )
@@ -177,105 +180,105 @@ pub fn update_xr_stuff(world: &mut World) {
     world.run_schedule(XrPostRenderUpdate);
 }
 
-fn handle_xr_enable_requests(
-    primary_window: Query<&RawHandleWrapper, With<PrimaryWindow>>,
-    mut commands: Commands,
-    next_state: Res<XrNextEnabledState>,
-    on_main: Option<NonSend<ForceMain>>,
-) {
-    // Just to force this system onto the main thread because of unsafe code
-    let _ = on_main;
-
-    commands.insert_resource(XrEnableStatus::Waiting);
-    let (creation_data, xr_data) = match next_state.into_inner() {
-        XrNextEnabledState::Enabled => {
-            let (
-                device,
-                queue,
-                adapter_info,
-                render_adapter,
-                instance,
-                xr_instance,
-                session,
-                blend_mode,
-                resolution,
-                format,
-                session_running,
-                frame_waiter,
-                swapchain,
-                input,
-                views,
-                frame_state,
-            ) = graphics::initialize_xr_graphics(primary_window.get_single().ok().cloned())
-                .unwrap();
-
-            commands.insert_resource(XrEnableStatus::Enabled);
-            (
-                RenderCreationData {
-                    device,
-                    queue,
-                    adapter_info,
-                    render_adapter,
-                    instance: Arc::new(instance),
-                },
-                Some(XrRenderData {
-                    xr_instance,
-                    xr_session: session,
-                    xr_blend_mode: blend_mode,
-                    xr_resolution: resolution,
-                    xr_format: format,
-                    xr_session_running: session_running,
-                    xr_frame_waiter: frame_waiter,
-                    xr_swapchain: swapchain,
-                    xr_input: input,
-                    xr_views: views,
-                    xr_frame_state: frame_state,
-                }),
-            )
-        }
-        XrNextEnabledState::Disabled => (
-            init_non_xr_graphics(primary_window.get_single().ok().cloned()),
-            None,
-        ),
-    };
-
-    commands.insert_resource(creation_data.device);
-    commands.insert_resource(creation_data.queue);
-    commands.insert_resource(RenderInstance(creation_data.instance));
-    commands.insert_resource(creation_data.adapter_info);
-    commands.insert_resource(creation_data.render_adapter);
-
-    if let Some(xr_data) = xr_data {
-        // TODO: Remove this lib.rs:144
-        commands.insert_resource(xr_data.clone());
-
-        commands.insert_resource(xr_data.xr_instance);
-        commands.insert_resource(xr_data.xr_session);
-        commands.insert_resource(xr_data.xr_blend_mode);
-        commands.insert_resource(xr_data.xr_resolution);
-        commands.insert_resource(xr_data.xr_format);
-        commands.insert_resource(xr_data.xr_session_running);
-        commands.insert_resource(xr_data.xr_frame_waiter);
-        commands.insert_resource(xr_data.xr_input);
-        commands.insert_resource(xr_data.xr_views);
-        commands.insert_resource(xr_data.xr_frame_state);
-        commands.insert_resource(xr_data.xr_swapchain);
-    } else {
-        commands.remove_resource::<XrRenderData>();
-
-        commands.remove_resource::<XrInstance>();
-        commands.remove_resource::<XrSession>();
-        commands.remove_resource::<XrEnvironmentBlendMode>();
-        commands.remove_resource::<XrResolution>();
-        commands.remove_resource::<XrFormat>();
-        commands.remove_resource::<XrSessionRunning>();
-        commands.remove_resource::<XrFrameWaiter>();
-        commands.remove_resource::<XrSwapchain>();
-        commands.remove_resource::<XrInput>();
-        commands.remove_resource::<XrViews>();
-        commands.remove_resource::<XrFrameState>();
-    }
-}
+// fn handle_xr_enable_requests(
+//     primary_window: Query<&RawHandleWrapper, With<PrimaryWindow>>,
+//     mut commands: Commands,
+//     next_state: Res<XrNextEnabledState>,
+//     on_main: Option<NonSend<ForceMain>>,
+// ) {
+//     // Just to force this system onto the main thread because of unsafe code
+//     let _ = on_main;
+//
+//     commands.insert_resource(XrEnableStatus::Waiting);
+//     let (creation_data, xr_data) = match next_state.into_inner() {
+//         XrNextEnabledState::Enabled => {
+//             let (
+//                 device,
+//                 queue,
+//                 adapter_info,
+//                 render_adapter,
+//                 instance,
+//                 xr_instance,
+//                 session,
+//                 blend_mode,
+//                 resolution,
+//                 format,
+//                 session_running,
+//                 frame_waiter,
+//                 swapchain,
+//                 input,
+//                 views,
+//                 frame_state,
+//             ) = graphics::initialize_xr_graphics(primary_window.get_single().ok().cloned())
+//                 .unwrap();
+//
+//             commands.insert_resource(XrEnableStatus::Enabled);
+//             (
+//                 RenderCreationData {
+//                     device,
+//                     queue,
+//                     adapter_info,
+//                     render_adapter,
+//                     instance: Arc::new(instance),
+//                 },
+//                 Some(XrRenderData {
+//                     xr_instance,
+//                     xr_session: session,
+//                     xr_blend_mode: blend_mode,
+//                     xr_resolution: resolution,
+//                     xr_format: format,
+//                     xr_session_running: session_running,
+//                     xr_frame_waiter: frame_waiter,
+//                     xr_swapchain: swapchain,
+//                     xr_input: input,
+//                     xr_views: views,
+//                     xr_frame_state: frame_state,
+//                 }),
+//             )
+//         }
+//         XrNextEnabledState::Disabled => (
+//             init_non_xr_graphics(primary_window.get_single().ok().cloned()),
+//             None,
+//         ),
+//     };
+//
+//     commands.insert_resource(creation_data.device);
+//     commands.insert_resource(creation_data.queue);
+//     commands.insert_resource(RenderInstance(creation_data.instance));
+//     commands.insert_resource(creation_data.adapter_info);
+//     commands.insert_resource(creation_data.render_adapter);
+//
+//     if let Some(xr_data) = xr_data {
+//         // TODO: Remove this lib.rs:144
+//         commands.insert_resource(xr_data.clone());
+//
+//         commands.insert_resource(xr_data.xr_instance);
+//         commands.insert_resource(xr_data.xr_session);
+//         commands.insert_resource(xr_data.xr_blend_mode);
+//         commands.insert_resource(xr_data.xr_resolution);
+//         commands.insert_resource(xr_data.xr_format);
+//         commands.insert_resource(xr_data.xr_session_running);
+//         commands.insert_resource(xr_data.xr_frame_waiter);
+//         commands.insert_resource(xr_data.xr_input);
+//         commands.insert_resource(xr_data.xr_views);
+//         commands.insert_resource(xr_data.xr_frame_state);
+//         commands.insert_resource(xr_data.xr_swapchain);
+//     } else {
+//         commands.remove_resource::<XrRenderData>();
+//
+//         commands.remove_resource::<XrInstance>();
+//         commands.remove_resource::<XrSession>();
+//         commands.remove_resource::<XrEnvironmentBlendMode>();
+//         commands.remove_resource::<XrResolution>();
+//         commands.remove_resource::<XrFormat>();
+//         commands.remove_resource::<XrSessionRunning>();
+//         commands.remove_resource::<XrFrameWaiter>();
+//         commands.remove_resource::<XrSwapchain>();
+//         commands.remove_resource::<XrInput>();
+//         commands.remove_resource::<XrViews>();
+//         commands.remove_resource::<XrFrameState>();
+//     }
+// }
 
 fn decide_next_xr_state(
     mut commands: Commands,

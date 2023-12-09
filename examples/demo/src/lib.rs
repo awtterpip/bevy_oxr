@@ -17,7 +17,7 @@ use bevy::{
 };
 use bevy_oxr::{
     input::XrInput,
-    render_restart::{XrEnableRequest, XrEnableStatus},
+    xr_init::{XrEnableRequest, XrEnableStatus, xr_only},
     resources::{XrFrameState, XrInstance, XrSession},
     xr_input::{
         actions::XrActionSets,
@@ -77,11 +77,11 @@ pub fn main() {
         .add_systems(Startup, setup_scene)
         .add_systems(Startup, spawn_controllers_example) //you need to spawn controllers or it crashes TODO:: Fix this
         //add locomotion
-        .add_systems(Update, proto_locomotion)
+        .add_systems(Update, proto_locomotion.run_if(xr_only()))
         .insert_resource(PrototypeLocomotionConfig::default())
         //lets add the interaction systems
         .add_event::<InteractionEvent>()
-        .add_systems(Update, prototype_interaction_input)
+        .add_systems(Update, prototype_interaction_input.run_if(xr_only()))
         .add_systems(Update, interactions.before(update_interactable_states))
         .add_systems(Update, update_interactable_states)
         .add_systems(
@@ -93,7 +93,7 @@ pub fn main() {
         //draw the interaction gizmos
         .add_systems(
             Update,
-            draw_interaction_gizmos.after(update_interactable_states),
+            draw_interaction_gizmos.run_if(xr_only()).after(update_interactable_states),
         )
         .add_systems(Update, draw_socket_gizmos.after(update_interactable_states))
         //add our cube spawning system
@@ -102,7 +102,7 @@ pub fn main() {
             0.25,
             bevy::time::TimerMode::Once,
         )))
-        .add_systems(Update, request_cube_spawn)
+        .add_systems(Update, request_cube_spawn.run_if(xr_only()))
         .add_systems(Update, cube_spawner.after(request_cube_spawn))
         //test capsule
         .add_systems(Startup, spawn_capsule)
