@@ -139,6 +139,7 @@ impl Plugin for OpenXrPlugin {
                     RenderInstance(Arc::new(instance)),
                 ),
             });
+            app.insert_resource(XrEnableStatus::Enabled);
         } else {
             app.add_plugins(RenderPlugin::default());
             app.insert_resource(XrEnableStatus::Disabled);
@@ -155,12 +156,6 @@ impl Plugin for OpenXrPlugin {
     fn finish(&self, app: &mut App) {
         // TODO: Split this up into the indevidual resources
         if let Some(data) = app.world.get_resource::<XrRenderData>().cloned() {
-            // just calling this stuff because I already had the code, so...
-            app.insert_resource(XrEnableStatus::Enabled);
-            app.world.send_event(XrEnableRequest::TryEnable);
-            app.world.run_system_once(update_xr_stuff);
-            app.insert_resource(XrEnableStatus::Enabled);
-            //
             let hands = data.xr_instance.exts().ext_hand_tracking.is_some()
                 && data
                     .xr_instance

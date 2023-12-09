@@ -107,6 +107,9 @@ impl Plugin for RenderRestartPlugin {
             .insert_resource(ForceMain)
             .add_event::<XrEnableRequest>()
             .add_event::<XrEnableStatus>()
+            .add_systems(PreStartup, xr_presetup.run_if(xr_only()))
+            .add_systems(Startup, xr_setup.run_if(xr_only()))
+            .add_systems(PostStartup, xr_postsetup.run_if(xr_only()))
             .add_systems(
                 PostUpdate,
                 update_xr_stuff.run_if(on_event::<XrEnableRequest>()),
@@ -119,7 +122,7 @@ impl Plugin for RenderRestartPlugin {
                     cleanup_xr.run_if(resource_exists_and_equals(XrNextEnabledState::Disabled)),
                     // handle_xr_enable_requests,
                     apply_deferred,
-                    setup_xr/* .run_if(resource_exists_and_equals(XrEnableStatus::Enabled)) */,
+                    setup_xr, /* .run_if(resource_exists_and_equals(XrEnableStatus::Enabled)) */
                 )
                     .chain(),
             )
@@ -151,15 +154,22 @@ fn add_schedules(app: &mut App) {
     }
 }
 
+fn xr_presetup(world: &mut World) {
+    world.run_schedule(XrPreSetup);
+}
+fn xr_setup(world: &mut World) {
+    world.run_schedule(XrSetup);
+}
+fn xr_postsetup(world: &mut World) {
+    world.run_schedule(XrPrePostSetup);
+    world.run_schedule(XrPostSetup);
+}
+
 fn setup_xr(world: &mut World) {
     world.run_schedule(XrPreSetup);
-    info!("PreSetup Done");
     world.run_schedule(XrSetup);
-    info!("Setup Done");
     world.run_schedule(XrPrePostSetup);
-    info!("PrePostSetup Done");
     world.run_schedule(XrPostSetup);
-    info!("PostSetup Done");
 }
 fn cleanup_xr(world: &mut World) {
     world.run_schedule(XrPreCleanup);
