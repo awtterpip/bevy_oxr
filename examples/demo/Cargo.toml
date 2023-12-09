@@ -17,4 +17,5 @@ color-eyre = "0.6.2"
 
 [target.'cfg(not(target_os="android"))'.dependencies.bevy_oxr]
 path = "../../"
+# May need to be more specific. needs to be false at least on linux without an active runtime to run in flat
 default-features = true

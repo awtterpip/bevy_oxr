@@ -3,6 +3,7 @@ use std::{f32::consts::PI, ops::Mul, time::Duration};
 use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     ecs::schedule::ScheduleLabel,
+    input::{keyboard::KeyCode, Input},
     log::info,
     prelude::{
         bevy_main, default, shape, App, Assets, Color, Commands, Component, Entity, Event,
@@ -16,10 +17,12 @@ use bevy::{
 };
 use bevy_oxr::{
     input::XrInput,
+    xr_init::{XrEnableRequest, XrEnableStatus, xr_only},
     resources::{XrFrameState, XrInstance, XrSession},
     xr_input::{
+        actions::XrActionSets,
         debug_gizmos::OpenXrDebugRenderer,
-        hands::common::{ HandInputDebugRenderer, HandResource, HandsResource, OpenXrHandInput},
+        hands::common::{HandInputDebugRenderer, HandResource, HandsResource, OpenXrHandInput},
         hands::HandBone,
         interactions::{
             draw_interaction_gizmos, draw_socket_gizmos, interactions, socket_interactions,
@@ -29,10 +32,24 @@ use bevy_oxr::{
         oculus_touch::OculusController,
         prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig},
         trackers::{OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker},
-        Hand, actions::XrActionSets,
+        Hand,
     },
     DefaultXrPlugins,
 };
+
+fn input_stuff(
+    keys: Res<Input<KeyCode>>,
+    status: Res<XrEnableStatus>,
+    mut request: EventWriter<XrEnableRequest>,
+) {
+    if keys.just_pressed(KeyCode::Space) {
+        match status.into_inner() {
+            XrEnableStatus::Enabled => request.send(XrEnableRequest::TryDisable),
+            XrEnableStatus::Disabled => request.send(XrEnableRequest::TryEnable),
+            XrEnableStatus::Waiting => (),
+        }
+    }
+}
 
 mod setup;
 use crate::setup::setup_scene;
@@ -45,7 +62,7 @@ pub fn main() {
     info!("Running bevy_openxr demo");
     let mut app = App::new();
 
-    app
+    app.add_systems(Update, input_stuff)
         //lets get the usual diagnostic stuff added
         .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(FrameTimeDiagnosticsPlugin)
@@ -60,11 +77,11 @@ pub fn main() {
         .add_systems(Startup, setup_scene)
         .add_systems(Startup, spawn_controllers_example) //you need to spawn controllers or it crashes TODO:: Fix this
         //add locomotion
-        .add_systems(Update, proto_locomotion)
+        .add_systems(Update, proto_locomotion.run_if(xr_only()))
         .insert_resource(PrototypeLocomotionConfig::default())
         //lets add the interaction systems
         .add_event::<InteractionEvent>()
-        .add_systems(Update, prototype_interaction_input)
+        .add_systems(Update, prototype_interaction_input.run_if(xr_only()))
         .add_systems(Update, interactions.before(update_interactable_states))
         .add_systems(Update, update_interactable_states)
         .add_systems(
@@ -76,7 +93,7 @@ pub fn main() {
         //draw the interaction gizmos
         .add_systems(
             Update,
-            draw_interaction_gizmos.after(update_interactable_states),
+            draw_interaction_gizmos.run_if(xr_only()).after(update_interactable_states),
         )
         .add_systems(Update, draw_socket_gizmos.after(update_interactable_states))
         //add our cube spawning system
@@ -85,7 +102,7 @@ pub fn main() {
             0.25,
             bevy::time::TimerMode::Once,
         )))
-        .add_systems(Update, request_cube_spawn)
+        .add_systems(Update, request_cube_spawn.run_if(xr_only()))
         .add_systems(Update, cube_spawner.after(request_cube_spawn))
         //test capsule
         .add_systems(Startup, spawn_capsule)

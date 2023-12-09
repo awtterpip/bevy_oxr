@@ -2,25 +2,41 @@ mod graphics;
 pub mod input;
 pub mod resource_macros;
 pub mod resources;
+pub mod xr_init;
 pub mod xr_input;
 
 use std::sync::{Arc, Mutex};
 
+use crate::xr_init::RenderRestartPlugin;
 use crate::xr_input::hands::hand_tracking::DisableHandTracking;
 use crate::xr_input::oculus_touch::ActionSets;
 use bevy::app::PluginGroupBuilder;
-use bevy::ecs::system::SystemState;
+use bevy::ecs::system::{RunSystemOnce, SystemState};
 use bevy::prelude::*;
-use bevy::render::camera::{ManualTextureView, ManualTextureViewHandle, ManualTextureViews};
+use bevy::render::camera::{
+    CameraPlugin, ManualTextureView, ManualTextureViewHandle, ManualTextureViews,
+};
+use bevy::render::globals::GlobalsPlugin;
+use bevy::render::mesh::morph::MorphPlugin;
+use bevy::render::mesh::MeshPlugin;
 use bevy::render::pipelined_rendering::PipelinedRenderingPlugin;
-use bevy::render::renderer::{render_system, RenderInstance};
+use bevy::render::render_asset::RenderAssetDependency;
+use bevy::render::render_resource::ShaderLoader;
+use bevy::render::renderer::{
+    render_system, RenderAdapter, RenderAdapterInfo, RenderDevice, RenderInstance, RenderQueue,
+};
 use bevy::render::settings::RenderCreation;
-use bevy::render::{Render, RenderApp, RenderPlugin, RenderSet};
+use bevy::render::view::{self, ViewPlugin, WindowRenderPlugin};
+use bevy::render::{color, primitives, Render, RenderApp, RenderPlugin, RenderSet};
 use bevy::window::{PresentMode, PrimaryWindow, RawHandleWrapper};
 use input::XrInput;
 use openxr as xr;
 use resources::*;
 use xr::FormFactor;
+use xr_init::{
+    init_non_xr_graphics, update_xr_stuff, xr_only, RenderCreationData, XrEnableRequest,
+    XrEnableStatus, XrRenderData, XrRenderUpdate,
+};
 use xr_input::controllers::XrControllerType;
 use xr_input::hands::emulated::HandEmulationPlugin;
 use xr_input::hands::hand_tracking::{HandTrackingData, HandTrackingPlugin};
@@ -63,14 +79,10 @@ pub struct FutureXrResources(
 
 impl Plugin for OpenXrPlugin {
     fn build(&self, app: &mut App) {
-        let future_xr_resources_wrapper = Arc::new(Mutex::new(None));
-        app.insert_resource(FutureXrResources(future_xr_resources_wrapper.clone()));
-
         let mut system_state: SystemState<Query<&RawHandleWrapper, With<PrimaryWindow>>> =
             SystemState::new(&mut app.world);
         let primary_window = system_state.get(&app.world).get_single().ok().cloned();
-
-        let (
+        if let Ok((
             device,
             queue,
             adapter_info,
@@ -87,126 +99,121 @@ impl Plugin for OpenXrPlugin {
             input,
             views,
             frame_state,
-        ) = graphics::initialize_xr_graphics(primary_window).unwrap();
-        // std::thread::sleep(Duration::from_secs(5));
-        debug!("Configured wgpu adapter Limits: {:#?}", device.limits());
-        debug!("Configured wgpu adapter Features: {:#?}", device.features());
-        let mut future_xr_resources_inner = future_xr_resources_wrapper.lock().unwrap();
-        *future_xr_resources_inner = Some((
-            xr_instance,
-            session,
-            blend_mode,
-            resolution,
-            format,
-            session_running,
-            frame_waiter,
-            swapchain,
-            input,
-            views,
-            frame_state,
-        ));
-        app.insert_resource(ActionSets(vec![]));
-        app.add_plugins(RenderPlugin {
-            render_creation: RenderCreation::Manual(
-                device,
-                queue,
-                adapter_info,
-                render_adapter,
-                RenderInstance(Arc::new(instance)),
-            ),
-        });
+        )) = graphics::initialize_xr_graphics(primary_window.clone())
+        {
+            // std::thread::sleep(Duration::from_secs(5));
+            debug!("Configured wgpu adapter Limits: {:#?}", device.limits());
+            debug!("Configured wgpu adapter Features: {:#?}", device.features());
+            app.insert_resource(xr_instance.clone());
+            app.insert_resource(session.clone());
+            app.insert_resource(blend_mode.clone());
+            app.insert_resource(resolution.clone());
+            app.insert_resource(format.clone());
+            app.insert_resource(session_running.clone());
+            app.insert_resource(frame_waiter.clone());
+            app.insert_resource(swapchain.clone());
+            app.insert_resource(input.clone());
+            app.insert_resource(views.clone());
+            app.insert_resource(frame_state.clone());
+            let xr_data = XrRenderData {
+                xr_instance,
+                xr_session: session,
+                xr_blend_mode: blend_mode,
+                xr_resolution: resolution,
+                xr_format: format,
+                xr_session_running: session_running,
+                xr_frame_waiter: frame_waiter,
+                xr_swapchain: swapchain,
+                xr_input: input,
+                xr_views: views,
+                xr_frame_state: frame_state,
+            };
+            app.insert_resource(xr_data);
+            app.insert_resource(ActionSets(vec![]));
+            app.add_plugins(RenderPlugin {
+                render_creation: RenderCreation::Manual(
+                    device,
+                    queue,
+                    adapter_info,
+                    render_adapter,
+                    RenderInstance(Arc::new(instance)),
+                ),
+            });
+        } else {
+            app.add_plugins(RenderPlugin::default());
+            app.insert_resource(XrEnableStatus::Disabled);
+        }
     }
 
     fn ready(&self, app: &App) -> bool {
         app.world
-            .get_resource::<FutureXrResources>()
-            .and_then(|frr| frr.0.try_lock().map(|locked| locked.is_some()).ok())
+            .get_resource::<XrEnableStatus>()
+            .map(|frr| *frr != XrEnableStatus::Waiting)
             .unwrap_or(true)
     }
 
     fn finish(&self, app: &mut App) {
-        if let Some(future_renderer_resources) = app.world.remove_resource::<FutureXrResources>() {
-            let (
-                xr_instance,
-                session,
-                blend_mode,
-                resolution,
-                format,
-                session_running,
-                frame_waiter,
-                swapchain,
-                input,
-                views,
-                frame_state,
-            ) = future_renderer_resources.0.lock().unwrap().take().unwrap();
-
-            let action_sets = app.world.resource::<ActionSets>().clone();
-
-            app.insert_resource(xr_instance.clone())
-                .insert_resource(session.clone())
-                .insert_resource(blend_mode.clone())
-                .insert_resource(resolution.clone())
-                .insert_resource(format.clone())
-                .insert_resource(session_running.clone())
-                .insert_resource(frame_waiter.clone())
-                .insert_resource(swapchain.clone())
-                .insert_resource(input.clone())
-                .insert_resource(views.clone())
-                .insert_resource(frame_state.clone())
-                .insert_resource(action_sets.clone());
-            let hands = xr_instance.exts().ext_hand_tracking.is_some()
-                && xr_instance
+        // TODO: Split this up into the indevidual resources
+        if let Some(data) = app.world.get_resource::<XrRenderData>().cloned() {
+            // just calling this stuff because I already had the code, so...
+            app.insert_resource(XrEnableStatus::Enabled);
+            app.world.send_event(XrEnableRequest::TryEnable);
+            app.world.run_system_once(update_xr_stuff);
+            app.insert_resource(XrEnableStatus::Enabled);
+            //
+            let hands = data.xr_instance.exts().ext_hand_tracking.is_some()
+                && data
+                    .xr_instance
                     .supports_hand_tracking(
-                        xr_instance
+                        data.xr_instance
                             .system(FormFactor::HEAD_MOUNTED_DISPLAY)
                             .unwrap(),
                     )
                     .is_ok_and(|v| v);
             if hands {
-                app.insert_resource(HandTrackingData::new(&session).unwrap());
+                app.insert_resource(HandTrackingData::new(&data.xr_session).unwrap());
             } else {
                 app.insert_resource(DisableHandTracking::Both);
             }
 
-            let (left, right) = swapchain.get_render_views();
+            let (left, right) = data.xr_swapchain.get_render_views();
             let left = ManualTextureView {
                 texture_view: left.into(),
-                size: *resolution,
-                format: *format,
+                size: *data.xr_resolution,
+                format: *data.xr_format,
             };
             let right = ManualTextureView {
                 texture_view: right.into(),
-                size: *resolution,
-                format: *format,
+                size: *data.xr_resolution,
+                format: *data.xr_format,
             };
-            app.add_systems(PreUpdate, xr_begin_frame);
+            app.add_systems(PreUpdate, xr_begin_frame.run_if(xr_only()));
             let mut manual_texture_views = app.world.resource_mut::<ManualTextureViews>();
             manual_texture_views.insert(LEFT_XR_TEXTURE_HANDLE, left);
             manual_texture_views.insert(RIGHT_XR_TEXTURE_HANDLE, right);
             drop(manual_texture_views);
             let render_app = app.sub_app_mut(RenderApp);
 
-            render_app
-                .insert_resource(xr_instance)
-                .insert_resource(session)
-                .insert_resource(blend_mode)
-                .insert_resource(resolution)
-                .insert_resource(format)
-                .insert_resource(session_running)
-                .insert_resource(frame_waiter)
-                .insert_resource(swapchain)
-                .insert_resource(input)
-                .insert_resource(views)
-                .insert_resource(frame_state)
-                .insert_resource(action_sets);
-
+            render_app.insert_resource(data.xr_instance.clone());
+            render_app.insert_resource(data.xr_session.clone());
+            render_app.insert_resource(data.xr_blend_mode.clone());
+            render_app.insert_resource(data.xr_resolution.clone());
+            render_app.insert_resource(data.xr_format.clone());
+            render_app.insert_resource(data.xr_session_running.clone());
+            render_app.insert_resource(data.xr_frame_waiter.clone());
+            render_app.insert_resource(data.xr_swapchain.clone());
+            render_app.insert_resource(data.xr_input.clone());
+            render_app.insert_resource(data.xr_views.clone());
+            render_app.insert_resource(data.xr_frame_state.clone());
+            render_app.insert_resource(XrEnableStatus::Enabled);
             render_app.add_systems(
                 Render,
                 (
                     post_frame
+                        .run_if(xr_only())
                         .before(render_system)
                         .after(RenderSet::ExtractCommands),
-                    end_frame.after(render_system),
+                    end_frame.run_if(xr_only()).after(render_system),
                 ),
             );
         }
@@ -221,8 +228,9 @@ impl PluginGroup for DefaultXrPlugins {
             .build()
             .disable::<RenderPlugin>()
             .disable::<PipelinedRenderingPlugin>()
-            .add_before::<RenderPlugin, _>(OpenXrPlugin::default())
+            .add_before::<RenderPlugin, _>(OpenXrPlugin)
             .add_after::<OpenXrPlugin, _>(OpenXrInput::new(XrControllerType::OculusTouch))
+            .add_before::<OpenXrPlugin, _>(RenderRestartPlugin)
             .add(HandEmulationPlugin)
             .add(HandTrackingPlugin)
             .set(WindowPlugin {

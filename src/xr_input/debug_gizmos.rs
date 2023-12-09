@@ -1,9 +1,11 @@
+use bevy::ecs::schedule::IntoSystemConfigs;
 use bevy::log::{debug, info};
 use bevy::prelude::{
     Color, Gizmos, GlobalTransform, Plugin, Quat, Query, Res, Transform, Update, Vec2, Vec3, With,
     Without,
 };
 
+use crate::xr_init::xr_only;
 use crate::{
     input::XrInput,
     resources::{XrFrameState, XrSession},
@@ -25,34 +27,41 @@ pub struct OpenXrDebugRenderer;
 
 impl Plugin for OpenXrDebugRenderer {
     fn build(&self, app: &mut bevy::prelude::App) {
-        app.add_systems(Update, draw_gizmos);
+        app.add_systems(Update, draw_gizmos.run_if(xr_only()));
     }
 }
 
+#[allow(clippy::too_many_arguments, clippy::complexity)]
 pub fn draw_gizmos(
     mut gizmos: Gizmos,
     oculus_controller: Res<OculusController>,
     frame_state: Res<XrFrameState>,
     xr_input: Res<XrInput>,
     session: Res<XrSession>,
-    tracking_root_query: Query<(
+    tracking_root_query: Query<
         &mut Transform,
-        With<OpenXRTrackingRoot>,
-        Without<OpenXRLeftController>,
-        Without<OpenXRRightController>,
-    )>,
-    left_controller_query: Query<(
+        (
+            With<OpenXRTrackingRoot>,
+            Without<OpenXRLeftController>,
+            Without<OpenXRRightController>,
+        ),
+    >,
+    left_controller_query: Query<
         &GlobalTransform,
-        With<OpenXRLeftController>,
-        Without<OpenXRRightController>,
-        Without<OpenXRTrackingRoot>,
-    )>,
-    right_controller_query: Query<(
+        (
+            With<OpenXRLeftController>,
+            Without<OpenXRRightController>,
+            Without<OpenXRTrackingRoot>,
+        ),
+    >,
+    right_controller_query: Query<
         &GlobalTransform,
-        With<OpenXRRightController>,
-        Without<OpenXRLeftController>,
-        Without<OpenXRTrackingRoot>,
-    )>,
+        (
+            With<OpenXRRightController>,
+            Without<OpenXRLeftController>,
+            Without<OpenXRTrackingRoot>,
+        ),
+    >,
     action_sets: Res<XrActionSets>,
 ) {
     // if let Some(hand_tracking) = hand_tracking {
@@ -89,7 +98,7 @@ pub fn draw_gizmos(
     match root {
         Ok(position) => {
             gizmos.circle(
-                position.0.translation
+                position.translation
                     + Vec3 {
                         x: 0.0,
                         y: 0.01,
@@ -107,7 +116,7 @@ pub fn draw_gizmos(
     let left_transform = left_controller_query.get_single();
     match left_transform {
         Ok(left_entity) => {
-            draw_hand_gizmo(&mut gizmos, &controller, Hand::Left, left_entity.0);
+            draw_hand_gizmo(&mut gizmos, &controller, Hand::Left, left_entity);
         }
         Err(_) => debug!("no left controller entity for debug gizmos"),
     }
@@ -115,7 +124,7 @@ pub fn draw_gizmos(
     let right_transform = right_controller_query.get_single();
     match right_transform {
         Ok(right_entity) => {
-            draw_hand_gizmo(&mut gizmos, &controller, Hand::Right, right_entity.0);
+            draw_hand_gizmo(&mut gizmos, &controller, Hand::Right, right_entity);
         }
         Err(_) => debug!("no right controller entity for debug gizmos"),
     }

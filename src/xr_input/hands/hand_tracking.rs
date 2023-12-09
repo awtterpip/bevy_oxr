@@ -8,7 +8,7 @@ use crate::{
     xr_input::{
          hands::HandBone, trackers::OpenXRTrackingRoot, Hand, QuatConv,
         Vec3Conv,
-    },
+    }, xr_init::xr_only,
 };
 use super::common::HandBoneRadius;
 
@@ -128,7 +128,7 @@ impl Plugin for HandTrackingPlugin {
             (
                 update_hand_bones.run_if(|dh: Option<Res<DisableHandTracking>>| {
                     !dh.is_some_and(|v| *v == DisableHandTracking::Both)
-                }),
+                }).run_if(xr_only()),
                 update_tracking_state_on_disable,
             ),
         );
