@@ -9,13 +9,14 @@ pub mod prototype_locomotion;
 pub mod trackers;
 pub mod xr_camera;
 
+use crate::xr_init::{XrPostSetup, XrSetup};
 use crate::resources::{XrInstance, XrSession};
 use crate::xr_begin_frame;
 use crate::xr_input::controllers::XrControllerType;
 use crate::xr_input::oculus_touch::setup_oculus_controller;
 use crate::xr_input::xr_camera::{xr_camera_head_sync, Eye, XRProjection, XrCameraBundle};
 use bevy::app::{App, PostUpdate, Startup};
-use bevy::log::warn;
+use bevy::log::{warn, info};
 use bevy::prelude::{BuildChildren, Component, Deref, DerefMut, IntoSystemConfigs, Resource};
 use bevy::prelude::{Commands, Plugin, PreUpdate, Quat, Res, SpatialBundle, Update, Vec3};
 use bevy::render::camera::CameraProjectionPlugin;
@@ -52,17 +53,17 @@ impl Plugin for OpenXrInput {
         app.add_plugins(CameraProjectionPlugin::<XRProjection>::default());
         app.add_plugins(OpenXrActionsPlugin);
         app.add_systems(
-            PreUpdate,
-            (post_action_setup_oculus_controller.after(setup_oxr_actions),),
+            XrPostSetup,
+            post_action_setup_oculus_controller,
         );
         match self.controller_type {
             XrControllerType::OculusTouch => {
-                app.add_systems(Startup, setup_oculus_controller);
+                app.add_systems(XrSetup, setup_oculus_controller);
             }
         }
         //adopt any new trackers
         app.add_systems(PreUpdate, adopt_open_xr_trackers);
-        app.add_systems(PreUpdate, action_set_system);
+        // app.add_systems(PreUpdate, action_set_system);
         app.add_systems(PreUpdate, xr_camera_head_sync.after(xr_begin_frame));
         //update controller trackers
         app.add_systems(Update, update_open_xr_controllers);
@@ -72,7 +73,7 @@ impl Plugin for OpenXrInput {
                 .after(TransformSystem::TransformPropagate)
                 .before(VisibilitySystems::UpdatePerspectiveFrusta),
         );
-        app.add_systems(Startup, setup_xr_cameras);
+        app.add_systems(XrSetup, setup_xr_cameras);
     }
 }
 
@@ -88,6 +89,7 @@ fn setup_binding_recommendations(
 }
 
 fn setup_xr_cameras(mut commands: Commands) {
+    info!("WTF?!");
     //this needs to do the whole xr tracking volume not just cameras
     //get the root?
     let tracking_root = commands

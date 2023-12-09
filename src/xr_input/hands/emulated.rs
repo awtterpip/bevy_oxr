@@ -5,6 +5,7 @@ use openxr::{ActionTy, HandJoint};
 
 use super::common::{get_bone_gizmo_style, HandBoneRadius};
 use crate::{
+    xr_init::{xr_only, XrSetup},
     resources::{XrInstance, XrSession},
     xr_input::{
         actions::{
@@ -27,8 +28,11 @@ pub struct HandEmulationPlugin;
 
 impl Plugin for HandEmulationPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(PreUpdate, update_hand_skeleton_from_emulated);
-        app.add_systems(Startup, setup_hand_emulation_action_set);
+        app.add_systems(
+            Update,
+            update_hand_skeleton_from_emulated.run_if(xr_only()),
+        );
+        app.add_systems(XrSetup, setup_hand_emulation_action_set);
     }
 }
 
@@ -87,7 +91,7 @@ fn setup_hand_emulation_action_set(mut action_sets: ResMut<SetupActionSets>) {
         ActionHandednes::Double,
     );
 
-    suggest_oculus_touch_profile(&mut action_set);
+    suggest_oculus_touch_profile(action_set);
 }
 
 pub struct EmulatedHandPoseData {}

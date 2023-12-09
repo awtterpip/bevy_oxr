@@ -2,7 +2,7 @@ use bevy::{prelude::*, utils::HashMap};
 use openxr as xr;
 use xr::{Action, Binding, Haptic, Posef};
 
-use crate::resources::{XrInstance, XrSession};
+use crate::{resources::{XrInstance, XrSession}, xr_init::XrPrePostSetup};
 
 use super::oculus_touch::ActionSets;
 
@@ -12,11 +12,12 @@ impl Plugin for OpenXrActionsPlugin {
         app.insert_resource(SetupActionSets {
             sets: HashMap::new(),
         });
-        app.add_systems(PostStartup, setup_oxr_actions);
+        app.add_systems(XrPrePostSetup, setup_oxr_actions);
     }
 }
 
 pub fn setup_oxr_actions(world: &mut World) {
+    info!("huh?!");
     let actions = world.remove_resource::<SetupActionSets>().unwrap();
     let instance = world.get_resource::<XrInstance>().unwrap();
     let session = world.get_resource::<XrSession>().unwrap();
