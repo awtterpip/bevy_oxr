@@ -58,7 +58,7 @@ pub fn initialize_xr_graphics(
 
     let xr_instance = xr_entry.create_instance(
         &xr::ApplicationInfo {
-            application_name: "Ambient",
+            application_name: option_env!("CARGO_BIN_NAME").unwrap_or("bevy"),
             ..Default::default()
         },
         &enabled_extensions,
@@ -94,7 +94,7 @@ pub fn initialize_xr_graphics(
     }
 
     let instance_descriptor = &wgpu_hal::InstanceDescriptor {
-        name: "Ambient",
+        name: option_env!("CARGO_BIN_NAME").unwrap_or("bevy"),
         dx12_shader_compiler: wgpu::util::dx12_shader_compiler_from_env().unwrap_or_default(),
         flags: wgpu_hal::InstanceFlags::from_bits_truncate(
             wgpu_types::InstanceFlags::from_build_config()

@@ -59,7 +59,7 @@ pub fn initialize_xr_graphics(
 
     let xr_instance = xr_entry.create_instance(
         &xr::ApplicationInfo {
-            application_name: "Ambient",
+            application_name: option_env!("CARGO_BIN_NAME").unwrap_or("bevy"),
             ..Default::default()
         },
         &enabled_extensions,
@@ -122,7 +122,7 @@ pub fn initialize_xr_graphics(
     let vk_instance = unsafe {
         let extensions_cchar: Vec<_> = extensions.iter().map(|s| s.as_ptr()).collect();
 
-        let app_name = CString::new("Ambient")?;
+        let app_name = CString::new(option_env!("CARGO_BIN_NAME").unwrap_or("bevy"))?;
         let vk_app_info = vk::ApplicationInfo::builder()
             .application_name(&app_name)
             .application_version(1)
