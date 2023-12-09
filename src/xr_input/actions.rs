@@ -17,7 +17,6 @@ impl Plugin for OpenXrActionsPlugin {
 }
 
 pub fn setup_oxr_actions(world: &mut World) {
-    info!("huh?!");
     let actions = world.remove_resource::<SetupActionSets>().unwrap();
     let instance = world.get_resource::<XrInstance>().unwrap();
     let session = world.get_resource::<XrSession>().unwrap();
