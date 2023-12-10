@@ -1,4 +1,3 @@
-use std::ffi::{c_void, CString};
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
@@ -225,8 +224,8 @@ pub fn start_xr_session(
         xr_instance.create_session::<xr::D3D12>(
             setup_info.xr_system_id,
             &xr::d3d::SessionCreateInfoD3D12 {
-                device: setup_info.raw_device as *mut *mut c_void,
-                queue: setup_info.raw_queue as *mut *mut c_void,
+                device: setup_info.raw_device.cast(),
+                queue: setup_info.raw_queue.cast(),
             },
         )
     }?;
