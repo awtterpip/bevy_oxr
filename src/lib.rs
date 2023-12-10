@@ -171,6 +171,9 @@ impl Plugin for OpenXrPlugin {
     }
 }
 
+#[cfg(all(not(feature = "vulkan"), not(all(feature = "d3d12", windows))))]
+compile_error!("At least one platform-compatible backend feature must be enabled.");
+
 #[derive(Debug)]
 pub enum Backend {
     #[cfg(feature = "vulkan")]
