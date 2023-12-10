@@ -1,4 +1,3 @@
-use std::ffi::c_void;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
@@ -146,8 +145,8 @@ pub fn initialize_xr_graphics(
         xr_instance.create_session::<xr::D3D12>(
             xr_system_id,
             &xr::d3d::SessionCreateInfoD3D12 {
-                device: wgpu_open_device.device.raw_device().as_mut_ptr() as *mut *mut c_void,
-                queue: wgpu_open_device.device.raw_queue().as_mut_ptr() as *mut *mut c_void,
+                device: wgpu_open_device.device.raw_device().as_mut_ptr().cast(),
+                queue: wgpu_open_device.device.raw_queue().as_mut_ptr().cast(),
             },
         )
     }?;
