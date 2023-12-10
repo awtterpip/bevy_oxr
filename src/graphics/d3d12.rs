@@ -64,10 +64,10 @@ pub fn initialize_xr_graphics(
         &enabled_extensions,
         &[],
     )?;
-    info!("created instance");
+    info!("created OpenXR instance");
     let instance_props = xr_instance.properties()?;
     let xr_system_id = xr_instance.system(xr::FormFactor::HEAD_MOUNTED_DISPLAY)?;
-    info!("created system");
+    info!("created OpenXR system");
     let system_props = xr_instance.system_properties(xr_system_id).unwrap();
     info!(
         "loaded OpenXR runtime: {} {} {}",
@@ -114,7 +114,7 @@ pub fn initialize_xr_graphics(
             desc.AdapterLuid.HighPart == reqs.adapter_luid.HighPart
                 && desc.AdapterLuid.LowPart == reqs.adapter_luid.LowPart
         })
-        .context("Failed to find DXGI adapter matching LUID provided by runtime")?;
+        .context("failed to find DXGI adapter matching LUID provided by runtime")?;
 
     let wgpu_instance =
         unsafe { wgpu::Instance::from_hal::<wgpu_hal::api::Dx12>(wgpu_raw_instance) };
@@ -170,7 +170,7 @@ pub fn initialize_xr_graphics(
         let handle = wrapper.get_handle();
         wgpu_instance
             .create_surface(&handle)
-            .expect("Failed to create wgpu surface")
+            .expect("failed to create wgpu surface")
     });
 
     let (wgpu_format, d3d12_format) = surface
@@ -186,7 +186,7 @@ pub fn initialize_xr_graphics(
             let first_supported_format = runtime_supported_formats
                 .into_iter()
                 .find_map(|d| surface_supported_formats.get(&d).map(|w|(*w, d)))
-                .context("Could not find runtime-supported format that was also supported on the surface \
+                .context("could not find runtime-supported format that was also supported on the surface \
                           and that we know how to convert")?;
             Ok(first_supported_format)
         })
@@ -240,7 +240,7 @@ pub fn initialize_xr_graphics(
                 wgpu_device.create_texture_from_hal::<Dx12>(
                     wgpu_hal_texture,
                     &wgpu::TextureDescriptor {
-                        label: Some("VR Swapchain"),
+                        label: Some("bevy_openxr swapchain"),
                         size: wgpu::Extent3d {
                             width: resolution.x,
                             height: resolution.y,
