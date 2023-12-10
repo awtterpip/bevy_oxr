@@ -47,7 +47,7 @@ pub fn initialize_xr_instance(
     xr_entry.initialize_android_loader()?;
 
     assert!(available_extensions.raw().khr_vulkan_enable2);
-    //info!("available xr exts: {:#?}", available_extensions);
+    // info!("available OpenXR extensions: {:#?}", available_extensions);
 
     let mut enabled_extensions: xr::ExtensionSet =
         (available_extensions & reqeusted_extensions).into();
@@ -58,7 +58,7 @@ pub fn initialize_xr_instance(
     }
 
     let available_layers = xr_entry.enumerate_layers()?;
-    //info!("available xr layers: {:#?}", available_layers);
+    // info!("available OpenXR layers: {:#?}", available_layers);
 
     let xr_instance = xr_entry.create_instance(
         &xr::ApplicationInfo {
@@ -69,10 +69,10 @@ pub fn initialize_xr_instance(
         &enabled_extensions,
         &[],
     )?;
-    info!("created instance");
+    info!("created OpenXR instance");
     let instance_props = xr_instance.properties()?;
     let xr_system_id = xr_instance.system(xr::FormFactor::HEAD_MOUNTED_DISPLAY)?;
-    info!("created system");
+    info!("created OpenXR system");
     let system_props = xr_instance.system_properties(xr_system_id).unwrap();
     info!(
         "loaded OpenXR runtime: {} {} {}",
@@ -138,7 +138,7 @@ pub fn initialize_xr_instance(
         ash::extensions::khr::TimelineSemaphore::name(),
     ];
     info!(
-        "creating vulkan instance with these extensions: {:#?}",
+        "creating Vulkan instance with these extensions: {:#?}",
         extensions
     );
 
@@ -162,7 +162,7 @@ pub fn initialize_xr_instance(
                     .enabled_extension_names(&extensions_cchar) as *const _
                     as *const _,
             )
-            .context("XR error creating Vulkan instance")
+            .context("OpenXR error creating Vulkan instance")
             .unwrap()
             .map_err(vk::Result::from_raw)
             .context("Vulkan error creating Vulkan instance")
@@ -173,7 +173,7 @@ pub fn initialize_xr_instance(
             vk::Instance::from_raw(vk_instance as _),
         )
     };
-    info!("created vulkan instance");
+    info!("created Vulkan instance");
 
     let vk_instance_ptr = vk_instance.handle().as_raw() as *const c_void;
 
@@ -246,7 +246,7 @@ pub fn initialize_xr_instance(
                     vk_physical_device.as_raw() as _,
                     &info as *const _ as *const _,
                 )
-                .context("XR error creating Vulkan device")?
+                .context("OpenXR error creating Vulkan device")?
                 .map_err(vk::Result::from_raw)
                 .context("Vulkan error creating Vulkan device")?;
 
@@ -400,7 +400,7 @@ pub fn start_xr_session(
                 <V as Api>::Device::texture_from_raw(
                     color_image,
                     &wgpu_hal::TextureDescriptor {
-                        label: Some("VR Swapchain"),
+                        label: Some("bevy_openxr swapchain"), // unused internally
                         size: wgpu::Extent3d {
                             width: resolution.x,
                             height: resolution.y,
@@ -422,7 +422,7 @@ pub fn start_xr_session(
                 wgpu_device.create_texture_from_hal::<V>(
                     wgpu_hal_texture,
                     &wgpu::TextureDescriptor {
-                        label: Some("VR Swapchain"),
+                        label: Some("bevy_openxr swapchain"),
                         size: wgpu::Extent3d {
                             width: resolution.x,
                             height: resolution.y,

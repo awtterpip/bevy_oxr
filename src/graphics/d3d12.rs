@@ -70,10 +70,10 @@ pub fn initialize_xr_instance(
         &enabled_extensions,
         &[],
     )?;
-    info!("created instance");
+    info!("created OpenXR instance");
     let instance_props = xr_instance.properties()?;
     let xr_system_id = xr_instance.system(xr::FormFactor::HEAD_MOUNTED_DISPLAY)?;
-    info!("created system");
+    info!("created OpenXR system");
     let system_props = xr_instance.system_properties(xr_system_id).unwrap();
     info!(
         "loaded OpenXR runtime: {} {} {}",
@@ -136,7 +136,7 @@ pub fn initialize_xr_instance(
             desc.AdapterLuid.HighPart == reqs.adapter_luid.HighPart
                 && desc.AdapterLuid.LowPart == reqs.adapter_luid.LowPart
         })
-        .context("Failed to find DXGI adapter matching LUID provided by runtime")?;
+        .context("failed to find DXGI adapter matching LUID provided by runtime")?;
 
     let wgpu_instance =
         unsafe { wgpu::Instance::from_hal::<wgpu_hal::api::Dx12>(wgpu_raw_instance) };
@@ -255,7 +255,7 @@ pub fn start_xr_session(
             create_flags: xr::SwapchainCreateFlags::EMPTY,
             usage_flags: xr::SwapchainUsageFlags::COLOR_ATTACHMENT
                 | xr::SwapchainUsageFlags::SAMPLED,
-            format: wgpu_to_d3d12(swapchain_format).expect("unsupported texture format"),
+            format: wgpu_to_d3d12(swapchain_format).expect("Unsupported texture format"),
             // The Vulkan graphics pipeline we create is not set up for multisampling,
             // so we hardcode this to 1. If we used a proper multisampling setup, we
             // could set this to `views[0].recommended_swapchain_sample_count`.
@@ -292,7 +292,7 @@ pub fn start_xr_session(
                 wgpu_device.create_texture_from_hal::<Dx12>(
                     wgpu_hal_texture,
                     &wgpu::TextureDescriptor {
-                        label: Some("VR Swapchain"),
+                        label: Some("bevy_openxr swapchain"),
                         size: wgpu::Extent3d {
                             width: resolution.x,
                             height: resolution.y,
