@@ -108,16 +108,8 @@ pub fn initialize_xr_instance(
         }
     };
 
-    // wgpu hardcodes this, so we'll hardcode it here too
-    let d3d_target_version: u32 = d3dcommon::D3D_FEATURE_LEVEL_11_0;
-
     let reqs = xr_instance.graphics_requirements::<xr::D3D12>(xr_system_id)?;
-    if (d3d_target_version) < (reqs.min_feature_level as u32) {
-        panic!(
-            "OpenXR runtime requires D3D12 feature level >= {}",
-            reqs.min_feature_level
-        );
-    }
+
     let instance_descriptor = &wgpu_hal::InstanceDescriptor {
         name: &app_info.name,
         dx12_shader_compiler: wgpu::util::dx12_shader_compiler_from_env().unwrap_or_default(),
@@ -161,6 +153,26 @@ pub fn initialize_xr_instance(
             .adapter
             .open(wgpu_features, &wgpu_limits)?
     };
+
+    let device_supported_feature_level: d3d12::FeatureLevel =
+        get_device_feature_level(wgpu_open_device.device.raw_device());
+
+    if (device_supported_feature_level as u32) < (reqs.min_feature_level as u32) {
+        panic!(
+            "OpenXR runtime requires D3D12 feature level >= {}",
+            reqs.min_feature_level
+        );
+    }
+
+    let (session, frame_wait, frame_stream) = unsafe {
+        xr_instance.create_session::<xr::D3D12>(
+            xr_system_id,
+            &xr::d3d::SessionCreateInfoD3D12 {
+                device: wgpu_open_device.device.raw_device().as_mut_ptr().cast(),
+                queue: wgpu_open_device.device.raw_queue().as_mut_ptr().cast(),
+            },
+        )
+    }?;
 
     let wgpu_adapter = unsafe { wgpu_instance.create_adapter_from_hal(wgpu_exposed_adapter) };
     let raw_device = wgpu_open_device.device.raw_device().as_mut_ptr();
@@ -336,6 +348,35 @@ pub fn start_xr_session(
         }
         .into(),
     ))
+}
+
+// Extracted from https://github.com/gfx-rs/wgpu/blob/1161a22f4fbb4fc204eb06f2ac4243f83e0e980d/wgpu-hal/src/dx12/adapter.rs#L73-L94
+// license: MIT OR Apache-2.0
+fn get_device_feature_level(
+    device: &d3d12::ComPtr<winapi_d3d12::ID3D12Device>,
+) -> d3d12::FeatureLevel {
+    // Detect the highest supported feature level.
+    let d3d_feature_level = [
+        d3d12::FeatureLevel::L12_1,
+        d3d12::FeatureLevel::L12_0,
+        d3d12::FeatureLevel::L11_1,
+        d3d12::FeatureLevel::L11_0,
+    ];
+    type FeatureLevelsInfo = winapi_d3d12::D3D12_FEATURE_DATA_FEATURE_LEVELS;
+    let mut device_levels: FeatureLevelsInfo = unsafe { std::mem::zeroed() };
+    device_levels.NumFeatureLevels = d3d_feature_level.len() as u32;
+    device_levels.pFeatureLevelsRequested = d3d_feature_level.as_ptr().cast();
+    unsafe {
+        device.CheckFeatureSupport(
+            winapi_d3d12::D3D12_FEATURE_FEATURE_LEVELS,
+            (&mut device_levels as *mut FeatureLevelsInfo).cast(),
+            std::mem::size_of::<FeatureLevelsInfo>() as _,
+        )
+    };
+    // This cast should never fail because we only requested feature levels that are already in the enum.
+    let max_feature_level = d3d12::FeatureLevel::try_from(device_levels.MaxSupportedFeatureLevel)
+        .expect("Unexpected feature level");
+    max_feature_level
 }
 
 fn wgpu_to_d3d12(format: wgpu::TextureFormat) -> Option<DXGI_FORMAT> {
