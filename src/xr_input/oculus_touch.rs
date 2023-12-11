@@ -305,124 +305,124 @@ pub struct OculusController {
 impl OculusController {
     pub fn new(mut action_sets: ResMut<SetupActionSets>) -> anyhow::Result<Self> {
         let action_set =
-            action_sets.add_action_set("oculus_input", "Oculus Touch Controller Input", 0);
+            action_sets.add_action_set("oculus_input", "Oculus Touch Controller Input".into(), 0);
         action_set.new_action(
             "hand_pose",
-            "Hand Pose",
+            "Hand Pose".into(),
             ActionType::PoseF,
             ActionHandednes::Double,
         );
         action_set.new_action(
             "pointer_pose",
-            "Pointer Pose",
+            "Pointer Pose".into(),
             ActionType::PoseF,
             ActionHandednes::Double,
         );
         action_set.new_action(
             "squeeze",
-            "Grip Pull",
+            "Grip Pull".into(),
             ActionType::F32,
             ActionHandednes::Double,
         );
         action_set.new_action(
             "trigger",
-            "Trigger Pull",
+            "Trigger Pull".into(),
             ActionType::F32,
             ActionHandednes::Double,
         );
         action_set.new_action(
             "trigger_touched",
-            "Trigger Touch",
+            "Trigger Touch".into(),
             ActionType::Bool,
             ActionHandednes::Double,
         );
         action_set.new_action(
             "haptic_feedback",
-            "Haptic Feedback",
+            "Haptic Feedback".into(),
             ActionType::Haptic,
             ActionHandednes::Double,
         );
         action_set.new_action(
             "x_button",
-            "X Button",
+            "X Button".into(),
             ActionType::Bool,
             ActionHandednes::Single,
         );
         action_set.new_action(
             "x_button_touch",
-            "X Button Touch",
+            "X Button Touch".into(),
             ActionType::Bool,
             ActionHandednes::Single,
         );
         action_set.new_action(
             "y_button",
-            "Y Button",
+            "Y Button".into(),
             ActionType::Bool,
             ActionHandednes::Single,
         );
         action_set.new_action(
             "y_button_touch",
-            "Y Button Touch",
+            "Y Button Touch".into(),
             ActionType::Bool,
             ActionHandednes::Single,
         );
         action_set.new_action(
             "a_button",
-            "A Button",
+            "A Button".into(),
             ActionType::Bool,
             ActionHandednes::Single,
         );
         action_set.new_action(
             "a_button_touch",
-            "A Button Touch",
+            "A Button Touch".into(),
             ActionType::Bool,
             ActionHandednes::Single,
         );
         action_set.new_action(
             "b_button",
-            "B Button",
+            "B Button".into(),
             ActionType::Bool,
             ActionHandednes::Single,
         );
         action_set.new_action(
             "b_button_touch",
-            "B Button Touch",
+            "B Button Touch".into(),
             ActionType::Bool,
             ActionHandednes::Single,
         );
         action_set.new_action(
             "menu_button",
-            "Menu Button",
+            "Menu Button".into(),
             ActionType::Bool,
             ActionHandednes::Single,
         );
         action_set.new_action(
             "thumbstick_x",
-            "Thumbstick X",
+            "Thumbstick X".into(),
             ActionType::F32,
             ActionHandednes::Double,
         );
         action_set.new_action(
             "thumbstick_y",
-            "Thumbstick y",
+            "Thumbstick y".into(),
             ActionType::F32,
             ActionHandednes::Double,
         );
         action_set.new_action(
             "thumbstick_touch",
-            "Thumbstick Touch",
+            "Thumbstick Touch".into(),
             ActionType::Bool,
             ActionHandednes::Double,
         );
         action_set.new_action(
             "thumbstick_click",
-            "Thumbstick Click",
+            "Thumbstick Click".into(),
             ActionType::Bool,
             ActionHandednes::Double,
         );
         action_set.new_action(
             "thumbrest_touch",
-            "Thumbrest Touch",
+            "Thumbrest Touch".into(),
             ActionType::Bool,
             ActionHandednes::Double,
         );
