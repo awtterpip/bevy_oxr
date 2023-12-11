@@ -8,17 +8,14 @@ use bevy::{
     prelude::*,
     render::{
         extract_resource::{ExtractResource, ExtractResourcePlugin},
-        renderer::{
-            self, RenderAdapter, RenderAdapterInfo, RenderDevice, RenderInstance, RenderQueue,
-        },
+        renderer::{self, RenderAdapter, RenderAdapterInfo, RenderDevice, RenderQueue},
         settings::WgpuSettings,
     },
-    window::{PrimaryWindow, RawHandleWrapper},
+    window::RawHandleWrapper,
 };
 use wgpu::Instance;
 
 use crate::{
-    graphics,
     input::XrInput,
     resources::{
         XrEnvironmentBlendMode, XrFormat, XrFrameState, XrFrameWaiter, XrInstance, XrResolution,
@@ -107,9 +104,7 @@ impl Plugin for RenderRestartPlugin {
             .insert_resource(ForceMain)
             .add_event::<XrEnableRequest>()
             .add_event::<XrEnableStatus>()
-            .add_systems(PreStartup, xr_presetup.run_if(xr_only()))
-            .add_systems(Startup, xr_setup.run_if(xr_only()))
-            .add_systems(PostStartup, xr_postsetup.run_if(xr_only()))
+            .add_systems(PostStartup, setup_xr.run_if(xr_only()))
             .add_systems(
                 PostUpdate,
                 update_xr_stuff.run_if(on_event::<XrEnableRequest>()),
@@ -152,17 +147,6 @@ fn add_schedules(app: &mut App) {
         schedule.set_apply_final_deferred(true);
         app.add_schedule(schedule);
     }
-}
-
-fn xr_presetup(world: &mut World) {
-    world.run_schedule(XrPreSetup);
-}
-fn xr_setup(world: &mut World) {
-    world.run_schedule(XrSetup);
-}
-fn xr_postsetup(world: &mut World) {
-    world.run_schedule(XrPrePostSetup);
-    world.run_schedule(XrPostSetup);
 }
 
 fn setup_xr(world: &mut World) {
