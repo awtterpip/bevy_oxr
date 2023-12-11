@@ -149,7 +149,7 @@ fn add_schedules(app: &mut App) {
     }
 }
 
-fn setup_xr(world: &mut World) {
+pub fn setup_xr(world: &mut World) {
     world.run_schedule(XrPreSetup);
     world.run_schedule(XrSetup);
     world.run_schedule(XrPrePostSetup);
