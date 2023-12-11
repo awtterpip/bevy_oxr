@@ -9,14 +9,14 @@ pub mod prototype_locomotion;
 pub mod trackers;
 pub mod xr_camera;
 
-use crate::xr_init::{XrPostSetup, XrSetup, xr_only};
 use crate::resources::{XrInstance, XrSession};
 use crate::xr_begin_frame;
+use crate::xr_init::{xr_only, XrPostSetup, XrSetup};
 use crate::xr_input::controllers::XrControllerType;
 use crate::xr_input::oculus_touch::setup_oculus_controller;
 use crate::xr_input::xr_camera::{xr_camera_head_sync, Eye, XRProjection, XrCameraBundle};
 use bevy::app::{App, PostUpdate, Startup};
-use bevy::log::{warn, info};
+use bevy::log::{info, warn};
 use bevy::prelude::{BuildChildren, Component, Deref, DerefMut, IntoSystemConfigs, Resource};
 use bevy::prelude::{Commands, Plugin, PreUpdate, Quat, Res, SpatialBundle, Update, Vec3};
 use bevy::render::camera::CameraProjectionPlugin;
@@ -52,10 +52,7 @@ impl Plugin for OpenXrInput {
     fn build(&self, app: &mut App) {
         app.add_plugins(CameraProjectionPlugin::<XRProjection>::default());
         app.add_plugins(OpenXrActionsPlugin);
-        app.add_systems(
-            XrPostSetup,
-            post_action_setup_oculus_controller,
-        );
+        app.add_systems(XrPostSetup, post_action_setup_oculus_controller);
         match self.controller_type {
             XrControllerType::OculusTouch => {
                 app.add_systems(XrSetup, setup_oculus_controller);
@@ -64,7 +61,10 @@ impl Plugin for OpenXrInput {
         //adopt any new trackers
         app.add_systems(PreUpdate, adopt_open_xr_trackers.run_if(xr_only()));
         app.add_systems(PreUpdate, action_set_system);
-        app.add_systems(PreUpdate, xr_camera_head_sync.run_if(xr_only()).after(xr_begin_frame));
+        app.add_systems(
+            PreUpdate,
+            xr_camera_head_sync.run_if(xr_only()).after(xr_begin_frame),
+        );
         //update controller trackers
         app.add_systems(Update, update_open_xr_controllers.run_if(xr_only()));
         app.add_systems(
@@ -103,7 +103,7 @@ fn setup_xr_cameras(mut commands: Commands) {
     commands.entity(tracking_root).push_children(&[right, left]);
 }
 
-fn action_set_system(action_sets: Res<ActionSets>, session: Res<XrSession>) {
+pub fn action_set_system(action_sets: Res<ActionSets>, session: Res<XrSession>) {
     let mut active_action_sets = vec![];
     for i in &action_sets.0 {
         active_action_sets.push(openxr::ActiveActionSet::new(i));
