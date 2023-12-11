@@ -35,40 +35,40 @@ pub fn setup_oxr_actions(world: &mut World) {
     while let Some((set_name, set)) = a_iter.next() {
         let mut actions: HashMap<&'static str, TypedAction> = default();
         let oxr_action_set = instance
-            .create_action_set(set_name, set.pretty_name, set.priority)
+            .create_action_set(set_name, &set.pretty_name, set.priority)
             .expect("Unable to create action set");
         for (action_name, action) in set.actions.into_iter() {
             let typed_action = match action.action_type {
                 ActionType::F32 => TypedAction::F32(match action.handednes {
                     ActionHandednes::Single => oxr_action_set
-                        .create_action(action_name, action.pretty_name, &[])
+                        .create_action(action_name, &action.pretty_name, &[])
                         .expect(&format!("Unable to create action: {}", action_name)),
                     ActionHandednes::Double => oxr_action_set
-                        .create_action(action_name, action.pretty_name, &hands)
+                        .create_action(action_name, &action.pretty_name, &hands)
                         .expect(&format!("Unable to create action: {}", action_name)),
                 }),
                 ActionType::Bool => TypedAction::Bool(match action.handednes {
                     ActionHandednes::Single => oxr_action_set
-                        .create_action(action_name, action.pretty_name, &[])
+                        .create_action(action_name, &action.pretty_name, &[])
                         .expect(&format!("Unable to create action: {}", action_name)),
                     ActionHandednes::Double => oxr_action_set
-                        .create_action(action_name, action.pretty_name, &hands)
+                        .create_action(action_name, &action.pretty_name, &hands)
                         .expect(&format!("Unable to create action: {}", action_name)),
                 }),
                 ActionType::PoseF => TypedAction::PoseF(match action.handednes {
                     ActionHandednes::Single => oxr_action_set
-                        .create_action(action_name, action.pretty_name, &[])
+                        .create_action(action_name, &action.pretty_name, &[])
                         .expect(&format!("Unable to create action: {}", action_name)),
                     ActionHandednes::Double => oxr_action_set
-                        .create_action(action_name, action.pretty_name, &hands)
+                        .create_action(action_name, &action.pretty_name, &hands)
                         .expect(&format!("Unable to create action: {}", action_name)),
                 }),
                 ActionType::Haptic => TypedAction::Haptic(match action.handednes {
                     ActionHandednes::Single => oxr_action_set
-                        .create_action(action_name, action.pretty_name, &[])
+                        .create_action(action_name, &action.pretty_name, &[])
                         .expect(&format!("Unable to create action: {}", action_name)),
                     ActionHandednes::Double => oxr_action_set
-                        .create_action(action_name, action.pretty_name, &hands)
+                        .create_action(action_name, &action.pretty_name, &hands)
                         .expect(&format!("Unable to create action: {}", action_name)),
                 }),
             };
@@ -164,14 +164,14 @@ pub enum TypedAction {
 }
 
 pub struct SetupAction {
-    pretty_name: &'static str,
+    pretty_name: String,
     action_type: ActionType,
     handednes: ActionHandednes,
     bindings: HashMap<&'static str, Vec<&'static str>>,
 }
 
 pub struct SetupActionSet {
-    pretty_name: &'static str,
+    pretty_name: String,
     priority: u32,
     actions: HashMap<&'static str, SetupAction>,
 }
@@ -180,7 +180,7 @@ impl SetupActionSet {
     pub fn new_action(
         &mut self,
         name: &'static str,
-        pretty_name: &'static str,
+        pretty_name: String,
         action_type: ActionType,
         handednes: ActionHandednes,
     ) {
@@ -230,7 +230,7 @@ impl SetupActionSets {
     pub fn add_action_set(
         &mut self,
         name: &'static str,
-        pretty_name: &'static str,
+        pretty_name: String,
         priority: u32,
     ) -> &mut SetupActionSet {
         self.sets.insert(

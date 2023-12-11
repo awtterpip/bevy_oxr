@@ -5,8 +5,8 @@ use openxr::{ActionTy, HandJoint};
 
 use super::common::{get_bone_gizmo_style, HandBoneRadius};
 use crate::{
-    xr_init::{xr_only, XrSetup},
     resources::{XrInstance, XrSession},
+    xr_init::{xr_only, XrSetup},
     xr_input::{
         actions::{
             ActionHandednes, ActionType, SetupActionSet, SetupActionSets, XrActionSets, XrBinding,
@@ -28,10 +28,7 @@ pub struct HandEmulationPlugin;
 
 impl Plugin for HandEmulationPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            update_hand_skeleton_from_emulated.run_if(xr_only()),
-        );
+        app.add_systems(Update, update_hand_skeleton_from_emulated.run_if(xr_only()));
         app.add_systems(XrSetup, setup_hand_emulation_action_set);
     }
 }
@@ -39,54 +36,55 @@ impl Plugin for HandEmulationPlugin {
 const HAND_ACTION_SET: &str = "hand_pose_approx";
 
 fn setup_hand_emulation_action_set(mut action_sets: ResMut<SetupActionSets>) {
-    let mut action_set = action_sets.add_action_set(HAND_ACTION_SET, "Hand Pose Approximaiton", 0);
+    let action_set =
+        action_sets.add_action_set(HAND_ACTION_SET, "Hand Pose Approximaiton".into(), 0);
     action_set.new_action(
         "thumb_touch",
-        "Thumb Touched",
+        "Thumb Touched".into(),
         ActionType::Bool,
         ActionHandednes::Double,
     );
     action_set.new_action(
         "thumb_x",
-        "Thumb X",
+        "Thumb X".into(),
         ActionType::F32,
         ActionHandednes::Double,
     );
     action_set.new_action(
         "thumb_y",
-        "Thumb Y",
+        "Thumb Y".into(),
         ActionType::F32,
         ActionHandednes::Double,
     );
 
     action_set.new_action(
         "index_touch",
-        "Index Finger Touched",
+        "Index Finger Touched".into(),
         ActionType::Bool,
         ActionHandednes::Double,
     );
     action_set.new_action(
         "index_value",
-        "Index Finger Pull",
+        "Index Finger Pull".into(),
         ActionType::F32,
         ActionHandednes::Double,
     );
 
     action_set.new_action(
         "middle_value",
-        "Middle Finger Pull",
+        "Middle Finger Pull".into(),
         ActionType::F32,
         ActionHandednes::Double,
     );
     action_set.new_action(
         "ring_value",
-        "Ring Finger Pull",
+        "Ring Finger Pull".into(),
         ActionType::F32,
         ActionHandednes::Double,
     );
     action_set.new_action(
         "little_value",
-        "Little Finger Pull",
+        "Little Finger Pull".into(),
         ActionType::F32,
         ActionHandednes::Double,
     );
@@ -126,6 +124,7 @@ fn suggest_oculus_touch_profile(action_set: &mut SetupActionSet) {
     );
 }
 
+#[allow(clippy::type_complexity)]
 pub(crate) fn update_hand_skeleton_from_emulated(
     session: Res<XrSession>,
     instance: Res<XrInstance>,
@@ -546,5 +545,6 @@ fn get_bone_curl_angle(bone: HandJoint, curl: f32) -> f32 {
         _ => 1.0,
     };
     let curl_angle = -((mul * curl * 80.0) + 5.0);
+    #[allow(clippy::needless_return)]
     return curl_angle;
 }
