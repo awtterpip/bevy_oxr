@@ -149,6 +149,7 @@ pub enum ActionHandednes {
     Double,
 }
 
+#[derive(Clone, Copy)]
 pub enum ActionType {
     F32,
     Bool,
