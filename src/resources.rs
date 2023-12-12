@@ -17,37 +17,55 @@ xr_arc_resource_wrapper!(XrFrameState, Mutex<xr::FrameState>);
 xr_arc_resource_wrapper!(XrViews, Mutex<Vec<xr::View>>);
 
 pub enum Swapchain {
+    #[cfg(feature = "vulkan")]
     Vulkan(SwapchainInner<xr::Vulkan>),
+    #[cfg(all(feature = "d3d12", windows))]
+    D3D12(SwapchainInner<xr::D3D12>),
 }
 
 impl Swapchain {
     pub(crate) fn begin(&self) -> xr::Result<()> {
         match self {
+            #[cfg(feature = "vulkan")]
             Swapchain::Vulkan(swapchain) => swapchain.begin(),
+            #[cfg(all(feature = "d3d12", windows))]
+            Swapchain::D3D12(swapchain) => swapchain.begin(),
         }
     }
 
     pub(crate) fn get_render_views(&self) -> (wgpu::TextureView, wgpu::TextureView) {
         match self {
+            #[cfg(feature = "vulkan")]
             Swapchain::Vulkan(swapchain) => swapchain.get_render_views(),
+            #[cfg(all(feature = "d3d12", windows))]
+            Swapchain::D3D12(swapchain) => swapchain.get_render_views(),
         }
     }
 
     pub(crate) fn acquire_image(&self) -> xr::Result<()> {
         match self {
+            #[cfg(feature = "vulkan")]
             Swapchain::Vulkan(swapchain) => swapchain.acquire_image(),
+            #[cfg(all(feature = "d3d12", windows))]
+            Swapchain::D3D12(swapchain) => swapchain.acquire_image(),
         }
     }
 
     pub(crate) fn wait_image(&self) -> xr::Result<()> {
         match self {
+            #[cfg(feature = "vulkan")]
             Swapchain::Vulkan(swapchain) => swapchain.wait_image(),
+            #[cfg(all(feature = "d3d12", windows))]
+            Swapchain::D3D12(swapchain) => swapchain.wait_image(),
         }
     }
 
     pub(crate) fn release_image(&self) -> xr::Result<()> {
         match self {
+            #[cfg(feature = "vulkan")]
             Swapchain::Vulkan(swapchain) => swapchain.release_image(),
+            #[cfg(all(feature = "d3d12", windows))]
+            Swapchain::D3D12(swapchain) => swapchain.release_image(),
         }
     }
 
@@ -60,7 +78,16 @@ impl Swapchain {
         environment_blend_mode: xr::EnvironmentBlendMode,
     ) -> xr::Result<()> {
         match self {
+            #[cfg(feature = "vulkan")]
             Swapchain::Vulkan(swapchain) => swapchain.end(
+                predicted_display_time,
+                views,
+                stage,
+                resolution,
+                environment_blend_mode,
+            ),
+            #[cfg(all(feature = "d3d12", windows))]
+            Swapchain::D3D12(swapchain) => swapchain.end(
                 predicted_display_time,
                 views,
                 stage,
