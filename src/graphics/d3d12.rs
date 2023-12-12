@@ -86,7 +86,10 @@ pub fn initialize_xr_graphics(
 
     let instance_descriptor = &wgpu_hal::InstanceDescriptor {
         name: option_env!("CARGO_BIN_NAME").unwrap_or("bevy"),
-        dx12_shader_compiler: wgpu::util::dx12_shader_compiler_from_env().unwrap_or_default(),
+        dx12_shader_compiler: wgpu::util::dx12_shader_compiler_from_env().unwrap_or( wgpu::Dx12Compiler::Dxc {
+            dxil_path: None,
+            dxc_path: None,
+        }),
         flags: wgpu_hal::InstanceFlags::from_bits_truncate(
             wgpu_types::InstanceFlags::from_build_config()
                 .with_env()
