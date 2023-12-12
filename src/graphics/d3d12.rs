@@ -112,7 +112,12 @@ pub fn initialize_xr_instance(
 
     let instance_descriptor = &wgpu_hal::InstanceDescriptor {
         name: &app_info.name,
-        dx12_shader_compiler: wgpu::util::dx12_shader_compiler_from_env().unwrap_or_default(),
+        dx12_shader_compiler: wgpu::util::dx12_shader_compiler_from_env().unwrap_or(
+            wgpu::Dx12Compiler::Dxc {
+                dxil_path: None,
+                dxc_path: None,
+            },
+        ),
         flags: wgpu::InstanceFlags::from_build_config().with_env(),
         gles_minor_version: Default::default(),
     };
