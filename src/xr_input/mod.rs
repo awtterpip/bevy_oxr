@@ -16,6 +16,9 @@ use crate::xr_input::controllers::XrControllerType;
 use crate::xr_input::oculus_touch::setup_oculus_controller;
 use crate::xr_input::xr_camera::{xr_camera_head_sync, Eye, XRProjection, XrCameraBundle};
 use bevy::app::{App, PostUpdate, Startup};
+use bevy::ecs::entity::Entity;
+use bevy::ecs::query::With;
+use bevy::ecs::system::Query;
 use bevy::log::{info, warn};
 use bevy::math::Vec2;
 use bevy::prelude::{BuildChildren, Component, Deref, DerefMut, IntoSystemConfigs, Resource};
@@ -89,12 +92,19 @@ fn setup_binding_recommendations(
     commands.remove_resource::<InteractionProfileBindings>();
 }
 
-fn setup_xr_cameras(mut commands: Commands) {
+fn setup_xr_cameras(
+    mut commands: Commands,
+    tracking_root_query: Query<Entity, With<OpenXRTrackingRoot>>,
+) {
     //this needs to do the whole xr tracking volume not just cameras
     //get the root?
-    let tracking_root = commands
-        .spawn((SpatialBundle::default(), OpenXRTrackingRoot))
-        .id();
+
+    let tracking_root = match tracking_root_query.get_single() {
+        Ok(e) => e,
+        Err(_) => commands
+            .spawn((SpatialBundle::default(), OpenXRTrackingRoot))
+            .id(),
+    };
     let right = commands
         .spawn((XrCameraBundle::new(Eye::Right), OpenXRRightEye))
         .id();
