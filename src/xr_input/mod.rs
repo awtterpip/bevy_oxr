@@ -17,6 +17,7 @@ use crate::xr_input::oculus_touch::setup_oculus_controller;
 use crate::xr_input::xr_camera::{xr_camera_head_sync, Eye, XRProjection, XrCameraBundle};
 use bevy::app::{App, PostUpdate, Startup};
 use bevy::log::{info, warn};
+use bevy::math::Vec2;
 use bevy::prelude::{BuildChildren, Component, Deref, DerefMut, IntoSystemConfigs, Resource};
 use bevy::prelude::{Commands, Plugin, PreUpdate, Quat, Res, SpatialBundle, Update, Vec3};
 use bevy::render::camera::CameraProjectionPlugin;
@@ -117,6 +118,15 @@ pub fn action_set_system(action_sets: Res<ActionSets>, session: Res<XrSession>) 
     }
 }
 
+pub trait Vec2Conv {
+    fn to_vec2(&self) -> Vec2;
+}
+
+impl Vec2Conv for openxr::Vector2f {
+    fn to_vec2(&self) -> Vec2 {
+        Vec2::new(self.x, self.y)
+    }
+}
 pub trait Vec3Conv {
     fn to_vec3(&self) -> Vec3;
 }
