@@ -60,7 +60,7 @@ impl Plugin for OpenXrInput {
         }
         //adopt any new trackers
         app.add_systems(PreUpdate, adopt_open_xr_trackers.run_if(xr_only()));
-        app.add_systems(PreUpdate, action_set_system);
+        app.add_systems(PreUpdate, action_set_system.run_if(xr_only()));
         app.add_systems(
             PreUpdate,
             xr_camera_head_sync.run_if(xr_only()).after(xr_begin_frame),
