@@ -82,67 +82,70 @@ impl Plugin for OpenXrPlugin {
         let mut system_state: SystemState<Query<&RawHandleWrapper, With<PrimaryWindow>>> =
             SystemState::new(&mut app.world);
         let primary_window = system_state.get(&app.world).get_single().ok().cloned();
-        if let Ok((
-            device,
-            queue,
-            adapter_info,
-            render_adapter,
-            instance,
-            xr_instance,
-            session,
-            blend_mode,
-            resolution,
-            format,
-            session_running,
-            frame_waiter,
-            swapchain,
-            input,
-            views,
-            frame_state,
-        )) = graphics::initialize_xr_graphics(primary_window.clone())
-        {
-            // std::thread::sleep(Duration::from_secs(5));
-            debug!("Configured wgpu adapter Limits: {:#?}", device.limits());
-            debug!("Configured wgpu adapter Features: {:#?}", device.features());
-            app.insert_resource(xr_instance.clone());
-            app.insert_resource(session.clone());
-            app.insert_resource(blend_mode.clone());
-            app.insert_resource(resolution.clone());
-            app.insert_resource(format.clone());
-            app.insert_resource(session_running.clone());
-            app.insert_resource(frame_waiter.clone());
-            app.insert_resource(swapchain.clone());
-            app.insert_resource(input.clone());
-            app.insert_resource(views.clone());
-            app.insert_resource(frame_state.clone());
-            let xr_data = XrRenderData {
+        match graphics::initialize_xr_graphics(primary_window.clone()) {
+            Ok((
+                device,
+                queue,
+                adapter_info,
+                render_adapter,
+                instance,
                 xr_instance,
-                xr_session: session,
-                xr_blend_mode: blend_mode,
-                xr_resolution: resolution,
-                xr_format: format,
-                xr_session_running: session_running,
-                xr_frame_waiter: frame_waiter,
-                xr_swapchain: swapchain,
-                xr_input: input,
-                xr_views: views,
-                xr_frame_state: frame_state,
-            };
-            app.insert_resource(xr_data);
-            app.insert_resource(ActionSets(vec![]));
-            app.add_plugins(RenderPlugin {
-                render_creation: RenderCreation::Manual(
-                    device,
-                    queue,
-                    adapter_info,
-                    render_adapter,
-                    RenderInstance(Arc::new(instance)),
-                ),
-            });
-            app.insert_resource(XrEnableStatus::Enabled);
-        } else {
-            app.add_plugins(RenderPlugin::default());
-            app.insert_resource(XrEnableStatus::Disabled);
+                session,
+                blend_mode,
+                resolution,
+                format,
+                session_running,
+                frame_waiter,
+                swapchain,
+                input,
+                views,
+                frame_state,
+            )) => {
+                // std::thread::sleep(Duration::from_secs(5));
+                debug!("Configured wgpu adapter Limits: {:#?}", device.limits());
+                debug!("Configured wgpu adapter Features: {:#?}", device.features());
+                app.insert_resource(xr_instance.clone());
+                app.insert_resource(session.clone());
+                app.insert_resource(blend_mode.clone());
+                app.insert_resource(resolution.clone());
+                app.insert_resource(format.clone());
+                app.insert_resource(session_running.clone());
+                app.insert_resource(frame_waiter.clone());
+                app.insert_resource(swapchain.clone());
+                app.insert_resource(input.clone());
+                app.insert_resource(views.clone());
+                app.insert_resource(frame_state.clone());
+                let xr_data = XrRenderData {
+                    xr_instance,
+                    xr_session: session,
+                    xr_blend_mode: blend_mode,
+                    xr_resolution: resolution,
+                    xr_format: format,
+                    xr_session_running: session_running,
+                    xr_frame_waiter: frame_waiter,
+                    xr_swapchain: swapchain,
+                    xr_input: input,
+                    xr_views: views,
+                    xr_frame_state: frame_state,
+                };
+                app.insert_resource(xr_data);
+                app.insert_resource(ActionSets(vec![]));
+                app.add_plugins(RenderPlugin {
+                    render_creation: RenderCreation::Manual(
+                        device,
+                        queue,
+                        adapter_info,
+                        render_adapter,
+                        RenderInstance(Arc::new(instance)),
+                    ),
+                });
+                app.insert_resource(XrEnableStatus::Enabled);
+            }
+            Err(err) => {
+                warn!("OpenXR Failed to initialize: {}", err);
+                app.add_plugins(RenderPlugin::default());
+                app.insert_resource(XrEnableStatus::Disabled);
+            }
         }
     }
 

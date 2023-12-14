@@ -16,7 +16,11 @@ use crate::xr_input::controllers::XrControllerType;
 use crate::xr_input::oculus_touch::setup_oculus_controller;
 use crate::xr_input::xr_camera::{xr_camera_head_sync, Eye, XRProjection, XrCameraBundle};
 use bevy::app::{App, PostUpdate, Startup};
+use bevy::ecs::entity::Entity;
+use bevy::ecs::query::With;
+use bevy::ecs::system::Query;
 use bevy::log::{info, warn};
+use bevy::math::Vec2;
 use bevy::prelude::{BuildChildren, Component, Deref, DerefMut, IntoSystemConfigs, Resource};
 use bevy::prelude::{Commands, Plugin, PreUpdate, Quat, Res, SpatialBundle, Update, Vec3};
 use bevy::render::camera::CameraProjectionPlugin;
@@ -60,7 +64,7 @@ impl Plugin for OpenXrInput {
         }
         //adopt any new trackers
         app.add_systems(PreUpdate, adopt_open_xr_trackers.run_if(xr_only()));
-        app.add_systems(PreUpdate, action_set_system);
+        app.add_systems(PreUpdate, action_set_system.run_if(xr_only()));
         app.add_systems(
             PreUpdate,
             xr_camera_head_sync.run_if(xr_only()).after(xr_begin_frame),
@@ -88,12 +92,19 @@ fn setup_binding_recommendations(
     commands.remove_resource::<InteractionProfileBindings>();
 }
 
-fn setup_xr_cameras(mut commands: Commands) {
+fn setup_xr_cameras(
+    mut commands: Commands,
+    tracking_root_query: Query<Entity, With<OpenXRTrackingRoot>>,
+) {
     //this needs to do the whole xr tracking volume not just cameras
     //get the root?
-    let tracking_root = commands
-        .spawn((SpatialBundle::default(), OpenXRTrackingRoot))
-        .id();
+
+    let tracking_root = match tracking_root_query.get_single() {
+        Ok(e) => e,
+        Err(_) => commands
+            .spawn((SpatialBundle::default(), OpenXRTrackingRoot))
+            .id(),
+    };
     let right = commands
         .spawn((XrCameraBundle::new(Eye::Right), OpenXRRightEye))
         .id();
@@ -117,6 +128,15 @@ pub fn action_set_system(action_sets: Res<ActionSets>, session: Res<XrSession>) 
     }
 }
 
+pub trait Vec2Conv {
+    fn to_vec2(&self) -> Vec2;
+}
+
+impl Vec2Conv for openxr::Vector2f {
+    fn to_vec2(&self) -> Vec2 {
+        Vec2::new(self.x, self.y)
+    }
+}
 pub trait Vec3Conv {
     fn to_vec3(&self) -> Vec3;
 }
