@@ -82,6 +82,8 @@ impl Plugin for OpenXrPlugin {
         let mut system_state: SystemState<Query<&RawHandleWrapper, With<PrimaryWindow>>> =
             SystemState::new(&mut app.world);
         let primary_window = system_state.get(&app.world).get_single().ok().cloned();
+
+        #[cfg(not(target_arch = "wasm32"))]
         match graphics::initialize_xr_graphics(primary_window.clone()) {
             Ok((
                 device,
@@ -146,6 +148,11 @@ impl Plugin for OpenXrPlugin {
                 app.add_plugins(RenderPlugin::default());
                 app.insert_resource(XrEnableStatus::Disabled);
             }
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            app.add_plugins(RenderPlugin::default());
+            app.insert_resource(XrEnableStatus::Disabled);
         }
     }
 
