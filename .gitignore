@@ -3,3 +3,4 @@
 **/runtime_libs/arm64-v8a/*
 .vscode
 \.DS_Store
+srcold
