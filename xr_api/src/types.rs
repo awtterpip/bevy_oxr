@@ -33,13 +33,13 @@ pub struct Haptic;
 pub struct Pose;
 
 pub trait ActionType: Sized {
-    type Inner;
+    type Inner: ?Sized;
 
     fn get(input: &dyn InputTrait, path: ActionId) -> Result<Action<Self>>;
 }
 
 impl ActionType for Haptic {
-    type Inner = Rc<dyn HapticTrait>;
+    type Inner = dyn HapticTrait;
 
     fn get(input: &dyn InputTrait, path: ActionId) -> Result<Action<Self>> {
         input.get_haptics(path)
@@ -47,7 +47,7 @@ impl ActionType for Haptic {
 }
 
 impl ActionType for Pose {
-    type Inner = Rc<dyn ActionInputTrait<Pose>>;
+    type Inner = dyn ActionInputTrait<Pose>;
 
     fn get(input: &dyn InputTrait, path: ActionId) -> Result<Action<Self>> {
         input.get_pose(path)
@@ -55,7 +55,7 @@ impl ActionType for Pose {
 }
 
 impl ActionType for f32 {
-    type Inner = Rc<dyn ActionInputTrait<f32>>;
+    type Inner = dyn ActionInputTrait<f32>;
 
     fn get(input: &dyn InputTrait, path: ActionId) -> Result<Action<Self>> {
         input.get_float(path)
@@ -63,7 +63,7 @@ impl ActionType for f32 {
 }
 
 impl ActionType for bool {
-    type Inner = Rc<dyn ActionInputTrait<bool>>;
+    type Inner = dyn ActionInputTrait<bool>;
 
     fn get(input: &dyn InputTrait, path: ActionId) -> Result<Action<Self>> {
         input.get_bool(path)

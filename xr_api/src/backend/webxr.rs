@@ -90,7 +90,7 @@ impl SessionTrait for WebXrSession {
         .into())
     }
 
-    fn begin_frame(&self) -> Result<(wgpu::TextureView, wgpu::TextureView)> {
+    fn begin_frame(&self) -> Result<(View, View)> {
         let mut end_frame_sender = self.end_frame_sender.lock().unwrap();
         if end_frame_sender.is_some() {
             Err(XrError::Placeholder)?

@@ -3,6 +3,9 @@ use std::rc::Rc;
 
 use crate::prelude::*;
 
+/// Entry point to the API
+///
+/// To see methods available for this struct, refer to [EntryTrait]
 #[derive(Clone)]
 pub struct Entry(Rc<dyn EntryTrait>);
 
@@ -16,100 +19,71 @@ impl Entry {
     }
 }
 
+/// Represents an intent to start a session with requested extensions.
+///
+/// To see methods available for this struct, refer to [InstanceTrait]
 #[derive(Clone)]
 pub struct Instance(Rc<dyn InstanceTrait>);
 
+/// Represents a running XR application.
+///
+/// To see methods available for this struct, refer to [SessionTrait]
 #[derive(Clone)]
 pub struct Session(Rc<dyn SessionTrait>);
 
+/// A view of one eye. Used to retrieve render data such as texture views and projection matrices.
+///
+/// To see methods available for this struct, refer to [ViewTrait]
 #[derive(Clone)]
 pub struct View(Rc<dyn ViewTrait>);
 
+/// Represents all XR input sources.
+///
+/// To see methods available for this struct, refer to [InputTrait]
 #[derive(Clone)]
 pub struct Input(Rc<dyn InputTrait>);
 
+/// Represents an XR Action. Can be used to retrieve input values or trigger output devices such as haptics.
+///
+/// The methods available to this struct are dependent upon the action type. For input values, use `.get()` to retrieve the values.
+/// For haptics, please refer to [HapticTrait]
 #[derive(Clone)]
-pub struct Action<A: ActionType>(A::Inner);
+pub struct Action<A: ActionType>(Rc<A::Inner>);
 
-impl Deref for Entry {
-    type Target = dyn EntryTrait;
+macro_rules! impl_api {
+    ($($t:ty, $trait:ident; )*) => {
+        $(
+            impl std::ops::Deref for $t {
+                type Target = dyn $trait;
+
+                fn deref(&self) -> &Self::Target {
+                    &*self.0
+                }
+            }
+
+            impl<T: $trait + 'static> From<T> for $t {
+                fn from(value: T) -> Self {
+                    Self(Rc::new(value))
+                }
+            }
+        )*
+
+    };
+}
+
+impl_api! {
+    Entry, EntryTrait;
+    Instance, InstanceTrait;
+    Session, SessionTrait;
+    View, ViewTrait;
+    Input, InputTrait;
+}
+
+impl<A: ActionType> Deref for Action<A> {
+    type Target = A::Inner;
 
     fn deref(&self) -> &Self::Target {
-        &*self.0
-    }
-}
-
-impl Deref for Instance {
-    type Target = dyn InstanceTrait;
-
-    fn deref(&self) -> &Self::Target {
-        &*self.0
-    }
-}
-
-impl Deref for Session {
-    type Target = dyn SessionTrait;
-
-    fn deref(&self) -> &Self::Target {
-        &*self.0
-    }
-}
-
-impl Deref for View {
-    type Target = dyn ViewTrait;
-
-    fn deref(&self) -> &Self::Target {
-        &*self.0
-    }
-}
-
-impl Deref for Input {
-    type Target = dyn InputTrait;
-
-    fn deref(&self) -> &Self::Target {
-        &*self.0
-    }
-}
-
-impl<O, A> Deref for Action<A>
-where
-    A: ActionType,
-    A::Inner: Deref<Target = O>,
-{
-    type Target = O;
-
-    fn deref(&self) -> &Self::Target {
-        &*self.0
-    }
-}
-
-impl<T: EntryTrait + 'static> From<T> for Entry {
-    fn from(value: T) -> Self {
-        Self(Rc::new(value))
-    }
-}
-
-impl<T: InstanceTrait + 'static> From<T> for Instance {
-    fn from(value: T) -> Self {
-        Self(Rc::new(value))
-    }
-}
-
-impl<T: SessionTrait + 'static> From<T> for Session {
-    fn from(value: T) -> Self {
-        Self(Rc::new(value))
-    }
-}
-
-impl<T: ViewTrait + 'static> From<T> for View {
-    fn from(value: T) -> Self {
-        Self(Rc::new(value))
-    }
-}
-
-impl<T: InputTrait + 'static> From<T> for Input {
-    fn from(value: T) -> Self {
-        Self(Rc::new(value))
+        &self.0
     }
 }
 

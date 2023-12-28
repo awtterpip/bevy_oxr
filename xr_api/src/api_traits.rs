@@ -26,8 +26,8 @@ pub trait SessionTrait {
         -> Option<(Device, Queue, AdapterInfo, Adapter, wgpu::Instance)>;
     /// Request input modules with the specified bindings.
     fn create_input(&self, bindings: Bindings) -> Result<Input>;
-    /// Blocks until a rendering frame is available, then returns the texture views for the left and right eyes.
-    fn begin_frame(&self) -> Result<(TextureView, TextureView)>;
+    /// Blocks until a rendering frame is available, then returns the views for the left and right eyes.
+    fn begin_frame(&self) -> Result<(View, View)>;
     /// Submits rendering work for this frame.
     fn end_frame(&self) -> Result<()>;
 }
@@ -64,8 +64,12 @@ pub trait ActionTrait {
     fn id(&self) -> ActionId;
 }
 
-pub trait ActionInputTrait<A> {}
+/// Represents input actions, such as bools, floats, and poses
+pub trait ActionInputTrait<A> {
+    fn get(&self) -> A;
+}
 
+/// Represents haptic actions.
 pub trait HapticTrait {}
 
 impl<T: InstanceTrait> EntryTrait for T {
