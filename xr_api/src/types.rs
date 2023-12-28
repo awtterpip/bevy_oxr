@@ -11,6 +11,7 @@ pub enum SessionCreateInfo {}
 
 pub struct Bindings {}
 
+/// THIS IS NOT COMPLETE, im not sure how i am going to index actions currently.
 #[derive(Clone, Copy, PartialEq)]
 pub struct ActionId {
     pub handedness: Handedness,
