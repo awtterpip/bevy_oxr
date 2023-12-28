@@ -43,25 +43,25 @@ pub trait ViewTrait {
 
 pub trait InputTrait {
     /// Get the haptic action at the specified path.
-    fn get_haptics(&self, path: ActionId) -> Result<Action<Haptic>>;
+    fn get_haptics(&self, path: ActionPath) -> Result<Action<Haptic>>;
     /// Get the pose action at the specified path.
-    fn get_pose(&self, path: ActionId) -> Result<Action<Pose>>;
+    fn get_pose(&self, path: ActionPath) -> Result<Action<Pose>>;
     /// Get the float action at the specified path.
-    fn get_float(&self, path: ActionId) -> Result<Action<f32>>;
+    fn get_float(&self, path: ActionPath) -> Result<Action<f32>>;
     /// Get the boolean action at the specified path.
-    fn get_bool(&self, path: ActionId) -> Result<Action<bool>>;
+    fn get_bool(&self, path: ActionPath) -> Result<Action<bool>>;
 }
 
 // This impl is moved outside of the trait to ensure that InputTrait stays object safe.
 impl dyn InputTrait {
     /// Get the action at the specified path.
-    pub fn get_action<A: ActionType>(&self, path: ActionId) -> Result<Action<A>> {
+    pub fn get_action<A: ActionType>(&self, path: ActionPath) -> Result<Action<A>> {
         A::get(self, path)
     }
 }
 
 pub trait ActionTrait {
-    fn id(&self) -> ActionId;
+    fn id(&self) -> ActionPath;
 }
 
 /// Represents input actions, such as bools, floats, and poses
