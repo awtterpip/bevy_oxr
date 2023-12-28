@@ -32,6 +32,15 @@ pub trait SessionTrait {
     fn end_frame(&self) -> Result<()>;
 }
 
+pub trait ViewTrait {
+    /// Returns the [TextureView] used to render this view.
+    fn texture_view(&self) -> TextureView;
+    /// Returns the [Pose] representing the current position of this view.
+    fn pose(&self) -> Pose;
+    /// Returns the projection matrix for the current view.
+    fn projection_matrix(&self) -> glam::Mat4;
+}
+
 pub trait InputTrait {
     /// Get the haptic action at the specified path.
     fn get_haptics(&self, path: ActionId) -> Result<Action<Haptic>>;

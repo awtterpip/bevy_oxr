@@ -16,6 +16,17 @@ use utils::*;
 #[derive(Clone)]
 pub struct WebXrEntry(web_sys::XrSystem);
 
+impl WebXrEntry {
+    pub fn new() -> Self {
+        Self(
+            web_sys::window()
+                .expect("No window available in current environment")
+                .navigator()
+                .xr(),
+        )
+    }
+}
+
 impl EntryTrait for WebXrEntry {
     fn available_extensions(&self) -> Result<ExtensionSet> {
         Ok(ExtensionSet::default())
@@ -45,7 +56,7 @@ impl InstanceTrait for WebXrInstance {
         self.exts
     }
 
-    fn create_session(&self, info: SessionCreateInfo) -> Result<Session> {
+    fn create_session(&self, _info: SessionCreateInfo) -> Result<Session> {
         Ok(WebXrSession {
             instance: self.clone().into(),
             session: self
@@ -170,15 +181,15 @@ impl InputTrait for WebXrInput {
         Ok(WebXrHaptics(haptics, path).into())
     }
 
-    fn get_pose(&self, path: ActionId) -> Result<Action<Pose>> {
+    fn get_pose(&self, _path: ActionId) -> Result<Action<Pose>> {
         todo!()
     }
 
-    fn get_float(&self, path: ActionId) -> Result<Action<f32>> {
+    fn get_float(&self, _path: ActionId) -> Result<Action<f32>> {
         todo!()
     }
 
-    fn get_bool(&self, path: ActionId) -> Result<Action<bool>> {
+    fn get_bool(&self, _path: ActionId) -> Result<Action<bool>> {
         todo!()
     }
 }

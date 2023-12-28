@@ -9,6 +9,7 @@ linked = ["openxr/linked"]
 
 [dependencies]
 futures = "0.3.29"
+glam = "0.25.0"
 thiserror = "1.0.51"
 wgpu = "0.18"
 

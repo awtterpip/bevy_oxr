@@ -7,8 +7,12 @@ use crate::prelude::*;
 pub struct Entry(Rc<dyn EntryTrait>);
 
 impl Entry {
+    /// Constructs a new Xr entry
     pub fn new() -> Self {
-        todo!()
+        #[cfg(target_family = "wasm")]
+        return crate::backend::webxr::WebXrEntry::new().into();
+        #[cfg(not(target_family = "wasm"))]
+        return crate::backend::oxr::OXrEntry::new().into();
     }
 }
 
@@ -17,6 +21,9 @@ pub struct Instance(Rc<dyn InstanceTrait>);
 
 #[derive(Clone)]
 pub struct Session(Rc<dyn SessionTrait>);
+
+#[derive(Clone)]
+pub struct View(Rc<dyn ViewTrait>);
 
 #[derive(Clone)]
 pub struct Input(Rc<dyn InputTrait>);
@@ -42,6 +49,14 @@ impl Deref for Instance {
 
 impl Deref for Session {
     type Target = dyn SessionTrait;
+
+    fn deref(&self) -> &Self::Target {
+        &*self.0
+    }
+}
+
+impl Deref for View {
+    type Target = dyn ViewTrait;
 
     fn deref(&self) -> &Self::Target {
         &*self.0
@@ -81,6 +96,12 @@ impl<T: InstanceTrait + 'static> From<T> for Instance {
 }
 
 impl<T: SessionTrait + 'static> From<T> for Session {
+    fn from(value: T) -> Self {
+        Self(Rc::new(value))
+    }
+}
+
+impl<T: ViewTrait + 'static> From<T> for View {
     fn from(value: T) -> Self {
         Self(Rc::new(value))
     }
