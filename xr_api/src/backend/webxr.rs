@@ -6,7 +6,8 @@ use std::sync::{
 use crate::prelude::*;
 
 use wasm_bindgen::{closure::Closure, JsCast};
-use web_sys::{js_sys, XrFrame, XrInputSource};
+use wasm_bindgen_futures::js_sys;
+use web_sys::{XrFrame, XrInputSource};
 
 mod utils;
 
@@ -78,7 +79,7 @@ impl SessionTrait for WebXrSession {
         .into())
     }
 
-    fn begin_frame(&self) -> Result<()> {
+    fn begin_frame(&self) -> Result<(wgpu::TextureView, wgpu::TextureView)> {
         let mut end_frame_sender = self.end_frame_sender.lock().unwrap();
         if end_frame_sender.is_some() {
             Err(XrError::Placeholder)?
@@ -87,7 +88,7 @@ impl SessionTrait for WebXrSession {
         let (tx_end, rx_end) = channel::<()>();
         *end_frame_sender = Some(tx_end);
         let on_frame: Closure<dyn FnMut(f64, XrFrame)> =
-            Closure::new(move |time: f64, frame: XrFrame| {
+            Closure::new(move |_time: f64, _frame: XrFrame| {
                 tx.send(()).ok();
                 rx_end.recv().ok();
             });
@@ -96,7 +97,7 @@ impl SessionTrait for WebXrSession {
             .request_animation_frame(on_frame.as_ref().unchecked_ref());
 
         rx.recv().ok();
-        Ok(())
+        todo!()
     }
 
     fn end_frame(&self) -> Result<()> {
@@ -106,6 +107,18 @@ impl SessionTrait for WebXrSession {
             None => Err(XrError::Placeholder)?,
         };
         Ok(())
+    }
+
+    fn get_render_resources(
+        &self,
+    ) -> Option<(
+        wgpu::Device,
+        wgpu::Queue,
+        wgpu::AdapterInfo,
+        wgpu::Adapter,
+        wgpu::Instance,
+    )> {
+        todo!()
     }
 }
 

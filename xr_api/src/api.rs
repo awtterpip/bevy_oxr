@@ -6,6 +6,12 @@ use crate::prelude::*;
 #[derive(Clone)]
 pub struct Entry(Rc<dyn EntryTrait>);
 
+impl Entry {
+    pub fn new() -> Self {
+        todo!()
+    }
+}
+
 #[derive(Clone)]
 pub struct Instance(Rc<dyn InstanceTrait>);
 

@@ -1,6 +1,6 @@
 use wasm_bindgen::JsValue;
+use wasm_bindgen_futures::js_sys::Promise;
 use wasm_bindgen_futures::JsFuture;
-use web_sys::js_sys::Promise;
 
 pub trait PromiseRes {
     fn resolve<T: From<JsValue>>(self) -> Result<T, JsValue>;

@@ -2,6 +2,15 @@ use crate::prelude::*;
 
 pub struct OXrEntry(openxr::Entry);
 
+impl OXrEntry {
+    pub fn new() -> Self {
+        #[cfg(feature = "linked")]
+        return OXrEntry(openxr::Entry::linked());
+        #[cfg(not(feature = "linked"))]
+        return OXrEntry(unsafe { openxr::Entry::load().expect("Failed to load OpenXR runtime") });
+    }
+}
+
 impl EntryTrait for OXrEntry {
     fn available_extensions(&self) -> Result<ExtensionSet> {
         // self.0.enumerate_extensions();

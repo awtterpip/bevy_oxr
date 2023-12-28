@@ -3,11 +3,14 @@ name = "xr_api"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = ["linked"]
+linked = ["openxr/linked"]
 
 [dependencies]
 futures = "0.3.29"
 thiserror = "1.0.51"
+wgpu = "0.18"
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 openxr = "0.17.1"
