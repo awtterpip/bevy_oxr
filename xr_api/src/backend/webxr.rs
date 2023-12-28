@@ -167,37 +167,38 @@ impl WebXrInput {
 }
 
 impl InputTrait for WebXrInput {
-    fn get_haptics(&self, path: ActionId) -> Result<Action<Haptic>> {
-        let haptics = self
-            .get_controller(path.handedness)
-            .ok_or(XrError::Placeholder)?
-            .gamepad()
-            .ok_or(XrError::Placeholder)?
-            .haptic_actuators()
-            .iter()
-            .next()
-            .ok_or(XrError::Placeholder)?
-            .into();
-        Ok(WebXrHaptics(haptics, path).into())
-    }
-
-    fn get_pose(&self, _path: ActionId) -> Result<Action<Pose>> {
+    fn get_haptics(&self, path: ActionPath) -> Result<Action<Haptic>> {
+        // let haptics = self
+        // .get_controller(path.handedness)
+        // .ok_or(XrError::Placeholder)?
+        // .gamepad()
+        // .ok_or(XrError::Placeholder)?
+        // .haptic_actuators()
+        // .iter()
+        // .next()
+        // .ok_or(XrError::Placeholder)?
+        // .into();
+        // Ok(WebXrHaptics(haptics, path).into())
         todo!()
     }
 
-    fn get_float(&self, _path: ActionId) -> Result<Action<f32>> {
+    fn get_pose(&self, _path: ActionPath) -> Result<Action<Pose>> {
         todo!()
     }
 
-    fn get_bool(&self, _path: ActionId) -> Result<Action<bool>> {
+    fn get_float(&self, _path: ActionPath) -> Result<Action<f32>> {
+        todo!()
+    }
+
+    fn get_bool(&self, _path: ActionPath) -> Result<Action<bool>> {
         todo!()
     }
 }
 
-pub struct WebXrHaptics(web_sys::GamepadHapticActuator, ActionId);
+pub struct WebXrHaptics(web_sys::GamepadHapticActuator, ActionPath);
 
 impl ActionTrait for WebXrHaptics {
-    fn id(&self) -> ActionId {
+    fn id(&self) -> ActionPath {
         self.1
     }
 }
