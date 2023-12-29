@@ -5,9 +5,14 @@ use crate::api_traits::{ActionInputTrait, HapticTrait, InputTrait};
 use crate::error::Result;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct ExtensionSet {}
+pub struct ExtensionSet {
+    pub vulkan: bool,
+}
 
-pub enum SessionCreateInfo {}
+pub struct SessionCreateInfo {
+    /// preferred texture format
+    pub texture_format: wgpu::TextureFormat,
+}
 
 pub struct Bindings {}
 

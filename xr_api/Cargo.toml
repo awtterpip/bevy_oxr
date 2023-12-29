@@ -8,6 +8,7 @@ default = ["linked"]
 linked = ["openxr/linked"]
 
 [dependencies]
+ash = "0.37.3"
 futures = "0.3.29"
 glam = "0.25.0"
 thiserror = "1.0.51"
