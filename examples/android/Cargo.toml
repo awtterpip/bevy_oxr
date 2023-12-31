@@ -10,13 +10,9 @@ license = "MIT OR Apache-2.0"
 name = "bevy_openxr_android"
 crate-type = ["rlib", "cdylib"]
 
-[target.'cfg(not(target_os="android"))'.dependencies.bevy_oxr]
-path = "../../"
-default-features = true
-
 
 [dependencies]
-bevy_oxr = { path = "../..", default-features = false }
+bevy_oxr.path = "../.."
 bevy = "0.12"
 openxr = { git = "https://github.com/Ralith/openxrs", features = ["mint"] }
 

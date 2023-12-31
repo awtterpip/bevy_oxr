@@ -66,9 +66,9 @@ pub fn initialize_xr_graphics(
 }
 
 pub fn xr_entry() -> anyhow::Result<xr::Entry> {
-    #[cfg(feature = "linked")]
+    #[cfg(windows)]
     let entry = Ok(xr::Entry::linked());
-    #[cfg(not(feature = "linked"))]
+    #[cfg(not(windows))]
     let entry = unsafe { xr::Entry::load().map_err(|e| anyhow::anyhow!(e)) };
     entry
 }
