@@ -10,15 +10,15 @@ crate-type = ["rlib", "cdylib"]
 
 [dependencies]
 bevy = "0.12"
-bevy_oxr = { path = "../../", default-features = false }
+bevy_oxr.path = "../../"
 bevy_rapier3d = { git = "https://github.com/devil-ira/bevy_rapier", branch = "bevy-0.12" }
 color-eyre = "0.6.2"
 
 
-[target.'cfg(not(target_os="android"))'.dependencies.bevy_oxr]
-path = "../../"
-# May need to be more specific. needs to be false at least on linux without an active runtime to run in flat
-default-features = true
+# [target.'cfg(not(target_os="android"))'.dependencies.bevy_oxr]
+# path = "../../"
+# # May need to be more specific. needs to be false at least on linux without an active runtime to run in flat
+# default-features = true
 
 [profile.release]
 debug = true

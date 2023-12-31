@@ -426,8 +426,6 @@ pub fn initialize_xr_graphics(
             should_render: true,
         })
         .into(),
-        // Horrible hack to get the Handtacking extension Loaded, Replace with good system to load
-        // any extension at some point
     ))
 }
 

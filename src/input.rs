@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use bevy::prelude::*;
 use openxr as xr;
+use xr::{FrameState, FrameWaiter, ViewConfigurationType};
 
 #[derive(Clone, Resource)]
 pub struct XrInput {
@@ -14,13 +15,12 @@ pub struct XrInput {
 }
 
 impl XrInput {
-    pub fn new(_instance: xr::Instance, session: xr::Session<xr::AnyGraphics>) -> xr::Result<Self> {
-        // let action_set = instance.create_action_set("input", "input pose information", 0)?;
-        // let left_hand_subaction_path = instance.string_to_path("/user/hand/left").unwrap();
+    pub fn new(
+        instance: xr::Instance,
+        session: xr::Session<xr::AnyGraphics>,
+        // frame_state: &FrameState,
+    ) -> xr::Result<Self> {
         // let right_hand_subaction_path = instance.string_to_path("/user/hand/right").unwrap();
-        // let left_hand_grip_pose_path = instance
-        //     .string_to_path("/user/hand/left/input/grip/pose")
-        //     .unwrap();
         // let right_hand_grip_pose_path = instance
         //     .string_to_path("/user/hand/right/input/grip/pose")
         //     .unwrap();
@@ -49,11 +49,23 @@ impl XrInput {
         //     left_hand_subaction_path,
         //     xr::Posef::IDENTITY,
         // )?;
+
         let stage =
             session.create_reference_space(xr::ReferenceSpaceType::STAGE, xr::Posef::IDENTITY)?;
-        let head = session
-            .create_reference_space(xr::ReferenceSpaceType::VIEW, xr::Posef::IDENTITY)
-            .unwrap();
+        let head =
+            session.create_reference_space(xr::ReferenceSpaceType::VIEW, xr::Posef::IDENTITY)?;
+        // let y = stage
+        //     .locate(&head, frame_state.predicted_display_time).unwrap()
+        //     .pose
+        //     .position
+        //     .y;
+        // let local = session.create_reference_space(
+        //     xr::ReferenceSpaceType::LOCAL,
+        //     xr::Posef {
+        //         position: xr::Vector3f { x: 0.0, y, z: 0.0 },
+        //         orientation: xr::Quaternionf::IDENTITY,
+        //     },
+        // ).unwrap();
         //session.attach_action_sets(&[&action_set])?;
         //session.attach_action_sets(&[])?;
         Ok(Self {

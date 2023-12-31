@@ -32,7 +32,10 @@ use bevy_oxr::{
         },
         oculus_touch::OculusController,
         prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig},
-        trackers::{OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker},
+        trackers::{
+            OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker,
+            OpenXRTrackingRoot,
+        },
         Hand,
     },
     DefaultXrPlugins,
@@ -63,7 +66,6 @@ pub fn main() {
     info!("Running bevy_openxr demo");
     let mut app = App::new();
     let mut xr_extensions = XrExtensions::default();
-    xr_extensions.enable_fb_passthrough();
 
     app.add_systems(Update, input_stuff)
         //lets get the usual diagnostic stuff added

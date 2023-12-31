@@ -9,8 +9,8 @@ android:
         required: true
       - name: "oculus.software.handtracking"
         required: false
-      - name: "com.oculus.feature.PASSTHROUGH"
-        required: true
+      # - name: "com.oculus.feature.PASSTHROUGH"
+      #   required: true
     uses_permission:
       - name: "com.oculus.permission.HAND_TRACKING"
     application:
