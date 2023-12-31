@@ -3,12 +3,13 @@ android:
     - "runtime_libs"
   manifest:
     package: "org.bevyengine.demo_openxr_android"
+    # Are features and permissions fliped?
     uses_feature:
       - name: "android.hardware.vr.headtracking"
         required: true
       - name: "oculus.software.handtracking"
         required: false
-      - name: "com.oculus.experimental.enabled"
+      - name: "com.oculus.feature.PASSTHROUGH"
         required: true
     uses_permission:
       - name: "com.oculus.permission.HAND_TRACKING"

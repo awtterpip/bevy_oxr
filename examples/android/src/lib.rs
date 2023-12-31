@@ -1,6 +1,7 @@
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
 use bevy::transform::components::Transform;
+use bevy_oxr::graphics::XrAppInfo;
 use bevy_oxr::xr_input::debug_gizmos::OpenXrDebugRenderer;
 use bevy_oxr::xr_input::prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig};
 use bevy_oxr::xr_input::trackers::{
@@ -11,7 +12,12 @@ use bevy_oxr::DefaultXrPlugins;
 #[bevy_main]
 fn main() {
     App::new()
-        .add_plugins(DefaultXrPlugins)
+        .add_plugins(DefaultXrPlugins {
+            app_info: XrAppInfo {
+                name: "Bevy OXR Android Example".into(),
+            },
+            ..default()
+        })
         .add_plugins(OpenXrDebugRenderer)
         .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(FrameTimeDiagnosticsPlugin)

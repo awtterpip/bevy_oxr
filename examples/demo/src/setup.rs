@@ -8,7 +8,7 @@ use bevy::{
 };
 use bevy_oxr::xr_input::interactions::{Touched, XRInteractable, XRInteractableState};
 use bevy_rapier3d::{
-    prelude::{Collider, RigidBody, Group, CollisionGroups},
+    prelude::{Collider, CollisionGroups, Group, RigidBody},
     render::ColliderDebugColor,
 };
 
@@ -67,7 +67,7 @@ pub fn setup_scene(
     // });
     // camera
     commands.spawn((Camera3dBundle {
-        transform: Transform::from_xyz(0.25, 1.25, 0.0).looking_at(
+        transform: Transform::from_xyz(5.25, 5.25, 5.0).looking_at(
             Vec3 {
                 x: -0.548,
                 y: -0.161,
