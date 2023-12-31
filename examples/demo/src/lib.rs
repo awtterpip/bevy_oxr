@@ -16,9 +16,10 @@ use bevy::{
     transform::TransformSystem,
 };
 use bevy_oxr::{
+    graphics::{extensions::XrExtensions, XrAppInfo, XrPreferdBlendMode},
     input::XrInput,
-    xr_init::{XrEnableRequest, XrEnableStatus, xr_only},
     resources::{XrFrameState, XrInstance, XrSession},
+    xr_init::{xr_only, XrEnableRequest, XrEnableStatus},
     xr_input::{
         actions::XrActionSets,
         debug_gizmos::OpenXrDebugRenderer,
@@ -31,7 +32,10 @@ use bevy_oxr::{
         },
         oculus_touch::OculusController,
         prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig},
-        trackers::{OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker},
+        trackers::{
+            OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker,
+            OpenXRTrackingRoot,
+        },
         Hand,
     },
     DefaultXrPlugins,
@@ -61,13 +65,20 @@ pub fn main() {
 
     info!("Running bevy_openxr demo");
     let mut app = App::new();
+    let mut xr_extensions = XrExtensions::default();
 
     app.add_systems(Update, input_stuff)
         //lets get the usual diagnostic stuff added
         .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(FrameTimeDiagnosticsPlugin)
         //lets get the xr defaults added
-        .add_plugins(DefaultXrPlugins)
+        .add_plugins(DefaultXrPlugins {
+            reqeusted_extensions: xr_extensions,
+            prefered_blend_mode: XrPreferdBlendMode::Opaque,
+            app_info: XrAppInfo {
+                name: "Bevy OXR Demo".into(),
+            },
+        })
         //lets add the debug renderer for the controllers
         .add_plugins(OpenXrDebugRenderer)
         //rapier goes here
@@ -93,7 +104,9 @@ pub fn main() {
         //draw the interaction gizmos
         .add_systems(
             Update,
-            draw_interaction_gizmos.run_if(xr_only()).after(update_interactable_states),
+            draw_interaction_gizmos
+                .run_if(xr_only())
+                .after(update_interactable_states),
         )
         .add_systems(Update, draw_socket_gizmos.after(update_interactable_states))
         //add our cube spawning system

@@ -79,7 +79,7 @@ pub fn setup_oxr_actions(world: &mut World) {
             actions.insert(action_name, typed_action);
             for (device_path, bindings) in action.bindings.into_iter() {
                 for b in bindings {
-                    info!("binding {} to {}", action_name, b);
+                    // info!("binding {} to {}", action_name, b);
                     action_bindings
                         .entry((set_name, action_name))
                         .or_default()
@@ -117,7 +117,6 @@ pub fn setup_oxr_actions(world: &mut World) {
                 .map(move |(dev, bindings)| (action, dev, bindings))
         })
         .map(|(action, dev, bindings)| {
-            info!("Hi");
             (
                 dev,
                 bindings
@@ -136,7 +135,6 @@ pub fn setup_oxr_actions(world: &mut World) {
         b_indings.entry(dev).or_default().append(&mut bindings);
     }
     for (dev, bindings) in b_indings.into_iter() {
-        info!(dev);
         instance
             .suggest_interaction_profile_bindings(instance.string_to_path(dev).unwrap(), &bindings)
             .expect("Unable to suggest interaction bindings!");
@@ -305,7 +303,7 @@ impl XrActionSets {
         &self,
         action_set: &'static str,
         action_name: &'static str,
-    ) -> Result<&Action<f32>,ActionError> {
+    ) -> Result<&Action<f32>, ActionError> {
         let action = self
             .sets
             .get(action_set)
@@ -322,7 +320,7 @@ impl XrActionSets {
         &self,
         action_set: &'static str,
         action_name: &'static str,
-    ) -> Result<&Action<bool>,ActionError> {
+    ) -> Result<&Action<bool>, ActionError> {
         let action = self
             .sets
             .get(action_set)
@@ -339,7 +337,7 @@ impl XrActionSets {
         &self,
         action_set: &'static str,
         action_name: &'static str,
-    ) -> Result<&Action<Posef>,ActionError> {
+    ) -> Result<&Action<Posef>, ActionError> {
         let action = self
             .sets
             .get(action_set)
@@ -356,7 +354,7 @@ impl XrActionSets {
         &self,
         action_set: &'static str,
         action_name: &'static str,
-    ) -> Result<&Action<Haptic>,ActionError> {
+    ) -> Result<&Action<Haptic>, ActionError> {
         let action = self
             .sets
             .get(action_set)

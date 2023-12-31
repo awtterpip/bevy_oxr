@@ -10,12 +10,21 @@ crate-type = ["rlib", "cdylib"]
 
 [dependencies]
 bevy = "0.12"
-bevy_oxr = { path = "../../", default-features = false }
+bevy_oxr.path = "../../"
 bevy_rapier3d = { git = "https://github.com/devil-ira/bevy_rapier", branch = "bevy-0.12" }
 color-eyre = "0.6.2"
 
 
-[target.'cfg(not(target_os="android"))'.dependencies.bevy_oxr]
-path = "../../"
-# May need to be more specific. needs to be false at least on linux without an active runtime to run in flat
-default-features = true
+# [target.'cfg(not(target_os="android"))'.dependencies.bevy_oxr]
+# path = "../../"
+# # May need to be more specific. needs to be false at least on linux without an active runtime to run in flat
+# default-features = true
+
+[profile.release]
+debug = true
+
+[patch.crates-io]
+ndk = { git = "https://github.com/Schmarni-Dev/ndk.git", branch = "070" }
+ndk-sys = { package = "ndk-sys", git = "https://github.com/Schmarni-Dev/ndk.git", branch = "070" }
+ndk-context = { package = "ndk-context", git = "https://github.com/Schmarni-Dev/ndk.git", branch = "070" }
+ndk-glue = { package = "ndk-glue", git = "https://github.com/Schmarni-Dev/ndk.git", branch = "070" }

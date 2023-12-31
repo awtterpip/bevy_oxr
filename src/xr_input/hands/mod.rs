@@ -2,9 +2,9 @@ use bevy::{app::PluginGroupBuilder, prelude::*};
 
 use self::{emulated::HandEmulationPlugin, hand_tracking::HandTrackingPlugin};
 
+pub mod common;
 pub mod emulated;
 pub mod hand_tracking;
-pub mod common;
 
 pub struct XrHandPlugins;
 

@@ -1,6 +1,7 @@
 use bevy::diagnostic::LogDiagnosticsPlugin;
 use bevy::prelude::*;
 use bevy::transform::components::Transform;
+use bevy_oxr::graphics::XrAppInfo;
 use bevy_oxr::resources::XrViews;
 use bevy_oxr::xr_input::hands::common::{HandInputDebugRenderer, OpenXrHandInput};
 use bevy_oxr::xr_input::interactions::{
@@ -19,7 +20,12 @@ fn main() {
     color_eyre::install().unwrap();
 
     App::new()
-        .add_plugins(DefaultXrPlugins)
+        .add_plugins(DefaultXrPlugins {
+            app_info: XrAppInfo {
+                name: "Bevy OXR Globe Example".into(),
+            },
+            ..default()
+        })
         .add_plugins(LogDiagnosticsPlugin::default())
         .add_systems(Startup, setup)
         .add_systems(Update, (proto_locomotion, pull_to_ground).chain())

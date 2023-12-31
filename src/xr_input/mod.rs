@@ -11,7 +11,7 @@ pub mod xr_camera;
 
 use crate::resources::{XrInstance, XrSession};
 use crate::xr_begin_frame;
-use crate::xr_init::{xr_only, XrPostSetup, XrSetup};
+use crate::xr_init::{xr_only, XrPostSetup, XrSetup, XrPreSetup};
 use crate::xr_input::controllers::XrControllerType;
 use crate::xr_input::oculus_touch::setup_oculus_controller;
 use crate::xr_input::xr_camera::{xr_camera_head_sync, Eye, XRProjection, XrCameraBundle};
@@ -30,7 +30,7 @@ use bevy::utils::HashMap;
 use openxr::Binding;
 
 use self::actions::{setup_oxr_actions, OpenXrActionsPlugin};
-use self::oculus_touch::{post_action_setup_oculus_controller, ActionSets};
+use self::oculus_touch::{post_action_setup_oculus_controller, ActionSets, init_subaction_path};
 use self::trackers::{
     adopt_open_xr_trackers, update_open_xr_controllers, OpenXRLeftEye, OpenXRRightEye,
     OpenXRTrackingRoot,
@@ -77,6 +77,7 @@ impl Plugin for OpenXrInput {
                 .after(TransformSystem::TransformPropagate)
                 .before(VisibilitySystems::UpdatePerspectiveFrusta),
         );
+        app.add_systems(XrPreSetup, init_subaction_path);
         app.add_systems(XrSetup, setup_xr_cameras);
     }
 }

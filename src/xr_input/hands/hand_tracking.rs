@@ -1,16 +1,13 @@
 use bevy::prelude::*;
 use openxr::{HandTracker, Result, SpaceLocationFlags};
 
+use super::common::HandBoneRadius;
 use crate::{
     input::XrInput,
-
     resources::{XrFrameState, XrSession},
-    xr_input::{
-         hands::HandBone, trackers::OpenXRTrackingRoot, Hand, QuatConv,
-        Vec3Conv,
-    }, xr_init::xr_only,
+    xr_init::xr_only,
+    xr_input::{hands::HandBone, trackers::OpenXRTrackingRoot, Hand, QuatConv, Vec3Conv},
 };
-use super::common::HandBoneRadius;
 
 use super::BoneTrackingStatus;
 
@@ -126,9 +123,11 @@ impl Plugin for HandTrackingPlugin {
         app.add_systems(
             PreUpdate,
             (
-                update_hand_bones.run_if(|dh: Option<Res<DisableHandTracking>>| {
-                    !dh.is_some_and(|v| *v == DisableHandTracking::Both)
-                }).run_if(xr_only()),
+                update_hand_bones
+                    .run_if(|dh: Option<Res<DisableHandTracking>>| {
+                        !dh.is_some_and(|v| *v == DisableHandTracking::Both)
+                    })
+                    .run_if(xr_only()),
                 update_tracking_state_on_disable,
             ),
         );

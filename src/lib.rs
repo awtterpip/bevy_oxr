@@ -1,5 +1,6 @@
-mod graphics;
+pub mod graphics;
 pub mod input;
+// pub mod passthrough;
 pub mod resource_macros;
 pub mod resources;
 pub mod xr_init;
@@ -10,33 +11,23 @@ use std::sync::{Arc, Mutex};
 use crate::xr_init::RenderRestartPlugin;
 use crate::xr_input::hands::hand_tracking::DisableHandTracking;
 use crate::xr_input::oculus_touch::ActionSets;
-use bevy::app::PluginGroupBuilder;
-use bevy::ecs::system::{RunSystemOnce, SystemState};
+use bevy::app::{AppExit, PluginGroupBuilder};
+use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
-use bevy::render::camera::{
-    CameraPlugin, ManualTextureView, ManualTextureViewHandle, ManualTextureViews,
-};
-use bevy::render::globals::GlobalsPlugin;
-use bevy::render::mesh::morph::MorphPlugin;
-use bevy::render::mesh::MeshPlugin;
+use bevy::render::camera::{ManualTextureView, ManualTextureViewHandle, ManualTextureViews};
 use bevy::render::pipelined_rendering::PipelinedRenderingPlugin;
-use bevy::render::render_asset::RenderAssetDependency;
-use bevy::render::render_resource::ShaderLoader;
-use bevy::render::renderer::{
-    render_system, RenderAdapter, RenderAdapterInfo, RenderDevice, RenderInstance, RenderQueue,
-};
+use bevy::render::renderer::{render_system, RenderInstance};
 use bevy::render::settings::RenderCreation;
-use bevy::render::view::{self, ViewPlugin, WindowRenderPlugin};
-use bevy::render::{color, primitives, Render, RenderApp, RenderPlugin, RenderSet};
+use bevy::render::{Render, RenderApp, RenderPlugin, RenderSet};
 use bevy::window::{PresentMode, PrimaryWindow, RawHandleWrapper};
+use graphics::extensions::XrExtensions;
+use graphics::{XrAppInfo, XrPreferdBlendMode};
 use input::XrInput;
 use openxr as xr;
+// use passthrough::{start_passthrough, supports_passthrough, XrPassthroughLayer};
 use resources::*;
 use xr::FormFactor;
-use xr_init::{
-    init_non_xr_graphics, update_xr_stuff, xr_only, RenderCreationData, XrEnableRequest,
-    XrEnableStatus, XrRenderData, XrRenderUpdate,
-};
+use xr_init::{xr_only, XrEnableStatus, XrRenderData};
 use xr_input::controllers::XrControllerType;
 use xr_input::hands::emulated::HandEmulationPlugin;
 use xr_input::hands::hand_tracking::{HandTrackingData, HandTrackingPlugin};
@@ -48,12 +39,11 @@ pub const LEFT_XR_TEXTURE_HANDLE: ManualTextureViewHandle = ManualTextureViewHan
 pub const RIGHT_XR_TEXTURE_HANDLE: ManualTextureViewHandle = ManualTextureViewHandle(3383858418);
 
 /// Adds OpenXR support to an App
-pub struct OpenXrPlugin;
-
-impl Default for OpenXrPlugin {
-    fn default() -> Self {
-        OpenXrPlugin
-    }
+#[derive(Default)]
+pub struct OpenXrPlugin {
+    reqeusted_extensions: XrExtensions,
+    prefered_blend_mode: XrPreferdBlendMode,
+    app_info: XrAppInfo,
 }
 
 #[derive(Resource)]
@@ -76,6 +66,9 @@ pub struct FutureXrResources(
         >,
     >,
 );
+// fn mr_test(mut commands: Commands, passthrough_layer: Option<Res<XrPassthroughLayer>>) {
+//     commands.insert_resource(ClearColor(Color::rgba(0.0, 0.0, 0.0, 0.0)));
+// }
 
 impl Plugin for OpenXrPlugin {
     fn build(&self, app: &mut App) {
@@ -84,7 +77,12 @@ impl Plugin for OpenXrPlugin {
         let primary_window = system_state.get(&app.world).get_single().ok().cloned();
 
         #[cfg(not(target_arch = "wasm32"))]
-        match graphics::initialize_xr_graphics(primary_window.clone()) {
+        match graphics::initialize_xr_graphics(
+            primary_window.clone(),
+            self.reqeusted_extensions.clone(),
+            self.prefered_blend_mode,
+            self.app_info.clone(),
+        ) {
             Ok((
                 device,
                 queue,
@@ -149,6 +147,7 @@ impl Plugin for OpenXrPlugin {
                 app.insert_resource(XrEnableStatus::Disabled);
             }
         }
+        // app.add_systems(PreUpdate, mr_test);
         #[cfg(target_arch = "wasm32")]
         {
             app.add_plugins(RenderPlugin::default());
@@ -180,6 +179,23 @@ impl Plugin for OpenXrPlugin {
             } else {
                 app.insert_resource(DisableHandTracking::Both);
             }
+            // let passthrough = data.xr_instance.exts().fb_passthrough.is_some()
+            //     && supports_passthrough(
+            //         &data.xr_instance,
+            //         data.xr_instance
+            //             .system(FormFactor::HEAD_MOUNTED_DISPLAY)
+            //             .unwrap(),
+            //     )
+            //     .is_ok_and(|v| v);
+            // if passthrough {
+            //     info!("Passthrough!");
+            //     let (pl, p) = start_passthrough(&data);
+            //     app.insert_resource(pl);
+            //     app.insert_resource(p);
+            //     // if !app.world.contains_resource::<ClearColor>() {
+            //     // info!("ClearColor!");
+            //     // }
+            // }
 
             let (left, right) = data.xr_swapchain.get_render_views();
             let left = ManualTextureView {
@@ -225,7 +241,12 @@ impl Plugin for OpenXrPlugin {
     }
 }
 
-pub struct DefaultXrPlugins;
+#[derive(Default)]
+pub struct DefaultXrPlugins {
+    pub reqeusted_extensions: XrExtensions,
+    pub prefered_blend_mode: XrPreferdBlendMode,
+    pub app_info: XrAppInfo,
+}
 
 impl PluginGroup for DefaultXrPlugins {
     fn build(self) -> PluginGroupBuilder {
@@ -233,7 +254,11 @@ impl PluginGroup for DefaultXrPlugins {
             .build()
             .disable::<RenderPlugin>()
             .disable::<PipelinedRenderingPlugin>()
-            .add_before::<RenderPlugin, _>(OpenXrPlugin)
+            .add_before::<RenderPlugin, _>(OpenXrPlugin {
+                prefered_blend_mode: self.prefered_blend_mode,
+                reqeusted_extensions: self.reqeusted_extensions,
+                app_info: self.app_info.clone(),
+            })
             .add_after::<OpenXrPlugin, _>(OpenXrInput::new(XrControllerType::OculusTouch))
             .add_before::<OpenXrPlugin, _>(RenderRestartPlugin)
             .add(HandEmulationPlugin)
@@ -241,7 +266,9 @@ impl PluginGroup for DefaultXrPlugins {
             .set(WindowPlugin {
                 #[cfg(not(target_os = "android"))]
                 primary_window: Some(Window {
+                    transparent: true,
                     present_mode: PresentMode::AutoNoVsync,
+                    title: self.app_info.name.clone(),
                     ..default()
                 }),
                 #[cfg(target_os = "android")]
@@ -264,6 +291,7 @@ pub fn xr_begin_frame(
     swapchain: Res<XrSwapchain>,
     views: Res<XrViews>,
     input: Res<XrInput>,
+    mut app_exit: EventWriter<AppExit>,
 ) {
     {
         let _span = info_span!("xr_poll_events");
@@ -282,8 +310,12 @@ pub fn xr_begin_frame(
                         xr::SessionState::STOPPING => {
                             session.end().unwrap();
                             session_running.store(false, std::sync::atomic::Ordering::Relaxed);
+                            app_exit.send(AppExit);
                         }
-                        xr::SessionState::EXITING | xr::SessionState::LOSS_PENDING => return,
+                        xr::SessionState::EXITING | xr::SessionState::LOSS_PENDING => {
+                            app_exit.send(AppExit);
+                            return;
+                        }
                         _ => {}
                     }
                 }
@@ -361,6 +393,7 @@ pub fn end_frame(
     swapchain: Res<XrSwapchain>,
     resolution: Res<XrResolution>,
     environment_blend_mode: Res<XrEnvironmentBlendMode>,
+    // passthrough_layer: Option<Res<XrPassthroughLayer>>,
 ) {
     {
         let _span = info_span!("xr_release_image").entered();
@@ -370,10 +403,11 @@ pub fn end_frame(
         let _span = info_span!("xr_end_frame").entered();
         let result = swapchain.end(
             xr_frame_state.lock().unwrap().predicted_display_time,
-            &*views.lock().unwrap(),
+            &views.lock().unwrap(),
             &input.stage,
             **resolution,
             **environment_blend_mode,
+            // passthrough_layer.map(|p| p.into_inner()),
         );
         match result {
             Ok(_) => {}

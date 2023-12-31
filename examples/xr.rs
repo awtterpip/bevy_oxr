@@ -2,6 +2,7 @@ use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 
 use bevy::prelude::*;
 use bevy::transform::components::Transform;
+use bevy_oxr::graphics::XrAppInfo;
 use bevy_oxr::input::XrInput;
 use bevy_oxr::resources::{XrFrameState, XrSession};
 
@@ -25,7 +26,12 @@ fn main() {
 
     info!("Running `openxr-6dof` skill");
     App::new()
-        .add_plugins(DefaultXrPlugins)
+        .add_plugins(DefaultXrPlugins {
+            app_info: XrAppInfo {
+                name: "Bevy OXR Example".into(),
+            },
+            ..default()
+        })
         //.add_plugins(OpenXrDebugRenderer) //new debug renderer adds gizmos to
         .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(FrameTimeDiagnosticsPlugin)

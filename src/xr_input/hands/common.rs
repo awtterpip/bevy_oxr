@@ -3,9 +3,9 @@ use bevy::prelude::{
     Query, Resource, SpatialBundle, Startup, Transform,
 };
 
-use crate::xr_input::{Hand, trackers::OpenXRTracker};
+use crate::xr_input::{trackers::OpenXRTracker, Hand};
 
-use super::{HandBone, BoneTrackingStatus};
+use super::{BoneTrackingStatus, HandBone};
 
 /// add debug renderer for controllers
 #[derive(Default)]
