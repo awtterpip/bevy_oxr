@@ -50,8 +50,14 @@ impl XrInput {
         //     xr::Posef::IDENTITY,
         // )?;
 
-        let stage =
-            session.create_reference_space(xr::ReferenceSpaceType::STAGE, xr::Posef::IDENTITY)?;
+        let stage = match instance.exts().ext_local_floor {
+            None => session
+                .create_reference_space(xr::ReferenceSpaceType::STAGE, xr::Posef::IDENTITY)?,
+            Some(_) => session.create_reference_space(
+                xr::ReferenceSpaceType::LOCAL_FLOOR_EXT,
+                xr::Posef::IDENTITY,
+            )?,
+        };
         let head =
             session.create_reference_space(xr::ReferenceSpaceType::VIEW, xr::Posef::IDENTITY)?;
         // let y = stage
