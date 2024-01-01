@@ -26,6 +26,14 @@ impl XrExtensions {
         self.0.ext_hand_tracking = false;
         self
     }
+    pub fn enable_local_floor(&mut self) -> &mut Self {
+        self.0.ext_local_floor = true;
+        self
+    }
+    pub fn disable_local_floor(&mut self) -> &mut Self {
+        self.0.ext_local_floor = false;
+        self
+    }
 }
 impl From<ExtensionSet> for XrExtensions {
     fn from(value: ExtensionSet) -> Self {
@@ -41,6 +49,7 @@ impl Default for XrExtensions {
     fn default() -> Self {
         let mut exts = ExtensionSet::default();
         exts.ext_hand_tracking = true;
+        exts.ext_local_floor = true;
         Self(exts)
     }
 }
@@ -49,6 +58,7 @@ impl ops::BitAnd for XrExtensions {
 
     fn bitand(self, rhs: Self) -> Self::Output {
         let mut out = ExtensionSet::default();
+        out.ext_local_floor = self.0.ext_local_floor && rhs.0.ext_local_floor;
         out.almalence_digital_lens_control =
             self.0.almalence_digital_lens_control && rhs.0.almalence_digital_lens_control;
         out.epic_view_configuration_fov =
@@ -73,7 +83,7 @@ impl ops::BitAnd for XrExtensions {
             self.0.ext_hp_mixed_reality_controller && rhs.0.ext_hp_mixed_reality_controller;
         out.ext_palm_pose = self.0.ext_palm_pose && rhs.0.ext_palm_pose;
         out.ext_uuid = self.0.ext_uuid && rhs.0.ext_uuid;
-        out.extx_overlay = self.0.extx_overlay && rhs.0.extx_overlay;
+        // out.extx_overlay = self.0.extx_overlay && rhs.0.extx_overlay;
         out.fb_composition_layer_image_layout =
             self.0.fb_composition_layer_image_layout && rhs.0.fb_composition_layer_image_layout;
         out.fb_composition_layer_alpha_blend =
@@ -122,8 +132,8 @@ impl ops::BitAnd for XrExtensions {
         out.htc_hand_interaction = self.0.htc_hand_interaction && rhs.0.htc_hand_interaction;
         out.htc_vive_wrist_tracker_interaction =
             self.0.htc_vive_wrist_tracker_interaction && rhs.0.htc_vive_wrist_tracker_interaction;
-        out.htcx_vive_tracker_interaction =
-            self.0.htcx_vive_tracker_interaction && rhs.0.htcx_vive_tracker_interaction;
+        // out.htcx_vive_tracker_interaction =
+        //     self.0.htcx_vive_tracker_interaction && rhs.0.htcx_vive_tracker_interaction;
         out.huawei_controller_interaction =
             self.0.huawei_controller_interaction && rhs.0.huawei_controller_interaction;
         out.khr_composition_layer_cube =
@@ -163,7 +173,7 @@ impl ops::BitAnd for XrExtensions {
         out.mnd_swapchain_usage_input_attachment_bit =
             self.0.mnd_swapchain_usage_input_attachment_bit
                 && rhs.0.mnd_swapchain_usage_input_attachment_bit;
-        out.mndx_egl_enable = self.0.mndx_egl_enable && rhs.0.mndx_egl_enable;
+        // out.mndx_egl_enable = self.0.mndx_egl_enable && rhs.0.mndx_egl_enable;
         out.msft_unbounded_reference_space =
             self.0.msft_unbounded_reference_space && rhs.0.msft_unbounded_reference_space;
         out.msft_spatial_anchor = self.0.msft_spatial_anchor && rhs.0.msft_spatial_anchor;
