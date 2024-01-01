@@ -11,6 +11,8 @@ use crate::{
 
 use super::oculus_touch::ActionSets;
 
+pub use xr::sys::NULL_PATH;
+
 pub struct OpenXrActionsPlugin;
 impl Plugin for OpenXrActionsPlugin {
     fn build(&self, app: &mut App) {
