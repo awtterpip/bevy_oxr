@@ -14,7 +14,7 @@ crate-type = ["rlib", "cdylib"]
 [dependencies]
 bevy_oxr.path = "../.."
 bevy = "0.12"
-openxr = { git = "https://github.com/Ralith/openxrs", features = ["mint"] }
+openxr = { git = "https://github.com/Ralith/openxrs", rev = "0177d2d", features = ["mint"] }
 
 [profile.release]
 lto = "fat"

@@ -25,11 +25,20 @@ wgpu-core = { version = "0.17.1", features = ["vulkan"] }
 wgpu-hal = "0.17.1"
 
 [target.'cfg(windows)'.dependencies]
-openxr = { version = "0.17.1", features = ["linked","static","mint"] }
+openxr = { git = "https://github.com/Ralith/openxrs", rev = "0177d2d", features = [
+	"linked",
+	"static",
+	"mint",
+] }
 [target.'cfg(all(target_family = "unix", not(target_arch = "wasm32")) )'.dependencies]
-openxr = { version = "0.17.1", features = ["mint"] }
+openxr = { git = "https://github.com/Ralith/openxrs", rev = "0177d2d", features = [
+	"mint",
+] }
 [target.'cfg(all(not(target_family = "unix"), not(target_arch = "wasm32")))'.dependencies]
-openxr = { version = "0.17.1", features = ["mint", "static"] }
+openxr = { git = "https://github.com/Ralith/openxrs", rev = "0177d2d", features = [
+	"mint",
+	"static",
+] }
 
 [dev-dependencies]
 bevy = "0.12"
