@@ -1,6 +1,6 @@
 pub mod graphics;
 pub mod input;
-// pub mod passthrough;
+pub mod passthrough;
 pub mod resource_macros;
 pub mod resources;
 pub mod xr_init;
@@ -24,7 +24,7 @@ use graphics::extensions::XrExtensions;
 use graphics::{XrAppInfo, XrPreferdBlendMode};
 use input::XrInput;
 use openxr as xr;
-// use passthrough::{start_passthrough, supports_passthrough, XrPassthroughLayer};
+use passthrough::{start_passthrough, supports_passthrough};
 use resources::*;
 use xr::FormFactor;
 use xr_init::{xr_only, XrEnableStatus, XrRenderData};
@@ -179,23 +179,14 @@ impl Plugin for OpenXrPlugin {
             } else {
                 app.insert_resource(DisableHandTracking::Both);
             }
-            // let passthrough = data.xr_instance.exts().fb_passthrough.is_some()
-            //     && supports_passthrough(
-            //         &data.xr_instance,
-            //         data.xr_instance
-            //             .system(FormFactor::HEAD_MOUNTED_DISPLAY)
-            //             .unwrap(),
-            //     )
-            //     .is_ok_and(|v| v);
-            // if passthrough {
-            //     info!("Passthrough!");
-            //     let (pl, p) = start_passthrough(&data);
-            //     app.insert_resource(pl);
-            //     app.insert_resource(p);
-            //     // if !app.world.contains_resource::<ClearColor>() {
-            //     // info!("ClearColor!");
-            //     // }
-            // }
+            let passthrough = data.xr_instance.exts().fb_passthrough.is_some()
+                && supports_passthrough(
+                    &data.xr_instance,
+                    data.xr_instance
+                        .system(FormFactor::HEAD_MOUNTED_DISPLAY)
+                        .unwrap(),
+                )
+                .is_ok_and(|v| v);
 
             let (left, right) = data.xr_swapchain.get_render_views();
             let left = ManualTextureView {
@@ -214,6 +205,17 @@ impl Plugin for OpenXrPlugin {
             manual_texture_views.insert(RIGHT_XR_TEXTURE_HANDLE, right);
             drop(manual_texture_views);
             let render_app = app.sub_app_mut(RenderApp);
+
+            if passthrough {
+                info!("Passthrough!");
+                let (pl, p) = start_passthrough(&data);
+                render_app.insert_resource(pl);
+                info!("Inserted XrPassthroughLayer resource!");
+                // app.insert_resource(p);
+                // if !app.world.contains_resource::<ClearColor>() {
+                // info!("ClearColor!");
+                // }
+            }
 
             render_app.insert_resource(data.xr_instance.clone());
             render_app.insert_resource(data.xr_session.clone());
@@ -393,7 +395,7 @@ pub fn end_frame(
     swapchain: Res<XrSwapchain>,
     resolution: Res<XrResolution>,
     environment_blend_mode: Res<XrEnvironmentBlendMode>,
-    // passthrough_layer: Option<Res<XrPassthroughLayer>>,
+    passthrough_layer: Option<Res<XrPassthroughLayer>>,
 ) {
     {
         let _span = info_span!("xr_release_image").entered();
@@ -407,7 +409,7 @@ pub fn end_frame(
             &input.stage,
             **resolution,
             **environment_blend_mode,
-            // passthrough_layer.map(|p| p.into_inner()),
+            passthrough_layer.map(|p| p.into_inner()),
         );
         match result {
             Ok(_) => {}
