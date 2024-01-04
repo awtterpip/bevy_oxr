@@ -190,9 +190,8 @@ impl SessionTrait for OXrSession {
                 texture: Mutex::new(Some(right)),
                 view: views[1],
             };
+            Ok((left.into(), right.into()))
         }
-
-        todo!()
     }
 
     fn end_frame(&self) -> Result<()> {
