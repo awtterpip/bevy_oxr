@@ -12,7 +12,9 @@ ash = "0.37.3"
 futures = "0.3.29"
 glam = "0.25.0"
 thiserror = "1.0.51"
+tracing = "0.1.40"
 wgpu = "0.18"
+wgpu-hal = "0.18"
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 openxr = "0.17.1"
