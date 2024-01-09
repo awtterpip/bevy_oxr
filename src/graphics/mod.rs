@@ -7,8 +7,8 @@ use wgpu::Instance;
 
 use crate::input::XrInput;
 use crate::resources::{
-    XrEnvironmentBlendMode, XrFormat, XrFrameState, XrFrameWaiter, XrInstance, XrResolution,
-    XrSession, XrSessionRunning, XrSwapchain, XrViews,
+    XrEnvironmentBlendMode, XrFormat, XrFrameState, XrInstance, XrResolution, XrSession,
+    XrSessionRunning, XrSwapchain, XrViews, XrFrameWaiter,
 };
 
 use openxr as xr;
@@ -44,7 +44,7 @@ pub fn initialize_xr_graphics(
     reqeusted_extensions: XrExtensions,
     prefered_blend_mode: XrPreferdBlendMode,
     app_info: XrAppInfo,
-) -> anyhow::Result<(
+) -> eyre::Result<(
     RenderDevice,
     RenderQueue,
     RenderAdapterInfo,
@@ -62,13 +62,14 @@ pub fn initialize_xr_graphics(
     XrViews,
     XrFrameState,
 )> {
-    vulkan::initialize_xr_graphics(window, reqeusted_extensions, prefered_blend_mode, app_info)
+    // vulkan::initialize_xr_graphics(window, reqeusted_extensions, prefered_blend_mode, app_info)
+    todo!()
 }
 
-pub fn xr_entry() -> anyhow::Result<xr::Entry> {
+pub fn xr_entry() -> eyre::Result<xr::Entry> {
     #[cfg(windows)]
     let entry = Ok(xr::Entry::linked());
     #[cfg(not(windows))]
-    let entry = unsafe { xr::Entry::load().map_err(|e| anyhow::anyhow!(e)) };
+    let entry = unsafe { xr::Entry::load().map_err(|e| eyre::eyre!(e)) };
     entry
 }

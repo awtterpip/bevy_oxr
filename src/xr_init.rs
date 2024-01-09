@@ -11,16 +11,16 @@ use bevy::{
         renderer::{self, RenderAdapter, RenderAdapterInfo, RenderDevice, RenderQueue},
         settings::WgpuSettings,
     },
-    window::RawHandleWrapper,
+    window::{RawHandleWrapper, PrimaryWindow},
 };
 use wgpu::Instance;
 
 use crate::{
     input::XrInput,
     resources::{
-        XrEnvironmentBlendMode, XrFormat, XrFrameState, XrFrameWaiter, XrInstance, XrResolution,
-        XrSession, XrSessionRunning, XrSwapchain, XrViews,
-    },
+        XrEnvironmentBlendMode, XrFormat, XrFrameState, XrInstance, XrResolution, XrSession,
+        XrSessionRunning, XrSwapchain, XrViews,
+    }, graphics,
 };
 
 #[derive(Resource, Clone)]
@@ -40,7 +40,7 @@ pub struct XrRenderData {
     pub xr_resolution: XrResolution,
     pub xr_format: XrFormat,
     pub xr_session_running: XrSessionRunning,
-    pub xr_frame_waiter: XrFrameWaiter,
+    // pub xr_frame_waiter: XrFrameWaiter,
     pub xr_swapchain: XrSwapchain,
     pub xr_input: XrInput,
     pub xr_views: XrViews,
@@ -174,6 +174,14 @@ pub fn update_xr_stuff(world: &mut World) {
     world.run_schedule(XrPostRenderUpdate);
 }
 
+fn setup_xr_graphics() {
+
+}
+
+fn enable_xr(
+
+) {}
+
 // fn handle_xr_enable_requests(
 //     primary_window: Query<&RawHandleWrapper, With<PrimaryWindow>>,
 //     mut commands: Commands,
@@ -183,7 +191,6 @@ pub fn update_xr_stuff(world: &mut World) {
 //     // Just to force this system onto the main thread because of unsafe code
 //     let _ = on_main;
 //
-//     commands.insert_resource(XrEnableStatus::Waiting);
 //     let (creation_data, xr_data) = match next_state.into_inner() {
 //         XrNextEnabledState::Enabled => {
 //             let (

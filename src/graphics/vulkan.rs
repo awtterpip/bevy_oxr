@@ -1,52 +1,45 @@
 use std::ffi::{c_void, CString};
 use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
-use anyhow::Context;
+// use anyhow::Context;
 use ash::vk::{self, Handle};
 use bevy::math::uvec2;
 use bevy::prelude::*;
 use bevy::render::renderer::{RenderAdapter, RenderAdapterInfo, RenderDevice, RenderQueue};
 use bevy::window::RawHandleWrapper;
+use eyre::{Context, ContextCompat};
 use openxr as xr;
 use wgpu::Instance;
+use wgpu_hal::{api::Vulkan as V, Api};
 use xr::EnvironmentBlendMode;
 
 use crate::graphics::extensions::XrExtensions;
 use crate::input::XrInput;
 use crate::resources::{
-    Swapchain, SwapchainInner, XrEnvironmentBlendMode, XrFormat, XrFrameState, XrFrameWaiter,
-    XrInstance, XrResolution, XrSession, XrSessionRunning, XrSwapchain, XrViews,
+    OXrSessionSetupInfo, Swapchain, SwapchainInner, VulkanOXrSessionSetupInfo,
+    XrEnvironmentBlendMode, XrFormat, XrFrameState, XrFrameWaiter, XrInstance, XrResolution,
+    XrSession, XrSessionRunning, XrSwapchain, XrViews,
 };
 use crate::VIEW_TYPE;
 
 use super::{XrAppInfo, XrPreferdBlendMode};
 
-pub fn initialize_xr_graphics(
+pub fn initialize_xr_instance(
     window: Option<RawHandleWrapper>,
     reqeusted_extensions: XrExtensions,
     prefered_blend_mode: XrPreferdBlendMode,
     app_info: XrAppInfo,
-) -> anyhow::Result<(
+) -> eyre::Result<(
+    XrInstance,
+    OXrSessionSetupInfo,
+    XrEnvironmentBlendMode,
     RenderDevice,
     RenderQueue,
     RenderAdapterInfo,
     RenderAdapter,
     Instance,
-    XrInstance,
-    XrSession,
-    XrEnvironmentBlendMode,
-    XrResolution,
-    XrFormat,
-    XrSessionRunning,
-    XrFrameWaiter,
-    XrSwapchain,
-    XrInput,
-    XrViews,
-    XrFrameState,
 )> {
-    use wgpu_hal::{api::Vulkan as V, Api};
-
     let xr_entry = super::xr_entry()?;
 
     #[cfg(target_os = "android")]
@@ -107,7 +100,6 @@ pub fn initialize_xr_graphics(
         }
         _ => EnvironmentBlendMode::OPAQUE,
     };
-
 
     #[cfg(not(target_os = "android"))]
     let vk_target_version = vk::make_api_version(0, 1, 2, 0);
@@ -296,22 +288,66 @@ pub fn initialize_xr_graphics(
             None,
         )
     }?;
+    Ok((
+        xr_instance.into(),
+        OXrSessionSetupInfo::Vulkan(VulkanOXrSessionSetupInfo {
+            device_ptr: vk_device_ptr,
+            physical_device_ptr: vk_physical_device_ptr,
+            vk_instance_ptr,
+            queue_family_index,
+            xr_system_id,
+        }),
+        blend_mode.into(),
+        wgpu_device.into(),
+        RenderQueue(wgpu_queue.into()),
+        RenderAdapterInfo(wgpu_adapter.get_info()),
+        RenderAdapter(wgpu_adapter.into()),
+        wgpu_instance.into(),
+    ))
+}
 
+pub fn initialize_xr_graphics(
+    window: Option<RawHandleWrapper>,
+    ptrs: &OXrSessionSetupInfo,
+    xr_instance: &XrInstance,
+    render_device: &RenderDevice,
+    render_adapter: &RenderAdapter,
+    wgpu_instance: &Instance,
+) -> eyre::Result<(
+    XrInstance,
+    XrSession,
+    XrResolution,
+    XrFormat,
+    XrSessionRunning,
+    XrFrameWaiter,
+    XrSwapchain,
+    XrInput,
+    XrViews,
+    XrFrameState,
+)> {
+    let wgpu_device = render_device.wgpu_device();
+    let wgpu_adapter = &render_adapter.0;
+
+    #[allow(unreachable_patterns)]
+    let setup_info = match ptrs {
+        OXrSessionSetupInfo::Vulkan(v) => v,
+        _ => eyre::bail!("Wrong Graphics Api"),
+    };
     let (session, frame_wait, frame_stream) = unsafe {
         xr_instance.create_session::<xr::Vulkan>(
-            xr_system_id,
+            xr_instance.system(xr::FormFactor::HEAD_MOUNTED_DISPLAY)?,
             &xr::vulkan::SessionCreateInfo {
-                instance: vk_instance_ptr,
-                physical_device: vk_physical_device_ptr,
-                device: vk_device_ptr,
-                queue_family_index,
+                instance: setup_info.vk_instance_ptr,
+                physical_device: setup_info.physical_device_ptr,
+                device: setup_info.device_ptr,
+                queue_family_index: setup_info.queue_family_index,
                 queue_index: 0,
             },
         )
     }?;
 
-    let views = xr_instance.enumerate_view_configuration_views(xr_system_id, VIEW_TYPE)?;
-
+    let views =
+        xr_instance.enumerate_view_configuration_views(setup_info.xr_system_id, VIEW_TYPE)?;
     let surface = window.map(|wrapper| unsafe {
         // SAFETY: Plugins should be set up on the main thread.
         let handle = wrapper.get_handle();
@@ -346,6 +382,7 @@ pub fn initialize_xr_graphics(
             mip_count: 1,
         })
         .unwrap();
+
     let images = handle.enumerate_images().unwrap();
 
     let buffers = images
@@ -399,18 +436,12 @@ pub fn initialize_xr_graphics(
         .collect();
 
     Ok((
-        wgpu_device.into(),
-        RenderQueue(Arc::new(wgpu_queue)),
-        RenderAdapterInfo(wgpu_adapter.get_info()),
-        RenderAdapter(Arc::new(wgpu_adapter)),
-        wgpu_instance,
         xr_instance.clone().into(),
         session.clone().into_any_graphics().into(),
-        blend_mode.into(),
         resolution.into(),
         swapchain_format.into(),
         AtomicBool::new(false).into(),
-        Mutex::new(frame_wait).into(),
+        frame_wait.into(),
         Swapchain::Vulkan(SwapchainInner {
             stream: Mutex::new(frame_stream),
             handle: Mutex::new(handle),
@@ -418,13 +449,13 @@ pub fn initialize_xr_graphics(
             image_index: Mutex::new(0),
         })
         .into(),
-        XrInput::new(xr_instance, session.into_any_graphics())?,
-        Mutex::default().into(),
-        Mutex::new(xr::FrameState {
+        XrInput::new(xr_instance, &session.into_any_graphics())?,
+        Vec::default().into(),
+        xr::FrameState {
             predicted_display_time: xr::Time::from_nanos(1),
             predicted_display_period: xr::Duration::from_nanos(1),
             should_render: true,
-        })
+        }
         .into(),
     ))
 }

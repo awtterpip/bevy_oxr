@@ -16,8 +16,8 @@ pub struct XrInput {
 
 impl XrInput {
     pub fn new(
-        instance: xr::Instance,
-        session: xr::Session<xr::AnyGraphics>,
+        instance: &xr::Instance,
+        session: &xr::Session<xr::AnyGraphics>,
         // frame_state: &FrameState,
     ) -> xr::Result<Self> {
         // let right_hand_subaction_path = instance.string_to_path("/user/hand/right").unwrap();

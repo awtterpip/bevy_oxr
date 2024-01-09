@@ -70,17 +70,13 @@ pub fn proto_locomotion(
     config_option: Option<ResMut<PrototypeLocomotionConfig>>,
     action_sets: Res<XrActionSets>,
 ) {
-    match config_option {
-        Some(_) => (),
+    let mut config = match config_option {
+        Some(c) => c,
         None => {
             info!("no locomotion config");
             return;
         }
-    }
-    //i hate this but im too tired to think
-    let mut config = config_option.unwrap();
-    //lock frame
-    let frame_state = *frame_state.lock().unwrap();
+    };
     //get controller
     let controller = oculus_controller.get_ref(&session, &frame_state, &xr_input, &action_sets);
     let root = tracking_root_query.get_single_mut();
@@ -92,8 +88,7 @@ pub fn proto_locomotion(
             let reference_quat;
             match config.locomotion_type {
                 LocomotionType::Head => {
-                    let v = views.lock().unwrap();
-                    let views = v.get(0);
+                    let views = views.first();
                     match views {
                         Some(view) => {
                             reference_quat = view.pose.orientation.to_quat();
@@ -127,8 +122,7 @@ pub fn proto_locomotion(
                         rot_input * config.smooth_rotation_speed * time.delta_seconds(),
                     );
                     //apply rotation
-                    let v = views.lock().unwrap();
-                    let views = v.get(0);
+                    let views = views.first();
                     match views {
                         Some(view) => {
                             let mut hmd_translation = view.pose.position.to_vec3();
@@ -159,8 +153,8 @@ pub fn proto_locomotion(
                         let smoth_rot =
                             Quat::from_axis_angle(position.0.up(), config.snap_angle * dir);
                         //apply rotation
-                        let v = views.lock().unwrap();
-                        let views = v.get(0);
+                        let v = views;
+                        let views = v.first();
                         match views {
                             Some(view) => {
                                 let mut hmd_translation = view.pose.position.to_vec3();

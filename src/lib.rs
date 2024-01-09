@@ -26,7 +26,7 @@ use input::XrInput;
 use openxr as xr;
 // use passthrough::{start_passthrough, supports_passthrough, XrPassthroughLayer};
 use resources::*;
-use xr::FormFactor;
+use xr::{FormFactor, FrameWaiter};
 use xr_init::{xr_only, XrEnableStatus, XrRenderData};
 use xr_input::controllers::XrControllerType;
 use xr_input::hands::emulated::HandEmulationPlugin;
@@ -57,7 +57,7 @@ pub struct FutureXrResources(
                 XrResolution,
                 XrFormat,
                 XrSessionRunning,
-                XrFrameWaiter,
+                // XrFrameWaiter,
                 XrSwapchain,
                 XrInput,
                 XrViews,
@@ -110,7 +110,7 @@ impl Plugin for OpenXrPlugin {
                 app.insert_resource(resolution.clone());
                 app.insert_resource(format.clone());
                 app.insert_resource(session_running.clone());
-                app.insert_resource(frame_waiter.clone());
+                app.insert_resource(frame_waiter);
                 app.insert_resource(swapchain.clone());
                 app.insert_resource(input.clone());
                 app.insert_resource(views.clone());
@@ -122,7 +122,6 @@ impl Plugin for OpenXrPlugin {
                     xr_resolution: resolution,
                     xr_format: format,
                     xr_session_running: session_running,
-                    xr_frame_waiter: frame_waiter,
                     xr_swapchain: swapchain,
                     xr_input: input,
                     xr_views: views,
@@ -221,7 +220,7 @@ impl Plugin for OpenXrPlugin {
             render_app.insert_resource(data.xr_resolution.clone());
             render_app.insert_resource(data.xr_format.clone());
             render_app.insert_resource(data.xr_session_running.clone());
-            render_app.insert_resource(data.xr_frame_waiter.clone());
+            // render_app.insert_resource(data.xr_frame_waiter.clone());
             render_app.insert_resource(data.xr_swapchain.clone());
             render_app.insert_resource(data.xr_input.clone());
             render_app.insert_resource(data.xr_views.clone());
@@ -286,10 +285,10 @@ pub fn xr_begin_frame(
     instance: Res<XrInstance>,
     session: Res<XrSession>,
     session_running: Res<XrSessionRunning>,
-    frame_state: Res<XrFrameState>,
-    frame_waiter: Res<XrFrameWaiter>,
+    mut frame_state: ResMut<XrFrameState>,
+    mut frame_waiter: ResMut<XrFrameWaiter>,
     swapchain: Res<XrSwapchain>,
-    views: Res<XrViews>,
+    mut views: ResMut<XrViews>,
     input: Res<XrInput>,
     mut app_exit: EventWriter<AppExit>,
 ) {
@@ -303,6 +302,7 @@ pub fn xr_begin_frame(
                     // find quit messages!
                     info!("entered XR state {:?}", e.state());
                     match e.state() {
+                        // xr_frame_waiter: frame_waiter,
                         xr::SessionState::READY => {
                             session.begin(VIEW_TYPE).unwrap();
                             session_running.store(true, std::sync::atomic::Ordering::Relaxed);
@@ -316,6 +316,7 @@ pub fn xr_begin_frame(
                             app_exit.send(AppExit);
                             return;
                         }
+
                         _ => {}
                     }
                 }
@@ -329,8 +330,8 @@ pub fn xr_begin_frame(
     }
     {
         let _span = info_span!("xr_wait_frame").entered();
-        *frame_state.lock().unwrap() = match frame_waiter.lock().unwrap().wait() {
-            Ok(a) => a,
+        *frame_state = match frame_waiter.wait() {
+            Ok(a) => a.into(),
             Err(e) => {
                 warn!("error: {}", e);
                 return;
@@ -343,12 +344,8 @@ pub fn xr_begin_frame(
     }
     {
         let _span = info_span!("xr_locate_views").entered();
-        *views.lock().unwrap() = session
-            .locate_views(
-                VIEW_TYPE,
-                frame_state.lock().unwrap().predicted_display_time,
-                &input.stage,
-            )
+        **views = session
+            .locate_views(VIEW_TYPE, frame_state.predicted_display_time, &input.stage)
             .unwrap()
             .1;
     }
@@ -402,8 +399,8 @@ pub fn end_frame(
     {
         let _span = info_span!("xr_end_frame").entered();
         let result = swapchain.end(
-            xr_frame_state.lock().unwrap().predicted_display_time,
-            &views.lock().unwrap(),
+            xr_frame_state.predicted_display_time,
+            &views,
             &input.stage,
             **resolution,
             **environment_blend_mode,
@@ -417,15 +414,15 @@ pub fn end_frame(
 }
 
 pub fn locate_views(
-    views: Res<XrViews>,
+    mut views: ResMut<XrViews>,
     input: Res<XrInput>,
     session: Res<XrSession>,
     xr_frame_state: Res<XrFrameState>,
 ) {
     let _span = info_span!("xr_locate_views").entered();
-    *views.lock().unwrap() = match session.locate_views(
+    **views = match session.locate_views(
         VIEW_TYPE,
-        xr_frame_state.lock().unwrap().predicted_display_time,
+        xr_frame_state.predicted_display_time,
         &input.stage,
     ) {
         Ok(this) => this,

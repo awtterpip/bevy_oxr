@@ -206,7 +206,7 @@ impl SetupActionSet {
         for binding in bindings {
             self.actions
                 .get_mut(binding.action)
-                .ok_or(anyhow::anyhow!("Missing Action: {}", binding.action))
+                .ok_or(eyre::eyre!("Missing Action: {}", binding.action))
                 .unwrap()
                 .bindings
                 .entry(device_path)

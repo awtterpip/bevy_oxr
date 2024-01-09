@@ -1,3 +1,4 @@
+use std::ffi::c_void;
 use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
 
@@ -5,17 +6,31 @@ use std::sync::Mutex;
 use crate::resource_macros::*;
 use bevy::prelude::*;
 use openxr as xr;
+use xr::ViewConfigurationView;
 
 xr_resource_wrapper!(XrInstance, xr::Instance);
 xr_resource_wrapper!(XrSession, xr::Session<xr::AnyGraphics>);
 xr_resource_wrapper!(XrEnvironmentBlendMode, xr::EnvironmentBlendMode);
 xr_resource_wrapper!(XrResolution, UVec2);
 xr_resource_wrapper!(XrFormat, wgpu::TextureFormat);
+xr_resource_wrapper!(XrFrameState, xr::FrameState);
+xr_resource_wrapper!(XrViews, Vec<xr::View>);
 xr_arc_resource_wrapper!(XrSessionRunning, AtomicBool);
-xr_arc_resource_wrapper!(XrFrameWaiter, Mutex<xr::FrameWaiter>);
 xr_arc_resource_wrapper!(XrSwapchain, Swapchain);
-xr_arc_resource_wrapper!(XrFrameState, Mutex<xr::FrameState>);
-xr_arc_resource_wrapper!(XrViews, Mutex<Vec<xr::View>>);
+xr_no_clone_resource_wrapper!(XrFrameWaiter, xr::FrameWaiter);
+
+pub(crate) struct VulkanOXrSessionSetupInfo {
+    pub(crate) device_ptr: *const c_void,
+    pub(crate) physical_device_ptr: *const c_void,
+    pub(crate) vk_instance_ptr: *const c_void,
+    pub(crate) queue_family_index: u32,
+    pub(crate) xr_system_id: xr::SystemId,
+    // pub(crate) swapchain_create_info: xr::SwapchainCreateInfo<xr::Vulkan>
+}
+
+pub(crate) enum OXrSessionSetupInfo {
+    Vulkan(VulkanOXrSessionSetupInfo),
+}
 
 pub enum Swapchain {
     Vulkan(SwapchainInner<xr::Vulkan>),

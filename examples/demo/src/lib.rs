@@ -560,8 +560,6 @@ fn request_cube_spawn(
 ) {
     timer.0.tick(time.delta());
     if timer.0.finished() {
-        //lock frame
-        let frame_state = *frame_state.lock().unwrap();
         //get controller
         let controller = oculus_controller.get_ref(&session, &frame_state, &xr_input, &action_sets);
         //get controller triggers
@@ -628,8 +626,6 @@ fn prototype_interaction_input(
     >,
     action_sets: Res<XrActionSets>,
 ) {
-    //lock frame
-    let frame_state = *frame_state.lock().unwrap();
     //get controller
     let controller = oculus_controller.get_ref(&session, &frame_state, &xr_input, &action_sets);
     //get controller triggers

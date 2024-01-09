@@ -91,7 +91,7 @@ pub fn draw_gizmos(
     //     }
     // }
     //lock frame
-    let frame_state = *frame_state.lock().unwrap();
+    // let frame_state = *frame_state.lock().unwrap();
     //get controller
     let controller = oculus_controller.get_ref(&session, &frame_state, &xr_input, &action_sets);
     let root = tracking_root_query.get_single();

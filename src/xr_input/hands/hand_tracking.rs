@@ -87,7 +87,7 @@ impl<'a> HandTrackingRef<'a> {
                     Hand::Left => &self.tracking.left_hand,
                     Hand::Right => &self.tracking.right_hand,
                 },
-                self.frame_state.lock().unwrap().predicted_display_time,
+                self.frame_state.predicted_display_time,
             )
             .unwrap()
             .map(|joints| {
