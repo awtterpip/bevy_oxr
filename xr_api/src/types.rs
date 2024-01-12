@@ -1,5 +1,7 @@
 use std::rc::Rc;
 
+use glam::{Quat, Vec3};
+
 use crate::api::Action;
 use crate::api_traits::{ActionInputTrait, HapticTrait, InputTrait};
 use crate::error::Result;
@@ -55,7 +57,11 @@ pub enum Handedness {
 }
 
 pub struct Haptic;
-pub struct Pose;
+
+pub struct Pose {
+    pub translation: Vec3,
+    pub rotation: Quat,
+}
 
 pub trait ActionType: Sized {
     type Inner: ?Sized;
