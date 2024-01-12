@@ -3,6 +3,8 @@ mod utils;
 
 use std::sync::Mutex;
 
+use glam::UVec2;
+use openxr::EnvironmentBlendMode;
 use tracing::{info, info_span, warn};
 
 use crate::{backend::oxr::graphics::VIEW_TYPE, prelude::*};
@@ -83,10 +85,13 @@ pub struct OXrSession {
         )>,
     >,
     pub(crate) frame_state: Mutex<openxr::FrameState>,
+    pub(crate) views: Mutex<[openxr::View; 2]>,
     pub(crate) frame_waiter: Mutex<openxr::FrameWaiter>,
     pub(crate) swapchain: graphics::Swapchain,
     pub(crate) stage: openxr::Space,
     pub(crate) head: openxr::Space,
+    pub(crate) resolution: UVec2,
+    pub(crate) blend_mode: EnvironmentBlendMode,
 }
 
 impl SessionTrait for OXrSession {
@@ -171,6 +176,8 @@ impl SessionTrait for OXrSession {
                 .1
         };
 
+        *self.views.lock().unwrap() = [views[0].clone(), views[1].clone()];
+
         {
             let _span = info_span!("xr_acquire_image").entered();
             self.swapchain.acquire_image().unwrap()
@@ -195,7 +202,26 @@ impl SessionTrait for OXrSession {
     }
 
     fn end_frame(&self) -> Result<()> {
-        todo!()
+        {
+            let _span = info_span!("xr_release_image").entered();
+            self.swapchain.release_image().unwrap();
+        }
+        {
+            let _span = info_span!("xr_end_frame").entered();
+            let result = self.swapchain.end(
+                self.frame_state.lock().unwrap().predicted_display_time,
+                &*self.views.lock().unwrap(),
+                &self.stage,
+                self.resolution,
+                self.blend_mode,
+                // passthrough_layer.map(|p| p.into_inner()),
+            );
+            match result {
+                Ok(_) => {}
+                Err(e) => warn!("error: {}", e),
+            }
+        }
+        Ok(())
     }
 }
 

@@ -298,6 +298,8 @@ pub fn init_oxr_graphics(
             wgpu_adapter,
             wgpu_instance,
         ))),
+        resolution,
+        views: Mutex::new([openxr::View::default(), openxr::View::default()]),
         swapchain: Swapchain::Vulkan(SwapchainInner {
             stream: Mutex::new(frame_stream),
             swapchain: Mutex::new(swapchain),
@@ -309,6 +311,7 @@ pub fn init_oxr_graphics(
             predicted_display_period: openxr::Duration::from_nanos(1),
             should_render: true,
         }),
+        blend_mode,
         frame_waiter: Mutex::new(frame_wait),
         stage: session
             .create_reference_space(openxr::ReferenceSpaceType::STAGE, openxr::Posef::IDENTITY)?,
