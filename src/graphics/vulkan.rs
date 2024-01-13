@@ -306,7 +306,7 @@ pub fn initialize_xr_instance(
     ))
 }
 
-pub fn initialize_xr_graphics(
+pub fn start_xr_session(
     window: Option<RawHandleWrapper>,
     ptrs: &OXrSessionSetupInfo,
     xr_instance: &XrInstance,
@@ -314,7 +314,6 @@ pub fn initialize_xr_graphics(
     render_adapter: &RenderAdapter,
     wgpu_instance: &Instance,
 ) -> eyre::Result<(
-    XrInstance,
     XrSession,
     XrResolution,
     XrFormat,
@@ -436,7 +435,6 @@ pub fn initialize_xr_graphics(
         .collect();
 
     Ok((
-        xr_instance.clone().into(),
         session.clone().into_any_graphics().into(),
         resolution.into(),
         swapchain_format.into(),

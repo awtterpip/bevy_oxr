@@ -2,11 +2,13 @@ use std::ffi::c_void;
 use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
 
+use crate::input::XrInput;
 // use crate::passthrough::XrPassthroughLayer;
 use crate::resource_macros::*;
+use crate::xr_init::XrEnableStatus;
 use bevy::prelude::*;
+use bevy::render::extract_resource::ExtractResourcePlugin;
 use openxr as xr;
-use xr::ViewConfigurationView;
 
 xr_resource_wrapper!(XrInstance, xr::Instance);
 xr_resource_wrapper!(XrSession, xr::Session<xr::AnyGraphics>);
@@ -30,6 +32,20 @@ pub(crate) struct VulkanOXrSessionSetupInfo {
 
 pub(crate) enum OXrSessionSetupInfo {
     Vulkan(VulkanOXrSessionSetupInfo),
+}
+
+pub struct XrResourcePlugin;
+
+impl Plugin for XrResourcePlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugins(ExtractResourcePlugin::<XrResolution>::default());
+        app.add_plugins(ExtractResourcePlugin::<XrFormat>::default());
+        app.add_plugins(ExtractResourcePlugin::<XrSwapchain>::default());
+        app.add_plugins(ExtractResourcePlugin::<XrFrameState>::default());
+        app.add_plugins(ExtractResourcePlugin::<XrViews>::default());
+        app.add_plugins(ExtractResourcePlugin::<XrInput>::default());
+        app.add_plugins(ExtractResourcePlugin::<XrEnvironmentBlendMode>::default());
+    }
 }
 
 pub enum Swapchain {
@@ -153,7 +169,7 @@ impl<G: xr::Graphics> SwapchainInner<G> {
             },
         };
         let swapchain = self.handle.lock().unwrap();
-        if views.len() == 0 {
+        if views.is_empty() {
             warn!("views are len of 0");
             return Ok(());
         }

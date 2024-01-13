@@ -50,7 +50,6 @@ fn input_stuff(
         match status.into_inner() {
             XrEnableStatus::Enabled => request.send(XrEnableRequest::TryDisable),
             XrEnableStatus::Disabled => request.send(XrEnableRequest::TryEnable),
-            XrEnableStatus::Waiting => (),
         }
     }
 }

@@ -1,3 +1,4 @@
+use bevy::hierarchy::Parent;
 use bevy::log::{debug, info};
 use bevy::prelude::{
     Added, BuildChildren, Commands, Component, Entity, Query, Res, Transform, Vec3, With, Without,
@@ -30,17 +31,17 @@ pub struct OpenXRController;
 pub struct AimPose(pub Transform);
 
 pub fn adopt_open_xr_trackers(
-    query: Query<Entity, Added<OpenXRTracker>>,
+    query: Query<Entity, (With<OpenXRTracker>, Without<Parent>)>,
     mut commands: Commands,
-    tracking_root_query: Query<(Entity, With<OpenXRTrackingRoot>)>,
+    tracking_root_query: Query<Entity, With<OpenXRTrackingRoot>>,
 ) {
     let root = tracking_root_query.get_single();
     match root {
-        Ok(thing) => {
+        Ok(root) => {
             // info!("root is");
             for tracker in query.iter() {
                 info!("we got a new tracker");
-                commands.entity(thing.0).add_child(tracker);
+                commands.entity(root).add_child(tracker);
             }
         }
         Err(_) => info!("root isnt spawned yet?"),

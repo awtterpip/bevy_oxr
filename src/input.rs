@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use bevy::prelude::*;
+use bevy::{prelude::*, render::extract_resource::ExtractResource};
 use openxr as xr;
 use xr::{FrameState, FrameWaiter, ViewConfigurationType};
 
-#[derive(Clone, Resource)]
+#[derive(Clone, Resource, ExtractResource)]
 pub struct XrInput {
     //pub action_set: xr::ActionSet,
     //pub hand_pose: xr::Action<xr::Posef>,

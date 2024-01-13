@@ -172,8 +172,7 @@ fn pull_to_ground(
     let (globe_pos, globe) = globe.single();
 
     // Get player position (position of playground + position within playground)
-    let v = views.lock().unwrap();
-    let Some(view) = v.get(0) else { return };
+    let Some(view) = views.first() else { return };
     let mut hmd_translation = view.pose.position.to_vec3();
     hmd_translation.y = 0.0;
     let local = root.translation;

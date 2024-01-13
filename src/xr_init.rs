@@ -11,16 +11,17 @@ use bevy::{
         renderer::{self, RenderAdapter, RenderAdapterInfo, RenderDevice, RenderQueue},
         settings::WgpuSettings,
     },
-    window::{RawHandleWrapper, PrimaryWindow},
+    window::{PrimaryWindow, RawHandleWrapper},
 };
 use wgpu::Instance;
 
 use crate::{
+    graphics,
     input::XrInput,
     resources::{
         XrEnvironmentBlendMode, XrFormat, XrFrameState, XrInstance, XrResolution, XrSession,
         XrSessionRunning, XrSwapchain, XrViews,
-    }, graphics,
+    },
 };
 
 #[derive(Resource, Clone)]
@@ -52,14 +53,13 @@ pub enum XrEnableRequest {
     TryEnable,
     TryDisable,
 }
-#[derive(Resource, Event, Copy, Clone, PartialEq, Eq)]
+#[derive(Resource, Event, Copy, Clone, PartialEq, Eq, Reflect, ExtractResource)]
 pub enum XrEnableStatus {
     Enabled,
     Disabled,
-    Waiting,
 }
 
-#[derive(Resource, Event, Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Resource, Event, Copy, Clone, PartialEq, Eq, Debug, ExtractResource)]
 pub enum XrNextEnabledState {
     Enabled,
     Disabled,
@@ -67,29 +67,33 @@ pub enum XrNextEnabledState {
 
 pub struct RenderRestartPlugin;
 
-#[derive(Resource)]
-pub struct ForceMain;
-
 #[derive(Debug, ScheduleLabel, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct XrPreSetup;
+
 #[derive(Debug, ScheduleLabel, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct XrSetup;
+
 #[derive(Debug, ScheduleLabel, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct XrPrePostSetup;
+
 #[derive(Debug, ScheduleLabel, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct XrPostSetup;
 
 #[derive(Debug, ScheduleLabel, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct XrPreCleanup;
+
 #[derive(Debug, ScheduleLabel, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct XrCleanup;
+
 #[derive(Debug, ScheduleLabel, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct XrPostCleanup;
 
 #[derive(Debug, ScheduleLabel, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct XrPreRenderUpdate;
+
 #[derive(Debug, ScheduleLabel, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct XrRenderUpdate;
+
 #[derive(Debug, ScheduleLabel, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct XrPostRenderUpdate;
 
@@ -99,9 +103,9 @@ pub fn xr_only() -> impl FnMut(Option<Res<'_, XrEnableStatus>>) -> bool {
 
 impl Plugin for RenderRestartPlugin {
     fn build(&self, app: &mut App) {
+        info!("build RenderRestartPlugin");
         add_schedules(app);
         app.add_plugins(ExtractResourcePlugin::<XrRenderData>::default())
-            .insert_resource(ForceMain)
             .add_event::<XrEnableRequest>()
             .add_event::<XrEnableStatus>()
             .add_systems(PostStartup, setup_xr.run_if(xr_only()))
@@ -174,13 +178,9 @@ pub fn update_xr_stuff(world: &mut World) {
     world.run_schedule(XrPostRenderUpdate);
 }
 
-fn setup_xr_graphics() {
+fn setup_xr_graphics() {}
 
-}
-
-fn enable_xr(
-
-) {}
+fn enable_xr() {}
 
 // fn handle_xr_enable_requests(
 //     primary_window: Query<&RawHandleWrapper, With<PrimaryWindow>>,
@@ -301,10 +301,10 @@ fn decide_next_xr_state(
             info!("Xr Already Disabled! ignoring request");
             return;
         }
-        (_, Some(XrEnableStatus::Waiting)) => {
-            info!("Already Handling Request! ignoring request");
-            return;
-        }
+        // (_, Some(XrEnableStatus::Waiting)) => {
+        //     info!("Already Handling Request! ignoring request");
+        //     return;
+        // }
         _ => {}
     }
     let r = match request {

@@ -15,11 +15,13 @@ use bevy::app::{AppExit, PluginGroupBuilder};
 use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
 use bevy::render::camera::{ManualTextureView, ManualTextureViewHandle, ManualTextureViews};
+use bevy::render::extract_resource::ExtractResourcePlugin;
 use bevy::render::pipelined_rendering::PipelinedRenderingPlugin;
 use bevy::render::renderer::{render_system, RenderInstance};
 use bevy::render::settings::RenderCreation;
 use bevy::render::{Render, RenderApp, RenderPlugin, RenderSet};
 use bevy::window::{PresentMode, PrimaryWindow, RawHandleWrapper};
+use eyre::anyhow;
 use graphics::extensions::XrExtensions;
 use graphics::{XrAppInfo, XrPreferdBlendMode};
 use input::XrInput;
@@ -57,7 +59,6 @@ pub struct FutureXrResources(
                 XrResolution,
                 XrFormat,
                 XrSessionRunning,
-                // XrFrameWaiter,
                 XrSwapchain,
                 XrInput,
                 XrViews,
@@ -66,68 +67,20 @@ pub struct FutureXrResources(
         >,
     >,
 );
-// fn mr_test(mut commands: Commands, passthrough_layer: Option<Res<XrPassthroughLayer>>) {
-//     commands.insert_resource(ClearColor(Color::rgba(0.0, 0.0, 0.0, 0.0)));
-// }
 
 impl Plugin for OpenXrPlugin {
     fn build(&self, app: &mut App) {
-        let mut system_state: SystemState<Query<&RawHandleWrapper, With<PrimaryWindow>>> =
-            SystemState::new(&mut app.world);
-        let primary_window = system_state.get(&app.world).get_single().ok().cloned();
-
         #[cfg(not(target_arch = "wasm32"))]
-        match graphics::initialize_xr_graphics(
-            primary_window.clone(),
+        match graphics::try_full_init(
+            &mut app.world,
             self.reqeusted_extensions.clone(),
             self.prefered_blend_mode,
             self.app_info.clone(),
         ) {
-            Ok((
-                device,
-                queue,
-                adapter_info,
-                render_adapter,
-                instance,
-                xr_instance,
-                session,
-                blend_mode,
-                resolution,
-                format,
-                session_running,
-                frame_waiter,
-                swapchain,
-                input,
-                views,
-                frame_state,
-            )) => {
-                // std::thread::sleep(Duration::from_secs(5));
+            Ok((device, queue, adapter_info, render_adapter, instance)) => {
                 debug!("Configured wgpu adapter Limits: {:#?}", device.limits());
                 debug!("Configured wgpu adapter Features: {:#?}", device.features());
-                app.insert_resource(xr_instance.clone());
-                app.insert_resource(session.clone());
-                app.insert_resource(blend_mode.clone());
-                app.insert_resource(resolution.clone());
-                app.insert_resource(format.clone());
-                app.insert_resource(session_running.clone());
-                app.insert_resource(frame_waiter);
-                app.insert_resource(swapchain.clone());
-                app.insert_resource(input.clone());
-                app.insert_resource(views.clone());
-                app.insert_resource(frame_state.clone());
-                let xr_data = XrRenderData {
-                    xr_instance,
-                    xr_session: session,
-                    xr_blend_mode: blend_mode,
-                    xr_resolution: resolution,
-                    xr_format: format,
-                    xr_session_running: session_running,
-                    xr_swapchain: swapchain,
-                    xr_input: input,
-                    xr_views: views,
-                    xr_frame_state: frame_state,
-                };
-                app.insert_resource(xr_data);
+                warn!("Starting in Xr");
                 app.insert_resource(ActionSets(vec![]));
                 app.add_plugins(RenderPlugin {
                     render_creation: RenderCreation::Manual(
@@ -135,14 +88,16 @@ impl Plugin for OpenXrPlugin {
                         queue,
                         adapter_info,
                         render_adapter,
-                        RenderInstance(Arc::new(instance)),
+                        instance,
                     ),
                 });
+                app.add_plugins(ExtractResourcePlugin::<XrEnableStatus>::default());
                 app.insert_resource(XrEnableStatus::Enabled);
             }
             Err(err) => {
                 warn!("OpenXR Failed to initialize: {}", err);
                 app.add_plugins(RenderPlugin::default());
+                app.add_plugins(ExtractResourcePlugin::<XrEnableStatus>::default());
                 app.insert_resource(XrEnableStatus::Disabled);
             }
         }
@@ -154,58 +109,48 @@ impl Plugin for OpenXrPlugin {
         }
     }
 
-    fn ready(&self, app: &App) -> bool {
-        app.world
-            .get_resource::<XrEnableStatus>()
-            .map(|frr| *frr != XrEnableStatus::Waiting)
-            .unwrap_or(true)
-    }
-
     fn finish(&self, app: &mut App) {
         // TODO: Split this up into the indevidual resources
-        if let Some(data) = app.world.get_resource::<XrRenderData>().cloned() {
-            let hands = data.xr_instance.exts().ext_hand_tracking.is_some()
-                && data
-                    .xr_instance
+        if app.world.get_resource::<XrEnableStatus>() == Some(&XrEnableStatus::Enabled) {
+            warn!("finished xr init");
+            let xr_instance = app
+                .world
+                .get_resource::<XrInstance>()
+                .expect("should exist");
+            let xr_session = app.world.get_resource::<XrSession>().expect("should exist");
+            let hands = xr_instance.exts().ext_hand_tracking.is_some()
+                && xr_instance
                     .supports_hand_tracking(
-                        data.xr_instance
+                        xr_instance
                             .system(FormFactor::HEAD_MOUNTED_DISPLAY)
                             .unwrap(),
                     )
                     .is_ok_and(|v| v);
             if hands {
-                app.insert_resource(HandTrackingData::new(&data.xr_session).unwrap());
+                app.insert_resource(HandTrackingData::new(xr_session).unwrap());
             } else {
                 app.insert_resource(DisableHandTracking::Both);
             }
-            // let passthrough = data.xr_instance.exts().fb_passthrough.is_some()
-            //     && supports_passthrough(
-            //         &data.xr_instance,
-            //         data.xr_instance
-            //             .system(FormFactor::HEAD_MOUNTED_DISPLAY)
-            //             .unwrap(),
-            //     )
-            //     .is_ok_and(|v| v);
-            // if passthrough {
-            //     info!("Passthrough!");
-            //     let (pl, p) = start_passthrough(&data);
-            //     app.insert_resource(pl);
-            //     app.insert_resource(p);
-            //     // if !app.world.contains_resource::<ClearColor>() {
-            //     // info!("ClearColor!");
-            //     // }
-            // }
+            let xr_swapchain = app
+                .world
+                .get_resource::<XrSwapchain>()
+                .expect("should exist");
+            let xr_resolution = app
+                .world
+                .get_resource::<XrResolution>()
+                .expect("should exist");
+            let xr_format = app.world.get_resource::<XrFormat>().expect("should exist");
 
-            let (left, right) = data.xr_swapchain.get_render_views();
+            let (left, right) = xr_swapchain.get_render_views();
             let left = ManualTextureView {
                 texture_view: left.into(),
-                size: *data.xr_resolution,
-                format: *data.xr_format,
+                size: **xr_resolution,
+                format: **xr_format,
             };
             let right = ManualTextureView {
                 texture_view: right.into(),
-                size: *data.xr_resolution,
-                format: *data.xr_format,
+                size: **xr_resolution,
+                format: **xr_format,
             };
             app.add_systems(PreUpdate, xr_begin_frame.run_if(xr_only()));
             let mut manual_texture_views = app.world.resource_mut::<ManualTextureViews>();
@@ -213,19 +158,6 @@ impl Plugin for OpenXrPlugin {
             manual_texture_views.insert(RIGHT_XR_TEXTURE_HANDLE, right);
             drop(manual_texture_views);
             let render_app = app.sub_app_mut(RenderApp);
-
-            render_app.insert_resource(data.xr_instance.clone());
-            render_app.insert_resource(data.xr_session.clone());
-            render_app.insert_resource(data.xr_blend_mode.clone());
-            render_app.insert_resource(data.xr_resolution.clone());
-            render_app.insert_resource(data.xr_format.clone());
-            render_app.insert_resource(data.xr_session_running.clone());
-            // render_app.insert_resource(data.xr_frame_waiter.clone());
-            render_app.insert_resource(data.xr_swapchain.clone());
-            render_app.insert_resource(data.xr_input.clone());
-            render_app.insert_resource(data.xr_views.clone());
-            render_app.insert_resource(data.xr_frame_state.clone());
-            render_app.insert_resource(XrEnableStatus::Enabled);
             render_app.add_systems(
                 Render,
                 (
@@ -262,6 +194,8 @@ impl PluginGroup for DefaultXrPlugins {
             .add_before::<OpenXrPlugin, _>(RenderRestartPlugin)
             .add(HandEmulationPlugin)
             .add(HandTrackingPlugin)
+            .add(XrResourcePlugin)
+            // .add(xr_init::RenderRestartPlugin)
             .set(WindowPlugin {
                 #[cfg(not(target_os = "android"))]
                 primary_window: Some(Window {
@@ -302,7 +236,6 @@ pub fn xr_begin_frame(
                     // find quit messages!
                     info!("entered XR state {:?}", e.state());
                     match e.state() {
-                        // xr_frame_waiter: frame_waiter,
                         xr::SessionState::READY => {
                             session.begin(VIEW_TYPE).unwrap();
                             session_running.store(true, std::sync::atomic::Ordering::Relaxed);
@@ -310,7 +243,6 @@ pub fn xr_begin_frame(
                         xr::SessionState::STOPPING => {
                             session.end().unwrap();
                             session_running.store(false, std::sync::atomic::Ordering::Relaxed);
-                            app_exit.send(AppExit);
                         }
                         xr::SessionState::EXITING | xr::SessionState::LOSS_PENDING => {
                             app_exit.send(AppExit);
@@ -384,14 +316,20 @@ pub fn post_frame(
 }
 
 pub fn end_frame(
-    xr_frame_state: Res<XrFrameState>,
-    views: Res<XrViews>,
-    input: Res<XrInput>,
-    swapchain: Res<XrSwapchain>,
-    resolution: Res<XrResolution>,
-    environment_blend_mode: Res<XrEnvironmentBlendMode>,
+    xr_frame_state: Option<Res<XrFrameState>>,
+    views: Option<Res<XrViews>>,
+    input: Option<Res<XrInput>>,
+    swapchain: Option<Res<XrSwapchain>>,
+    resolution: Option<Res<XrResolution>>,
+    environment_blend_mode: Option<Res<XrEnvironmentBlendMode>>,
     // passthrough_layer: Option<Res<XrPassthroughLayer>>,
 ) {
+    let xr_frame_state = xr_frame_state.unwrap();
+    let views = views.unwrap();
+    let input = input.unwrap();
+    let swapchain = swapchain.unwrap();
+    let resolution = resolution.unwrap();
+    let environment_blend_mode = environment_blend_mode.unwrap();
     {
         let _span = info_span!("xr_release_image").entered();
         swapchain.release_image().unwrap();
