@@ -8,7 +8,9 @@ use bevy::{
     prelude::*,
     render::{
         extract_resource::{ExtractResource, ExtractResourcePlugin},
-        renderer::{self, RenderAdapter, RenderAdapterInfo, RenderDevice, RenderQueue},
+        renderer::{
+            self, RenderAdapter, RenderAdapterInfo, RenderDevice, RenderInstance, RenderQueue,
+        },
         settings::WgpuSettings,
     },
     window::{PrimaryWindow, RawHandleWrapper},
@@ -19,8 +21,8 @@ use crate::{
     graphics,
     input::XrInput,
     resources::{
-        XrEnvironmentBlendMode, XrFormat, XrFrameState, XrInstance, XrResolution, XrSession,
-        XrSessionRunning, XrSwapchain, XrViews,
+        OXrSessionSetupInfo, XrEnvironmentBlendMode, XrFormat, XrFrameState, XrInstance,
+        XrResolution, XrSession, XrSessionRunning, XrSwapchain, XrViews,
     },
 };
 
@@ -97,17 +99,21 @@ pub struct XrRenderUpdate;
 #[derive(Debug, ScheduleLabel, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct XrPostRenderUpdate;
 
-pub fn xr_only() -> impl FnMut(Option<Res<'_, XrEnableStatus>>) -> bool {
-    resource_exists_and_equals(XrEnableStatus::Enabled)
+pub fn xr_only() -> impl FnMut(Option<Res<'_, XrEnableStatus>>, Res<XrSessionRunning>) -> bool {
+    |status, running| {
+        resource_exists_and_equals(XrEnableStatus::Enabled)(status)
+            && running.load(std::sync::atomic::Ordering::Relaxed)
+    }
 }
 
 impl Plugin for RenderRestartPlugin {
     fn build(&self, app: &mut App) {
-        info!("build RenderRestartPlugin");
         add_schedules(app);
         app.add_plugins(ExtractResourcePlugin::<XrRenderData>::default())
             .add_event::<XrEnableRequest>()
             .add_event::<XrEnableStatus>()
+            .add_event::<StartXrSession>()
+            .add_event::<EndXrSession>()
             .add_systems(PostStartup, setup_xr.run_if(xr_only()))
             .add_systems(
                 PostUpdate,
@@ -126,6 +132,8 @@ impl Plugin for RenderRestartPlugin {
                     .chain(),
             )
             .add_systems(XrCleanup, cleanup_oxr_session);
+        app.add_systems(PostUpdate, start_xr_session.run_if(on_event::<StartXrSession>()));
+        app.add_systems(PostUpdate, stop_xr_session.run_if(on_event::<EndXrSession>()));
     }
 }
 
@@ -178,9 +186,64 @@ pub fn update_xr_stuff(world: &mut World) {
     world.run_schedule(XrPostRenderUpdate);
 }
 
-fn setup_xr_graphics() {}
+#[derive(Event, Clone, Copy, Default)]
+pub struct StartXrSession;
 
-fn enable_xr() {}
+#[derive(Event, Clone, Copy, Default)]
+pub struct EndXrSession;
+
+fn start_xr_session(
+    mut commands: Commands,
+    instance: Res<XrInstance>,
+    primary_window: Query<&RawHandleWrapper, With<PrimaryWindow>>,
+    setup_info: NonSend<OXrSessionSetupInfo>,
+    render_device: Res<RenderDevice>,
+    render_adapter: Res<RenderAdapter>,
+    render_instance: Res<RenderInstance>,
+) {
+    let (
+        xr_session,
+        xr_resolution,
+        xr_format,
+        xr_session_running,
+        xr_frame_waiter,
+        xr_swapchain,
+        xr_input,
+        xr_views,
+        xr_frame_state,
+    ) = match graphics::start_xr_session(
+        primary_window.get_single().cloned().ok(),
+        &setup_info,
+        &instance,
+        &render_device,
+        &render_adapter,
+        &render_instance,
+    ) {
+        Ok(data) => data,
+        Err(err) => {
+            error!("Unable to start OpenXR Session: {}", err);
+            return;
+        }
+    };
+    commands.insert_resource(xr_session);
+    commands.insert_resource(xr_resolution);
+    commands.insert_resource(xr_format);
+    commands.insert_resource(xr_session_running);
+    commands.insert_resource(xr_frame_waiter);
+    commands.insert_resource(xr_swapchain);
+    commands.insert_resource(xr_input);
+    commands.insert_resource(xr_views);
+    commands.insert_resource(xr_frame_state);
+}
+
+fn stop_xr_session(mut commands: Commands, session: ResMut<XrSession>) {
+    match session.request_exit() {
+        Ok(_) => {}
+        Err(err) => {
+            error!("Error while trying to request session exit: {}", err)
+        }
+    }
+}
 
 // fn handle_xr_enable_requests(
 //     primary_window: Query<&RawHandleWrapper, With<PrimaryWindow>>,
