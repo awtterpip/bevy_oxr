@@ -114,7 +114,14 @@ impl Plugin for RenderRestartPlugin {
             .add_event::<XrEnableStatus>()
             .add_event::<StartXrSession>()
             .add_event::<EndXrSession>()
-            .add_systems(PostStartup, setup_xr.run_if(xr_only()))
+            .add_systems(
+                PreUpdate,
+                setup_xr
+                    .run_if(|running: Res<XrSessionRunning>| {
+                        running.load(std::sync::atomic::Ordering::Relaxed)
+                    })
+                    .run_if(run_once()),
+            )
             .add_systems(
                 PostUpdate,
                 update_xr_stuff.run_if(on_event::<XrEnableRequest>()),
@@ -132,8 +139,14 @@ impl Plugin for RenderRestartPlugin {
                     .chain(),
             )
             .add_systems(XrCleanup, cleanup_oxr_session);
-        app.add_systems(PostUpdate, start_xr_session.run_if(on_event::<StartXrSession>()));
-        app.add_systems(PostUpdate, stop_xr_session.run_if(on_event::<EndXrSession>()));
+        app.add_systems(
+            PostUpdate,
+            start_xr_session.run_if(on_event::<StartXrSession>()),
+        );
+        app.add_systems(
+            PostUpdate,
+            stop_xr_session.run_if(on_event::<EndXrSession>()),
+        );
     }
 }
 
@@ -162,6 +175,8 @@ fn add_schedules(app: &mut App) {
 }
 
 pub fn setup_xr(world: &mut World) {
+    info!("running setup schedule :3");
+    world.insert_resource(XrEnableStatus::Enabled);
     world.run_schedule(XrPreSetup);
     world.run_schedule(XrSetup);
     world.run_schedule(XrPrePostSetup);

@@ -6,6 +6,7 @@ pub mod resources;
 pub mod xr_init;
 pub mod xr_input;
 
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
 use crate::xr_init::RenderRestartPlugin;
@@ -70,6 +71,13 @@ pub struct FutureXrResources(
 
 impl Plugin for OpenXrPlugin {
     fn build(&self, app: &mut App) {
+        app.insert_resource(XrSessionRunning::new(AtomicBool::new(false)));
+        // #[cfg(target_os = "android")]
+        // {
+        //     let ctx = ndk_context::android_context();
+        //     let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }.unwrap();
+        //     let env = vm.attach_current_thread_permanently();
+        // }
         #[cfg(not(target_arch = "wasm32"))]
         match graphics::try_full_init(
             &mut app.world,
@@ -91,8 +99,7 @@ impl Plugin for OpenXrPlugin {
                         instance,
                     ),
                 });
-                app.add_plugins(ExtractResourcePlugin::<XrEnableStatus>::default());
-                app.insert_resource(XrEnableStatus::Enabled);
+                app.insert_resource(XrEnableStatus::Disabled);
             }
             Err(err) => {
                 warn!("OpenXR Failed to initialize: {}", err);
@@ -107,11 +114,17 @@ impl Plugin for OpenXrPlugin {
             app.add_plugins(RenderPlugin::default());
             app.insert_resource(XrEnableStatus::Disabled);
         }
+        app.add_plugins(ExtractResourcePlugin::<XrEnableStatus>::default());
+        app.add_systems(
+            PreUpdate,
+            (xr_poll_events, xr_begin_frame.run_if(xr_only())).chain(),
+        );
     }
 
     fn finish(&self, app: &mut App) {
         // TODO: Split this up into the indevidual resources
-        if app.world.get_resource::<XrEnableStatus>() == Some(&XrEnableStatus::Enabled) {
+        // app.world.get_resource::<XrEnableStatus>() == Some(&XrEnableStatus::Enabled)
+        if true {
             warn!("finished xr init");
             let xr_instance = app
                 .world
@@ -152,7 +165,6 @@ impl Plugin for OpenXrPlugin {
                 size: **xr_resolution,
                 format: **xr_format,
             };
-            app.add_systems(PreUpdate, xr_begin_frame.run_if(xr_only()));
             let mut manual_texture_views = app.world.resource_mut::<ManualTextureViews>();
             manual_texture_views.insert(LEFT_XR_TEXTURE_HANDLE, left);
             manual_texture_views.insert(RIGHT_XR_TEXTURE_HANDLE, right);
@@ -215,18 +227,13 @@ impl PluginGroup for DefaultXrPlugins {
     }
 }
 
-pub fn xr_begin_frame(
-    instance: Res<XrInstance>,
-    session: Res<XrSession>,
+pub fn xr_poll_events(
+    instance: Option<Res<XrInstance>>,
+    session: Option<Res<XrSession>>,
     session_running: Res<XrSessionRunning>,
-    mut frame_state: ResMut<XrFrameState>,
-    mut frame_waiter: ResMut<XrFrameWaiter>,
-    swapchain: Res<XrSwapchain>,
-    mut views: ResMut<XrViews>,
-    input: Res<XrInput>,
     mut app_exit: EventWriter<AppExit>,
 ) {
-    {
+    if let (Some(instance), Some(session)) = (instance, session) {
         let _span = info_span!("xr_poll_events");
         while let Some(event) = instance.poll_event(&mut Default::default()).unwrap() {
             use xr::Event::*;
@@ -237,6 +244,7 @@ pub fn xr_begin_frame(
                     info!("entered XR state {:?}", e.state());
                     match e.state() {
                         xr::SessionState::READY => {
+                            info!("Calling Session begin :3");
                             session.begin(VIEW_TYPE).unwrap();
                             session_running.store(true, std::sync::atomic::Ordering::Relaxed);
                         }
@@ -260,6 +268,16 @@ pub fn xr_begin_frame(
             }
         }
     }
+}
+
+pub fn xr_begin_frame(
+    session: Res<XrSession>,
+    mut frame_state: ResMut<XrFrameState>,
+    mut frame_waiter: ResMut<XrFrameWaiter>,
+    swapchain: Res<XrSwapchain>,
+    mut views: ResMut<XrViews>,
+    input: Res<XrInput>,
+) {
     {
         let _span = info_span!("xr_wait_frame").entered();
         *frame_state = match frame_waiter.wait() {
@@ -322,6 +340,8 @@ pub fn end_frame(
     swapchain: Option<Res<XrSwapchain>>,
     resolution: Option<Res<XrResolution>>,
     environment_blend_mode: Option<Res<XrEnvironmentBlendMode>>,
+    // _main_thread: NonSend<()>,
+    #[cfg(target_os = "android")] mut attached: Local<bool>,
     // passthrough_layer: Option<Res<XrPassthroughLayer>>,
 ) {
     let xr_frame_state = xr_frame_state.unwrap();
@@ -330,6 +350,15 @@ pub fn end_frame(
     let swapchain = swapchain.unwrap();
     let resolution = resolution.unwrap();
     let environment_blend_mode = environment_blend_mode.unwrap();
+
+    #[cfg(target_os = "android")]
+    // if !*attached {
+    {
+        let ctx = ndk_context::android_context();
+        let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }.unwrap();
+        let env = vm.attach_current_thread_as_daemon();
+        *attached = true;
+    }
     {
         let _span = info_span!("xr_release_image").entered();
         swapchain.release_image().unwrap();

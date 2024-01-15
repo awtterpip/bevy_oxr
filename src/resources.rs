@@ -45,6 +45,7 @@ impl Plugin for XrResourcePlugin {
         app.add_plugins(ExtractResourcePlugin::<XrViews>::default());
         app.add_plugins(ExtractResourcePlugin::<XrInput>::default());
         app.add_plugins(ExtractResourcePlugin::<XrEnvironmentBlendMode>::default());
+        app.add_plugins(ExtractResourcePlugin::<XrSessionRunning>::default());
     }
 }
 
@@ -218,7 +219,8 @@ impl<G: xr::Graphics> SwapchainInner<G> {
         //     }
 
         // None =>
-        self.stream.lock().unwrap().end(
+        info!("swapchain stream lock");
+        let r = self.stream.lock().unwrap().end(
             predicted_display_time,
             environment_blend_mode,
             &[&xr::CompositionLayerProjection::new().space(stage).views(&[
@@ -241,7 +243,9 @@ impl<G: xr::Graphics> SwapchainInner<G> {
                             .image_rect(rect),
                     ),
             ])],
-        )
+        );
+        info!("swapchain stream done");
+        r
         // }
     }
 }

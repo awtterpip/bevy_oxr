@@ -41,6 +41,10 @@ openxr = { git = "https://github.com/Ralith/openxrs", rev = "0177d2d", features 
 	"static",
 ] }
 
+[target.'cfg(target_os = "android")'.dependencies]
+ndk-context = "0.1"
+jni = "0.20"
+
 [dev-dependencies]
 bevy = "0.12"
 bevy_rapier3d = { git = "https://github.com/devil-ira/bevy_rapier", branch = "bevy-0.12" }
