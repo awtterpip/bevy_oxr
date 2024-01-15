@@ -395,6 +395,13 @@ pub fn end_frame(
     environment_blend_mode: Res<XrEnvironmentBlendMode>,
     // passthrough_layer: Option<Res<XrPassthroughLayer>>,
 ) {
+    #[cfg(target_os = "android")]
+    {
+        let ctx = ndk_context::android_context();
+        let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }.unwrap();
+        let env = vm.attach_current_thread_as_daemon();
+    }
+
     {
         let _span = info_span!("xr_release_image").entered();
         swapchain.release_image().unwrap();
