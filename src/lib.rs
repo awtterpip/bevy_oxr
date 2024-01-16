@@ -1,6 +1,6 @@
 pub mod graphics;
 pub mod input;
-// pub mod passthrough;
+pub mod passthrough;
 pub mod resource_macros;
 pub mod resources;
 pub mod xr_init;
@@ -24,7 +24,8 @@ use graphics::extensions::XrExtensions;
 use graphics::{XrAppInfo, XrPreferdBlendMode};
 use input::XrInput;
 use openxr as xr;
-// use passthrough::{start_passthrough, supports_passthrough, XrPassthroughLayer};
+//use passthrough::{start_passthrough, supports_passthrough, XrPassthroughLayer};
+use passthrough::{start_passthrough, supports_passthrough, XrPassthroughLayer};
 use resources::*;
 use xr::FormFactor;
 use xr_init::{xr_only, XrEnableStatus, XrRenderData};
@@ -66,19 +67,19 @@ pub struct FutureXrResources(
         >,
     >,
 );
-// fn mr_test(mut commands: Commands, passthrough_layer: Option<Res<XrPassthroughLayer>>) {
-//     commands.insert_resource(ClearColor(Color::rgba(0.0, 0.0, 0.0, 0.0)));
-// }
+fn mr_test(mut commands: Commands, passthrough_layer: Option<Res<XrPassthroughLayer>>) {
+    commands.insert_resource(ClearColor(Color::rgba(0.0, 0.0, 0.0, 0.0)));
+}
 
 impl Plugin for OpenXrPlugin {
     fn build(&self, app: &mut App) {
         let mut system_state: SystemState<Query<&RawHandleWrapper, With<PrimaryWindow>>> =
             SystemState::new(&mut app.world);
         let primary_window = system_state.get(&app.world).get_single().ok().cloned();
-
+        bevy::log::info!("primary_window: {:?}", primary_window);
         #[cfg(not(target_arch = "wasm32"))]
         match graphics::initialize_xr_graphics(
-            primary_window.clone(),
+            primary_window.clone(), // ? clone???
             self.reqeusted_extensions.clone(),
             self.prefered_blend_mode,
             self.app_info.clone(),
@@ -179,23 +180,26 @@ impl Plugin for OpenXrPlugin {
             } else {
                 app.insert_resource(DisableHandTracking::Both);
             }
-            // let passthrough = data.xr_instance.exts().fb_passthrough.is_some()
-            //     && supports_passthrough(
-            //         &data.xr_instance,
-            //         data.xr_instance
-            //             .system(FormFactor::HEAD_MOUNTED_DISPLAY)
-            //             .unwrap(),
-            //     )
-            //     .is_ok_and(|v| v);
-            // if passthrough {
-            //     info!("Passthrough!");
-            //     let (pl, p) = start_passthrough(&data);
-            //     app.insert_resource(pl);
-            //     app.insert_resource(p);
-            //     // if !app.world.contains_resource::<ClearColor>() {
-            //     // info!("ClearColor!");
-            //     // }
-            // }
+            let passthrough = data.xr_instance.exts().fb_passthrough.is_some()
+                && supports_passthrough(
+                    &data.xr_instance,
+                    data.xr_instance
+                        .system(FormFactor::HEAD_MOUNTED_DISPLAY)
+                        .unwrap(),
+                )
+                .is_ok_and(|v| v);
+            if passthrough {
+                info!("Passthrough!");
+                if let Ok(passthrough_resource) =
+                    start_passthrough(&data.xr_instance, &data.xr_session)
+                {
+                    app.insert_resource(passthrough_resource);
+                }
+
+                // if !app.world.contains_resource::<ClearColor>() {
+                // info!("ClearColor!");
+                // }
+            }
 
             let (left, right) = data.xr_swapchain.get_render_views();
             let left = ManualTextureView {
@@ -272,7 +276,7 @@ impl PluginGroup for DefaultXrPlugins {
                     ..default()
                 }),
                 #[cfg(target_os = "android")]
-                primary_window: None,
+                primary_window: None, // ?
                 #[cfg(target_os = "android")]
                 exit_condition: bevy::window::ExitCondition::DontExit,
                 #[cfg(target_os = "android")]
@@ -393,7 +397,7 @@ pub fn end_frame(
     swapchain: Res<XrSwapchain>,
     resolution: Res<XrResolution>,
     environment_blend_mode: Res<XrEnvironmentBlendMode>,
-    // passthrough_layer: Option<Res<XrPassthroughLayer>>,
+    passthrough_layer: Option<Res<XrPassthroughLayer>>,
 ) {
     #[cfg(target_os = "android")]
     {
@@ -414,7 +418,7 @@ pub fn end_frame(
             &input.stage,
             **resolution,
             **environment_blend_mode,
-            // passthrough_layer.map(|p| p.into_inner()),
+            passthrough_layer.map(|p| p.into_inner()),
         );
         match result {
             Ok(_) => {}
