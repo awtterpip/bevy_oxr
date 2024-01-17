@@ -6,9 +6,10 @@ use bevy::window::RawHandleWrapper;
 use wgpu::Instance;
 
 use crate::input::XrInput;
+use crate::passthrough::{Passthrough, PassthroughLayer};
 use crate::resources::{
-    XrEnvironmentBlendMode, XrFormat, XrFrameState, XrFrameWaiter, XrInstance, XrResolution,
-    XrSession, XrSessionRunning, XrSwapchain, XrViews,
+    XrEnvironmentBlendMode, XrFormat, XrFrameState, XrFrameWaiter, XrInstance, XrPassthrough,
+    XrPassthroughLayer, XrResolution, XrSession, XrSessionRunning, XrSwapchain, XrViews,
 };
 
 use openxr as xr;

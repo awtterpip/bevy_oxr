@@ -25,7 +25,7 @@ use graphics::{XrAppInfo, XrPreferdBlendMode};
 use input::XrInput;
 use openxr as xr;
 //use passthrough::{start_passthrough, supports_passthrough, XrPassthroughLayer};
-use passthrough::{start_passthrough, supports_passthrough, XrPassthroughLayer};
+use passthrough::{start_passthrough, supports_passthrough, Passthrough, PassthroughLayer};
 use resources::*;
 use xr::FormFactor;
 use xr_init::{xr_only, XrEnableStatus, XrRenderData};
@@ -63,6 +63,8 @@ pub struct FutureXrResources(
                 XrInput,
                 XrViews,
                 XrFrameState,
+                XrPassthrough,
+                XrPassthroughLayer,
             )>,
         >,
     >,
@@ -79,7 +81,7 @@ impl Plugin for OpenXrPlugin {
         bevy::log::info!("primary_window: {:?}", primary_window);
         #[cfg(not(target_arch = "wasm32"))]
         match graphics::initialize_xr_graphics(
-            primary_window.clone(), // ? clone???
+            primary_window.clone(),
             self.reqeusted_extensions.clone(),
             self.prefered_blend_mode,
             self.app_info.clone(),
@@ -116,20 +118,41 @@ impl Plugin for OpenXrPlugin {
                 app.insert_resource(input.clone());
                 app.insert_resource(views.clone());
                 app.insert_resource(frame_state.clone());
-                let xr_data = XrRenderData {
-                    xr_instance,
-                    xr_session: session,
-                    xr_blend_mode: blend_mode,
-                    xr_resolution: resolution,
-                    xr_format: format,
-                    xr_session_running: session_running,
-                    xr_frame_waiter: frame_waiter,
-                    xr_swapchain: swapchain,
-                    xr_input: input,
-                    xr_views: views,
-                    xr_frame_state: frame_state,
-                };
-                app.insert_resource(xr_data);
+                let passthrough = xr_instance.exts().fb_passthrough.is_some()
+                    && supports_passthrough(
+                        &xr_instance,
+                        xr_instance
+                            .system(FormFactor::HEAD_MOUNTED_DISPLAY)
+                            .unwrap(),
+                    )
+                    .is_ok_and(|v| v);
+                let mut p: Option<XrPassthrough> = None;
+                let mut pl: Option<XrPassthroughLayer> = None;
+                if passthrough {
+                    info!("Passthrough!");
+                    if let Ok((p, pl)) = start_passthrough(&xr_instance, &session) {
+                        let xr_data = XrRenderData {
+                            xr_instance,
+                            xr_session: session,
+                            xr_blend_mode: blend_mode,
+                            xr_resolution: resolution,
+                            xr_format: format,
+                            xr_session_running: session_running,
+                            xr_frame_waiter: frame_waiter,
+                            xr_swapchain: swapchain,
+                            xr_input: input,
+                            xr_views: views,
+                            xr_frame_state: frame_state,
+                            xr_passthrough: XrPassthrough::new(Mutex::new(p)),
+                            xr_passthrough_layer: XrPassthroughLayer::new(Mutex::new(pl)),
+                        };
+                        app.insert_resource(xr_data);
+                    }
+
+                    // if !app.world.contains_resource::<ClearColor>() {
+                    // info!("ClearColor!");
+                    // }
+                }
                 app.insert_resource(ActionSets(vec![]));
                 app.add_plugins(RenderPlugin {
                     render_creation: RenderCreation::Manual(
@@ -180,26 +203,26 @@ impl Plugin for OpenXrPlugin {
             } else {
                 app.insert_resource(DisableHandTracking::Both);
             }
-            let passthrough = data.xr_instance.exts().fb_passthrough.is_some()
-                && supports_passthrough(
-                    &data.xr_instance,
-                    data.xr_instance
-                        .system(FormFactor::HEAD_MOUNTED_DISPLAY)
-                        .unwrap(),
-                )
-                .is_ok_and(|v| v);
-            if passthrough {
-                info!("Passthrough!");
-                if let Ok(passthrough_resource) =
-                    start_passthrough(&data.xr_instance, &data.xr_session)
-                {
-                    app.insert_resource(passthrough_resource);
-                }
+            // let passthrough = data.xr_instance.exts().fb_passthrough.is_some()
+            //     && supports_passthrough(
+            //         &data.xr_instance,
+            //         data.xr_instance
+            //             .system(FormFactor::HEAD_MOUNTED_DISPLAY)
+            //             .unwrap(),
+            //     )
+            //     .is_ok_and(|v| v);
+            // if passthrough {
+            //     info!("Passthrough!");
+            //     if let Ok(passthrough_resource) =
+            //         start_passthrough(&data.xr_instance, &data.xr_session)
+            //     {
+            //         app.insert_resource(passthrough_resource);
+            //     }
 
-                // if !app.world.contains_resource::<ClearColor>() {
-                // info!("ClearColor!");
-                // }
-            }
+            //     // if !app.world.contains_resource::<ClearColor>() {
+            //     // info!("ClearColor!");
+            //     // }
+            // }
 
             let (left, right) = data.xr_swapchain.get_render_views();
             let left = ManualTextureView {
@@ -418,7 +441,7 @@ pub fn end_frame(
             &input.stage,
             **resolution,
             **environment_blend_mode,
-            passthrough_layer.map(|p| p.into_inner()),
+            passthrough_layer.map(|p| PassthroughLayer(*p.lock().unwrap())),
         );
         match result {
             Ok(_) => {}

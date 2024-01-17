@@ -14,9 +14,12 @@ use xr::EnvironmentBlendMode;
 
 use crate::graphics::extensions::XrExtensions;
 use crate::input::XrInput;
+
+use crate::passthrough::{Passthrough, PassthroughLayer};
 use crate::resources::{
     Swapchain, SwapchainInner, XrEnvironmentBlendMode, XrFormat, XrFrameState, XrFrameWaiter,
-    XrInstance, XrResolution, XrSession, XrSessionRunning, XrSwapchain, XrViews,
+    XrInstance, XrPassthrough, XrPassthroughLayer, XrResolution, XrSession, XrSessionRunning,
+    XrSwapchain, XrViews,
 };
 use crate::VIEW_TYPE;
 
@@ -107,7 +110,6 @@ pub fn initialize_xr_graphics(
         }
         _ => EnvironmentBlendMode::OPAQUE,
     };
-
 
     #[cfg(not(target_os = "android"))]
     let vk_target_version = vk::make_api_version(0, 1, 2, 0);
