@@ -98,17 +98,23 @@ pub fn initialize_xr_graphics(
     let blend_modes = xr_instance.enumerate_environment_blend_modes(xr_system_id, VIEW_TYPE)?;
     let blend_mode: EnvironmentBlendMode = match prefered_blend_mode {
         XrPreferdBlendMode::Opaque if blend_modes.contains(&EnvironmentBlendMode::OPAQUE) => {
+            bevy::log::info!("Using Opaque");
             EnvironmentBlendMode::OPAQUE
         }
         XrPreferdBlendMode::Additive if blend_modes.contains(&EnvironmentBlendMode::ADDITIVE) => {
+            bevy::log::info!("Using Additive");
             EnvironmentBlendMode::ADDITIVE
         }
         XrPreferdBlendMode::AlphaBlend
             if blend_modes.contains(&EnvironmentBlendMode::ALPHA_BLEND) =>
         {
+            bevy::log::info!("Using AlphaBlend");
             EnvironmentBlendMode::ALPHA_BLEND
         }
-        _ => EnvironmentBlendMode::OPAQUE,
+        _ => {
+            bevy::log::info!("Using Opaque");
+            EnvironmentBlendMode::OPAQUE
+        }
     };
 
     #[cfg(not(target_os = "android"))]

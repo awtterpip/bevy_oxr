@@ -146,6 +146,7 @@ impl Plugin for OpenXrPlugin {
                             xr_passthrough: XrPassthrough::new(Mutex::new(p)),
                             xr_passthrough_layer: XrPassthroughLayer::new(Mutex::new(pl)),
                         };
+                        bevy::log::info!("Passthrough is supported!");
                         app.insert_resource(xr_data);
                     }
 

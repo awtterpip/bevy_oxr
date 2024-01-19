@@ -61,6 +61,10 @@ pub fn supports_passthrough(instance: &XrInstance, system: xr::SystemId) -> xr::
             system,
             p.as_mut_ptr(),
         ))?;
+        bevy::log::info!(
+            "From supports_passthrough: Passthrough capabilities: {:?}",
+            hand.capabilities
+        );
         Ok(
             (hand.capabilities & PassthroughCapabilityFlagsFB::PASSTHROUGH_CAPABILITY)
                 == PassthroughCapabilityFlagsFB::PASSTHROUGH_CAPABILITY,
@@ -112,7 +116,7 @@ pub fn start_passthrough(
         cvt((instance.exts().fb_passthrough.unwrap().passthrough_start)(
             passthrough_feature,
         ));
-
+        bevy::log::info!("Started passthrough");
         Ok((passthrough_feature, passthrough_layer))
     }
 }
