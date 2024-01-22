@@ -332,6 +332,8 @@ pub fn initialize_xr_graphics(
         .map(|surface| surface.get_capabilities(&wgpu_adapter).formats[0])
         .unwrap_or(wgpu::TextureFormat::Rgba8UnormSrgb);
 
+    // TODO: Log swapchain format
+
     let resolution = uvec2(
         views[0].recommended_image_rect_width,
         views[0].recommended_image_rect_height,

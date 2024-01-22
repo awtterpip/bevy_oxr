@@ -3,7 +3,10 @@ use std::{marker::PhantomData, mem, ptr};
 
 use openxr as xr;
 use xr::{
-    sys::{PassthroughFB, PassthroughLayerFB, Space, SystemPassthroughProperties2FB},
+    sys::{
+        PassthroughCreateInfoFB, PassthroughFB, PassthroughLayerFB, Space,
+        SystemPassthroughProperties2FB,
+    },
     CompositionLayerBase, CompositionLayerFlags, Graphics, PassthroughCapabilityFlagsFB,
 };
 
@@ -77,31 +80,40 @@ pub fn start_passthrough(
     instance: &XrInstance,
     xr_session: &XrSession,
 ) -> xr::Result<(xr::sys::PassthroughFB, xr::sys::PassthroughLayerFB)> {
+    // TODO: Research openxr layers
     unsafe {
         // Create feature
         let mut passthrough_feature = xr::sys::PassthroughFB::NULL;
         let mut passthrough_create_info = xr::sys::PassthroughCreateInfoFB {
-            ty: SystemPassthroughProperties2FB::TYPE,
+            ty: xr::sys::StructureType::PASSTHROUGH_CREATE_INFO_FB, // XR_TYPE_PASSTHROUGH_CREATE_INFO_FB
             next: ptr::null(),
             flags: xr::sys::PassthroughFlagsFB::IS_RUNNING_AT_CREATION,
         };
+        bevy::log::info!("xr_session.as_raw(): {:?}", xr_session.as_raw());
+        bevy::log::info!("&passthrough_create_info: {:?}", &passthrough_create_info);
+        bevy::log::info!("&mut passthrough_feature: {:?}", &mut passthrough_feature);
+        bevy::log::info!(
+            "instance.exts().fb_passthrough.unwrap(): {:?}",
+            instance.exts().fb_passthrough.is_some()
+        );
         cvt(
             (instance.exts().fb_passthrough.unwrap().create_passthrough)(
                 xr_session.as_raw(),
                 &passthrough_create_info as *const _,
                 &mut passthrough_feature as *mut _,
             ),
-        );
-
+        )?;
+        bevy::log::info!("Created passthrough feature");
         // Create layer
         let mut passthrough_layer = xr::sys::PassthroughLayerFB::NULL;
-        let mut layer_create_info = xr::sys::PassthroughLayerCreateInfoFB {
-            ty: xr::sys::StructureType::PASSTHROUGH_LAYER_CREATE_INFO_FB, // XR_TYPE_PASSTHROUGH_LAYER_CREATE_INFO_FB
-            next: ptr::null(),
-            passthrough: passthrough_feature, // XR_PASSTHROUGH_HANDLE
-            flags: xr::sys::PassthroughFlagsFB::IS_RUNNING_AT_CREATION, // XR_PASSTHROUGH_IS_RUNNING_AT_CREATION_BIT_FB
-            purpose: xr::sys::PassthroughLayerPurposeFB::RECONSTRUCTION, // XR_PASSTHROUGH_LAYER_PURPOSE_RECONSTRUCTION_FB
-        };
+        let mut layer_create_info: xr::sys::PassthroughLayerCreateInfoFB =
+            xr::sys::PassthroughLayerCreateInfoFB {
+                ty: xr::sys::StructureType::PASSTHROUGH_LAYER_CREATE_INFO_FB, // XR_TYPE_PASSTHROUGH_LAYER_CREATE_INFO_FB
+                next: ptr::null(),
+                passthrough: passthrough_feature, // XR_PASSTHROUGH_HANDLE
+                flags: xr::sys::PassthroughFlagsFB::IS_RUNNING_AT_CREATION, // XR_PASSTHROUGH_IS_RUNNING_AT_CREATION_BIT_FB
+                purpose: xr::sys::PassthroughLayerPurposeFB::RECONSTRUCTION, // XR_PASSTHROUGH_LAYER_PURPOSE_RECONSTRUCTION_FB
+            };
         cvt((instance
             .exts()
             .fb_passthrough
@@ -110,13 +122,28 @@ pub fn start_passthrough(
             xr_session.as_raw(),
             &layer_create_info as *const _,
             &mut passthrough_layer as *mut _,
-        ));
+        ))?;
+        bevy::log::info!("Created passthrough layer");
         // Start layer
 
+        bevy::log::info!("passthrough_feature: {:?}", passthrough_feature);
         cvt((instance.exts().fb_passthrough.unwrap().passthrough_start)(
             passthrough_feature,
-        ));
-        bevy::log::info!("Started passthrough");
+        ))?;
+        bevy::log::info!("Started passthrough layer");
+        bevy::log::info!("Passed everything in  start");
         Ok((passthrough_feature, passthrough_layer))
     }
 }
+// // Create and run passthrough layer
+// XrPassthroughLayerFB passthroughLayer = XR_NULL_HANDLE;
+
+// XrPassthroughLayerCreateInfoFB layerCreateInfo = {XR_TYPE_PASSTHROUGH_LAYER_CREATE_INFO_FB};
+// layerCreateInfo.passthrough = passthroughFeature;
+// layerCreateInfo.purpose = XR_PASSTHROUGH_LAYER_PURPOSE_RECONSTRUCTION_FB;
+// layerCreateInfo.flags = XR_PASSTHROUGH_IS_RUNNING_AT_CREATION_BIT_FB;
+
+// XrResult result = pfnXrCreatePassthroughLayerFBX(Session, &layerCreateInfo, &passthroughLayer);
+// if (XR_FAILED(result)) {
+//   LOG("Failed to create and start a passthrough layer");
+// }

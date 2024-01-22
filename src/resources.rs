@@ -161,8 +161,9 @@ impl<G: xr::Graphics> SwapchainInner<G> {
                     predicted_display_time,
                     environment_blend_mode,
                     &[
+                        // TODO: Utan de andra lagren ser vi passthrough lagret då --> Kommentera ut ger svart bakgrund
                         &xr::CompositionLayerProjection::new()
-                            .layer_flags(CompositionLayerFlags::UNPREMULTIPLIED_ALPHA)
+                            .layer_flags(CompositionLayerFlags::UNPREMULTIPLIED_ALPHA) // TODO: BLEND_TEXTURE_SOURCE_ALPHA --> svart background
                             .space(stage)
                             .views(&[
                                 xr::CompositionLayerProjectionView::new()

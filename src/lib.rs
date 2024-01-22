@@ -118,18 +118,43 @@ impl Plugin for OpenXrPlugin {
                 app.insert_resource(input.clone());
                 app.insert_resource(views.clone());
                 app.insert_resource(frame_state.clone());
-                let passthrough = xr_instance.exts().fb_passthrough.is_some()
-                    && supports_passthrough(
-                        &xr_instance,
-                        xr_instance
-                            .system(FormFactor::HEAD_MOUNTED_DISPLAY)
-                            .unwrap(),
-                    )
-                    .is_ok_and(|v| v);
+
+                // Check if the fb_passthrough extension is available
+                let fb_passthrough_available = xr_instance.exts().fb_passthrough.is_some();
+                bevy::log::info!(
+                    "From OpenXrPlugin: fb_passthrough_available: {}",
+                    fb_passthrough_available
+                );
+                // Get the system for the head-mounted display
+                let hmd_system = xr_instance
+                    .system(FormFactor::HEAD_MOUNTED_DISPLAY)
+                    .unwrap();
+                bevy::log::info!("From OpenXrPlugin: hmd_system: {:?}", hmd_system);
+
+                // Check if the system supports passthrough
+                let passthrough_supported =
+                    supports_passthrough(&xr_instance, hmd_system).is_ok_and(|v| v);
+                bevy::log::info!(
+                    "From OpenXrPlugin: passthrough_supported: {}",
+                    passthrough_supported
+                );
+
+                // The passthrough variable will be true only if both fb_passthrough is available and the system supports passthrough
+                let passthrough = fb_passthrough_available && passthrough_supported;
+                bevy::log::info!("From OpenXrPlugin: passthrough: {}", passthrough);
+
+                // let passthrough = xr_instance.exts().fb_passthrough.is_some()
+                //     && supports_passthrough(
+                //         &xr_instance,
+                //         xr_instance
+                //             .system(FormFactor::HEAD_MOUNTED_DISPLAY)
+                //             .unwrap(),
+                //     )
+                //     .is_ok_and(|v| v);
                 let mut p: Option<XrPassthrough> = None;
                 let mut pl: Option<XrPassthroughLayer> = None;
                 if passthrough {
-                    info!("Passthrough!");
+                    bevy::log::info!("Passthrough!");
                     if let Ok((p, pl)) = start_passthrough(&xr_instance, &session) {
                         let xr_data = XrRenderData {
                             xr_instance,
@@ -150,9 +175,9 @@ impl Plugin for OpenXrPlugin {
                         app.insert_resource(xr_data);
                     }
 
-                    // if !app.world.contains_resource::<ClearColor>() {
-                    // info!("ClearColor!");
-                    // }
+                    if !app.world.contains_resource::<ClearColor>() {
+                        info!("ClearColor!");
+                    }
                 }
                 app.insert_resource(ActionSets(vec![]));
                 app.add_plugins(RenderPlugin {
