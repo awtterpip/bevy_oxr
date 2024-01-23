@@ -1,9 +1,11 @@
 use crate::xr_input::{QuatConv, Vec3Conv};
 use crate::{LEFT_XR_TEXTURE_HANDLE, RIGHT_XR_TEXTURE_HANDLE};
 use bevy::core_pipeline::tonemapping::{DebandDither, Tonemapping};
+use bevy::ecs::system::lifetimeless::Read;
 use bevy::math::Vec3A;
 use bevy::prelude::*;
 use bevy::render::camera::{CameraProjection, CameraRenderGraph, RenderTarget};
+use bevy::render::extract_component::ExtractComponent;
 use bevy::render::primitives::Frustum;
 use bevy::render::view::{ColorGrading, VisibleEntities};
 use openxr::Fovf;
@@ -48,6 +50,35 @@ pub enum XrCameraType {
     Flatscreen,
 }
 
+
+#[derive(Component)]
+pub(super) struct TransformExtract;
+
+
+impl ExtractComponent for TransformExtract {
+    type Query = Read<Transform>;
+
+    type Filter = ();
+
+    type Out = Transform;
+
+    fn extract_component(item: bevy::ecs::query::QueryItem<'_, Self::Query>) -> Option<Self::Out> {
+        Some(*item)
+    }
+}
+
+impl ExtractComponent for XrCameraType {
+    type Query = Read<Self>;
+
+    type Filter = ();
+
+    type Out = Self;
+
+    fn extract_component(item: bevy::ecs::query::QueryItem<'_, Self::Query>) -> Option<Self::Out> {
+        Some(*item)
+    }
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum Eye {
     Left = 0,
@@ -81,7 +112,7 @@ impl XrCameraBundle {
     }
 }
 
-#[derive(Debug, Clone, Component, Reflect)]
+#[derive(Debug, Clone, Component, Reflect, ExtractComponent)]
 #[reflect(Component, Default)]
 pub struct XRProjection {
     pub near: f32,
@@ -241,24 +272,21 @@ impl CameraProjection for XRProjection {
 
 pub fn xr_camera_head_sync(
     views: ResMut<crate::resources::XrViews>,
-    query: Query<(&mut Transform, &XrCameraType, &mut XRProjection)>,
+    mut query: Query<(&mut Transform, &XrCameraType, &mut XRProjection)>,
 ) {
-    fn f(
-        views: ResMut<crate::resources::XrViews>,
-        mut query: Query<(&mut Transform, &XrCameraType, &mut XRProjection)>,
-    ) -> Option<()> {
-        //TODO calculate HMD position
-        for (mut transform, camera_type, mut xr_projection) in query.iter_mut() {
-            let view_idx = match camera_type {
-                XrCameraType::Xr(eye) => *eye as usize,
-                XrCameraType::Flatscreen => return None,
-            };
-            let view = views.get(view_idx)?;
-            xr_projection.fov = view.fov;
-            transform.rotation = view.pose.orientation.to_quat();
-            transform.translation = view.pose.position.to_vec3();
-        }
-        Some(())
+    //TODO calculate HMD position
+    for (mut transform, camera_type, mut xr_projection) in query.iter_mut() {
+        let view_idx = match camera_type {
+            XrCameraType::Xr(eye) => *eye as usize,
+            // I don't belive we need a flatscrenn cam, that's just a cam without this component
+            XrCameraType::Flatscreen => continue,
+        };
+        let view = match views.get(view_idx) {
+            Some(views) => views,
+            None => continue,
+        };
+        xr_projection.fov = view.fov;
+        transform.rotation = view.pose.orientation.to_quat();
+        transform.translation = view.pose.position.to_vec3();
     }
-    let _ = f(views, query);
 }

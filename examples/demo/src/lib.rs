@@ -19,7 +19,7 @@ use bevy_oxr::{
     graphics::{extensions::XrExtensions, XrAppInfo, XrPreferdBlendMode},
     input::XrInput,
     resources::{XrFrameState, XrInstance, XrSession},
-    xr_init::{xr_only, XrEnableRequest, XrEnableStatus},
+    xr_init::{xr_only, XrStatus},
     xr_input::{
         actions::XrActionSets,
         debug_gizmos::OpenXrDebugRenderer,
@@ -41,18 +41,18 @@ use bevy_oxr::{
     DefaultXrPlugins,
 };
 
-fn input_stuff(
-    keys: Res<Input<KeyCode>>,
-    status: Res<XrEnableStatus>,
-    mut request: EventWriter<XrEnableRequest>,
-) {
-    if keys.just_pressed(KeyCode::Space) {
-        match status.into_inner() {
-            XrEnableStatus::Enabled => request.send(XrEnableRequest::TryDisable),
-            XrEnableStatus::Disabled => request.send(XrEnableRequest::TryEnable),
-        }
-    }
-}
+// fn input_stuff(
+//     keys: Res<Input<KeyCode>>,
+//     status: Res<XrEnableStatus>,
+//     mut request: EventWriter<XrEnableRequest>,
+// ) {
+//     if keys.just_pressed(KeyCode::Space) {
+//         match status.into_inner() {
+//             XrEnableStatus::Enabled => request.send(XrEnableRequest::TryDisable),
+//             XrEnableStatus::Disabled => request.send(XrEnableRequest::TryEnable),
+//         }
+//     }
+// }
 
 mod setup;
 use crate::setup::setup_scene;
@@ -66,7 +66,7 @@ pub fn main() {
     let mut app = App::new();
     let mut xr_extensions = XrExtensions::default();
 
-    app.add_systems(Update, input_stuff)
+    app
         //lets get the usual diagnostic stuff added
         .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(FrameTimeDiagnosticsPlugin)

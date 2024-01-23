@@ -10,11 +10,11 @@ pub mod trackers;
 pub mod xr_camera;
 
 use crate::resources::{XrInstance, XrSession};
-use crate::xr_begin_frame;
-use crate::xr_init::{xr_only, XrPostSetup, XrSetup, XrPreSetup};
+use crate::xr_init::{xr_only, XrPostSetup, XrPreSetup, XrSetup};
 use crate::xr_input::controllers::XrControllerType;
 use crate::xr_input::oculus_touch::setup_oculus_controller;
 use crate::xr_input::xr_camera::{xr_camera_head_sync, Eye, XRProjection, XrCameraBundle};
+use crate::{locate_views, xr_wait_frame};
 use bevy::app::{App, PostUpdate, Startup};
 use bevy::ecs::entity::Entity;
 use bevy::ecs::query::With;
@@ -24,17 +24,19 @@ use bevy::math::Vec2;
 use bevy::prelude::{BuildChildren, Component, Deref, DerefMut, IntoSystemConfigs, Resource};
 use bevy::prelude::{Commands, Plugin, PreUpdate, Quat, Res, SpatialBundle, Update, Vec3};
 use bevy::render::camera::CameraProjectionPlugin;
+use bevy::render::extract_component::ExtractComponentPlugin;
 use bevy::render::view::{update_frusta, VisibilitySystems};
 use bevy::transform::TransformSystem;
 use bevy::utils::HashMap;
 use openxr::Binding;
 
 use self::actions::{setup_oxr_actions, OpenXrActionsPlugin};
-use self::oculus_touch::{post_action_setup_oculus_controller, ActionSets, init_subaction_path};
+use self::oculus_touch::{init_subaction_path, post_action_setup_oculus_controller, ActionSets};
 use self::trackers::{
     adopt_open_xr_trackers, update_open_xr_controllers, OpenXRLeftEye, OpenXRRightEye,
     OpenXRTrackingRoot,
 };
+use self::xr_camera::{XrCameraType, TransformExtract};
 
 #[derive(Copy, Clone)]
 pub struct OpenXrInput {
@@ -67,7 +69,10 @@ impl Plugin for OpenXrInput {
         app.add_systems(PreUpdate, action_set_system.run_if(xr_only()));
         app.add_systems(
             PreUpdate,
-            xr_camera_head_sync.run_if(xr_only()).after(xr_begin_frame),
+            xr_camera_head_sync
+                .run_if(xr_only())
+                .after(xr_wait_frame)
+                .after(locate_views),
         );
         //update controller trackers
         app.add_systems(Update, update_open_xr_controllers.run_if(xr_only()));
@@ -79,6 +84,9 @@ impl Plugin for OpenXrInput {
         );
         app.add_systems(XrPreSetup, init_subaction_path);
         app.add_systems(XrSetup, setup_xr_cameras);
+        app.add_plugins(ExtractComponentPlugin::<XrCameraType>::default());
+        app.add_plugins(ExtractComponentPlugin::<XRProjection>::default());
+        app.add_plugins(ExtractComponentPlugin::<TransformExtract>::default());
     }
 }
 

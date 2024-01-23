@@ -103,7 +103,7 @@ pub fn try_full_init(
 )> {
     let mut system_state: SystemState<Query<&RawHandleWrapper, With<PrimaryWindow>>> =
         SystemState::new(world);
-    let primary_window = system_state.get(&world).get_single().ok().cloned();
+    let primary_window = system_state.get(world).get_single().ok().cloned();
     let (
         xr_instance,
         setup_info,

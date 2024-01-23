@@ -5,7 +5,7 @@ use std::sync::Mutex;
 use crate::input::XrInput;
 // use crate::passthrough::XrPassthroughLayer;
 use crate::resource_macros::*;
-use crate::xr_init::XrEnableStatus;
+use crate::xr_init::XrStatus;
 use bevy::prelude::*;
 use bevy::render::extract_resource::ExtractResourcePlugin;
 use openxr as xr;
@@ -27,7 +27,6 @@ pub(crate) struct VulkanOXrSessionSetupInfo {
     pub(crate) vk_instance_ptr: *const c_void,
     pub(crate) queue_family_index: u32,
     pub(crate) xr_system_id: xr::SystemId,
-    // pub(crate) swapchain_create_info: xr::SwapchainCreateInfo<xr::Vulkan>
 }
 
 pub(crate) enum OXrSessionSetupInfo {
@@ -46,6 +45,7 @@ impl Plugin for XrResourcePlugin {
         app.add_plugins(ExtractResourcePlugin::<XrInput>::default());
         app.add_plugins(ExtractResourcePlugin::<XrEnvironmentBlendMode>::default());
         app.add_plugins(ExtractResourcePlugin::<XrSessionRunning>::default());
+        app.add_plugins(ExtractResourcePlugin::<XrSession>::default());
     }
 }
 
@@ -219,7 +219,6 @@ impl<G: xr::Graphics> SwapchainInner<G> {
         //     }
 
         // None =>
-        info!("swapchain stream lock");
         let r = self.stream.lock().unwrap().end(
             predicted_display_time,
             environment_blend_mode,
@@ -244,7 +243,6 @@ impl<G: xr::Graphics> SwapchainInner<G> {
                     ),
             ])],
         );
-        info!("swapchain stream done");
         r
         // }
     }

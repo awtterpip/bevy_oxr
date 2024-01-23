@@ -1,6 +1,15 @@
 use bevy::{app::PluginGroupBuilder, prelude::*};
+use openxr::FormFactor;
 
-use self::{emulated::HandEmulationPlugin, hand_tracking::HandTrackingPlugin};
+use crate::{
+    resources::{XrInstance, XrSession},
+    xr_init::XrPreSetup,
+};
+
+use self::{
+    emulated::HandEmulationPlugin,
+    hand_tracking::{DisableHandTracking, HandTrackingData, HandTrackingPlugin},
+};
 
 pub mod common;
 pub mod emulated;
@@ -8,12 +17,35 @@ pub mod hand_tracking;
 
 pub struct XrHandPlugins;
 
-impl PluginGroup for XrHandPlugins {
-    fn build(self) -> PluginGroupBuilder {
-        PluginGroupBuilder::start::<Self>()
-            .add(HandTrackingPlugin)
-            .add(HandEmulationPlugin)
-            .build()
+impl Plugin for XrHandPlugins {
+    fn build(&self, app: &mut App) {
+        app.add_plugins(HandTrackingPlugin)
+            .add_plugins(HandPlugin)
+            .add_plugins(HandEmulationPlugin);
+    }
+}
+
+pub struct HandPlugin;
+
+impl Plugin for HandPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(XrPreSetup, check_for_handtracking);
+    }
+}
+
+fn check_for_handtracking(
+    mut commands: Commands,
+    instance: Res<XrInstance>,
+    session: Res<XrSession>,
+) {
+    let hands = instance.exts().ext_hand_tracking.is_some()
+        && instance
+            .supports_hand_tracking(instance.system(FormFactor::HEAD_MOUNTED_DISPLAY).unwrap())
+            .is_ok_and(|v| v);
+    if hands {
+        commands.insert_resource(HandTrackingData::new(&session).unwrap());
+    } else {
+        commands.insert_resource(DisableHandTracking::Both);
     }
 }
 
