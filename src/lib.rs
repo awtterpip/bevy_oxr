@@ -8,7 +8,6 @@ pub mod xr_input;
 
 use std::fs::File;
 use std::io::{BufWriter, Write};
-use std::net::TcpStream;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
@@ -21,9 +20,10 @@ use bevy::prelude::*;
 use bevy::render::camera::{ManualTextureView, ManualTextureViewHandle, ManualTextureViews};
 use bevy::render::extract_resource::ExtractResourcePlugin;
 use bevy::render::pipelined_rendering::PipelinedRenderingPlugin;
-use bevy::render::renderer::RenderInstance;
+use bevy::render::renderer::{render_system, RenderInstance};
 use bevy::render::settings::RenderCreation;
 use bevy::render::{Render, RenderApp, RenderPlugin, RenderSet};
+use bevy::transform::systems::{propagate_transforms, sync_simple_transforms};
 use bevy::window::{PresentMode, PrimaryWindow, RawHandleWrapper};
 use graphics::extensions::XrExtensions;
 use graphics::{XrAppInfo, XrPreferdBlendMode};
@@ -142,16 +142,25 @@ impl Plugin for OpenXrPlugin {
             xr_pre_frame
                 .run_if(xr_only())
                 .run_if(xr_render_only())
-                .in_set(RenderSet::Prepare),
+                // Do NOT touch this ordering! idk why but you can NOT just put in a RenderSet
+                // right before rendering
+                .before(render_system)
+                .after(RenderSet::ExtractCommands),
+                // .in_set(RenderSet::Prepare),
         );
-        render_app.add_systems(
-            Render,
-            (locate_views, xr_input::xr_camera::xr_camera_head_sync)
-                .chain()
-                .run_if(xr_only())
-                .run_if(xr_render_only())
-                .in_set(RenderSet::Prepare),
-        );
+        // render_app.add_systems(
+        //     Render,
+        //     (
+        //         locate_views,
+        //         xr_input::xr_camera::xr_camera_head_sync,
+        //         sync_simple_transforms,
+        //         propagate_transforms,
+        //     )
+        //         .chain()
+        //         .run_if(xr_only())
+        //         .run_if(xr_render_only())
+        //         .in_set(RenderSet::Prepare),
+        // );
         render_app.add_systems(
             Render,
             xr_end_frame
@@ -159,14 +168,8 @@ impl Plugin for OpenXrPlugin {
                 .run_if(xr_render_only())
                 .after(RenderSet::Render),
         );
-        render_app.insert_resource(TcpConnection(
-            TcpStream::connect("192.168.2.100:6969").unwrap(),
-        ));
     }
 }
-
-#[derive(Resource)]
-struct TcpConnection(TcpStream);
 
 #[derive(Default)]
 pub struct DefaultXrPlugins {
@@ -180,7 +183,7 @@ impl PluginGroup for DefaultXrPlugins {
         DefaultPlugins
             .build()
             .disable::<RenderPlugin>()
-            .disable::<PipelinedRenderingPlugin>()
+            // .disable::<PipelinedRenderingPlugin>()
             .add_before::<RenderPlugin, _>(OpenXrPlugin {
                 prefered_blend_mode: self.prefered_blend_mode,
                 reqeusted_extensions: self.reqeusted_extensions,
@@ -273,6 +276,7 @@ pub fn xr_wait_frame(
 ) {
     {
         let _span = info_span!("xr_wait_frame").entered();
+        info!("Pre Frame Wait");
         *frame_state = match frame_waiter.wait() {
             Ok(a) => a.into(),
             Err(e) => {
@@ -280,6 +284,7 @@ pub fn xr_wait_frame(
                 return;
             }
         };
+        info!("Post Frame Wait");
         **should_render = frame_state.should_render;
     }
 }
@@ -296,9 +301,7 @@ pub fn xr_pre_frame(
     }
     {
         let _span = info_span!("xr_wait_image").entered();
-        info!("wait image");
         swapchain.wait_image().unwrap();
-        info!("waited image");
     }
     {
         let _span = info_span!("xr_update_manual_texture_views").entered();
@@ -325,8 +328,6 @@ pub fn xr_end_frame(
     swapchain: Res<XrSwapchain>,
     resolution: Res<XrResolution>,
     environment_blend_mode: Res<XrEnvironmentBlendMode>,
-    mut connection: ResMut<TcpConnection>,
-    cams: Query<(&Transform, &XrCameraType)>,
 ) {
     #[cfg(target_os = "android")]
     {
@@ -338,31 +339,6 @@ pub fn xr_end_frame(
         let _span = info_span!("xr_release_image").entered();
         swapchain.release_image().unwrap();
     }
-    let mut cam = None;
-    for (t, c) in &cams {
-        if *c == XrCameraType::Xr(xr_input::xr_camera::Eye::Left) {
-            cam = Some(*t);
-            break;
-        }
-    }
-    let _ = std::writeln!(
-        &mut connection.0,
-        "{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
-        views[0].pose.position.x,
-        views[0].pose.position.y,
-        views[0].pose.position.z,
-        views[0].pose.orientation.x,
-        views[0].pose.orientation.y,
-        views[0].pose.orientation.z,
-        views[0].pose.orientation.w,
-        cam.unwrap().translation.x,
-        cam.unwrap().translation.y,
-        cam.unwrap().translation.z,
-        cam.unwrap().rotation.x,
-        cam.unwrap().rotation.y,
-        cam.unwrap().rotation.z,
-        cam.unwrap().rotation.w,
-    );
     {
         let _span = info_span!("xr_end_frame").entered();
         let result = swapchain.end(
