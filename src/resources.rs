@@ -149,7 +149,7 @@ impl<G: xr::Graphics> SwapchainInner<G> {
         }
         match passthrough_layer {
             Some(pass) => {
-                // info!("Rendering with pass through");
+                bevy::log::info!("Rendering with pass through");
                 let passthrough_layer = xr::sys::CompositionLayerPassthroughFB {
                     ty: CompositionLayerPassthroughFB::TYPE,
                     next: ptr::null(),
@@ -192,30 +192,33 @@ impl<G: xr::Graphics> SwapchainInner<G> {
                 )
             }
 
-            None => self.stream.lock().unwrap().end(
-                predicted_display_time,
-                environment_blend_mode,
-                &[&xr::CompositionLayerProjection::new().space(stage).views(&[
-                    xr::CompositionLayerProjectionView::new()
-                        .pose(views[0].pose)
-                        .fov(views[0].fov)
-                        .sub_image(
-                            xr::SwapchainSubImage::new()
-                                .swapchain(&swapchain)
-                                .image_array_index(0)
-                                .image_rect(rect),
-                        ),
-                    xr::CompositionLayerProjectionView::new()
-                        .pose(views[1].pose)
-                        .fov(views[1].fov)
-                        .sub_image(
-                            xr::SwapchainSubImage::new()
-                                .swapchain(&swapchain)
-                                .image_array_index(1)
-                                .image_rect(rect),
-                        ),
-                ])],
-            ),
+            None => {
+                bevy::log::info!("Rendering without pass through");
+                self.stream.lock().unwrap().end(
+                    predicted_display_time,
+                    environment_blend_mode,
+                    &[&xr::CompositionLayerProjection::new().space(stage).views(&[
+                        xr::CompositionLayerProjectionView::new()
+                            .pose(views[0].pose)
+                            .fov(views[0].fov)
+                            .sub_image(
+                                xr::SwapchainSubImage::new()
+                                    .swapchain(&swapchain)
+                                    .image_array_index(0)
+                                    .image_rect(rect),
+                            ),
+                        xr::CompositionLayerProjectionView::new()
+                            .pose(views[1].pose)
+                            .fov(views[1].fov)
+                            .sub_image(
+                                xr::SwapchainSubImage::new()
+                                    .swapchain(&swapchain)
+                                    .image_array_index(1)
+                                    .image_rect(rect),
+                            ),
+                    ])],
+                )
+            }
         }
     }
 }

@@ -57,7 +57,7 @@ pub fn initialize_xr_graphics(
 
     let available_extensions: XrExtensions = xr_entry.enumerate_extensions()?.into();
     assert!(available_extensions.raw().khr_vulkan_enable2);
-    info!("available xr exts: {:#?}", available_extensions);
+    //info!("available xr exts: {:#?}", available_extensions);
 
     let mut enabled_extensions: xr::ExtensionSet =
         (available_extensions & reqeusted_extensions).into();
@@ -68,7 +68,7 @@ pub fn initialize_xr_graphics(
     }
 
     let available_layers = xr_entry.enumerate_layers()?;
-    info!("available xr layers: {:#?}", available_layers);
+    //info!("available xr layers: {:#?}", available_layers);
 
     let xr_instance = xr_entry.create_instance(
         &xr::ApplicationInfo {

@@ -127,9 +127,9 @@ pub fn start_passthrough(
         // Start layer
 
         bevy::log::info!("passthrough_feature: {:?}", passthrough_feature);
-        cvt((instance.exts().fb_passthrough.unwrap().passthrough_start)(
-            passthrough_feature,
-        ))?;
+        // cvt((instance.exts().fb_passthrough.unwrap().passthrough_start)(
+        //     passthrough_feature,
+        // ))?;
         bevy::log::info!("Started passthrough layer");
         bevy::log::info!("Passed everything in  start");
         Ok((passthrough_feature, passthrough_layer))

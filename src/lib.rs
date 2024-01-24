@@ -279,6 +279,8 @@ impl Plugin for OpenXrPlugin {
             render_app.insert_resource(data.xr_input.clone());
             render_app.insert_resource(data.xr_views.clone());
             render_app.insert_resource(data.xr_frame_state.clone());
+            render_app.insert_resource(data.xr_passthrough.clone());
+            render_app.insert_resource(data.xr_passthrough_layer.clone());
             render_app.insert_resource(XrEnableStatus::Enabled);
             render_app.add_systems(
                 Render,
@@ -461,6 +463,11 @@ pub fn end_frame(
     }
     {
         let _span = info_span!("xr_end_frame").entered();
+        bevy::log::info!(
+            "passthrough_layer.is_some(): {:?}",
+            passthrough_layer.is_some()
+        );
+
         let result = swapchain.end(
             xr_frame_state.lock().unwrap().predicted_display_time,
             &views.lock().unwrap(),
