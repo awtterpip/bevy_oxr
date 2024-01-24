@@ -150,20 +150,24 @@ impl<G: xr::Graphics> SwapchainInner<G> {
         match passthrough_layer {
             Some(pass) => {
                 bevy::log::info!("Rendering with pass through");
+
                 let passthrough_layer = xr::sys::CompositionLayerPassthroughFB {
                     ty: CompositionLayerPassthroughFB::TYPE,
                     next: ptr::null(),
-                    flags: CompositionLayerFlags::BLEND_TEXTURE_SOURCE_ALPHA,
+                    flags: CompositionLayerFlags::UNPREMULTIPLIED_ALPHA,
                     space: xr::sys::Space::NULL,
                     layer_handle: pass.0,
                 };
+
                 self.stream.lock().unwrap().end(
                     predicted_display_time,
                     environment_blend_mode,
                     &[
-                        // TODO: Utan de andra lagren ser vi passthrough lagret då --> Kommentera ut ger svart bakgrund
+                        unsafe {
+                            &*(&passthrough_layer as *const _ as *const CompositionLayerBase<G>)
+                        },
                         &xr::CompositionLayerProjection::new()
-                            .layer_flags(CompositionLayerFlags::UNPREMULTIPLIED_ALPHA) // TODO: BLEND_TEXTURE_SOURCE_ALPHA --> svart background
+                            .layer_flags(CompositionLayerFlags::BLEND_TEXTURE_SOURCE_ALPHA)
                             .space(stage)
                             .views(&[
                                 xr::CompositionLayerProjectionView::new()
@@ -185,9 +189,6 @@ impl<G: xr::Graphics> SwapchainInner<G> {
                                             .image_rect(rect),
                                     ),
                             ]),
-                        unsafe {
-                            &*(&passthrough_layer as *const _ as *const CompositionLayerBase<G>)
-                        },
                     ],
                 )
             }
