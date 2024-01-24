@@ -31,7 +31,7 @@ use input::XrInput;
 use openxr as xr;
 // use passthrough::{start_passthrough, supports_passthrough, XrPassthroughLayer};
 use resources::*;
-use xr::FormFactor;
+use xr::{FormFactor, FrameState};
 use xr_init::{
     xr_only, xr_render_only, CleanupXrData, XrEarlyInitPlugin, XrShouldRender, XrStatus,
 };
@@ -119,9 +119,7 @@ impl Plugin for OpenXrPlugin {
             PreUpdate,
             (
                 xr_reset_should_render,
-                apply_deferred,
                 xr_wait_frame.run_if(xr_only()),
-                apply_deferred,
                 locate_views.run_if(xr_only()),
                 apply_deferred,
             )
@@ -146,7 +144,7 @@ impl Plugin for OpenXrPlugin {
                 // right before rendering
                 .before(render_system)
                 .after(RenderSet::ExtractCommands),
-                // .in_set(RenderSet::Prepare),
+            // .in_set(RenderSet::Prepare),
         );
         // render_app.add_systems(
         //     Render,
@@ -283,6 +281,13 @@ pub fn xr_wait_frame(
                 warn!("error: {}", e);
                 return;
             }
+        };
+        #[allow(clippy::erasing_op)]
+        {
+            frame_state.predicted_display_time = xr::Time::from_nanos(
+                frame_state.predicted_display_time.as_nanos()
+                    + (frame_state.predicted_display_period.as_nanos() * 1),
+            );
         };
         info!("Post Frame Wait");
         **should_render = frame_state.should_render;
