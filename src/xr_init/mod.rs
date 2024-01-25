@@ -33,16 +33,23 @@ pub enum XrStatus {
     Resource, Clone, Copy, PartialEq, Eq, Reflect, Debug, ExtractResource, Default, Deref, DerefMut,
 )]
 pub struct XrShouldRender(bool);
+#[derive(
+    Resource, Clone, Copy, PartialEq, Eq, Reflect, Debug, ExtractResource, Default, Deref, DerefMut,
+)]
+pub struct XrHasWaited(bool);
 
 pub struct XrEarlyInitPlugin;
 
 pub struct XrInitPlugin;
 
-pub fn xr_only() -> impl FnMut(Option<Res<XrStatus>>) -> bool {
-    resource_exists_and_equals(XrStatus::Enabled)
+pub fn xr_only() -> impl FnMut(Res<XrStatus>) -> bool {
+    resource_equals(XrStatus::Enabled)
 }
-pub fn xr_render_only() -> impl FnMut(Option<Res<XrShouldRender>>) -> bool {
-    resource_exists_and_equals(XrShouldRender(true))
+pub fn xr_render_only() -> impl FnMut(Res<XrShouldRender>) -> bool {
+    resource_equals(XrShouldRender(true))
+}
+pub fn xr_after_wait_only() -> impl FnMut(Res<XrHasWaited>) -> bool {
+    resource_equals(XrHasWaited(true))
 }
 
 impl Plugin for XrEarlyInitPlugin {
@@ -59,7 +66,9 @@ impl Plugin for XrInitPlugin {
         add_schedules(app);
         app.add_plugins(ExtractResourcePlugin::<XrStatus>::default());
         app.add_plugins(ExtractResourcePlugin::<XrShouldRender>::default());
+        app.add_plugins(ExtractResourcePlugin::<XrHasWaited>::default());
         app.init_resource::<XrShouldRender>();
+        app.init_resource::<XrHasWaited>();
         app.add_systems(PreUpdate, setup_xr.run_if(on_event::<SetupXrData>()))
             .add_systems(PreUpdate, cleanup_xr.run_if(on_event::<CleanupXrData>()));
         app.add_systems(

@@ -33,7 +33,7 @@ use openxr as xr;
 use resources::*;
 use xr::{FormFactor, FrameState};
 use xr_init::{
-    xr_only, xr_render_only, CleanupXrData, XrEarlyInitPlugin, XrShouldRender, XrStatus,
+    xr_only, xr_render_only, CleanupXrData, XrEarlyInitPlugin, XrShouldRender, XrStatus, XrHasWaited, xr_after_wait_only,
 };
 use xr_input::controllers::XrControllerType;
 use xr_input::hands::emulated::HandEmulationPlugin;
@@ -118,7 +118,7 @@ impl Plugin for OpenXrPlugin {
         app.add_systems(
             PreUpdate,
             (
-                xr_reset_should_render,
+                xr_reset_per_frame_resources,
                 xr_wait_frame.run_if(xr_only()),
                 locate_views.run_if(xr_only()),
                 apply_deferred,
@@ -130,15 +130,15 @@ impl Plugin for OpenXrPlugin {
         render_app.add_systems(
             Render,
             xr_begin_frame
-                .run_if(xr_only())
-                .run_if(xr_render_only())
+                .run_if(xr_only()).run_if(xr_after_wait_only())
+                // .run_if(xr_render_only())
                 .after(RenderSet::ExtractCommands)
                 .before(xr_pre_frame),
         );
         render_app.add_systems(
             Render,
             xr_pre_frame
-                .run_if(xr_only())
+                .run_if(xr_only()).run_if(xr_after_wait_only())
                 .run_if(xr_render_only())
                 // Do NOT touch this ordering! idk why but you can NOT just put in a RenderSet
                 // right before rendering
@@ -162,10 +162,34 @@ impl Plugin for OpenXrPlugin {
         render_app.add_systems(
             Render,
             xr_end_frame
-                .run_if(xr_only())
+                .run_if(xr_only()).run_if(xr_after_wait_only())
                 .run_if(xr_render_only())
                 .after(RenderSet::Render),
         );
+        render_app.add_systems(
+            Render,
+            xr_skip_frame
+                .run_if(xr_only()).run_if(xr_after_wait_only())
+                .run_if(not(xr_render_only()))
+                .after(RenderSet::Render),
+        );
+    }
+}
+
+fn xr_skip_frame(
+    xr_swapchain: Res<XrSwapchain>,
+    xr_frame_state: Res<XrFrameState>,
+    environment_blend_mode: Res<XrEnvironmentBlendMode>,
+) {
+    let swapchain: &Swapchain = &xr_swapchain;
+    // swapchain.begin().unwrap();
+    match swapchain {
+        Swapchain::Vulkan(swap) => {
+            swap.stream
+                .lock()
+                .unwrap()
+                .end(xr_frame_state.predicted_display_time, **environment_blend_mode, &[]).unwrap();
+        }
     }
 }
 
@@ -180,8 +204,8 @@ impl PluginGroup for DefaultXrPlugins {
     fn build(self) -> PluginGroupBuilder {
         DefaultPlugins
             .build()
+            .disable::<PipelinedRenderingPlugin>()
             .disable::<RenderPlugin>()
-            // .disable::<PipelinedRenderingPlugin>()
             .add_before::<RenderPlugin, _>(OpenXrPlugin {
                 prefered_blend_mode: self.prefered_blend_mode,
                 reqeusted_extensions: self.reqeusted_extensions,
@@ -211,8 +235,9 @@ impl PluginGroup for DefaultXrPlugins {
     }
 }
 
-fn xr_reset_should_render(mut should: ResMut<XrShouldRender>) {
+fn xr_reset_per_frame_resources(mut should: ResMut<XrShouldRender>,mut waited: ResMut<XrHasWaited>) {
     **should = false;
+    **waited = false;
 }
 
 fn xr_poll_events(
@@ -271,6 +296,7 @@ pub fn xr_wait_frame(
     mut frame_state: ResMut<XrFrameState>,
     mut frame_waiter: ResMut<XrFrameWaiter>,
     mut should_render: ResMut<XrShouldRender>,
+    mut waited: ResMut<XrHasWaited>,
 ) {
     {
         let _span = info_span!("xr_wait_frame").entered();
@@ -286,11 +312,12 @@ pub fn xr_wait_frame(
         {
             frame_state.predicted_display_time = xr::Time::from_nanos(
                 frame_state.predicted_display_time.as_nanos()
-                    + (frame_state.predicted_display_period.as_nanos() * 1),
+                    + (frame_state.predicted_display_period.as_nanos() * 0),
             );
         };
         info!("Post Frame Wait");
         **should_render = frame_state.should_render;
+        **waited = true;
     }
 }
 
