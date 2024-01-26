@@ -15,6 +15,7 @@ use crate::xr_init::{StartXrSession, XrInitPlugin};
 use crate::xr_input::hands::hand_tracking::DisableHandTracking;
 use crate::xr_input::oculus_touch::ActionSets;
 use bevy::app::{AppExit, PluginGroupBuilder};
+use bevy::core::TaskPoolThreadAssignmentPolicy;
 use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
 use bevy::render::camera::{ManualTextureView, ManualTextureViewHandle, ManualTextureViews};
@@ -23,6 +24,7 @@ use bevy::render::pipelined_rendering::PipelinedRenderingPlugin;
 use bevy::render::renderer::{render_system, RenderInstance};
 use bevy::render::settings::RenderCreation;
 use bevy::render::{Render, RenderApp, RenderPlugin, RenderSet};
+use bevy::tasks::available_parallelism;
 use bevy::transform::systems::{propagate_transforms, sync_simple_transforms};
 use bevy::window::{PresentMode, PrimaryWindow, RawHandleWrapper};
 use graphics::extensions::XrExtensions;
@@ -33,7 +35,8 @@ use openxr as xr;
 use resources::*;
 use xr::{FormFactor, FrameState};
 use xr_init::{
-    xr_only, xr_render_only, CleanupXrData, XrEarlyInitPlugin, XrShouldRender, XrStatus, XrHasWaited, xr_after_wait_only,
+    xr_after_wait_only, xr_only, xr_render_only, CleanupXrData, XrEarlyInitPlugin, XrHasWaited,
+    XrShouldRender, XrStatus,
 };
 use xr_input::controllers::XrControllerType;
 use xr_input::hands::emulated::HandEmulationPlugin;
@@ -130,7 +133,8 @@ impl Plugin for OpenXrPlugin {
         render_app.add_systems(
             Render,
             xr_begin_frame
-                .run_if(xr_only()).run_if(xr_after_wait_only())
+                .run_if(xr_only())
+                .run_if(xr_after_wait_only())
                 // .run_if(xr_render_only())
                 .after(RenderSet::ExtractCommands)
                 .before(xr_pre_frame),
@@ -138,7 +142,8 @@ impl Plugin for OpenXrPlugin {
         render_app.add_systems(
             Render,
             xr_pre_frame
-                .run_if(xr_only()).run_if(xr_after_wait_only())
+                .run_if(xr_only())
+                .run_if(xr_after_wait_only())
                 .run_if(xr_render_only())
                 // Do NOT touch this ordering! idk why but you can NOT just put in a RenderSet
                 // right before rendering
@@ -146,30 +151,32 @@ impl Plugin for OpenXrPlugin {
                 .after(RenderSet::ExtractCommands),
             // .in_set(RenderSet::Prepare),
         );
-        // render_app.add_systems(
-        //     Render,
-        //     (
-        //         locate_views,
-        //         xr_input::xr_camera::xr_camera_head_sync,
-        //         sync_simple_transforms,
-        //         propagate_transforms,
-        //     )
-        //         .chain()
-        //         .run_if(xr_only())
-        //         .run_if(xr_render_only())
-        //         .in_set(RenderSet::Prepare),
-        // );
+        render_app.add_systems(
+            Render,
+            (
+                locate_views,
+                xr_input::xr_camera::xr_camera_head_sync,
+                sync_simple_transforms,
+                propagate_transforms,
+            )
+                .chain()
+                .run_if(xr_only())
+                // .run_if(xr_render_only())
+                .in_set(RenderSet::Prepare),
+        );
         render_app.add_systems(
             Render,
             xr_end_frame
-                .run_if(xr_only()).run_if(xr_after_wait_only())
+                .run_if(xr_only())
+                .run_if(xr_after_wait_only())
                 .run_if(xr_render_only())
                 .after(RenderSet::Render),
         );
         render_app.add_systems(
             Render,
             xr_skip_frame
-                .run_if(xr_only()).run_if(xr_after_wait_only())
+                .run_if(xr_only())
+                .run_if(xr_after_wait_only())
                 .run_if(not(xr_render_only()))
                 .after(RenderSet::Render),
         );
@@ -188,7 +195,12 @@ fn xr_skip_frame(
             swap.stream
                 .lock()
                 .unwrap()
-                .end(xr_frame_state.predicted_display_time, **environment_blend_mode, &[]).unwrap();
+                .end(
+                    xr_frame_state.predicted_display_time,
+                    **environment_blend_mode,
+                    &[],
+                )
+                .unwrap();
         }
     }
 }
@@ -204,7 +216,20 @@ impl PluginGroup for DefaultXrPlugins {
     fn build(self) -> PluginGroupBuilder {
         DefaultPlugins
             .build()
-            .disable::<PipelinedRenderingPlugin>()
+            .set(TaskPoolPlugin {
+                task_pool_options: TaskPoolOptions {
+                    compute: TaskPoolThreadAssignmentPolicy {
+                        // set the minimum # of compute threads
+                        // to the total number of available threads
+                        min_threads: 2,
+                        max_threads: std::usize::MAX, // unlimited max threads
+                        percent: 1.0,                 // this value is irrelevant in this case
+                    },
+                    // keep the defaults for everything else
+                    ..default()
+                },
+            })
+            // .disable::<PipelinedRenderingPlugin>()
             .disable::<RenderPlugin>()
             .add_before::<RenderPlugin, _>(OpenXrPlugin {
                 prefered_blend_mode: self.prefered_blend_mode,
@@ -235,7 +260,10 @@ impl PluginGroup for DefaultXrPlugins {
     }
 }
 
-fn xr_reset_per_frame_resources(mut should: ResMut<XrShouldRender>,mut waited: ResMut<XrHasWaited>) {
+fn xr_reset_per_frame_resources(
+    mut should: ResMut<XrShouldRender>,
+    mut waited: ResMut<XrHasWaited>,
+) {
     **should = false;
     **waited = false;
 }
@@ -308,13 +336,10 @@ pub fn xr_wait_frame(
                 return;
             }
         };
-        #[allow(clippy::erasing_op)]
-        {
-            frame_state.predicted_display_time = xr::Time::from_nanos(
-                frame_state.predicted_display_time.as_nanos()
-                    + (frame_state.predicted_display_period.as_nanos() * 0),
-            );
-        };
+        frame_state.predicted_display_time = xr::Time::from_nanos(
+            frame_state.predicted_display_time.as_nanos()
+                + frame_state.predicted_display_period.as_nanos(),
+        );
         info!("Post Frame Wait");
         **should_render = frame_state.should_render;
         **waited = true;
