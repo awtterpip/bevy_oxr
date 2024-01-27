@@ -18,7 +18,9 @@ use bevy::app::{AppExit, PluginGroupBuilder};
 use bevy::core::TaskPoolThreadAssignmentPolicy;
 use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
-use bevy::render::camera::{ManualTextureView, ManualTextureViewHandle, ManualTextureViews};
+use bevy::render::camera::{
+    camera_system, ManualTextureView, ManualTextureViewHandle, ManualTextureViews,
+};
 use bevy::render::extract_resource::ExtractResourcePlugin;
 use bevy::render::pipelined_rendering::PipelinedRenderingPlugin;
 use bevy::render::renderer::{render_system, RenderInstance};
@@ -42,7 +44,7 @@ use xr_input::controllers::XrControllerType;
 use xr_input::hands::emulated::HandEmulationPlugin;
 use xr_input::hands::hand_tracking::{HandTrackingData, HandTrackingPlugin};
 use xr_input::hands::XrHandPlugins;
-use xr_input::xr_camera::XrCameraType;
+use xr_input::xr_camera::{XRProjection, XrCameraType};
 use xr_input::OpenXrInput;
 
 const VIEW_TYPE: xr::ViewConfigurationType = xr::ViewConfigurationType::PRIMARY_STEREO;
@@ -170,7 +172,7 @@ impl Plugin for OpenXrPlugin {
                 .run_if(xr_only())
                 .run_if(xr_after_wait_only())
                 .run_if(xr_render_only())
-                .after(RenderSet::Render),
+                .in_set(RenderSet::Cleanup),
         );
         render_app.add_systems(
             Render,
@@ -178,7 +180,7 @@ impl Plugin for OpenXrPlugin {
                 .run_if(xr_only())
                 .run_if(xr_after_wait_only())
                 .run_if(not(xr_render_only()))
-                .after(RenderSet::Render),
+                .in_set(RenderSet::Cleanup),
         );
     }
 }
@@ -219,8 +221,6 @@ impl PluginGroup for DefaultXrPlugins {
             .set(TaskPoolPlugin {
                 task_pool_options: TaskPoolOptions {
                     compute: TaskPoolThreadAssignmentPolicy {
-                        // set the minimum # of compute threads
-                        // to the total number of available threads
                         min_threads: 2,
                         max_threads: std::usize::MAX, // unlimited max threads
                         percent: 1.0,                 // this value is irrelevant in this case

@@ -44,16 +44,14 @@ pub struct XrCameraBundle {
     pub color_grading: ColorGrading,
     pub xr_camera_type: XrCameraType,
 }
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd, Component)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd, Component, ExtractComponent)]
 pub enum XrCameraType {
     Xr(Eye),
     Flatscreen,
 }
 
-
 #[derive(Component)]
 pub(super) struct TransformExtract;
-
 
 impl ExtractComponent for TransformExtract {
     type Query = Read<Transform>;
@@ -61,18 +59,6 @@ impl ExtractComponent for TransformExtract {
     type Filter = ();
 
     type Out = Transform;
-
-    fn extract_component(item: bevy::ecs::query::QueryItem<'_, Self::Query>) -> Option<Self::Out> {
-        Some(*item)
-    }
-}
-
-impl ExtractComponent for XrCameraType {
-    type Query = Read<Self>;
-
-    type Filter = ();
-
-    type Out = Self;
 
     fn extract_component(item: bevy::ecs::query::QueryItem<'_, Self::Query>) -> Option<Self::Out> {
         Some(*item)
