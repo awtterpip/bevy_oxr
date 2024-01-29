@@ -65,6 +65,20 @@ impl ExtractComponent for TransformExtract {
     }
 }
 
+#[derive(Component)]
+pub(super) struct GlobalTransformExtract;
+
+impl ExtractComponent for GlobalTransformExtract {
+    type Query = Read<GlobalTransform>;
+
+    type Filter = ();
+
+    type Out = GlobalTransform;
+
+    fn extract_component(item: bevy::ecs::query::QueryItem<'_, Self::Query>) -> Option<Self::Out> {
+        Some(*item)
+    }
+}
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum Eye {
     Left = 0,

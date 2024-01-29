@@ -25,6 +25,7 @@ use bevy::render::extract_resource::ExtractResourcePlugin;
 use bevy::render::pipelined_rendering::PipelinedRenderingPlugin;
 use bevy::render::renderer::{render_system, RenderInstance};
 use bevy::render::settings::RenderCreation;
+use bevy::render::view::ExtractedView;
 use bevy::render::{Render, RenderApp, RenderPlugin, RenderSet};
 use bevy::tasks::available_parallelism;
 use bevy::transform::systems::{propagate_transforms, sync_simple_transforms};
@@ -160,6 +161,7 @@ impl Plugin for OpenXrPlugin {
                 xr_input::xr_camera::xr_camera_head_sync,
                 sync_simple_transforms,
                 propagate_transforms,
+                update_cam_views,
             )
                 .chain()
                 .run_if(xr_only())
@@ -182,6 +184,12 @@ impl Plugin for OpenXrPlugin {
                 .run_if(not(xr_render_only()))
                 .in_set(RenderSet::Cleanup),
         );
+    }
+}
+
+fn update_cam_views(mut query: Query<(&mut ExtractedView, &GlobalTransform)>) {
+    for (mut view, transform) in &mut query {
+        view.transform = *transform;
     }
 }
 
