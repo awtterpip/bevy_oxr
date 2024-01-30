@@ -36,8 +36,8 @@ pub fn init_oxr_graphics(
     }
 
     let vk_entry = unsafe { ash::Entry::load() }.map_err(|_| XrError::Placeholder)?;
-    let flags = wgpu::InstanceFlags::empty();
-    let extensions = <V as Api>::Instance::desired_extensions(&vk_entry, vk_target_version, flags)
+    let flags = wgpu_hal::InstanceFlags::empty();
+    let extensions = <V as Api>::Instance::required_extensions(&vk_entry, vk_target_version, flags)
         .map_err(|_| XrError::Placeholder)?;
     let device_extensions = vec![
         ash::extensions::khr::Swapchain::name(),
@@ -317,6 +317,7 @@ pub fn init_oxr_graphics(
             .create_reference_space(openxr::ReferenceSpaceType::STAGE, openxr::Posef::IDENTITY)?,
         head: session
             .create_reference_space(openxr::ReferenceSpaceType::VIEW, openxr::Posef::IDENTITY)?,
+        format: swapchain_format,
     })
 }
 
@@ -356,7 +357,7 @@ fn wgpu_to_vulkan(format: wgpu::TextureFormat) -> Option<vk::Format> {
         Tf::Bgra8Unorm => F::B8G8R8A8_UNORM,
         Tf::Rgba8Uint => F::R8G8B8A8_UINT,
         Tf::Rgba8Sint => F::R8G8B8A8_SINT,
-        Tf::Rgb10a2Uint => F::A2B10G10R10_UINT_PACK32,
+        //        Tf::Rgb10a2Uint => F::A2B10G10R10_UINT_PACK32,
         Tf::Rgb10a2Unorm => F::A2B10G10R10_UNORM_PACK32,
         Tf::Rg11b10Float => F::B10G11R11_UFLOAT_PACK32,
         Tf::Rg32Uint => F::R32G32_UINT,

@@ -92,6 +92,7 @@ pub struct OXrSession {
     pub(crate) head: openxr::Space,
     pub(crate) resolution: UVec2,
     pub(crate) blend_mode: EnvironmentBlendMode,
+    pub(crate) format: wgpu::TextureFormat,
 }
 
 impl SessionTrait for OXrSession {
@@ -164,6 +165,15 @@ impl SessionTrait for OXrSession {
             let _span = info_span!("xr_begin_frame").entered();
             self.swapchain.begin().unwrap()
         }
+
+        {
+            let _span = info_span!("xr_acquire_image").entered();
+            self.swapchain.acquire_image().unwrap()
+        }
+        {
+            let _span = info_span!("xr_wait_image").entered();
+            self.swapchain.wait_image().unwrap();
+        }
         let views = {
             let _span = info_span!("xr_locate_views").entered();
             self.session
@@ -175,27 +185,21 @@ impl SessionTrait for OXrSession {
                 .unwrap()
                 .1
         };
-
         *self.views.lock().unwrap() = [views[0].clone(), views[1].clone()];
-
-        {
-            let _span = info_span!("xr_acquire_image").entered();
-            self.swapchain.acquire_image().unwrap()
-        }
-        {
-            let _span = info_span!("xr_wait_image").entered();
-            self.swapchain.wait_image().unwrap();
-        }
         {
             let _span = info_span!("xr_update_manual_texture_views").entered();
             let (left, right) = self.swapchain.get_render_views();
             let left = OXrView {
                 texture: Mutex::new(Some(left)),
                 view: views[0],
+                resolution: self.resolution,
+                format: self.format,
             };
             let right = OXrView {
                 texture: Mutex::new(Some(right)),
                 view: views[1],
+                resolution: self.resolution,
+                format: self.format,
             };
             Ok((left.into(), right.into()))
         }
@@ -208,12 +212,14 @@ impl SessionTrait for OXrSession {
         }
         {
             let _span = info_span!("xr_end_frame").entered();
+            let frame_state = self.frame_state.lock().unwrap().clone();
             let result = self.swapchain.end(
-                self.frame_state.lock().unwrap().predicted_display_time,
+                frame_state.predicted_display_time,
                 &*self.views.lock().unwrap(),
                 &self.stage,
                 self.resolution,
                 self.blend_mode,
+                frame_state.should_render,
                 // passthrough_layer.map(|p| p.into_inner()),
             );
             match result {
@@ -223,16 +229,26 @@ impl SessionTrait for OXrSession {
         }
         Ok(())
     }
+
+    fn resolution(&self) -> UVec2 {
+        self.resolution
+    }
+
+    fn format(&self) -> wgpu::TextureFormat {
+        self.format
+    }
 }
 
 pub struct OXrView {
     texture: Mutex<Option<wgpu::TextureView>>,
     view: openxr::View,
+    resolution: UVec2,
+    format: wgpu::TextureFormat,
 }
 
 impl ViewTrait for OXrView {
-    fn texture_view(&self) -> wgpu::TextureView {
-        std::mem::take(&mut *self.texture.lock().unwrap()).unwrap()
+    fn texture_view(&self) -> Option<wgpu::TextureView> {
+        std::mem::take(&mut *self.texture.lock().unwrap())
     }
 
     fn pose(&self) -> Pose {
@@ -336,8 +352,34 @@ impl ViewTrait for OXrView {
 
         Mat4::from_cols_array(&cols)
     }
+
+    fn resolution(&self) -> UVec2 {
+        self.resolution
+    }
+
+    fn format(&self) -> wgpu::TextureFormat {
+        self.format
+    }
 }
 
 pub struct OXrInput {
     action_set: openxr::ActionSet,
+}
+
+impl InputTrait for OXrInput {
+    fn get_haptics(&self, path: ActionPath) -> Result<Action<Haptic>> {
+        todo!()
+    }
+
+    fn get_pose(&self, path: ActionPath) -> Result<Action<Pose>> {
+        todo!()
+    }
+
+    fn get_float(&self, path: ActionPath) -> Result<Action<f32>> {
+        todo!()
+    }
+
+    fn get_bool(&self, path: ActionPath) -> Result<Action<bool>> {
+        todo!()
+    }
 }

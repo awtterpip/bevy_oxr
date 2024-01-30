@@ -65,6 +65,7 @@ impl Swapchain {
         stage: &openxr::Space,
         resolution: UVec2,
         environment_blend_mode: openxr::EnvironmentBlendMode,
+        should_render: bool,
     ) -> Result<()> {
         Ok(match self {
             Swapchain::Vulkan(swapchain) => swapchain.end(
@@ -73,6 +74,7 @@ impl Swapchain {
                 stage,
                 resolution,
                 environment_blend_mode,
+                should_render,
             )?,
         })
     }
@@ -132,6 +134,7 @@ impl<G: openxr::Graphics> SwapchainInner<G> {
         stage: &openxr::Space,
         resolution: UVec2,
         environment_blend_mode: openxr::EnvironmentBlendMode,
+        should_render: bool,
     ) -> openxr::Result<()> {
         let rect = openxr::Rect2Di {
             offset: openxr::Offset2Di { x: 0, y: 0 },
@@ -145,31 +148,36 @@ impl<G: openxr::Graphics> SwapchainInner<G> {
             warn!("views are len of 0");
             return Ok(());
         }
-        self.stream.lock().unwrap().end(
-            predicted_display_time,
-            environment_blend_mode,
-            &[&openxr::CompositionLayerProjection::new()
-                .space(stage)
-                .views(&[
-                    openxr::CompositionLayerProjectionView::new()
-                        .pose(views[0].pose)
-                        .fov(views[0].fov)
-                        .sub_image(
-                            openxr::SwapchainSubImage::new()
-                                .swapchain(&swapchain)
-                                .image_array_index(0)
-                                .image_rect(rect),
-                        ),
-                    openxr::CompositionLayerProjectionView::new()
-                        .pose(views[1].pose)
-                        .fov(views[1].fov)
-                        .sub_image(
-                            openxr::SwapchainSubImage::new()
-                                .swapchain(&swapchain)
-                                .image_array_index(1)
-                                .image_rect(rect),
-                        ),
-                ])],
-        )
+        let mut stream = self.stream.lock().unwrap();
+        if true {
+            stream.end(
+                predicted_display_time,
+                environment_blend_mode,
+                &[&openxr::CompositionLayerProjection::new()
+                    .space(stage)
+                    .views(&[
+                        openxr::CompositionLayerProjectionView::new()
+                            .pose(views[0].pose)
+                            .fov(views[0].fov)
+                            .sub_image(
+                                openxr::SwapchainSubImage::new()
+                                    .swapchain(&swapchain)
+                                    .image_array_index(0)
+                                    .image_rect(rect),
+                            ),
+                        openxr::CompositionLayerProjectionView::new()
+                            .pose(views[1].pose)
+                            .fov(views[1].fov)
+                            .sub_image(
+                                openxr::SwapchainSubImage::new()
+                                    .swapchain(&swapchain)
+                                    .image_array_index(1)
+                                    .image_rect(rect),
+                            ),
+                    ])],
+            )
+        } else {
+            stream.end(predicted_display_time, environment_blend_mode, &[])
+        }
     }
 }

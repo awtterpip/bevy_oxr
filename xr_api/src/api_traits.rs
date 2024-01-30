@@ -1,3 +1,4 @@
+use glam::UVec2;
 use wgpu::{Adapter, AdapterInfo, Device, Queue, TextureView};
 
 use crate::prelude::*;
@@ -30,15 +31,23 @@ pub trait SessionTrait {
     fn begin_frame(&self) -> Result<(View, View)>;
     /// Submits rendering work for this frame.
     fn end_frame(&self) -> Result<()>;
+    /// Gets the resolution of a single eye.
+    fn resolution(&self) -> UVec2;
+    /// Gets the texture format for the session.
+    fn format(&self) -> wgpu::TextureFormat;
 }
 
 pub trait ViewTrait {
     /// Returns the [TextureView] used to render this view.
-    fn texture_view(&self) -> TextureView;
+    fn texture_view(&self) -> Option<TextureView>;
     /// Returns the [Pose] representing the current position of this view.
     fn pose(&self) -> Pose;
     /// Returns the projection matrix for the current view.
     fn projection_matrix(&self) -> glam::Mat4;
+    /// Gets the resolution for this view.
+    fn resolution(&self) -> UVec2;
+    /// Gets the texture format for the view.
+    fn format(&self) -> wgpu::TextureFormat;
 }
 
 pub trait InputTrait {
