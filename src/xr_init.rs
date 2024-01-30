@@ -46,6 +46,7 @@ pub struct XrRenderData {
     pub xr_input: XrInput,
     pub xr_views: XrViews,
     pub xr_frame_state: XrFrameState,
+    pub xr_passthrough_active: bool,
     pub xr_passthrough: XrPassthrough,
     pub xr_passthrough_layer: XrPassthroughLayer,
 }

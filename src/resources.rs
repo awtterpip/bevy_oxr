@@ -149,7 +149,7 @@ impl<G: xr::Graphics> SwapchainInner<G> {
         }
         match passthrough_layer {
             Some(pass) => {
-                bevy::log::info!("Rendering with pass through");
+                //bevy::log::info!("Rendering with pass through");
 
                 let passthrough_layer = xr::sys::CompositionLayerPassthroughFB {
                     ty: CompositionLayerPassthroughFB::TYPE,

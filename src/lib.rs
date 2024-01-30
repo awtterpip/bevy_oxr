@@ -24,7 +24,6 @@ use graphics::extensions::XrExtensions;
 use graphics::{XrAppInfo, XrPreferdBlendMode};
 use input::XrInput;
 use openxr as xr;
-//use passthrough::{start_passthrough, supports_passthrough, XrPassthroughLayer};
 use passthrough::{start_passthrough, supports_passthrough, Passthrough, PassthroughLayer};
 use resources::*;
 use xr::FormFactor;
@@ -63,6 +62,7 @@ pub struct FutureXrResources(
                 XrInput,
                 XrViews,
                 XrFrameState,
+                bool,
                 XrPassthrough,
                 XrPassthroughLayer,
             )>,
@@ -78,7 +78,7 @@ impl Plugin for OpenXrPlugin {
         let mut system_state: SystemState<Query<&RawHandleWrapper, With<PrimaryWindow>>> =
             SystemState::new(&mut app.world);
         let primary_window = system_state.get(&app.world).get_single().ok().cloned();
-        bevy::log::info!("primary_window: {:?}", primary_window);
+
         #[cfg(not(target_arch = "wasm32"))]
         match graphics::initialize_xr_graphics(
             primary_window.clone(),
@@ -168,11 +168,13 @@ impl Plugin for OpenXrPlugin {
                             xr_input: input,
                             xr_views: views,
                             xr_frame_state: frame_state,
+                            xr_passthrough_active: true,
                             xr_passthrough: XrPassthrough::new(Mutex::new(p)),
                             xr_passthrough_layer: XrPassthroughLayer::new(Mutex::new(pl)),
                         };
                         bevy::log::info!("Passthrough is supported!");
                         app.insert_resource(xr_data);
+                        app.insert_resource(ClearColor(Color::rgba(0.0, 0.0, 0.0, 0.0)));
                     }
 
                     if !app.world.contains_resource::<ClearColor>() {
@@ -463,10 +465,10 @@ pub fn end_frame(
     }
     {
         let _span = info_span!("xr_end_frame").entered();
-        bevy::log::info!(
-            "passthrough_layer.is_some(): {:?}",
-            passthrough_layer.is_some()
-        );
+        // bevy::log::info!(
+        //     "passthrough_layer.is_some(): {:?}",
+        //     passthrough_layer.is_some()
+        // );
 
         let result = swapchain.end(
             xr_frame_state.lock().unwrap().predicted_display_time,
