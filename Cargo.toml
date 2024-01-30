@@ -12,7 +12,7 @@ default = []
 force-link = ["openxr/linked"]
 
 [workspace]
-members = ["examples/demo"]
+members = ["examples/android", "examples/demo"]
 
 [dependencies]
 anyhow = "1.0.75"
@@ -58,6 +58,3 @@ debug = true
 
 [patch.crates-io]
 ndk = { git = "https://github.com/Schmarni-Dev/ndk.git", branch = "070" }
-ndk-sys = { package = "ndk-sys", git = "https://github.com/Schmarni-Dev/ndk.git", branch = "070" }
-ndk-context = { package = "ndk-context", git = "https://github.com/Schmarni-Dev/ndk.git", branch = "070" }
-bevy_pbr = { package = "bevy_pbr", git = "https://github.com/MalekiRe/bevy", branch = "release-0.12.1" }

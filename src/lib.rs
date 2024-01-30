@@ -143,18 +143,9 @@ impl Plugin for OpenXrPlugin {
                 let passthrough = fb_passthrough_available && passthrough_supported;
                 bevy::log::info!("From OpenXrPlugin: passthrough: {}", passthrough);
 
-                // let passthrough = xr_instance.exts().fb_passthrough.is_some()
-                //     && supports_passthrough(
-                //         &xr_instance,
-                //         xr_instance
-                //             .system(FormFactor::HEAD_MOUNTED_DISPLAY)
-                //             .unwrap(),
-                //     )
-                //     .is_ok_and(|v| v);
                 let mut p: Option<XrPassthrough> = None;
                 let mut pl: Option<XrPassthroughLayer> = None;
                 if passthrough {
-                    bevy::log::info!("Passthrough!");
                     if let Ok((p, pl)) = start_passthrough(&xr_instance, &session) {
                         let xr_data = XrRenderData {
                             xr_instance,
@@ -231,26 +222,6 @@ impl Plugin for OpenXrPlugin {
             } else {
                 app.insert_resource(DisableHandTracking::Both);
             }
-            // let passthrough = data.xr_instance.exts().fb_passthrough.is_some()
-            //     && supports_passthrough(
-            //         &data.xr_instance,
-            //         data.xr_instance
-            //             .system(FormFactor::HEAD_MOUNTED_DISPLAY)
-            //             .unwrap(),
-            //     )
-            //     .is_ok_and(|v| v);
-            // if passthrough {
-            //     info!("Passthrough!");
-            //     if let Ok(passthrough_resource) =
-            //         start_passthrough(&data.xr_instance, &data.xr_session)
-            //     {
-            //         app.insert_resource(passthrough_resource);
-            //     }
-
-            //     // if !app.world.contains_resource::<ClearColor>() {
-            //     // info!("ClearColor!");
-            //     // }
-            // }
 
             let (left, right) = data.xr_swapchain.get_render_views();
             let left = ManualTextureView {
