@@ -19,7 +19,7 @@ use bevy::render::pipelined_rendering::PipelinedRenderingPlugin;
 use bevy::render::renderer::{render_system, RenderInstance};
 use bevy::render::settings::RenderCreation;
 use bevy::render::{Render, RenderApp, RenderPlugin, RenderSet};
-use bevy::window::{PresentMode, PrimaryWindow, RawHandleWrapper};
+use bevy::window::{PresentMode, PrimaryWindow, RawHandleWrapper, WindowMode};
 use graphics::extensions::XrExtensions;
 use graphics::{XrAppInfo, XrPreferdBlendMode};
 use input::XrInput;
@@ -300,7 +300,11 @@ impl PluginGroup for DefaultXrPlugins {
                     ..default()
                 }),
                 #[cfg(target_os = "android")]
-                primary_window: None, // ?
+                primary_window: Some(Window {
+                    resizable: false,
+                    mode: WindowMode::BorderlessFullscreen,
+                    ..default()
+                }),
                 #[cfg(target_os = "android")]
                 exit_condition: bevy::window::ExitCondition::DontExit,
                 #[cfg(target_os = "android")]

@@ -104,7 +104,7 @@ pub fn draw_gizmos(
                         y: 0.01,
                         z: 0.0,
                     },
-                Vec3::Y,
+                Vec3::Y.try_into().unwrap(),
                 0.2,
                 Color::RED,
             );
@@ -149,7 +149,7 @@ fn draw_hand_gizmo(
             let controller_vec3 = trans.translation;
             let controller_quat = trans.rotation;
             let face_quat = controller_quat.mul_quat(face_quat_offset);
-            let face_quat_normal = face_quat.mul_vec3(Vec3::Z);
+            let face_quat_normal = face_quat.mul_vec3(Vec3::Z).try_into().unwrap();
 
             //draw grip
             gizmos.rect(
@@ -256,7 +256,7 @@ fn draw_hand_gizmo(
             let controller_vec3 = trans.translation;
             let controller_quat = trans.rotation;
             let face_quat = controller_quat.mul_quat(face_quat_offset);
-            let face_quat_normal = face_quat.mul_vec3(Vec3::Z);
+            let face_quat_normal = face_quat.mul_vec3(Vec3::Z).try_into().unwrap();
 
             let _squeeze = controller.squeeze(Hand::Right);
             //info!("{:?}", squeeze);

@@ -158,7 +158,7 @@ pub fn update_hand_bones(
     hand_tracking: Option<Res<HandTrackingData>>,
     xr_input: Res<XrInput>,
     xr_frame_state: Res<XrFrameState>,
-    root_query: Query<(&Transform, With<OpenXRTrackingRoot>, Without<HandBone>)>,
+    root_query: Query<&Transform, (With<OpenXRTrackingRoot>, Without<HandBone>)>,
     mut bones: Query<(
         &mut Transform,
         &Hand,
@@ -174,7 +174,7 @@ pub fn update_hand_bones(
             return;
         }
     };
-    let (root_transform, _, _) = root_query.get_single().unwrap();
+    let root_transform = root_query.get_single().unwrap();
     let left_hand_data = hand_ref.get_poses(Hand::Left);
     let right_hand_data = hand_ref.get_poses(Hand::Right);
     bones

@@ -32,7 +32,7 @@ pub struct AimPose(pub Transform);
 pub fn adopt_open_xr_trackers(
     query: Query<Entity, Added<OpenXRTracker>>,
     mut commands: Commands,
-    tracking_root_query: Query<(Entity, With<OpenXRTrackingRoot>)>,
+    tracking_root_query: Query<Entity, With<OpenXRTrackingRoot>>,
 ) {
     let root = tracking_root_query.get_single();
     match root {
@@ -40,7 +40,7 @@ pub fn adopt_open_xr_trackers(
             // info!("root is");
             for tracker in query.iter() {
                 info!("we got a new tracker");
-                commands.entity(thing.0).add_child(tracker);
+                commands.entity(thing).add_child(tracker);
             }
         }
         Err(_) => info!("root isnt spawned yet?"),
@@ -49,18 +49,14 @@ pub fn adopt_open_xr_trackers(
 
 pub fn update_open_xr_controllers(
     oculus_controller: Res<OculusController>,
-    mut left_controller_query: Query<(
-        &mut Transform,
-        Option<&mut AimPose>,
-        With<OpenXRLeftController>,
-        Without<OpenXRRightController>,
-    )>,
-    mut right_controller_query: Query<(
-        &mut Transform,
-        Option<&mut AimPose>,
-        With<OpenXRRightController>,
-        Without<OpenXRLeftController>,
-    )>,
+    mut left_controller_query: Query<
+        (&mut Transform, Option<&mut AimPose>),
+        (With<OpenXRLeftController>, Without<OpenXRRightController>),
+    >,
+    mut right_controller_query: Query<
+        (&mut Transform, Option<&mut AimPose>),
+        (With<OpenXRRightController>, Without<OpenXRLeftController>),
+    >,
     frame_state: Res<XrFrameState>,
     xr_input: Res<XrInput>,
     session: Res<XrSession>,

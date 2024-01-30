@@ -17,17 +17,14 @@ members = ["examples/android", "examples/demo"]
 [dependencies]
 anyhow = "1.0.75"
 ash = "0.37.3"
-bevy = "0.12"
+bevy = { git = "https://github.com/bevyengine/bevy", branch = "main" }
 futures-lite = "2.0.1"
 mint = "0.5.9"
-wgpu = "0.17.1"
-wgpu-core = { version = "0.17.1", features = ["vulkan"] }
-wgpu-hal = "0.17.1"
+wgpu = "0.19.1"
+wgpu-core = { version = "0.19", features = ["vulkan"] }
+wgpu-hal = "0.19.1"
 
-[target.'cfg(windows)'.dependencies]
 openxr = { git = "https://github.com/Ralith/openxrs", rev = "0177d2d", features = [
-	"linked",
-	"static",
 	"mint",
 ] }
 [target.'cfg(all(target_family = "unix", not(target_arch = "wasm32")) )'.dependencies]
@@ -45,9 +42,9 @@ ndk-context = "0.1"
 jni = "0.20"
 
 [dev-dependencies]
-bevy = "0.12"
+bevy = { git = "https://github.com/bevyengine/bevy", branch = "main" }
 color-eyre = "0.6.2"
-bevy_rapier3d = { git = "https://github.com/devil-ira/bevy_rapier", branch = "bevy-0.12" }
+#bevy_rapier3d = { git = "https://github.com/devil-ira/bevy_rapier", branch = "bevy-0.12" }
 
 [[example]]
 name = "xr"

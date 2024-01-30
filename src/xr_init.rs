@@ -319,13 +319,15 @@ pub fn init_non_xr_graphics(primary_window: Option<RawHandleWrapper>) -> RenderC
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             // Probably a bad idea unwraping here but on the other hand no backends
             backends: settings.backends.unwrap(),
+            flags: wgpu::InstanceFlags::from_build_config(),
             dx12_shader_compiler: settings.dx12_shader_compiler.clone(),
+            gles_minor_version: wgpu::Gles3MinorVersion::Automatic,
         });
         let surface = primary_window.map(|wrapper| unsafe {
             // SAFETY: Plugins should be set up on the main thread.
             let handle = wrapper.get_handle();
             instance
-                .create_surface(&handle)
+                .create_surface(handle)
                 .expect("Failed to create wgpu surface")
         });
 
