@@ -1,7 +1,7 @@
 mod graphics;
 mod utils;
 
-use std::sync::Mutex;
+use std::{rc::Rc, sync::Mutex};
 
 use glam::{Mat4, UVec2};
 use openxr::EnvironmentBlendMode;
@@ -70,11 +70,26 @@ impl InstanceTrait for OXrInstance {
     }
 }
 
+enum UntypedOXrAction {
+    Haptics(openxr::Action<openxr::Haptic>),
+    Pose(openxr::Action<openxr::Posef>),
+    Float(openxr::Action<f32>),
+    Bool(openxr::Action<bool>),
+    Vec2(openxr::Action<openxr::Vector2f>),
+}
+
+#[derive(Default)]
+struct BindingState {
+    sets_attached: bool,
+    bindings: Vec<(UntypedOXrAction, openxr::Path)>,
+}
+
 pub struct OXrSession {
     pub(crate) instance: Instance,
     // this could definitely be done better
     pub(crate) inner_instance: openxr::Instance,
     pub(crate) session: openxr::Session<openxr::AnyGraphics>,
+    pub(crate) action_sets: Mutex<Vec<openxr::ActionSet>>,
     pub(crate) render_resources: Mutex<
         Option<(
             wgpu::Device,
@@ -84,6 +99,7 @@ pub struct OXrSession {
             wgpu::Instance,
         )>,
     >,
+    pub(crate) bindings: Rc<Mutex<BindingState>>,
     pub(crate) frame_state: Mutex<openxr::FrameState>,
     pub(crate) views: Mutex<[openxr::View; 2]>,
     pub(crate) frame_waiter: Mutex<openxr::FrameWaiter>,
@@ -99,7 +115,6 @@ impl SessionTrait for OXrSession {
     fn instance(&self) -> &Instance {
         &self.instance
     }
-
     fn get_render_resources(
         &self,
     ) -> Option<(
@@ -113,6 +128,10 @@ impl SessionTrait for OXrSession {
     }
 
     fn create_input(&self, bindings: Bindings) -> Result<Input> {
+        let action_set = self
+            .inner_instance
+            .create_action_set("xr_input", "XR Input", 0)?;
+        self.action_sets.lock().unwrap().push(action_set.clone());
         todo!()
     }
 
@@ -239,6 +258,71 @@ impl SessionTrait for OXrSession {
     }
 }
 
+pub struct OXrInput {
+    inner_instance: openxr::Instance,
+    action_set: openxr::ActionSet,
+    bindings: Rc<Mutex<BindingState>>,
+}
+
+impl OXrInput {
+    fn create_action<A: openxr::ActionTy>(
+        &self,
+        name: &str,
+        handed: bool,
+    ) -> openxr::Result<openxr::Action<A>> {
+        if handed {
+            let left_path = self.inner_instance.string_to_path("/user/hand/left")?;
+            let right_path = self.inner_instance.string_to_path("/user/hand/right")?;
+            self.action_set
+                .create_action::<A>(name, name, &[left_path, right_path])
+        } else {
+            self.action_set.create_action(name, name, &[])
+        }
+    }
+}
+
+impl InputTrait for OXrInput {
+    fn create_action_haptics(
+        &self,
+        name: &str,
+        path: path::UntypedActionPath,
+    ) -> Result<Action<Haptic>> {
+        todo!()
+    }
+
+    fn create_action_pose(
+        &self,
+        name: &str,
+        path: path::UntypedActionPath,
+    ) -> Result<Action<Pose>> {
+        todo!()
+    }
+
+    fn create_action_float(
+        &self,
+        name: &str,
+        path: path::UntypedActionPath,
+    ) -> Result<Action<f32>> {
+        todo!()
+    }
+
+    fn create_action_bool(
+        &self,
+        name: &str,
+        path: path::UntypedActionPath,
+    ) -> Result<Action<bool>> {
+        todo!()
+    }
+
+    fn create_action_vec2(
+        &self,
+        name: &str,
+        path: path::UntypedActionPath,
+    ) -> Result<Action<glam::Vec2>> {
+        todo!()
+    }
+}
+
 pub struct OXrView {
     texture: Mutex<Option<wgpu::TextureView>>,
     view: openxr::View,
@@ -359,27 +443,5 @@ impl ViewTrait for OXrView {
 
     fn format(&self) -> wgpu::TextureFormat {
         self.format
-    }
-}
-
-pub struct OXrInput {
-    action_set: openxr::ActionSet,
-}
-
-impl InputTrait for OXrInput {
-    fn get_haptics(&self, path: ActionPath) -> Result<Action<Haptic>> {
-        todo!()
-    }
-
-    fn get_pose(&self, path: ActionPath) -> Result<Action<Pose>> {
-        todo!()
-    }
-
-    fn get_float(&self, path: ActionPath) -> Result<Action<f32>> {
-        todo!()
-    }
-
-    fn get_bool(&self, path: ActionPath) -> Result<Action<bool>> {
-        todo!()
     }
 }

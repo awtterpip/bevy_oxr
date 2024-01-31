@@ -318,6 +318,8 @@ pub fn init_oxr_graphics(
         head: session
             .create_reference_space(openxr::ReferenceSpaceType::VIEW, openxr::Posef::IDENTITY)?,
         format: swapchain_format,
+        action_sets: Default::default(),
+        bindings: Default::default(),
     })
 }
 

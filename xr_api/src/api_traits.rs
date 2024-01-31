@@ -1,7 +1,9 @@
-use glam::UVec2;
+use glam::{UVec2, Vec2};
 use wgpu::{Adapter, AdapterInfo, Device, Queue, TextureView};
 
 use crate::prelude::*;
+
+use self::path::{InputComponent, UntypedActionPath};
 
 pub trait EntryTrait {
     /// Return currently available extensions
@@ -52,25 +54,27 @@ pub trait ViewTrait {
 
 pub trait InputTrait {
     /// Get the haptic action at the specified path.
-    fn get_haptics(&self, path: ActionPath) -> Result<Action<Haptic>>;
+    fn create_action_haptics(&self, name: &str, path: UntypedActionPath) -> Result<Action<Haptic>>;
     /// Get the pose action at the specified path.
-    fn get_pose(&self, path: ActionPath) -> Result<Action<Pose>>;
+    fn create_action_pose(&self, name: &str, path: UntypedActionPath) -> Result<Action<Pose>>;
     /// Get the float action at the specified path.
-    fn get_float(&self, path: ActionPath) -> Result<Action<f32>>;
+    fn create_action_float(&self, name: &str, path: UntypedActionPath) -> Result<Action<f32>>;
     /// Get the boolean action at the specified path.
-    fn get_bool(&self, path: ActionPath) -> Result<Action<bool>>;
+    fn create_action_bool(&self, name: &str, path: UntypedActionPath) -> Result<Action<bool>>;
+    /// Get the Vec2 action at the specified path.
+    fn create_action_vec2(&self, name: &str, path: UntypedActionPath) -> Result<Action<Vec2>>;
 }
 
 // This impl is moved outside of the trait to ensure that InputTrait stays object safe.
 impl dyn InputTrait {
     /// Get the action at the specified path.
-    pub fn get_action<A: ActionType>(&self, path: ActionPath) -> Result<Action<A>> {
-        A::get(self, path)
+    pub fn create_action<P: InputComponent>(
+        &self,
+        name: &str,
+        path: ActionPath<P>,
+    ) -> Result<Action<P::PathType>> {
+        P::PathType::get(self, name, path.untyped())
     }
-}
-
-pub trait ActionTrait {
-    fn id(&self) -> ActionPath;
 }
 
 /// Represents input actions, such as bools, floats, and poses

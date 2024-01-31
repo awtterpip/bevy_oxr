@@ -149,7 +149,7 @@ impl<G: openxr::Graphics> SwapchainInner<G> {
             return Ok(());
         }
         let mut stream = self.stream.lock().unwrap();
-        if true {
+        if should_render {
             stream.end(
                 predicted_display_time,
                 environment_blend_mode,
