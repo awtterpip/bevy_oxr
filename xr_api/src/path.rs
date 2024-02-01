@@ -1,20 +1,18 @@
 use std::marker::PhantomData;
 
-use glam::Vec2;
-
 use crate::prelude::ActionType;
 
+#[derive(Clone, Copy)]
 pub struct ActionPath<P: InputComponent> {
     pub(crate) input: InputId,
     pub(crate) comp: PathComponent,
-    pub(crate) hand: Option<Hand>,
     _data: PhantomData<P>,
 }
 
+#[derive(Clone, Copy)]
 pub struct UntypedActionPath {
     pub(crate) input: InputId,
     pub(crate) comp: PathComponent,
-    pub(crate) hand: Option<Hand>,
 }
 
 impl<P: InputComponent> From<ActionPath<P>> for UntypedActionPath {
@@ -24,11 +22,11 @@ impl<P: InputComponent> From<ActionPath<P>> for UntypedActionPath {
 }
 
 impl<P: InputComponent> ActionPath<P> {
-    const fn new(input: InputId, comp: PathComponent, hand: Option<Hand>) -> Self {
+    const fn new(input: InputId, comp: PathComponent) -> Self {
         Self {
             input,
             comp,
-            hand,
+            //            hand,
             _data: PhantomData,
         }
     }
@@ -37,21 +35,18 @@ impl<P: InputComponent> ActionPath<P> {
         UntypedActionPath {
             input: self.input,
             comp: self.comp,
-            hand: self.hand,
+            //            hand: self.hand,
         }
     }
 }
 
-pub(crate) enum Hand {
-    Left,
-    Right,
-}
-
+#[derive(Clone, Copy)]
 pub(crate) enum PathComponent {
     Click,
     Touch,
     Value,
-    Axes,
+    X,
+    Y,
     Pose,
     Haptic,
 }
@@ -74,10 +69,16 @@ impl Value {
     const COMP: PathComponent = PathComponent::Value;
 }
 
-pub struct Axes;
+pub struct X;
 
-impl Axes {
-    const COMP: PathComponent = PathComponent::Axes;
+impl X {
+    const COMP: PathComponent = PathComponent::X;
+}
+
+pub struct Y;
+
+impl Y {
+    const COMP: PathComponent = PathComponent::Y;
 }
 
 pub struct Pose;
@@ -105,11 +106,15 @@ impl InputComponent for Touch {
 }
 
 impl InputComponent for Value {
-    type PathType = bool;
+    type PathType = f32;
 }
 
-impl InputComponent for Axes {
-    type PathType = Vec2;
+impl InputComponent for X {
+    type PathType = f32;
+}
+
+impl InputComponent for Y {
+    type PathType = f32;
 }
 
 impl InputComponent for Pose {
@@ -129,85 +134,151 @@ macro_rules! input_ids {
                 $(#[$inner_handed_meta:meta])*
                 $inner_handed:ident {
                     $(
-                        $comp_name_handed:ident,
-                    )*
+                        $(#[$comp_name_handed_meta:meta])*
+                        $comp_name_handed:ident
+                    ),*
+                    $(,)?
                 }
             )*
         }
         $(
-            $(#[$inner_meta:meta])*
-            $inner:ident {
+            $(#[$dev_path_meta:meta])*
+            $dev_path:ident {
                 $(
-                    $comp_name:ident,
+                    $(#[$inner_meta:meta])*
+                    $inner:ident {
+                        $(
+                            $(#[$comp_name_meta:meta])*
+                            $comp_name:ident
+                        ),*
+                        $(,)?
+                    }
                 )*
             }
         )*
     ) => {
-        $(
-            #[$id_meta]
-        )*
         paste::paste! {
-            pub(crate) enum $id {
-                $(
-                    $inner,
-                )*
-                $(
-                    [<$inner_handed Left>],
-                    [<$inner_handed Right>],
-                )*
-            }
-        }
-
-        pub mod left {
             const LEFT: bool = true;
-            $(
-                pub type $inner_handed = super::$inner_handed<LEFT>;
-            )*
-        }
-
-        pub mod right {
             const RIGHT: bool = false;
+
             $(
-                pub type $inner_handed = super::$inner_handed<RIGHT>;
+                #[$id_meta]
             )*
+            #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+            pub(crate) enum $id {
+                Left(Handed),
+                Right(Handed),
+                $(
+                    $(
+                        #[$dev_path_meta]
+                    )*
+                    [<$dev_path:camel>](input::$dev_path::[<$dev_path:camel>]),
+                )*
+            }
+
+            #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+            pub(crate) enum Handed {
+                $(
+                    $(
+                        #[$inner_handed_meta]
+                    )*
+                    $inner_handed,
+                )*
+            }
+
+            pub mod input {
+                use super::*;
+
+                pub(crate) mod private {
+                    $(
+                        $(
+                            #[$inner_handed_meta]
+                        )*
+                        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+                        pub struct $inner_handed<const HAND: bool>;
+                    )*
+                }
+
+                pub mod hand_left {
+                    use super::*;
+
+                    $(
+                        $(
+                            #[$inner_handed_meta]
+                        )*
+                        pub type $inner_handed = private::$inner_handed<LEFT>;
+
+                        impl $inner_handed {
+                            $(
+                                $(
+                                    #[$comp_name_handed_meta]
+                                )*
+                                pub const [<$comp_name_handed:snake:upper>]: ActionPath<$comp_name_handed> = ActionPath::<$comp_name_handed>::new($id::Left(Handed::$inner_handed), $comp_name_handed::COMP);
+                            )*
+                        }
+                    )*
+                }
+
+                pub mod hand_right {
+                    use super::*;
+
+                    $(
+                        $(
+                            #[$inner_handed_meta]
+                        )*
+                        pub type $inner_handed = private::$inner_handed<RIGHT>;
+
+                        impl $inner_handed {
+                            $(
+                                $(
+                                    #[$comp_name_handed_meta]
+                                )*
+                                pub const [<$comp_name_handed:snake:upper>]: ActionPath<$comp_name_handed> = ActionPath::<$comp_name_handed>::new($id::Right(Handed::$inner_handed), $comp_name_handed::COMP);
+                            )*
+                        }
+                    )*
+                }
+
+                $(
+                    $(
+                        #[$dev_path_meta]
+                    )*
+                    pub mod $dev_path {
+                        use super::*;
+
+                        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+                        pub(crate) enum [<$dev_path:camel>] {
+                            $(
+                                $(
+                                    #[$inner_meta]
+                                )*
+                                $inner,
+                            )*
+                        }
+
+                        $(
+                            $(
+                                #[$inner_meta]
+                            )*
+                            #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+                            pub struct $inner;
+
+                            $(
+                                #[$inner_meta]
+                            )*
+                            impl $inner {
+                                $(
+                                    $(
+                                        #[$comp_name_meta]
+                                    )*
+                                    pub const [<$comp_name:snake:upper>]: ActionPath<$comp_name> = ActionPath::<$comp_name>::new($id::[<$dev_path:camel>]([<$dev_path:camel>]::$inner), $comp_name::COMP);
+                                )*
+                            }
+                        )*
+                    }
+                )*
+            }
         }
-
-        $(
-            $(
-                #[$inner_handed_meta]
-            )*
-            pub struct $inner_handed<const HAND: bool>;
-            impl $inner_handed<true> {
-                paste::paste! {
-                    $(
-                        pub const [<$comp_name_handed:snake:upper>]: ActionPath<$comp_name_handed> = ActionPath::<$comp_name_handed>::new($id::[<$inner_handed Left>], $comp_name_handed::COMP, Some(Hand::Left));
-                    )*
-                }
-            }
-            impl $inner_handed<false> {
-                paste::paste! {
-                    $(
-                        pub const [<$comp_name_handed:snake:upper>]: ActionPath<$comp_name_handed> = ActionPath::<$comp_name_handed>::new($id::[<$inner_handed Right>], $comp_name_handed::COMP, Some(Hand::Right));
-                    )*
-                }
-            }
-
-        )*
-
-        $(
-            $(
-                #[$inner_meta]
-            )*
-            pub struct $inner;
-
-            impl $inner {
-                paste::paste! {
-                    $(
-                        pub const [<$comp_name:snake:upper>]: ActionPath<$comp_name> = ActionPath::<$comp_name>::new($id::$inner, $comp_name::COMP, None);
-                    )*
-                }
-            }
-        )*
     };
 }
 
@@ -229,7 +300,8 @@ input_ids! {
             Click,
         }
         Thumbstick {
-            Axes,
+            X,
+            Y,
             Click,
             Touch,
         }
@@ -241,6 +313,20 @@ input_ids! {
             Click,
             Value,
             Pose,
+        }
+        Output {
+            Haptic,
+        }
+    }
+    head {
+        VolumeUp {
+            Click,
+        }
+        VolumeDown {
+            Click,
+        }
+        MuteMic {
+            Click,
         }
     }
 }

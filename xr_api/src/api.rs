@@ -1,6 +1,8 @@
 use std::ops::Deref;
 use std::rc::Rc;
 
+use glam::Vec2;
+
 use crate::prelude::*;
 
 /// Entry point to the API
@@ -100,6 +102,12 @@ impl<T: ActionInputTrait<f32> + 'static> From<T> for Action<f32> {
 }
 
 impl<T: ActionInputTrait<Pose> + 'static> From<T> for Action<Pose> {
+    fn from(value: T) -> Self {
+        Self(Rc::new(value))
+    }
+}
+
+impl<T: ActionInputTrait<Vec2> + 'static> From<T> for Action<Vec2> {
     fn from(value: T) -> Self {
         Self(Rc::new(value))
     }

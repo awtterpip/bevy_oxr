@@ -1,4 +1,5 @@
 use std::ffi::{c_void, CString};
+use std::rc::Rc;
 use std::sync::Mutex;
 
 use super::{Swapchain, SwapchainInner, VIEW_TYPE};
@@ -306,15 +307,19 @@ pub fn init_oxr_graphics(
             buffers,
             image_index: Mutex::new(0),
         }),
-        frame_state: Mutex::new(openxr::FrameState {
+        frame_state: Rc::new(Mutex::new(openxr::FrameState {
             predicted_display_time: openxr::Time::from_nanos(1),
             predicted_display_period: openxr::Duration::from_nanos(1),
             should_render: true,
-        }),
+        })),
         blend_mode,
         frame_waiter: Mutex::new(frame_wait),
-        stage: session
-            .create_reference_space(openxr::ReferenceSpaceType::STAGE, openxr::Posef::IDENTITY)?,
+        stage: Rc::new(
+            session.create_reference_space(
+                openxr::ReferenceSpaceType::STAGE,
+                openxr::Posef::IDENTITY,
+            )?,
+        ),
         head: session
             .create_reference_space(openxr::ReferenceSpaceType::VIEW, openxr::Posef::IDENTITY)?,
         format: swapchain_format,

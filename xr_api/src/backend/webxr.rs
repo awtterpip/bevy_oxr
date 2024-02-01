@@ -195,6 +195,8 @@ impl InputTrait for WebXrInput {
     }
 }
 
+pub struct OXrActionInput(openxr::Action);
+
 pub struct WebXrHaptics(web_sys::GamepadHapticActuator, ActionPath);
 
 impl ActionTrait for WebXrHaptics {

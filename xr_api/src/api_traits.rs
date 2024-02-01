@@ -79,7 +79,7 @@ impl dyn InputTrait {
 
 /// Represents input actions, such as bools, floats, and poses
 pub trait ActionInputTrait<A> {
-    fn get(&self) -> A;
+    fn get(&self) -> Result<A>;
 }
 
 /// Represents haptic actions.

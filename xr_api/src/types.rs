@@ -15,7 +15,9 @@ pub struct SessionCreateInfo {
     pub texture_format: wgpu::TextureFormat,
 }
 
-pub struct Bindings {}
+pub enum Bindings {
+    OculusTouch,
+}
 
 pub struct Haptic;
 
