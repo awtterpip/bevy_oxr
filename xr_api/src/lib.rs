@@ -16,7 +16,7 @@ pub mod prelude {
     pub use super::api::*;
     pub use super::api_traits::*;
     pub use super::error::*;
-    pub use super::path::{self, ActionPath};
+    pub use super::path::{input, ActionPath};
     pub use super::types::*;
 }
 

@@ -7,6 +7,8 @@ use crate::{
     prelude::Pose,
 };
 
+use super::Bindings;
+
 impl From<openxr::sys::Result> for XrError {
     fn from(_: openxr::sys::Result) -> Self {
         XrError::Placeholder
@@ -86,5 +88,58 @@ impl UntypedActionPath {
         path.push_str(sub_path);
         path.push_str(comp_path);
         path
+    }
+
+    pub(crate) fn into_name(&self) -> String {
+        let comp_path = match self.comp {
+            PathComponent::Click => "_click",
+            PathComponent::Touch => "_touch",
+            PathComponent::Value => "_value",
+            PathComponent::X => "_x",
+            PathComponent::Y => "_y",
+            PathComponent::Pose => "_pose",
+            PathComponent::Haptic => "",
+        };
+        let dev_path = match self.input {
+            InputId::Left(hand) => match hand {
+                Handed::PrimaryButton => "left_primary_button",
+                Handed::SecondaryButton => "left_secondary_button",
+                Handed::Select => "left_select",
+                Handed::Menu => "left_menu",
+                Handed::Thumbstick => "left_thumbstick",
+                Handed::Trigger => "left_trigger",
+                Handed::Grip => "left_grip",
+                Handed::Output => "left_output",
+            },
+            InputId::Right(hand) => match hand {
+                Handed::PrimaryButton => "right_primary_button",
+                Handed::SecondaryButton => "right_secondary_button",
+                Handed::Select => "right_select",
+                Handed::Menu => "right_menu",
+                Handed::Thumbstick => "right_thumbstick",
+                Handed::Trigger => "right_trigger",
+                Handed::Grip => "right_grip",
+                Handed::Output => "right_output",
+            },
+            InputId::Head(head) => {
+                use input::head::Head;
+                match head {
+                    Head::VolumeUp => "volume_up",
+                    Head::VolumeDown => "volume_down",
+                    Head::MuteMic => "mute_mic",
+                }
+            }
+        };
+        let mut path = dev_path.to_string();
+        path.push_str(comp_path);
+        path
+    }
+}
+
+impl Bindings {
+    pub(crate) fn get_interaction_profile(&self) -> &'static str {
+        match self {
+            Bindings::OculusTouch => "/interaction_profiles/oculus/touch_controller",
+        }
     }
 }

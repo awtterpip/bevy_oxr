@@ -8,7 +8,7 @@ use hashbrown::{hash_map, HashMap};
 use openxr::{EnvironmentBlendMode, Vector2f};
 use tracing::{info, info_span, warn};
 
-use crate::{backend::oxr::graphics::VIEW_TYPE, prelude::*};
+use crate::{backend::oxr::graphics::VIEW_TYPE, path, prelude::*};
 
 pub struct OXrEntry(openxr::Entry);
 
@@ -155,10 +155,49 @@ impl SessionTrait for OXrSession {
         {
             let mut bindings = self.bindings.lock().unwrap();
             if !bindings.sessions_attached {
-                let _span = info_span!("xr_attach_actions");
-                let action_sets = self.action_sets.lock().unwrap();
-                self.session
-                    .attach_action_sets(&action_sets.iter().collect::<Vec<_>>())?;
+                if let Some(interaction_profile) = bindings.bindings {
+                    let _span = info_span!("xr_attach_actions");
+                    let controller_bindings: Vec<openxr::Binding> = bindings
+                        .map
+                        .iter()
+                        .filter_map(|(path, action)| {
+                            let path = match self.inner_instance.string_to_path(path) {
+                                Ok(path) => path,
+                                Err(e) => {
+                                    warn!("{e}");
+                                    return None;
+                                }
+                            };
+                            Some(match action {
+                                UntypedOXrAction::Haptics(action) => {
+                                    openxr::Binding::new(action, path)
+                                }
+                                UntypedOXrAction::Pose(action) => {
+                                    openxr::Binding::new(action, path)
+                                }
+                                UntypedOXrAction::Float(action) => {
+                                    openxr::Binding::new(action, path)
+                                }
+                                UntypedOXrAction::Bool(action) => {
+                                    openxr::Binding::new(action, path)
+                                }
+                                UntypedOXrAction::Vec2(action) => {
+                                    openxr::Binding::new(action, path)
+                                }
+                            })
+                        })
+                        .collect();
+                    self.inner_instance.suggest_interaction_profile_bindings(
+                        self.inner_instance
+                            .string_to_path(interaction_profile.get_interaction_profile())?,
+                        &controller_bindings,
+                    )?;
+
+                    let action_sets = self.action_sets.lock().unwrap();
+                    self.session
+                        .attach_action_sets(&action_sets.iter().collect::<Vec<_>>())?;
+                }
+
                 bindings.sessions_attached = true;
             }
         }
@@ -218,6 +257,11 @@ impl SessionTrait for OXrSession {
         {
             let _span = info_span!("xr_wait_image").entered();
             self.swapchain.wait_image().unwrap();
+        }
+        {
+            let action_sets = self.action_sets.lock().unwrap();
+            self.session
+                .sync_actions(&action_sets.iter().map(Into::into).collect::<Vec<_>>())?;
         }
         let views = {
             let _span = info_span!("xr_locate_views").entered();
@@ -293,11 +337,7 @@ pub struct OXrInput {
 }
 
 impl InputTrait for OXrInput {
-    fn create_action_haptics(
-        &self,
-        name: &str,
-        path: path::UntypedActionPath,
-    ) -> Result<Action<Haptic>> {
+    fn create_action_haptics(&self, path: path::UntypedActionPath) -> Result<Action<Haptic>> {
         let mut bindings = self.bindings.lock().unwrap();
         let action = match bindings.map.entry(path.into_xr_path()) {
             hash_map::Entry::Occupied(entry) => match entry.get() {
@@ -305,6 +345,7 @@ impl InputTrait for OXrInput {
                 _ => Err(XrError::Placeholder)?,
             },
             hash_map::Entry::Vacant(entry) => {
+                let name = &path.into_name();
                 let action = self
                     .action_set
                     .create_action::<openxr::Haptic>(name, name, &[])?;
@@ -315,11 +356,7 @@ impl InputTrait for OXrInput {
         Ok(OXrHaptics(action, self.inner_session.clone()).into())
     }
 
-    fn create_action_pose(
-        &self,
-        name: &str,
-        path: path::UntypedActionPath,
-    ) -> Result<Action<Pose>> {
+    fn create_action_pose(&self, path: path::UntypedActionPath) -> Result<Action<Pose>> {
         let mut bindings = self.bindings.lock().unwrap();
         let action = match bindings.map.entry(path.into_xr_path()) {
             hash_map::Entry::Occupied(entry) => match entry.get() {
@@ -327,6 +364,7 @@ impl InputTrait for OXrInput {
                 _ => Err(XrError::Placeholder)?,
             },
             hash_map::Entry::Vacant(entry) => {
+                let name = &path.into_name();
                 let action = self
                     .action_set
                     .create_action::<openxr::Posef>(name, name, &[])?;
@@ -346,11 +384,7 @@ impl InputTrait for OXrInput {
         .into())
     }
 
-    fn create_action_float(
-        &self,
-        name: &str,
-        path: path::UntypedActionPath,
-    ) -> Result<Action<f32>> {
+    fn create_action_float(&self, path: path::UntypedActionPath) -> Result<Action<f32>> {
         let mut bindings = self.bindings.lock().unwrap();
         let action = match bindings.map.entry(path.into_xr_path()) {
             hash_map::Entry::Occupied(entry) => match entry.get() {
@@ -358,6 +392,7 @@ impl InputTrait for OXrInput {
                 _ => Err(XrError::Placeholder)?,
             },
             hash_map::Entry::Vacant(entry) => {
+                let name = &path.into_name();
                 let action = self.action_set.create_action::<f32>(name, name, &[])?;
                 entry.insert(UntypedOXrAction::Float(action.clone()));
                 action
@@ -366,11 +401,7 @@ impl InputTrait for OXrInput {
         Ok(OXrAction(action, self.inner_session.clone(), PhantomData).into())
     }
 
-    fn create_action_bool(
-        &self,
-        name: &str,
-        path: path::UntypedActionPath,
-    ) -> Result<Action<bool>> {
+    fn create_action_bool(&self, path: path::UntypedActionPath) -> Result<Action<bool>> {
         let mut bindings = self.bindings.lock().unwrap();
         let action = match bindings.map.entry(path.into_xr_path()) {
             hash_map::Entry::Occupied(entry) => match entry.get() {
@@ -378,6 +409,7 @@ impl InputTrait for OXrInput {
                 _ => Err(XrError::Placeholder)?,
             },
             hash_map::Entry::Vacant(entry) => {
+                let name = &path.into_name();
                 let action = self.action_set.create_action::<bool>(name, name, &[])?;
                 entry.insert(UntypedOXrAction::Bool(action.clone()));
                 action
@@ -386,11 +418,7 @@ impl InputTrait for OXrInput {
         Ok(OXrAction(action, self.inner_session.clone(), PhantomData).into())
     }
 
-    fn create_action_vec2(
-        &self,
-        name: &str,
-        path: path::UntypedActionPath,
-    ) -> Result<Action<Vec2>> {
+    fn create_action_vec2(&self, path: path::UntypedActionPath) -> Result<Action<Vec2>> {
         let mut bindings = self.bindings.lock().unwrap();
         let action = match bindings.map.entry(path.into_xr_path()) {
             hash_map::Entry::Occupied(entry) => match entry.get() {
@@ -398,6 +426,7 @@ impl InputTrait for OXrInput {
                 _ => Err(XrError::Placeholder)?,
             },
             hash_map::Entry::Vacant(entry) => {
+                let name = &path.into_name();
                 let action = self.action_set.create_action::<Vector2f>(name, name, &[])?;
                 entry.insert(UntypedOXrAction::Vec2(action.clone()));
                 action
