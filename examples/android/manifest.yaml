@@ -3,6 +3,15 @@ android:
     - "runtime_libs"
   manifest:
     package: "org.bevyengine.example_openxr_android"
+    uses_feature:
+      - name: "android.hardware.vr.headtracking"
+        required: true
+      - name: "oculus.software.handtracking"
+        required: true
+      - name: "com.oculus.feature.PASSTHROUGH"
+        required: true
+      - name: "com.oculus.experimental.enabled"
+        required: true
     application:
       label: "Bevy Openxr Android"
       theme: "@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen"
@@ -14,7 +23,7 @@ android:
         - name: "com.oculus.supportedDevices"
           value: "quest|quest2|quest3|questpro"
       activities:
-        - config_changes: "density|keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|uiMode"
+        - config_changes: "density|keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|uiMode|screenLayout"
           launch_mode: "singleTask"
           orientation: "landscape"
           intent_filters:
@@ -23,5 +32,6 @@ android:
               categories:
                 - "com.oculus.intent.category.VR"
                 - "android.intent.category.LAUNCHER"
+                - "org.khronos.openxr.intent.category.IMMERSIVE_HMD"
     sdk:
       target_sdk_version: 32

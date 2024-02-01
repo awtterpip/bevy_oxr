@@ -1,7 +1,11 @@
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
 use bevy::transform::components::Transform;
+use bevy_oxr::graphics::extensions::XrExtensions;
 use bevy_oxr::graphics::XrAppInfo;
+use bevy_oxr::graphics::XrPreferdBlendMode::AlphaBlend;
+use bevy_oxr::passthrough::{passthrough_layer_pause, passthrough_layer_resume};
+use bevy_oxr::xr_init::XrRenderData;
 use bevy_oxr::xr_input::debug_gizmos::OpenXrDebugRenderer;
 use bevy_oxr::xr_input::prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig};
 use bevy_oxr::xr_input::trackers::{
@@ -11,18 +15,21 @@ use bevy_oxr::DefaultXrPlugins;
 
 #[bevy_main]
 fn main() {
+    let mut xr_extensions = XrExtensions::default();
+    xr_extensions.enable_fb_passthrough();
     App::new()
         .add_plugins(DefaultXrPlugins {
+            reqeusted_extensions: xr_extensions,
             app_info: XrAppInfo {
                 name: "Bevy OXR Android Example".into(),
             },
-            ..default()
+            prefered_blend_mode: bevy_oxr::graphics::XrPreferdBlendMode::Opaque,
         })
         .add_plugins(OpenXrDebugRenderer)
         .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(FrameTimeDiagnosticsPlugin)
         .add_systems(Startup, setup)
-        .add_systems(Update, proto_locomotion)
+        .add_systems(Update, (proto_locomotion, toggle_passthrough))
         .add_systems(Startup, spawn_controllers_example)
         .insert_resource(PrototypeLocomotionConfig::default())
         .run();
@@ -64,11 +71,6 @@ fn setup(
         transform: Transform::from_xyz(4.0, 8.0, 4.0),
         ..default()
     });
-    // camera
-    // commands.spawn((Camera3dBundle {
-    //     transform: Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
-    //     ..default()
-    // },));
 }
 
 fn spawn_controllers_example(mut commands: Commands) {
@@ -86,4 +88,17 @@ fn spawn_controllers_example(mut commands: Commands) {
         OpenXRTracker,
         SpatialBundle::default(),
     ));
+}
+
+// Does this work? Not getting logs
+fn toggle_passthrough(keys: Res<Input<KeyCode>>, mut xr_data: ResMut<XrRenderData>) {
+    if keys.just_pressed(KeyCode::Space) {
+        if xr_data.xr_passthrough_active {
+            passthrough_layer_pause(xr_data);
+            bevy::log::info!("Passthrough paused");
+        } else {
+            passthrough_layer_resume(xr_data);
+            bevy::log::info!("Passthrough resumed");
+        }
+    }
 }

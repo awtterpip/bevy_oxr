@@ -17,9 +17,10 @@ use wgpu::Instance;
 
 use crate::{
     input::XrInput,
+    passthrough::{Passthrough, PassthroughLayer},
     resources::{
-        XrEnvironmentBlendMode, XrFormat, XrFrameState, XrFrameWaiter, XrInstance, XrResolution,
-        XrSession, XrSessionRunning, XrSwapchain, XrViews,
+        XrEnvironmentBlendMode, XrFormat, XrFrameState, XrFrameWaiter, XrInstance, XrPassthrough,
+        XrPassthroughLayer, XrResolution, XrSession, XrSessionRunning, XrSwapchain, XrViews,
     },
 };
 
@@ -45,6 +46,9 @@ pub struct XrRenderData {
     pub xr_input: XrInput,
     pub xr_views: XrViews,
     pub xr_frame_state: XrFrameState,
+    pub xr_passthrough_active: bool,
+    pub xr_passthrough: XrPassthrough,
+    pub xr_passthrough_layer: XrPassthroughLayer,
 }
 
 #[derive(Event, Clone, Copy, Debug)]

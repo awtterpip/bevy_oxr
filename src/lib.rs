@@ -1,6 +1,6 @@
 pub mod graphics;
 pub mod input;
-// pub mod passthrough;
+pub mod passthrough;
 pub mod resource_macros;
 pub mod resources;
 pub mod xr_init;
@@ -24,7 +24,7 @@ use graphics::extensions::XrExtensions;
 use graphics::{XrAppInfo, XrPreferdBlendMode};
 use input::XrInput;
 use openxr as xr;
-// use passthrough::{start_passthrough, supports_passthrough, XrPassthroughLayer};
+use passthrough::{start_passthrough, supports_passthrough, Passthrough, PassthroughLayer};
 use resources::*;
 use xr::FormFactor;
 use xr_init::{xr_only, XrEnableStatus, XrRenderData};
@@ -62,13 +62,16 @@ pub struct FutureXrResources(
                 XrInput,
                 XrViews,
                 XrFrameState,
+                bool,
+                XrPassthrough,
+                XrPassthroughLayer,
             )>,
         >,
     >,
 );
-// fn mr_test(mut commands: Commands, passthrough_layer: Option<Res<XrPassthroughLayer>>) {
-//     commands.insert_resource(ClearColor(Color::rgba(0.0, 0.0, 0.0, 0.0)));
-// }
+fn mr_test(mut commands: Commands, passthrough_layer: Option<Res<XrPassthroughLayer>>) {
+    commands.insert_resource(ClearColor(Color::rgba(0.0, 0.0, 0.0, 0.0)));
+}
 
 impl Plugin for OpenXrPlugin {
     fn build(&self, app: &mut App) {
@@ -115,20 +118,60 @@ impl Plugin for OpenXrPlugin {
                 app.insert_resource(input.clone());
                 app.insert_resource(views.clone());
                 app.insert_resource(frame_state.clone());
-                let xr_data = XrRenderData {
-                    xr_instance,
-                    xr_session: session,
-                    xr_blend_mode: blend_mode,
-                    xr_resolution: resolution,
-                    xr_format: format,
-                    xr_session_running: session_running,
-                    xr_frame_waiter: frame_waiter,
-                    xr_swapchain: swapchain,
-                    xr_input: input,
-                    xr_views: views,
-                    xr_frame_state: frame_state,
-                };
-                app.insert_resource(xr_data);
+
+                // Check if the fb_passthrough extension is available
+                let fb_passthrough_available = xr_instance.exts().fb_passthrough.is_some();
+                bevy::log::info!(
+                    "From OpenXrPlugin: fb_passthrough_available: {}",
+                    fb_passthrough_available
+                );
+                // Get the system for the head-mounted display
+                let hmd_system = xr_instance
+                    .system(FormFactor::HEAD_MOUNTED_DISPLAY)
+                    .unwrap();
+                bevy::log::info!("From OpenXrPlugin: hmd_system: {:?}", hmd_system);
+
+                // Check if the system supports passthrough
+                let passthrough_supported =
+                    supports_passthrough(&xr_instance, hmd_system).is_ok_and(|v| v);
+                bevy::log::info!(
+                    "From OpenXrPlugin: passthrough_supported: {}",
+                    passthrough_supported
+                );
+
+                // The passthrough variable will be true only if both fb_passthrough is available and the system supports passthrough
+                let passthrough = fb_passthrough_available && passthrough_supported;
+                bevy::log::info!("From OpenXrPlugin: passthrough: {}", passthrough);
+
+                let mut p: Option<XrPassthrough> = None;
+                let mut pl: Option<XrPassthroughLayer> = None;
+                if passthrough {
+                    if let Ok((p, pl)) = start_passthrough(&xr_instance, &session) {
+                        let xr_data = XrRenderData {
+                            xr_instance,
+                            xr_session: session,
+                            xr_blend_mode: blend_mode,
+                            xr_resolution: resolution,
+                            xr_format: format,
+                            xr_session_running: session_running,
+                            xr_frame_waiter: frame_waiter,
+                            xr_swapchain: swapchain,
+                            xr_input: input,
+                            xr_views: views,
+                            xr_frame_state: frame_state,
+                            xr_passthrough_active: true,
+                            xr_passthrough: XrPassthrough::new(Mutex::new(p)),
+                            xr_passthrough_layer: XrPassthroughLayer::new(Mutex::new(pl)),
+                        };
+                        bevy::log::info!("Passthrough is supported!");
+                        app.insert_resource(xr_data);
+                        app.insert_resource(ClearColor(Color::rgba(0.0, 0.0, 0.0, 0.0)));
+                    }
+
+                    if !app.world.contains_resource::<ClearColor>() {
+                        info!("ClearColor!");
+                    }
+                }
                 app.insert_resource(ActionSets(vec![]));
                 app.add_plugins(RenderPlugin {
                     render_creation: RenderCreation::Manual(
@@ -179,23 +222,6 @@ impl Plugin for OpenXrPlugin {
             } else {
                 app.insert_resource(DisableHandTracking::Both);
             }
-            // let passthrough = data.xr_instance.exts().fb_passthrough.is_some()
-            //     && supports_passthrough(
-            //         &data.xr_instance,
-            //         data.xr_instance
-            //             .system(FormFactor::HEAD_MOUNTED_DISPLAY)
-            //             .unwrap(),
-            //     )
-            //     .is_ok_and(|v| v);
-            // if passthrough {
-            //     info!("Passthrough!");
-            //     let (pl, p) = start_passthrough(&data);
-            //     app.insert_resource(pl);
-            //     app.insert_resource(p);
-            //     // if !app.world.contains_resource::<ClearColor>() {
-            //     // info!("ClearColor!");
-            //     // }
-            // }
 
             let (left, right) = data.xr_swapchain.get_render_views();
             let left = ManualTextureView {
@@ -226,6 +252,8 @@ impl Plugin for OpenXrPlugin {
             render_app.insert_resource(data.xr_input.clone());
             render_app.insert_resource(data.xr_views.clone());
             render_app.insert_resource(data.xr_frame_state.clone());
+            render_app.insert_resource(data.xr_passthrough.clone());
+            render_app.insert_resource(data.xr_passthrough_layer.clone());
             render_app.insert_resource(XrEnableStatus::Enabled);
             render_app.add_systems(
                 Render,
@@ -272,7 +300,7 @@ impl PluginGroup for DefaultXrPlugins {
                     ..default()
                 }),
                 #[cfg(target_os = "android")]
-                primary_window: None,
+                primary_window: None, // ?
                 #[cfg(target_os = "android")]
                 exit_condition: bevy::window::ExitCondition::DontExit,
                 #[cfg(target_os = "android")]
@@ -393,7 +421,7 @@ pub fn end_frame(
     swapchain: Res<XrSwapchain>,
     resolution: Res<XrResolution>,
     environment_blend_mode: Res<XrEnvironmentBlendMode>,
-    // passthrough_layer: Option<Res<XrPassthroughLayer>>,
+    passthrough_layer: Option<Res<XrPassthroughLayer>>,
 ) {
     #[cfg(target_os = "android")]
     {
@@ -408,13 +436,18 @@ pub fn end_frame(
     }
     {
         let _span = info_span!("xr_end_frame").entered();
+        // bevy::log::info!(
+        //     "passthrough_layer.is_some(): {:?}",
+        //     passthrough_layer.is_some()
+        // );
+
         let result = swapchain.end(
             xr_frame_state.lock().unwrap().predicted_display_time,
             &views.lock().unwrap(),
             &input.stage,
             **resolution,
             **environment_blend_mode,
-            // passthrough_layer.map(|p| p.into_inner()),
+            passthrough_layer.map(|p| PassthroughLayer(*p.lock().unwrap())),
         );
         match result {
             Ok(_) => {}
