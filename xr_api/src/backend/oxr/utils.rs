@@ -1,5 +1,5 @@
 use glam::Quat;
-use openxr::Posef;
+use openxr::{Action, Fovf, Posef};
 
 use crate::{
     error::XrError,
@@ -7,7 +7,7 @@ use crate::{
     prelude::Pose,
 };
 
-use super::Bindings;
+use super::{Bindings, Fov};
 
 impl From<openxr::sys::Result> for XrError {
     fn from(_: openxr::sys::Result) -> Self {
@@ -20,14 +20,77 @@ impl From<Posef> for Pose {
         // with enough sign errors anything is possible
         let rotation = {
             let o = pose.orientation;
-            Quat::from_rotation_x(180.0f32.to_radians()) * glam::quat(o.w, o.z, o.y, o.x)
+            Quat::from_xyzw(o.x, o.y, o.z, o.w)
         };
-        let translation = glam::vec3(-pose.position.x, pose.position.y, -pose.position.z);
+        let translation = glam::vec3(pose.position.x, pose.position.y, pose.position.z);
 
         Pose {
             translation,
             rotation,
         }
+    }
+}
+
+impl From<Fovf> for Fov {
+    fn from(fov: Fovf) -> Self {
+        let Fovf {
+            angle_left,
+            angle_right,
+            angle_down,
+            angle_up,
+        } = fov;
+        Self {
+            angle_down,
+            angle_left,
+            angle_right,
+            angle_up,
+        }
+    }
+}
+
+macro_rules! untyped_oxr_actions {
+    (
+        $id:ident {
+            $(
+                $inner:ident($inner_ty:ty)
+            ),*
+            $(,)?
+        }
+    ) => {
+        pub(crate) enum $id {
+            $(
+                $inner($inner_ty),
+            )*
+        }
+
+        $(
+            impl TryInto<$inner_ty> for $id {
+                type Error = ();
+
+                fn try_into(self) -> std::prelude::v1::Result<$inner_ty, Self::Error> {
+                    match self {
+                        Self::$inner(action) => Ok(action),
+                        _ => Err(()),
+                    }
+                }
+            }
+
+            impl From<$inner_ty> for $id {
+                fn from(value: $inner_ty) -> Self {
+                    Self::$inner(value)
+                }
+            }
+        )*
+    };
+}
+
+untyped_oxr_actions! {
+    UntypedOXrAction {
+        Haptics(Action<openxr::Haptic>),
+        Pose(Action<openxr::Posef>),
+        Float(Action<f32>),
+        Bool(Action<bool>),
+        Vec2(Action<openxr::Vector2f>),
     }
 }
 

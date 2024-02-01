@@ -22,9 +22,18 @@ pub enum Bindings {
 
 pub struct Haptic;
 
+#[derive(Clone, Copy, Debug, Default)]
 pub struct Pose {
     pub translation: Vec3,
     pub rotation: Quat,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Fov {
+    pub angle_left: f32,
+    pub angle_right: f32,
+    pub angle_down: f32,
+    pub angle_up: f32,
 }
 
 pub trait ActionType: Sized {

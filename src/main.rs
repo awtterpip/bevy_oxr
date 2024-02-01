@@ -45,14 +45,6 @@ fn setup(
     // camera
     commands.spawn(Camera3dBundle {
         transform: Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
-        camera: Camera {
-            target: RenderTarget::TextureView(LEFT_XR_TEXTURE_HANDLE),
-            ..default()
-        },
-        camera_3d: Camera3d {
-            clear_color: ClearColorConfig::Custom(Color::RED),
-            ..default()
-        },
         ..default()
     });
 }

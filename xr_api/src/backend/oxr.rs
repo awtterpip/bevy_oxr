@@ -1,9 +1,11 @@
 mod graphics;
 mod utils;
 
+use utils::UntypedOXrAction;
+
 use std::{marker::PhantomData, rc::Rc, sync::Mutex};
 
-use glam::{Mat4, UVec2, Vec2};
+use glam::{Mat4, UVec2, Vec2, Vec3A};
 use hashbrown::{hash_map, HashMap};
 use openxr::{EnvironmentBlendMode, Vector2f};
 use tracing::{info, info_span, warn};
@@ -69,14 +71,6 @@ impl InstanceTrait for OXrInstance {
     fn create_session(&self, info: SessionCreateInfo) -> Result<Session> {
         graphics::init_oxr_graphics(self.clone(), self.1, info.texture_format).map(Into::into)
     }
-}
-
-pub(crate) enum UntypedOXrAction {
-    Haptics(openxr::Action<openxr::Haptic>),
-    Pose(openxr::Action<openxr::Posef>),
-    Float(openxr::Action<f32>),
-    Bool(openxr::Action<bool>),
-    Vec2(openxr::Action<openxr::Vector2f>),
 }
 
 #[derive(Default)]
@@ -151,7 +145,7 @@ impl SessionTrait for OXrSession {
         .into())
     }
 
-    fn begin_frame(&self) -> Result<(View, View)> {
+    fn begin_frame(&self) -> Result<()> {
         {
             let mut bindings = self.bindings.lock().unwrap();
             if !bindings.sessions_attached {
@@ -263,6 +257,10 @@ impl SessionTrait for OXrSession {
             self.session
                 .sync_actions(&action_sets.iter().map(Into::into).collect::<Vec<_>>())?;
         }
+        Ok(())
+    }
+
+    fn locate_views(&self) -> Result<(View, View)> {
         let views = {
             let _span = info_span!("xr_locate_views").entered();
             self.session
@@ -325,6 +323,14 @@ impl SessionTrait for OXrSession {
 
     fn format(&self) -> wgpu::TextureFormat {
         self.format
+    }
+
+    fn headset_location(&self) -> Result<Pose> {
+        let location = self.head.locate(
+            &self.stage,
+            self.frame_state.lock().unwrap().predicted_display_time,
+        )?;
+        Ok(location.pose.into())
     }
 }
 
@@ -498,7 +504,7 @@ impl ViewTrait for OXrView {
         self.view.pose.clone().into()
     }
 
-    fn projection_matrix(&self) -> glam::Mat4 {
+    fn projection_matrix(&self, near: f32, far: f32) -> glam::Mat4 {
         //  symmetric perspective for debugging
         // let x_fov = (self.fov.angle_left.abs() + self.fov.angle_right.abs());
         // let y_fov = (self.fov.angle_up.abs() + self.fov.angle_down.abs());
@@ -506,9 +512,6 @@ impl ViewTrait for OXrView {
 
         let fov = self.view.fov;
         let is_vulkan_api = false; // FIXME wgpu probably abstracts this
-        let near_z = 0.1;
-        let far_z = -1.; //   use infinite proj
-                         // let far_z = self.far;
 
         let tan_angle_left = fov.angle_left.tan();
         let tan_angle_right = fov.angle_right.tan();
@@ -538,7 +541,7 @@ impl ViewTrait for OXrView {
 
         let mut cols: [f32; 16] = [0.0; 16];
 
-        if far_z <= near_z {
+        if far <= near {
             // place the far plane at infinity
             cols[0] = 2. / tan_angle_width;
             cols[4] = 0.;
@@ -553,7 +556,7 @@ impl ViewTrait for OXrView {
             cols[2] = 0.;
             cols[6] = 0.;
             cols[10] = -1.;
-            cols[14] = -(near_z + offset_z);
+            cols[14] = -(near + offset_z);
 
             cols[3] = 0.;
             cols[7] = 0.;
@@ -584,8 +587,8 @@ impl ViewTrait for OXrView {
 
             cols[2] = 0.;
             cols[6] = 0.;
-            cols[10] = -(far_z + offset_z) / (far_z - near_z);
-            cols[14] = -(far_z * (near_z + offset_z)) / (far_z - near_z);
+            cols[10] = -(far + offset_z) / (far - near);
+            cols[14] = -(far * (near + offset_z)) / (far - near);
 
             cols[3] = 0.;
             cols[7] = 0.;
@@ -602,5 +605,9 @@ impl ViewTrait for OXrView {
 
     fn format(&self) -> wgpu::TextureFormat {
         self.format
+    }
+
+    fn fov(&self) -> Fov {
+        self.view.fov.into()
     }
 }

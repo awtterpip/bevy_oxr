@@ -1,4 +1,4 @@
-use glam::{UVec2, Vec2};
+use glam::{UVec2, Vec2, Vec3A};
 use wgpu::{Adapter, AdapterInfo, Device, Queue, TextureView};
 
 use crate::prelude::*;
@@ -27,10 +27,14 @@ pub trait SessionTrait {
     /// Get render resources compatible with this session.
     fn get_render_resources(&self)
         -> Option<(Device, Queue, AdapterInfo, Adapter, wgpu::Instance)>;
+    /// Returns the position of the headset.
+    fn headset_location(&self) -> Result<Pose>;
     /// Request input modules with the specified bindings.
     fn create_input(&self, bindings: Bindings) -> Result<Input>;
     /// Blocks until a rendering frame is available, then returns the views for the left and right eyes.
-    fn begin_frame(&self) -> Result<(View, View)>;
+    fn begin_frame(&self) -> Result<()>;
+    /// Locate the views of each eye.
+    fn locate_views(&self) -> Result<(View, View)>;
     /// Submits rendering work for this frame.
     fn end_frame(&self) -> Result<()>;
     /// Gets the resolution of a single eye.
@@ -45,7 +49,9 @@ pub trait ViewTrait {
     /// Returns the [Pose] representing the current position of this view.
     fn pose(&self) -> Pose;
     /// Returns the projection matrix for the current view.
-    fn projection_matrix(&self) -> glam::Mat4;
+    fn projection_matrix(&self, near: f32, far: f32) -> glam::Mat4;
+    /// Gets the fov of the camera.
+    fn fov(&self) -> Fov;
     /// Gets the resolution for this view.
     fn resolution(&self) -> UVec2;
     /// Gets the texture format for the view.
