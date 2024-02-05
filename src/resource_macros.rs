@@ -33,6 +33,35 @@ macro_rules! xr_resource_wrapper {
 }
 
 #[macro_export]
+macro_rules! xr_resource_wrapper_no_extract {
+    ($wrapper_type:ident, $xr_type:ty) => {
+        #[derive(
+            Clone, Copy, bevy::prelude::Resource, bevy::prelude::Deref, bevy::prelude::DerefMut,
+        )]
+        pub struct $wrapper_type($xr_type);
+
+        impl $wrapper_type {
+            pub fn new(value: $xr_type) -> Self {
+                Self(value)
+            }
+        }
+
+        // impl std::ops::Deref for $wrapper_type {
+        //     type Target = $xr_type;
+        //
+        //     fn deref(&self) -> &Self::Target {
+        //         &self.0
+        //     }
+        // }
+
+        impl From<$xr_type> for $wrapper_type {
+            fn from(value: $xr_type) -> Self {
+                Self::new(value)
+            }
+        }
+    };
+}
+#[macro_export]
 macro_rules! xr_arc_resource_wrapper {
     ($wrapper_type:ident, $xr_type:ty) => {
         #[derive(

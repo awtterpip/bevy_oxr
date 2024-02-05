@@ -154,20 +154,20 @@ impl Plugin for OpenXrPlugin {
                 .after(RenderSet::ExtractCommands),
             // .in_set(RenderSet::Prepare),
         );
-        render_app.add_systems(
-            Render,
-            (
-                locate_views,
-                xr_input::xr_camera::xr_camera_head_sync,
-                sync_simple_transforms,
-                propagate_transforms,
-                update_cam_views,
-            )
-                .chain()
-                .run_if(xr_only())
-                // .run_if(xr_render_only())
-                .in_set(RenderSet::Prepare),
-        );
+        // render_app.add_systems(
+        //     Render,
+        //     (
+        //         locate_views,
+        //         xr_input::xr_camera::xr_camera_head_sync_render,
+        //         // sync_simple_transforms,
+        //         // propagate_transforms,
+        //         // update_cam_views,
+        //     )
+        //         .chain()
+        //         .run_if(xr_only())
+        //         // .run_if(xr_render_only())
+        //         .in_set(RenderSet::Prepare),
+        // );
         render_app.add_systems(
             Render,
             xr_end_frame
@@ -187,6 +187,8 @@ impl Plugin for OpenXrPlugin {
     }
 }
 
+// Confirmed Working
+// Not Working Actually, the cam doesn't render with the new pose for some reason
 fn update_cam_views(mut query: Query<(&mut ExtractedView, &GlobalTransform)>) {
     for (mut view, transform) in &mut query {
         view.transform = *transform;
@@ -199,7 +201,6 @@ fn xr_skip_frame(
     environment_blend_mode: Res<XrEnvironmentBlendMode>,
 ) {
     let swapchain: &Swapchain = &xr_swapchain;
-    // swapchain.begin().unwrap();
     match swapchain {
         Swapchain::Vulkan(swap) => {
             swap.stream
@@ -344,10 +345,14 @@ pub fn xr_wait_frame(
                 return;
             }
         };
-        frame_state.predicted_display_time = xr::Time::from_nanos(
+        info!(
+            "Post Wait Time: {}",
             frame_state.predicted_display_time.as_nanos()
-                + frame_state.predicted_display_period.as_nanos(),
         );
+        // frame_state.predicted_display_time = xr::Time::from_nanos(
+        //     frame_state.predicted_display_time.as_nanos()
+        //         + frame_state.predicted_display_period.as_nanos(),
+        // );
         info!("Post Frame Wait");
         **should_render = frame_state.should_render;
         **waited = true;
@@ -406,6 +411,10 @@ pub fn xr_end_frame(
     }
     {
         let _span = info_span!("xr_end_frame").entered();
+        info!(
+            "End Frame Time: {}",
+            xr_frame_state.predicted_display_time.as_nanos()
+        );
         let result = swapchain.end(
             xr_frame_state.predicted_display_time,
             &views,

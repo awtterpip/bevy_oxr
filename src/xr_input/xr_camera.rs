@@ -7,7 +7,7 @@ use bevy::prelude::*;
 use bevy::render::camera::{CameraProjection, CameraRenderGraph, RenderTarget};
 use bevy::render::extract_component::ExtractComponent;
 use bevy::render::primitives::Frustum;
-use bevy::render::view::{ColorGrading, VisibleEntities};
+use bevy::render::view::{ColorGrading, ExtractedView, VisibleEntities};
 use openxr::Fovf;
 
 #[derive(Bundle)]
@@ -79,6 +79,7 @@ impl ExtractComponent for GlobalTransformExtract {
         Some(*item)
     }
 }
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum Eye {
     Left = 0,
@@ -271,7 +272,7 @@ impl CameraProjection for XRProjection {
 }
 
 pub fn xr_camera_head_sync(
-    views: ResMut<crate::resources::XrViews>,
+    views: Res<crate::resources::XrViews>,
     mut query: Query<(&mut Transform, &XrCameraType, &mut XRProjection)>,
 ) {
     //TODO calculate HMD position
@@ -288,5 +289,27 @@ pub fn xr_camera_head_sync(
         xr_projection.fov = view.fov;
         transform.rotation = view.pose.orientation.to_quat();
         transform.translation = view.pose.position.to_vec3();
+    }
+}
+pub fn xr_camera_head_sync_render(
+    views: Res<crate::resources::XrViews>,
+    mut query: Query<(&mut ExtractedView, &XrCameraType)>,
+) {
+    //TODO calculate HMD position
+    for (mut transform, camera_type) in query.iter_mut() {
+        // let mut t = Transform::IDENTITY;
+        // let view_idx = match camera_type {
+        //     XrCameraType::Xr(eye) => *eye as usize,
+        //     // I don't belive we need a flatscrenn cam, that's just a cam without this component
+        //     XrCameraType::Flatscreen => continue,
+        // };
+        // let view = match views.get(view_idx) {
+        //     Some(views) => views,
+        //     None => continue,
+        // };
+        // t.rotation = view.pose.orientation.to_quat();
+        // t.translation = view.pose.position.to_vec3();
+        info!("cam update");
+        transform.transform = GlobalTransform::IDENTITY;
     }
 }

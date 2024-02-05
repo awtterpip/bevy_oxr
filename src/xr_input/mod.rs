@@ -36,7 +36,7 @@ use self::trackers::{
     adopt_open_xr_trackers, update_open_xr_controllers, OpenXRLeftEye, OpenXRRightEye,
     OpenXRTrackingRoot,
 };
-use self::xr_camera::{XrCameraType, TransformExtract};
+use self::xr_camera::{GlobalTransformExtract, TransformExtract, XrCameraType};
 
 #[derive(Copy, Clone)]
 pub struct OpenXrInput {
@@ -87,6 +87,7 @@ impl Plugin for OpenXrInput {
         app.add_plugins(ExtractComponentPlugin::<XrCameraType>::default());
         app.add_plugins(ExtractComponentPlugin::<XRProjection>::default());
         app.add_plugins(ExtractComponentPlugin::<TransformExtract>::default());
+        app.add_plugins(ExtractComponentPlugin::<GlobalTransformExtract>::default());
     }
 }
 

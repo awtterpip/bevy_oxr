@@ -356,7 +356,7 @@ pub fn start_xr_session(
     });
     let swapchain_format = surface
         .as_ref()
-        .map(|surface| surface.get_capabilities(&wgpu_adapter).formats[0])
+        .map(|surface| surface.get_capabilities(wgpu_adapter).formats[0])
         .unwrap_or(wgpu::TextureFormat::Rgba8UnormSrgb);
 
     let resolution = uvec2(
@@ -387,6 +387,7 @@ pub fn start_xr_session(
     let buffers = images
         .into_iter()
         .map(|color_image| {
+            info!("image map swapchain");
             let color_image = vk::Image::from_raw(color_image);
             let wgpu_hal_texture = unsafe {
                 <V as Api>::Device::texture_from_raw(
@@ -449,6 +450,7 @@ pub fn start_xr_session(
         .into(),
         XrInput::new(xr_instance, &session.into_any_graphics())?,
         Vec::default().into(),
+        // Feels wrong to return a FrameState here, we probably should just wait for the next frame
         xr::FrameState {
             predicted_display_time: xr::Time::from_nanos(1),
             predicted_display_period: xr::Duration::from_nanos(1),
