@@ -12,9 +12,10 @@ use wgpu::Instance;
 
 use crate::input::XrInput;
 use crate::resources::{
-    OXrSessionSetupInfo, XrEnvironmentBlendMode, XrFormat, XrFrameState, XrFrameWaiter, XrInstance,
-    XrResolution, XrSession, XrSessionRunning, XrSwapchain, XrViews,
+    XrEnvironmentBlendMode, XrFormat, XrFrameState, XrFrameWaiter, XrInstance, XrResolution,
+    XrSession, XrSessionRunning, XrSwapchain, XrViews,
 };
+use crate::OXrSessionSetupInfo;
 
 use openxr as xr;
 

@@ -10,14 +10,14 @@ impl XrExtensions {
     pub fn raw(&self) -> &ExtensionSet {
         &self.0
     }
-    // pub fn enable_fb_passthrough(&mut self) -> &mut Self {
-    //     self.0.fb_passthrough = true;
-    //     self
-    // }
-    // pub fn disable_fb_passthrough(&mut self) -> &mut Self {
-    //     self.0.fb_passthrough = false;
-    //     self
-    // }
+    pub fn enable_fb_passthrough(&mut self) -> &mut Self {
+        self.0.fb_passthrough = true;
+        self
+    }
+    pub fn disable_fb_passthrough(&mut self) -> &mut Self {
+        self.0.fb_passthrough = false;
+        self
+    }
     pub fn enable_hand_tracking(&mut self) -> &mut Self {
         self.0.ext_hand_tracking = true;
         self

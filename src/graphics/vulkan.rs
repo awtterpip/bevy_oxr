@@ -16,6 +16,7 @@ use xr::EnvironmentBlendMode;
 
 use crate::graphics::extensions::XrExtensions;
 use crate::input::XrInput;
+
 use crate::resources::{
     OXrSessionSetupInfo, Swapchain, SwapchainInner, VulkanOXrSessionSetupInfo,
     XrEnvironmentBlendMode, XrFormat, XrFrameState, XrFrameWaiter, XrInstance, XrResolution,
@@ -47,7 +48,7 @@ pub fn initialize_xr_instance(
 
     let available_extensions: XrExtensions = xr_entry.enumerate_extensions()?.into();
     assert!(available_extensions.raw().khr_vulkan_enable2);
-    info!("available xr exts: {:#?}", available_extensions);
+    //info!("available xr exts: {:#?}", available_extensions);
 
     let mut enabled_extensions: xr::ExtensionSet =
         (available_extensions & reqeusted_extensions).into();
@@ -58,7 +59,7 @@ pub fn initialize_xr_instance(
     }
 
     let available_layers = xr_entry.enumerate_layers()?;
-    info!("available xr layers: {:#?}", available_layers);
+    //info!("available xr layers: {:#?}", available_layers);
 
     let xr_instance = xr_entry.create_instance(
         &xr::ApplicationInfo {
@@ -88,17 +89,23 @@ pub fn initialize_xr_instance(
     let blend_modes = xr_instance.enumerate_environment_blend_modes(xr_system_id, VIEW_TYPE)?;
     let blend_mode: EnvironmentBlendMode = match prefered_blend_mode {
         XrPreferdBlendMode::Opaque if blend_modes.contains(&EnvironmentBlendMode::OPAQUE) => {
+            bevy::log::info!("Using Opaque");
             EnvironmentBlendMode::OPAQUE
         }
         XrPreferdBlendMode::Additive if blend_modes.contains(&EnvironmentBlendMode::ADDITIVE) => {
+            bevy::log::info!("Using Additive");
             EnvironmentBlendMode::ADDITIVE
         }
         XrPreferdBlendMode::AlphaBlend
             if blend_modes.contains(&EnvironmentBlendMode::ALPHA_BLEND) =>
         {
+            bevy::log::info!("Using AlphaBlend");
             EnvironmentBlendMode::ALPHA_BLEND
         }
-        _ => EnvironmentBlendMode::OPAQUE,
+        _ => {
+            bevy::log::info!("Using Opaque");
+            EnvironmentBlendMode::OPAQUE
+        }
     };
 
     #[cfg(not(target_os = "android"))]
@@ -359,6 +366,8 @@ pub fn start_xr_session(
         .map(|surface| surface.get_capabilities(wgpu_adapter).formats[0])
         .unwrap_or(wgpu::TextureFormat::Rgba8UnormSrgb);
 
+    // TODO: Log swapchain format
+
     let resolution = uvec2(
         views[0].recommended_image_rect_width,
         views[0].recommended_image_rect_height,
@@ -436,7 +445,7 @@ pub fn start_xr_session(
         .collect();
 
     Ok((
-        session.clone().into_any_graphics().into(),
+        XrSession::Vulkan(session.clone()),
         resolution.into(),
         swapchain_format.into(),
         AtomicBool::new(false).into(),

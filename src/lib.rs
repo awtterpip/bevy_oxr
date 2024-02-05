@@ -1,6 +1,6 @@
 pub mod graphics;
 pub mod input;
-// pub mod passthrough;
+pub mod passthrough;
 pub mod resource_macros;
 pub mod resources;
 pub mod xr_init;
@@ -11,41 +11,31 @@ use std::io::{BufWriter, Write};
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
+use crate::passthrough::ResumePassthrough;
 use crate::xr_init::{StartXrSession, XrInitPlugin};
-use crate::xr_input::hands::hand_tracking::DisableHandTracking;
 use crate::xr_input::oculus_touch::ActionSets;
 use bevy::app::{AppExit, PluginGroupBuilder};
 use bevy::core::TaskPoolThreadAssignmentPolicy;
 use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
-use bevy::render::camera::{
-    camera_system, ManualTextureView, ManualTextureViewHandle, ManualTextureViews,
-};
-use bevy::render::extract_resource::ExtractResourcePlugin;
+use bevy::render::camera::{ManualTextureView, ManualTextureViewHandle, ManualTextureViews};
 use bevy::render::pipelined_rendering::PipelinedRenderingPlugin;
 use bevy::render::renderer::{render_system, RenderInstance};
 use bevy::render::settings::RenderCreation;
-use bevy::render::view::ExtractedView;
 use bevy::render::{Render, RenderApp, RenderPlugin, RenderSet};
-use bevy::tasks::available_parallelism;
-use bevy::transform::systems::{propagate_transforms, sync_simple_transforms};
 use bevy::window::{PresentMode, PrimaryWindow, RawHandleWrapper};
 use graphics::extensions::XrExtensions;
 use graphics::{XrAppInfo, XrPreferdBlendMode};
 use input::XrInput;
 use openxr as xr;
-// use passthrough::{start_passthrough, supports_passthrough, XrPassthroughLayer};
+use passthrough::{PassthroughPlugin, XrPassthroughLayer, XrPassthroughState};
 use resources::*;
-use xr::{FormFactor, FrameState};
 use xr_init::{
     xr_after_wait_only, xr_only, xr_render_only, CleanupXrData, XrEarlyInitPlugin, XrHasWaited,
     XrShouldRender, XrStatus,
 };
 use xr_input::controllers::XrControllerType;
-use xr_input::hands::emulated::HandEmulationPlugin;
-use xr_input::hands::hand_tracking::{HandTrackingData, HandTrackingPlugin};
 use xr_input::hands::XrHandPlugins;
-use xr_input::xr_camera::{XRProjection, XrCameraType};
 use xr_input::OpenXrInput;
 
 const VIEW_TYPE: xr::ViewConfigurationType = xr::ViewConfigurationType::PRIMARY_STEREO;
@@ -59,6 +49,11 @@ pub struct OpenXrPlugin {
     reqeusted_extensions: XrExtensions,
     prefered_blend_mode: XrPreferdBlendMode,
     app_info: XrAppInfo,
+}
+
+fn mr_test(mut commands: Commands, mut resume: EventWriter<ResumePassthrough>) {
+    commands.insert_resource(ClearColor(Color::rgba(0.0, 0.0, 0.0, 0.0)));
+    resume.send_default();
 }
 
 impl Plugin for OpenXrPlugin {
@@ -88,6 +83,8 @@ impl Plugin for OpenXrPlugin {
                 debug!("Configured wgpu adapter Limits: {:#?}", device.limits());
                 debug!("Configured wgpu adapter Features: {:#?}", device.features());
                 warn!("Starting with OpenXR Instance");
+                app.insert_resource(xr_instance.clone());
+                app.insert_resource(blend_mode.clone());
                 app.insert_resource(ActionSets(vec![]));
                 app.insert_resource(xr_instance);
                 app.insert_resource(blend_mode);
@@ -117,6 +114,7 @@ impl Plugin for OpenXrPlugin {
             app.add_plugins(RenderPlugin::default());
             app.insert_resource(XrStatus::Disabled);
         }
+        app.add_systems(Update, mr_test.run_if(xr_only()));
         app.add_systems(
             PreUpdate,
             xr_poll_events.run_if(|status: Res<XrStatus>| *status != XrStatus::NoInstance),
@@ -227,6 +225,7 @@ impl PluginGroup for DefaultXrPlugins {
             .add_after::<OpenXrPlugin, _>(XrInitPlugin)
             .add_before::<OpenXrPlugin, _>(XrEarlyInitPlugin)
             .add(XrHandPlugins)
+            .add(PassthroughPlugin)
             .add(XrResourcePlugin)
             .set(WindowPlugin {
                 #[cfg(not(target_os = "android"))]
@@ -237,7 +236,7 @@ impl PluginGroup for DefaultXrPlugins {
                     ..default()
                 }),
                 #[cfg(target_os = "android")]
-                primary_window: None,
+                primary_window: None, // ?
                 #[cfg(target_os = "android")]
                 exit_condition: bevy::window::ExitCondition::DontExit,
                 #[cfg(target_os = "android")]
@@ -315,7 +314,6 @@ pub fn xr_wait_frame(
 ) {
     {
         let _span = info_span!("xr_wait_frame").entered();
-        info!("Pre Frame Wait");
         *frame_state = match frame_waiter.wait() {
             Ok(a) => a.into(),
             Err(e) => {
@@ -323,15 +321,6 @@ pub fn xr_wait_frame(
                 return;
             }
         };
-        info!(
-            "Post Wait Time: {}",
-            frame_state.predicted_display_time.as_nanos()
-        );
-        // frame_state.predicted_display_time = xr::Time::from_nanos(
-        //     frame_state.predicted_display_time.as_nanos()
-        //         + frame_state.predicted_display_period.as_nanos(),
-        // );
-        info!("Post Frame Wait");
         **should_render = frame_state.should_render;
         **waited = true;
     }
@@ -369,6 +358,7 @@ pub fn xr_pre_frame(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn xr_end_frame(
     xr_frame_state: Res<XrFrameState>,
     views: Res<XrViews>,
@@ -376,6 +366,8 @@ pub fn xr_end_frame(
     swapchain: Res<XrSwapchain>,
     resolution: Res<XrResolution>,
     environment_blend_mode: Res<XrEnvironmentBlendMode>,
+    passthrough_layer: Option<Res<XrPassthroughLayer>>,
+    passthrough_state: Option<Res<XrPassthroughState>>,
 ) {
     #[cfg(target_os = "android")]
     {
@@ -383,23 +375,24 @@ pub fn xr_end_frame(
         let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }.unwrap();
         let env = vm.attach_current_thread_as_daemon();
     }
+
     {
         let _span = info_span!("xr_release_image").entered();
         swapchain.release_image().unwrap();
     }
     {
         let _span = info_span!("xr_end_frame").entered();
-        info!(
-            "End Frame Time: {}",
-            xr_frame_state.predicted_display_time.as_nanos()
-        );
+        let pass_layer = match passthrough_state.as_deref() {
+            Some(XrPassthroughState::Running) => passthrough_layer.as_deref(),
+            _ => None,
+        };
         let result = swapchain.end(
             xr_frame_state.predicted_display_time,
             &views,
             &input.stage,
             **resolution,
             **environment_blend_mode,
-            // passthrough_layer.map(|p| p.into_inner()),
+            pass_layer,
         );
         match result {
             Ok(_) => {}
