@@ -154,20 +154,6 @@ impl Plugin for OpenXrPlugin {
                 .after(RenderSet::ExtractCommands),
             // .in_set(RenderSet::Prepare),
         );
-        // render_app.add_systems(
-        //     Render,
-        //     (
-        //         locate_views,
-        //         xr_input::xr_camera::xr_camera_head_sync_render,
-        //         // sync_simple_transforms,
-        //         // propagate_transforms,
-        //         // update_cam_views,
-        //     )
-        //         .chain()
-        //         .run_if(xr_only())
-        //         // .run_if(xr_render_only())
-        //         .in_set(RenderSet::Prepare),
-        // );
         render_app.add_systems(
             Render,
             xr_end_frame
@@ -184,14 +170,6 @@ impl Plugin for OpenXrPlugin {
                 .run_if(not(xr_render_only()))
                 .in_set(RenderSet::Cleanup),
         );
-    }
-}
-
-// Confirmed Working
-// Not Working Actually, the cam doesn't render with the new pose for some reason
-fn update_cam_views(mut query: Query<(&mut ExtractedView, &GlobalTransform)>) {
-    for (mut view, transform) in &mut query {
-        view.transform = *transform;
     }
 }
 
@@ -238,7 +216,7 @@ impl PluginGroup for DefaultXrPlugins {
                     ..default()
                 },
             })
-            // .disable::<PipelinedRenderingPlugin>()
+            .disable::<PipelinedRenderingPlugin>()
             .disable::<RenderPlugin>()
             .add_before::<RenderPlugin, _>(OpenXrPlugin {
                 prefered_blend_mode: self.prefered_blend_mode,

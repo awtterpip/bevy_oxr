@@ -33,10 +33,15 @@ macro_rules! xr_resource_wrapper {
 }
 
 #[macro_export]
-macro_rules! xr_resource_wrapper_no_extract {
+macro_rules! xr_resource_wrapper_copy {
     ($wrapper_type:ident, $xr_type:ty) => {
         #[derive(
-            Clone, Copy, bevy::prelude::Resource, bevy::prelude::Deref, bevy::prelude::DerefMut,
+            Clone,
+            Copy,
+            bevy::prelude::Resource,
+            bevy::prelude::Deref,
+            bevy::prelude::DerefMut,
+            bevy::render::extract_resource::ExtractResource,
         )]
         pub struct $wrapper_type($xr_type);
 

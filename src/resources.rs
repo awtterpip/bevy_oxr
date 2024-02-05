@@ -4,36 +4,24 @@ use std::sync::Mutex;
 
 use crate::input::XrInput;
 // use crate::passthrough::XrPassthroughLayer;
-use crate::xr_init::XrStatus;
-use crate::{resource_macros::*, xr_resource_wrapper_no_extract};
+use crate::{resource_macros::*, xr_resource_wrapper_copy};
 use bevy::prelude::*;
-use bevy::render::extract_resource::{ExtractResource, ExtractResourcePlugin};
+use bevy::render::extract_resource::ExtractResourcePlugin;
 use openxr as xr;
 
 xr_resource_wrapper!(XrInstance, xr::Instance);
 xr_resource_wrapper!(XrSession, xr::Session<xr::AnyGraphics>);
-xr_resource_wrapper!(XrEnvironmentBlendMode, xr::EnvironmentBlendMode);
-xr_resource_wrapper!(XrResolution, UVec2);
-xr_resource_wrapper!(XrFormat, wgpu::TextureFormat);
-xr_resource_wrapper_no_extract!(XrFrameState, xr::FrameState);
+xr_resource_wrapper_copy!(XrEnvironmentBlendMode, xr::EnvironmentBlendMode);
+xr_resource_wrapper_copy!(XrResolution, UVec2);
+xr_resource_wrapper_copy!(XrFormat, wgpu::TextureFormat);
+xr_resource_wrapper_copy!(XrFrameState, xr::FrameState);
 xr_resource_wrapper!(XrViews, Vec<xr::View>);
 xr_arc_resource_wrapper!(XrSessionRunning, AtomicBool);
 xr_arc_resource_wrapper!(XrSwapchain, Swapchain);
 xr_no_clone_resource_wrapper!(XrFrameWaiter, xr::FrameWaiter);
 
-impl ExtractResource for XrFrameState {
-    type Source = Self;
 
-    fn extract_resource(source: &Self::Source) -> Self {
-        let mut state = *source;
-        state.predicted_display_time = xr::Time::from_nanos(
-            state.predicted_display_time.as_nanos() + state.predicted_display_period.as_nanos(),
-        );
-        state
-    }
-}
-
-pub(crate) struct VulkanOXrSessionSetupInfo {
+pub struct VulkanOXrSessionSetupInfo {
     pub(crate) device_ptr: *const c_void,
     pub(crate) physical_device_ptr: *const c_void,
     pub(crate) vk_instance_ptr: *const c_void,
@@ -41,7 +29,7 @@ pub(crate) struct VulkanOXrSessionSetupInfo {
     pub(crate) xr_system_id: xr::SystemId,
 }
 
-pub(crate) enum OXrSessionSetupInfo {
+pub enum OXrSessionSetupInfo {
     Vulkan(VulkanOXrSessionSetupInfo),
 }
 
