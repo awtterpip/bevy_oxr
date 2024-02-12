@@ -23,7 +23,7 @@ use bevy_oxr::{
     xr_input::{
         actions::XrActionSets,
         debug_gizmos::OpenXrDebugRenderer,
-        hands::common::{HandInputDebugRenderer, HandResource, HandsResource, OpenXrHandInput},
+        hands::common::{HandInputDebugRenderer, HandResource, HandsResource},
         hands::HandBone,
         interactions::{
             draw_interaction_gizmos, draw_socket_gizmos, interactions, socket_interactions,
@@ -120,7 +120,7 @@ pub fn main() {
         //test capsule
         .add_systems(Startup, spawn_capsule)
         //physics hands
-        .add_plugins(OpenXrHandInput)
+        // .add_plugins(OpenXrHandInput)
         .add_plugins(HandInputDebugRenderer)
         .add_systems(Startup, spawn_physics_hands)
         .add_systems(

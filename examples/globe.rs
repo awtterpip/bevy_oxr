@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use bevy::transform::components::Transform;
 use bevy_oxr::graphics::XrAppInfo;
 use bevy_oxr::resources::XrViews;
-use bevy_oxr::xr_input::hands::common::{HandInputDebugRenderer, OpenXrHandInput};
+use bevy_oxr::xr_input::hands::common::HandInputDebugRenderer;
 use bevy_oxr::xr_input::interactions::{
     InteractionEvent, XRDirectInteractor, XRInteractorState, XRRayInteractor, XRSocketInteractor,
 };
@@ -31,7 +31,6 @@ fn main() {
         .add_systems(Update, (proto_locomotion, pull_to_ground).chain())
         .insert_resource(PrototypeLocomotionConfig::default())
         .add_systems(Startup, spawn_controllers_example)
-        .add_plugins(OpenXrHandInput)
         .add_plugins(HandInputDebugRenderer)
         .add_event::<InteractionEvent>()
         .run();

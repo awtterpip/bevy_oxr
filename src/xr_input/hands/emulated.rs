@@ -92,8 +92,6 @@ fn setup_hand_emulation_action_set(mut action_sets: ResMut<SetupActionSets>) {
     suggest_oculus_touch_profile(action_set);
 }
 
-pub struct EmulatedHandPoseData {}
-
 fn suggest_oculus_touch_profile(action_set: &mut SetupActionSet) {
     action_set.suggest_binding(
         "/interaction_profiles/oculus/touch_controller",
@@ -131,7 +129,6 @@ pub(crate) fn update_hand_skeleton_from_emulated(
     action_sets: Res<XrActionSets>,
     left_controller_transform: Query<&Transform, With<OpenXRLeftController>>,
     right_controller_transform: Query<&Transform, With<OpenXRRightController>>,
-    tracking_root_transform: Query<&Transform, With<OpenXRTrackingRoot>>,
     mut bones: Query<
         (
             &mut Transform,
@@ -226,7 +223,6 @@ pub(crate) fn update_hand_skeleton_from_emulated(
             },
         }
     }
-    let trt = tracking_root_transform.single();
     for (mut t, bone, hand, status, mut radius) in bones.iter_mut() {
         match status {
             BoneTrackingStatus::Emulated => {}
@@ -238,9 +234,9 @@ pub(crate) fn update_hand_skeleton_from_emulated(
             Hand::Left => 0,
             Hand::Right => 1,
         }][bone.get_index_from_bone()];
-        *t = t.with_scale(trt.scale);
-        *t = t.with_rotation(trt.rotation * t.rotation);
-        *t = t.with_translation(trt.transform_point(t.translation));
+        // *t = t.with_scale(trt.scale);
+        // *t = t.with_rotation(trt.rotation * t.rotation);
+        // *t = t.with_translation(trt.transform_point(t.translation));
     }
 }
 pub fn update_hand_bones_emulated(

@@ -7,7 +7,7 @@ use bevy_oxr::input::XrInput;
 use bevy_oxr::resources::{XrFrameState, XrSession};
 
 use bevy_oxr::xr_input::actions::XrActionSets;
-use bevy_oxr::xr_input::hands::common::{HandInputDebugRenderer, OpenXrHandInput};
+use bevy_oxr::xr_input::hands::common::HandInputDebugRenderer;
 use bevy_oxr::xr_input::interactions::{
     draw_interaction_gizmos, draw_socket_gizmos, interactions, socket_interactions,
     update_interactable_states, InteractionEvent, Touched, XRDirectInteractor, XRInteractable,
@@ -39,7 +39,6 @@ fn main() {
         .add_systems(Update, proto_locomotion)
         .insert_resource(PrototypeLocomotionConfig::default())
         .add_systems(Startup, spawn_controllers_example)
-        .add_plugins(OpenXrHandInput)
         .add_plugins(HandInputDebugRenderer)
         .add_systems(
             Update,

@@ -31,11 +31,13 @@ use openxr as xr;
 use passthrough::{PassthroughPlugin, XrPassthroughLayer, XrPassthroughState};
 use resources::*;
 use xr_init::{
-    xr_after_wait_only, xr_only, xr_render_only, CleanupXrData, XrEarlyInitPlugin, XrHasWaited,
-    XrShouldRender, XrStatus,
+    xr_after_wait_only, xr_only, xr_render_only, CleanupXrData, SetupXrData, XrEarlyInitPlugin,
+    XrHasWaited, XrShouldRender, XrStatus,
 };
 use xr_input::controllers::XrControllerType;
-use xr_input::hands::XrHandPlugins;
+use xr_input::hands::emulated::HandEmulationPlugin;
+use xr_input::hands::hand_tracking::HandTrackingPlugin;
+use xr_input::hands::HandPlugin;
 use xr_input::OpenXrInput;
 
 const VIEW_TYPE: xr::ViewConfigurationType = xr::ViewConfigurationType::PRIMARY_STEREO;
@@ -49,11 +51,6 @@ pub struct OpenXrPlugin {
     reqeusted_extensions: XrExtensions,
     prefered_blend_mode: XrPreferdBlendMode,
     app_info: XrAppInfo,
-}
-
-fn mr_test(mut commands: Commands, mut resume: EventWriter<ResumePassthrough>) {
-    commands.insert_resource(ClearColor(Color::rgba(0.0, 0.0, 0.0, 0.0)));
-    resume.send_default();
 }
 
 impl Plugin for OpenXrPlugin {
@@ -114,7 +111,6 @@ impl Plugin for OpenXrPlugin {
             app.add_plugins(RenderPlugin::default());
             app.insert_resource(XrStatus::Disabled);
         }
-        app.add_systems(Update, mr_test.run_if(xr_only()));
         app.add_systems(
             PreUpdate,
             xr_poll_events.run_if(|status: Res<XrStatus>| *status != XrStatus::NoInstance),
@@ -146,8 +142,6 @@ impl Plugin for OpenXrPlugin {
                 .run_if(xr_only())
                 .run_if(xr_after_wait_only())
                 .run_if(xr_render_only())
-                // Do NOT touch this ordering! idk why but you can NOT just put in a RenderSet
-                // right before rendering
                 .before(render_system)
                 .after(RenderSet::ExtractCommands),
             // .in_set(RenderSet::Prepare),
@@ -224,7 +218,9 @@ impl PluginGroup for DefaultXrPlugins {
             .add_after::<OpenXrPlugin, _>(OpenXrInput::new(XrControllerType::OculusTouch))
             .add_after::<OpenXrPlugin, _>(XrInitPlugin)
             .add_before::<OpenXrPlugin, _>(XrEarlyInitPlugin)
-            .add(XrHandPlugins)
+            .add(HandPlugin)
+            .add(HandTrackingPlugin)
+            .add(HandEmulationPlugin)
             .add(PassthroughPlugin)
             .add(XrResourcePlugin)
             .set(WindowPlugin {
@@ -259,6 +255,7 @@ fn xr_poll_events(
     session: Option<Res<XrSession>>,
     session_running: Res<XrSessionRunning>,
     mut app_exit: EventWriter<AppExit>,
+    mut setup_xr: EventWriter<SetupXrData>,
     mut cleanup_xr: EventWriter<CleanupXrData>,
 ) {
     if let (Some(instance), Some(session)) = (instance, session) {
@@ -274,6 +271,7 @@ fn xr_poll_events(
                         xr::SessionState::READY => {
                             info!("Calling Session begin :3");
                             session.begin(VIEW_TYPE).unwrap();
+                            setup_xr.send_default();
                             session_running.store(true, std::sync::atomic::Ordering::Relaxed);
                         }
                         xr::SessionState::STOPPING => {
@@ -283,7 +281,6 @@ fn xr_poll_events(
                         }
                         xr::SessionState::EXITING | xr::SessionState::LOSS_PENDING => {
                             // app_exit.send(AppExit);
-                            return;
                         }
 
                         _ => {}

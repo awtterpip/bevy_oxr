@@ -126,7 +126,7 @@ pub struct StartXrSession;
 pub struct EndXrSession;
 
 #[derive(Event, Clone, Copy, Default)]
-struct SetupXrData;
+pub(crate) struct SetupXrData;
 #[derive(Event, Clone, Copy, Default)]
 pub(crate) struct CleanupXrData;
 
@@ -192,7 +192,6 @@ fn start_xr_session(
     commands.insert_resource(xr_views);
     commands.insert_resource(xr_frame_state);
     *status = XrStatus::Enabling;
-    setup_xr.send_default();
 }
 
 fn stop_xr_session(session: ResMut<XrSession>, mut status: ResMut<XrStatus>) {

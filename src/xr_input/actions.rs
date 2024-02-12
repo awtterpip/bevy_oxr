@@ -6,7 +6,7 @@ use xr::{Action, Binding, Haptic, Posef, Vector2f};
 
 use crate::{
     resources::{XrInstance, XrSession},
-    xr_init::XrPrePostSetup,
+    xr_init::{XrCleanup, XrPrePostSetup, XrPreSetup},
 };
 
 use super::oculus_touch::ActionSets;
@@ -16,11 +16,21 @@ pub use xr::sys::NULL_PATH;
 pub struct OpenXrActionsPlugin;
 impl Plugin for OpenXrActionsPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(SetupActionSets {
-            sets: HashMap::new(),
-        });
+        app.add_systems(XrPreSetup, insert_setup_action_sets);
         app.add_systems(XrPrePostSetup, setup_oxr_actions);
+        app.add_systems(XrCleanup, clean_actions);
     }
+}
+
+fn insert_setup_action_sets(mut cmds: Commands) {
+    cmds.insert_resource(SetupActionSets {
+        sets: HashMap::new(),
+    });
+}
+
+fn clean_actions(mut cmds: Commands) {
+    cmds.remove_resource::<ActionSets>();
+    cmds.remove_resource::<XrActionSets>();
 }
 
 #[inline(always)]

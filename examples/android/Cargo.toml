@@ -16,10 +16,10 @@ bevy_oxr.path = "../.."
 bevy = "0.12"
 openxr = { git = "https://github.com/Ralith/openxrs", rev = "0177d2d", features = ["mint"] }
 
-[profile.release]
-lto = "fat"
-codegen-units = 1
-panic = "abort"
+# [profile.release]
+# lto = "fat"
+# codegen-units = 1
+# panic = "abort"
 
 # This metadata is used by `cargo-apk` - `xbuild` uses the `manifest.yaml` instead.
 [package.metadata.android]

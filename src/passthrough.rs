@@ -25,9 +25,10 @@ pub enum XrPassthroughState {
     Paused,
 }
 
-pub struct PassthroughPlugin;
 xr_arc_resource_wrapper!(XrPassthrough, xr::Passthrough);
 xr_arc_resource_wrapper!(XrPassthroughLayer, xr::PassthroughLayer);
+
+pub struct PassthroughPlugin;
 
 impl Plugin for PassthroughPlugin {
     fn build(&self, app: &mut App) {
@@ -78,20 +79,31 @@ fn check_passthrough_support(mut cmds: Commands, instance: Option<Res<XrInstance
     }
 }
 
-fn resume_passthrough(layer: Res<XrPassthroughLayer>, mut state: ResMut<XrPassthroughState>) {
+fn resume_passthrough(
+    layer: Res<XrPassthroughLayer>,
+    mut state: ResMut<XrPassthroughState>,
+    mut clear_color: ResMut<ClearColor>,
+) {
     if let Err(e) = layer.resume() {
         warn!("Unable to resume Passthrough: {}", e);
         return;
     }
-    info!("<=> Resume Passthrough");
+    clear_color.set_a(0.0);
+    clear_color.set_r(0.0);
+    clear_color.set_g(0.0);
+    clear_color.set_b(0.0);
     *state = XrPassthroughState::Running;
 }
-fn pause_passthrough(layer: Res<XrPassthroughLayer>, mut state: ResMut<XrPassthroughState>) {
+fn pause_passthrough(
+    layer: Res<XrPassthroughLayer>,
+    mut state: ResMut<XrPassthroughState>,
+    mut clear_color: ResMut<ClearColor>,
+) {
     if let Err(e) = layer.pause() {
         warn!("Unable to resume Passthrough: {}", e);
         return;
     }
-    info!("<=> Pausing Passthrough");
+    clear_color.set_a(1.0);
     *state = XrPassthroughState::Paused;
 }
 
@@ -100,8 +112,8 @@ fn cleanup_passthrough(mut cmds: Commands) {
     cmds.remove_resource::<XrPassthroughLayer>();
 }
 
-fn setup_passthrough(mut cmds: Commands, instance: Res<XrInstance>, session: Res<XrSession>) {
-    match create_passthrough(&instance, &session) {
+fn setup_passthrough(mut cmds: Commands, session: Res<XrSession>) {
+    match create_passthrough(&session) {
         Ok((passthrough, layer)) => {
             cmds.insert_resource(XrPassthrough::from(passthrough));
             cmds.insert_resource(XrPassthroughLayer::from(layer));
@@ -181,7 +193,6 @@ pub fn supports_passthrough(instance: &XrInstance, system: xr::SystemId) -> xr::
 
 #[inline]
 pub fn create_passthrough(
-    instance: &XrInstance,
     xr_session: &XrSession,
 ) -> xr::Result<(xr::Passthrough, xr::PassthroughLayer)> {
     let passthrough = match xr_session {
@@ -199,28 +210,14 @@ pub fn create_passthrough(
     Ok((passthrough, passthrough_layer))
 }
 
-// #[inline]
-// pub fn passthrough_layer_resume(mut layer: ResMut<XrPassthroughLayer>, mut passthrough: ResMut<XrPassthrough>) -> xr::Result<()> {
-//     layer.resume()
-// }
+/// Enable Passthrough on xr startup
+/// just sends the [`ResumePassthrough`] event in [`XrSetup`]
+pub struct EnablePassthroughStartup;
 
-// #[inline]
-// pub fn passthrough_layer_pause(mut xr_data_resource: ResMut<XrRenderData>) -> xr::Result<()> {
-//     unsafe {
-//         let passthrough_layer = &xr_data_resource.xr_passthrough_layer;
-//         {
-//             let passthrough_layer_locked = passthrough_layer.lock().unwrap();
-//             cvt((xr_data_resource
-//                 .xr_instance
-//                 .exts()
-//                 .fb_passthrough
-//                 .unwrap()
-//                 .passthrough_layer_pause)(
-//                 *passthrough_layer_locked
-//             ))?;
-//         }
-//         xr_data_resource.xr_passthrough_active = false;
-//         bevy::log::info!("Paused passthrough layer");
-//         Ok(())
-//     }
-// }
+impl Plugin for EnablePassthroughStartup {
+    fn build(&self, app: &mut App) {
+        app.add_systems(XrSetup, |mut e: EventWriter<ResumePassthrough>| {
+            e.send_default();
+        });
+    }
+}

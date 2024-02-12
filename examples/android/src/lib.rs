@@ -3,10 +3,10 @@ use bevy::prelude::*;
 use bevy::transform::components::Transform;
 use bevy_oxr::graphics::extensions::XrExtensions;
 use bevy_oxr::graphics::XrAppInfo;
-use bevy_oxr::graphics::XrPreferdBlendMode::AlphaBlend;
-use bevy_oxr::passthrough::{passthrough_layer_pause, passthrough_layer_resume};
-use bevy_oxr::xr_init::XrRenderData;
+use bevy_oxr::passthrough::{PausePassthrough, ResumePassthrough, XrPassthroughState};
+use bevy_oxr::xr_init::xr_only;
 use bevy_oxr::xr_input::debug_gizmos::OpenXrDebugRenderer;
+use bevy_oxr::xr_input::hands::HandBone;
 use bevy_oxr::xr_input::prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig};
 use bevy_oxr::xr_input::trackers::{
     OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker,
@@ -25,14 +25,21 @@ fn main() {
             },
             prefered_blend_mode: bevy_oxr::graphics::XrPreferdBlendMode::Opaque,
         })
-        .add_plugins(OpenXrDebugRenderer)
+        // .add_plugins(OpenXrDebugRenderer)
         .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(FrameTimeDiagnosticsPlugin)
         .add_systems(Startup, setup)
-        .add_systems(Update, (proto_locomotion, toggle_passthrough))
+        .add_systems(Update, (proto_locomotion, toggle_passthrough).run_if(xr_only()))
+        .add_systems(Update, debug_hand_render.run_if(xr_only()))
         .add_systems(Startup, spawn_controllers_example)
         .insert_resource(PrototypeLocomotionConfig::default())
         .run();
+}
+
+fn debug_hand_render(query: Query<&GlobalTransform, With<HandBone>>, mut gizmos: Gizmos) {
+    for transform in &query {
+        gizmos.sphere(transform.translation(), Quat::IDENTITY, 0.01, Color::RED);
+    }
 }
 
 /// set up a simple 3D scene
@@ -90,15 +97,18 @@ fn spawn_controllers_example(mut commands: Commands) {
     ));
 }
 
-// Does this work? Not getting logs
-fn toggle_passthrough(keys: Res<Input<KeyCode>>, mut xr_data: ResMut<XrRenderData>) {
+// TODO: make this a vr button
+fn toggle_passthrough(
+    keys: Res<Input<KeyCode>>,
+    passthrough_state: Res<XrPassthroughState>,
+    mut resume: EventWriter<ResumePassthrough>,
+    mut pause: EventWriter<PausePassthrough>,
+) {
     if keys.just_pressed(KeyCode::Space) {
-        if xr_data.xr_passthrough_active {
-            passthrough_layer_pause(xr_data);
-            bevy::log::info!("Passthrough paused");
-        } else {
-            passthrough_layer_resume(xr_data);
-            bevy::log::info!("Passthrough resumed");
+        match *passthrough_state {
+            XrPassthroughState::Unsupported => {}
+            XrPassthroughState::Running => pause.send_default(),
+            XrPassthroughState::Paused => resume.send_default(),
         }
     }
 }

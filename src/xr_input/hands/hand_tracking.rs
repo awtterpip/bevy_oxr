@@ -6,7 +6,7 @@ use crate::{
     input::XrInput,
     resources::{XrFrameState, XrSession},
     xr_init::xr_only,
-    xr_input::{hands::HandBone, trackers::OpenXRTrackingRoot, Hand, QuatConv, Vec3Conv},
+    xr_input::{hands::HandBone, Hand, QuatConv, Vec3Conv},
 };
 
 use super::BoneTrackingStatus;
@@ -158,7 +158,6 @@ pub fn update_hand_bones(
     hand_tracking: Option<Res<HandTrackingData>>,
     xr_input: Res<XrInput>,
     xr_frame_state: Res<XrFrameState>,
-    root_query: Query<(&Transform, With<OpenXRTrackingRoot>, Without<HandBone>)>,
     mut bones: Query<(
         &mut Transform,
         &Hand,
@@ -174,7 +173,6 @@ pub fn update_hand_bones(
             return;
         }
     };
-    let (root_transform, _, _) = root_query.get_single().unwrap();
     let left_hand_data = hand_ref.get_poses(Hand::Left);
     let right_hand_data = hand_ref.get_poses(Hand::Right);
     bones
@@ -203,8 +201,7 @@ pub fn update_hand_bones(
                 *status = BoneTrackingStatus::Tracked;
             }
             radius.0 = bone_data.radius;
-            *transform = transform
-                .with_translation(root_transform.transform_point(bone_data.position))
-                .with_rotation(root_transform.rotation * bone_data.orientation)
+            transform.translation = bone_data.position;
+            transform.rotation = bone_data.orientation;
         });
 }

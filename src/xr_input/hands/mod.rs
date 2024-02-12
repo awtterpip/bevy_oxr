@@ -1,36 +1,48 @@
-use bevy::{app::PluginGroupBuilder, prelude::*};
+use bevy::prelude::*;
 use openxr::FormFactor;
 
 use crate::{
     resources::{XrInstance, XrSession},
-    xr_init::XrPreSetup,
+    xr_init::{XrCleanup, XrPreSetup, XrSetup},
 };
 
 use self::{
-    emulated::HandEmulationPlugin,
-    hand_tracking::{DisableHandTracking, HandTrackingData, HandTrackingPlugin},
+    common::{spawn_hand_entities, HandBoneRadius, HandsResource},
+    hand_tracking::{DisableHandTracking, HandTrackingData},
 };
+
+use super::{trackers::OpenXRTracker, Hand};
 
 pub mod common;
 pub mod emulated;
 pub mod hand_tracking;
-
-pub struct XrHandPlugins;
-
-impl Plugin for XrHandPlugins {
-    fn build(&self, app: &mut App) {
-        app.add_plugins(HandTrackingPlugin)
-            .add_plugins(HandPlugin)
-            .add_plugins(HandEmulationPlugin);
-    }
-}
 
 pub struct HandPlugin;
 
 impl Plugin for HandPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(XrPreSetup, check_for_handtracking);
+        app.add_systems(XrSetup, spawn_hand_entities);
+        app.add_systems(XrCleanup, despawn_hand_entities);
     }
+}
+
+#[allow(clippy::type_complexity)]
+fn despawn_hand_entities(
+    mut commands: Commands,
+    hand_entities: Query<
+        Entity,
+        (
+            With<OpenXRTracker>,
+            With<HandBone>,
+            With<BoneTrackingStatus>,
+        ),
+    >,
+) {
+    for e in &hand_entities {
+        commands.entity(e).despawn_recursive();
+    }
+    commands.remove_resource::<HandsResource>()
 }
 
 fn check_for_handtracking(
@@ -86,21 +98,17 @@ pub enum HandBone {
 }
 impl HandBone {
     pub fn is_finger(&self) -> bool {
-        match &self {
-            HandBone::Wrist => false,
-            HandBone::Palm => false,
-            _ => true,
-        }
+        !matches!(self, HandBone::Wrist | HandBone::Palm)
     }
     pub fn is_metacarpal(&self) -> bool {
-        match &self {
-            HandBone::ThumbMetacarpal => true,
-            HandBone::IndexMetacarpal => true,
-            HandBone::MiddleMetacarpal => true,
-            HandBone::RingMetacarpal => true,
-            HandBone::LittleTip => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            HandBone::ThumbMetacarpal
+                | HandBone::IndexMetacarpal
+                | HandBone::MiddleMetacarpal
+                | HandBone::RingMetacarpal
+                | HandBone::LittleTip
+        )
     }
     pub const fn get_all_bones() -> [HandBone; 26] {
         [
