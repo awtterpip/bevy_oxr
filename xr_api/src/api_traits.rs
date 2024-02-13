@@ -31,12 +31,14 @@ pub trait SessionTrait {
     fn headset_location(&self) -> Result<Pose>;
     /// Request input modules with the specified bindings.
     fn create_input(&self, bindings: Bindings) -> Result<Input>;
-    /// Blocks until a rendering frame is available, then returns the views for the left and right eyes.
+    /// Wait until a frame is ready to render to.
+    fn wait_frame(&self) -> Result<FrameData>;
+    /// Begin rendering work for the frame.
     fn begin_frame(&self) -> Result<()>;
     /// Locate the views of each eye.
     fn locate_views(&self) -> Result<(View, View)>;
     /// Submits rendering work for this frame.
-    fn end_frame(&self) -> Result<()>;
+    fn end_frame(&self, data: FrameData) -> Result<()>;
     /// Gets the resolution of a single eye.
     fn resolution(&self) -> UVec2;
     /// Gets the texture format for the session.

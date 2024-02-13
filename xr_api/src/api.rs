@@ -14,10 +14,7 @@ pub struct Entry(Rc<dyn EntryTrait>);
 impl Entry {
     /// Constructs a new Xr entry
     pub fn new() -> Self {
-        #[cfg(target_family = "wasm")]
-        return crate::backend::webxr::WebXrEntry::new().into();
-        #[cfg(not(target_family = "wasm"))]
-        return crate::backend::oxr::OXrEntry::new().into();
+        todo!()
     }
 }
 

@@ -10,6 +10,8 @@ pub struct ExtensionSet {
     pub vulkan: bool,
 }
 
+pub struct FrameData;
+
 pub struct SessionCreateInfo {
     /// preferred texture format
     pub texture_format: wgpu::TextureFormat,

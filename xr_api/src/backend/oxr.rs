@@ -145,7 +145,7 @@ impl SessionTrait for OXrSession {
         .into())
     }
 
-    fn begin_frame(&self) -> Result<()> {
+    fn wait_frame(&self) -> Result<FrameData> {
         {
             let mut bindings = self.bindings.lock().unwrap();
             if !bindings.sessions_attached {
@@ -239,6 +239,10 @@ impl SessionTrait for OXrSession {
                 }
             };
         }
+        Ok(FrameData)
+    }
+
+    fn begin_frame(&self) -> Result<()> {
         {
             let _span = info_span!("xr_begin_frame").entered();
             self.swapchain.begin().unwrap()
@@ -292,7 +296,7 @@ impl SessionTrait for OXrSession {
         }
     }
 
-    fn end_frame(&self) -> Result<()> {
+    fn end_frame(&self, data: FrameData) -> Result<()> {
         {
             let _span = info_span!("xr_release_image").entered();
             self.swapchain.release_image().unwrap();

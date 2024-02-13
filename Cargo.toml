@@ -12,12 +12,12 @@ linked = ["openxr/linked"]
 vulkan = ["dep:ash"]
 
 [dependencies]
-xr_api = { path = "./xr_api" }
 async-std = "1.12.0"
 bevy = "0.12.1"
 paste = "1.0.14"
 wgpu = "0.17.1"
 wgpu-hal = "0.17.1"
+winit = "0.28.7"
 
 [target.'cfg(target_family = "unix")'.dependencies]
 openxr = { version = "0.17.1", features = ["mint"] }
@@ -29,8 +29,9 @@ openxr = { version = "0.17.1", features = ["mint", "static"] }
 ash = { version = "0.37.3", optional = true }
 
 [target.'cfg(target_family = "wasm")'.dependencies]
-wasm-bindgen = "0.2.87"
-web-sys = { version = "0.3.61", features = [
+js-sys = "0.3"
+wasm-bindgen = "0.2.91"
+web-sys = { version = "0.3.68", features = [
     # STANDARD
     'console',
     'Document',
