@@ -16,7 +16,6 @@ use core::ptr;
 use openxr as xr;
 
 xr_resource_wrapper!(XrInstance, xr::Instance);
-// xr_resource_wrapper!(XrSession, xr::Session<xr::AnyGraphics>);
 xr_resource_wrapper_copy!(XrEnvironmentBlendMode, xr::EnvironmentBlendMode);
 xr_resource_wrapper_copy!(XrResolution, UVec2);
 xr_resource_wrapper_copy!(XrFormat, wgpu::TextureFormat);

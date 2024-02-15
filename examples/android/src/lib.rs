@@ -6,6 +6,7 @@ use bevy_oxr::graphics::XrAppInfo;
 use bevy_oxr::passthrough::{PausePassthrough, ResumePassthrough, XrPassthroughState};
 use bevy_oxr::xr_init::xr_only;
 use bevy_oxr::xr_input::debug_gizmos::OpenXrDebugRenderer;
+use bevy_oxr::xr_input::hands::common::HandInputDebugRenderer;
 use bevy_oxr::xr_input::hands::HandBone;
 use bevy_oxr::xr_input::prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig};
 use bevy_oxr::xr_input::trackers::{
@@ -17,6 +18,7 @@ use bevy_oxr::DefaultXrPlugins;
 fn main() {
     let mut xr_extensions = XrExtensions::default();
     xr_extensions.enable_fb_passthrough();
+    xr_extensions.enable_hand_tracking();
     App::new()
         .add_plugins(DefaultXrPlugins {
             reqeusted_extensions: xr_extensions,
@@ -28,8 +30,13 @@ fn main() {
         // .add_plugins(OpenXrDebugRenderer)
         .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(FrameTimeDiagnosticsPlugin)
+        .add_plugins(HandInputDebugRenderer)
+        .add_plugins(bevy_oxr::passthrough::EnablePassthroughStartup)
         .add_systems(Startup, setup)
-        .add_systems(Update, (proto_locomotion, toggle_passthrough).run_if(xr_only()))
+        .add_systems(
+            Update,
+            (proto_locomotion, toggle_passthrough).run_if(xr_only()),
+        )
         .add_systems(Update, debug_hand_render.run_if(xr_only()))
         .add_systems(Startup, spawn_controllers_example)
         .insert_resource(PrototypeLocomotionConfig::default())

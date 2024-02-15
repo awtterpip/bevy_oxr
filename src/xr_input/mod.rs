@@ -10,7 +10,7 @@ pub mod trackers;
 pub mod xr_camera;
 
 use crate::resources::{XrInstance, XrSession};
-use crate::xr_init::{xr_only, XrPostSetup, XrPreSetup, XrSetup};
+use crate::xr_init::{xr_only, XrCleanup, XrPostSetup, XrPreSetup, XrSetup};
 use crate::xr_input::controllers::XrControllerType;
 use crate::xr_input::oculus_touch::setup_oculus_controller;
 use crate::xr_input::xr_camera::{xr_camera_head_sync, Eye, XRProjection, XrCameraBundle};
@@ -19,6 +19,7 @@ use bevy::app::{App, PostUpdate, Startup};
 use bevy::ecs::entity::Entity;
 use bevy::ecs::query::With;
 use bevy::ecs::system::Query;
+use bevy::hierarchy::DespawnRecursiveExt;
 use bevy::log::{info, warn};
 use bevy::math::Vec2;
 use bevy::prelude::{BuildChildren, Component, Deref, DerefMut, IntoSystemConfigs, Resource};
@@ -36,7 +37,7 @@ use self::trackers::{
     adopt_open_xr_trackers, update_open_xr_controllers, OpenXRLeftEye, OpenXRRightEye,
     OpenXRTrackingRoot,
 };
-use self::xr_camera::{GlobalTransformExtract, TransformExtract, XrCameraType};
+use self::xr_camera::{GlobalTransformExtract, TransformExtract, XrCamera};
 
 #[derive(Copy, Clone)]
 pub struct OpenXrInput {
@@ -56,9 +57,8 @@ impl OpenXrInput {
 
 impl Plugin for OpenXrInput {
     fn build(&self, app: &mut App) {
-        app.add_plugins(CameraProjectionPlugin::<XRProjection>::default());
-        app.add_plugins(OpenXrActionsPlugin);
         app.add_systems(XrPostSetup, post_action_setup_oculus_controller);
+        // why only when the controller is oculus? that is still backed by generic actions
         match self.controller_type {
             XrControllerType::OculusTouch => {
                 app.add_systems(XrSetup, setup_oculus_controller);
@@ -66,77 +66,42 @@ impl Plugin for OpenXrInput {
         }
         //adopt any new trackers
         app.add_systems(PreUpdate, adopt_open_xr_trackers.run_if(xr_only()));
-        app.add_systems(PreUpdate, action_set_system.run_if(xr_only()));
-        app.add_systems(
-            PreUpdate,
-            xr_camera_head_sync
-                .run_if(xr_only())
-                .after(xr_wait_frame)
-                .after(locate_views),
-        );
+        // app.add_systems(PreUpdate, action_set_system.run_if(xr_only()));
         //update controller trackers
         app.add_systems(Update, update_open_xr_controllers.run_if(xr_only()));
-        app.add_systems(
-            PostUpdate,
-            update_frusta::<XRProjection>
-                .after(TransformSystem::TransformPropagate)
-                .before(VisibilitySystems::UpdatePerspectiveFrusta),
-        );
         app.add_systems(XrPreSetup, init_subaction_path);
-        app.add_systems(XrSetup, setup_xr_cameras);
-        app.add_plugins(ExtractComponentPlugin::<XrCameraType>::default());
-        app.add_plugins(ExtractComponentPlugin::<XRProjection>::default());
-        app.add_plugins(ExtractComponentPlugin::<TransformExtract>::default());
-        app.add_plugins(ExtractComponentPlugin::<GlobalTransformExtract>::default());
+        app.add_systems(XrSetup, setup_xr_root);
+        app.add_systems(XrCleanup, cleanup_xr_root);
     }
 }
 
-#[derive(Deref, DerefMut, Resource)]
-pub struct InteractionProfileBindings(pub HashMap<&'static str, Vec<Binding<'static>>>);
-
-fn setup_binding_recommendations(
-    mut commands: Commands,
-    instance: Res<XrInstance>,
-    bindings: Res<InteractionProfileBindings>,
-) {
-    commands.remove_resource::<InteractionProfileBindings>();
-}
-
-fn setup_xr_cameras(
+fn cleanup_xr_root(
     mut commands: Commands,
     tracking_root_query: Query<Entity, With<OpenXRTrackingRoot>>,
 ) {
-    //this needs to do the whole xr tracking volume not just cameras
-    //get the root?
-
-    let tracking_root = match tracking_root_query.get_single() {
-        Ok(e) => e,
-        Err(_) => commands
-            .spawn((SpatialBundle::default(), OpenXRTrackingRoot))
-            .id(),
-    };
-    let right = commands
-        .spawn((XrCameraBundle::new(Eye::Right), OpenXRRightEye))
-        .id();
-    let left = commands
-        .spawn((XrCameraBundle::new(Eye::Left), OpenXRLeftEye))
-        .id();
-    commands.entity(tracking_root).push_children(&[right, left]);
-}
-
-pub fn action_set_system(action_sets: Res<ActionSets>, session: Res<XrSession>) {
-    let mut active_action_sets = vec![];
-    for i in &action_sets.0 {
-        active_action_sets.push(openxr::ActiveActionSet::new(i));
-    }
-    //info!("action sets: {:#?}", action_sets.0.len());
-    match session.sync_actions(&active_action_sets) {
-        Err(err) => {
-            warn!("{}", err);
-        }
-        _ => {}
+    for e in &tracking_root_query {
+        commands.entity(e).despawn_recursive();
     }
 }
+fn setup_xr_root(
+    mut commands: Commands,
+    tracking_root_query: Query<Entity, With<OpenXRTrackingRoot>>,
+) {
+    if tracking_root_query.get_single().is_err() {
+        commands.spawn((SpatialBundle::default(), OpenXRTrackingRoot));
+    }
+}
+
+// pub fn action_set_system(action_sets: Res<ActionSets>, session: Res<XrSession>) {
+//     let mut active_action_sets = vec![];
+//     for i in &action_sets.0 {
+//         active_action_sets.push(openxr::ActiveActionSet::new(i));
+//     }
+//     //info!("action sets: {:#?}", action_sets.0.len());
+//     if let Err(err) = session.sync_actions(&active_action_sets) {
+//         warn!("{}", err);
+//     }
+// }
 
 pub trait Vec2Conv {
     fn to_vec2(&self) -> Vec2;

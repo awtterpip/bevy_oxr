@@ -54,6 +54,7 @@ pub fn xr_after_wait_only() -> impl FnMut(Res<XrHasWaited>) -> bool {
 
 impl Plugin for XrEarlyInitPlugin {
     fn build(&self, app: &mut App) {
+        add_schedules(app);
         app.add_event::<SetupXrData>()
             .add_event::<CleanupXrData>()
             .add_event::<StartXrSession>()
@@ -63,7 +64,6 @@ impl Plugin for XrEarlyInitPlugin {
 
 impl Plugin for XrInitPlugin {
     fn build(&self, app: &mut App) {
-        add_schedules(app);
         app.add_plugins(ExtractResourcePlugin::<XrStatus>::default());
         app.add_plugins(ExtractResourcePlugin::<XrShouldRender>::default());
         app.add_plugins(ExtractResourcePlugin::<XrHasWaited>::default());
@@ -106,7 +106,9 @@ fn setup_manual_texture_views(
 }
 
 pub fn setup_xr(world: &mut World) {
+    info!("Pre XrPreSetup");
     world.run_schedule(XrPreSetup);
+    info!("Post XrPreSetup");
     world.run_schedule(XrSetup);
     world.run_schedule(XrPrePostSetup);
     world.run_schedule(XrPostSetup);

@@ -63,6 +63,7 @@ pub struct HandJoint {
     pub radius: f32,
 }
 
+#[derive(Debug)]
 pub struct HandJoints {
     inner: [HandJoint; 26],
 }
@@ -175,9 +176,15 @@ pub fn update_hand_bones(
     };
     let left_hand_data = hand_ref.get_poses(Hand::Left);
     let right_hand_data = hand_ref.get_poses(Hand::Right);
+    if left_hand_data.is_none() || right_hand_data.is_none() {
+        error!("something is very wrong for hand_tracking!! doesn't have data for both hands!");
+    }
+
+    info!("hand_tracking");
     bones
         .par_iter_mut()
         .for_each(|(mut transform, hand, bone, mut radius, mut status)| {
+            info!("hand_tracking bone before filter");
             match (&hand, disabled_tracking.as_ref().map(|d| d.as_ref())) {
                 (Hand::Left, Some(DisableHandTracking::OnlyLeft)) => {
                     *status = BoneTrackingStatus::Emulated;
@@ -189,14 +196,17 @@ pub fn update_hand_bones(
                 }
                 _ => {}
             }
+            info!("hand_tracking bone mid filter");
             let bone_data = match (hand, &left_hand_data, &right_hand_data) {
                 (Hand::Left, Some(data), _) => data.get_joint(*bone),
                 (Hand::Right, _, Some(data)) => data.get_joint(*bone),
-                _ => {
+                (hand, left_data, right_data) => {
+                    info!("{:?},{:?},{:?}", hand, left_data, right_data);
                     *status = BoneTrackingStatus::Emulated;
                     return;
                 }
             };
+            info!("hand_tracking bone after filter");
             if *status == BoneTrackingStatus::Emulated {
                 *status = BoneTrackingStatus::Tracked;
             }

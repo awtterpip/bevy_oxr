@@ -6,12 +6,8 @@ pub mod resources;
 pub mod xr_init;
 pub mod xr_input;
 
-use std::fs::File;
-use std::io::{BufWriter, Write};
 use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, Mutex};
 
-use crate::passthrough::ResumePassthrough;
 use crate::xr_init::{StartXrSession, XrInitPlugin};
 use crate::xr_input::oculus_touch::ActionSets;
 use bevy::app::{AppExit, PluginGroupBuilder};
@@ -34,10 +30,12 @@ use xr_init::{
     xr_after_wait_only, xr_only, xr_render_only, CleanupXrData, SetupXrData, XrEarlyInitPlugin,
     XrHasWaited, XrShouldRender, XrStatus,
 };
+use xr_input::actions::OpenXrActionsPlugin;
 use xr_input::controllers::XrControllerType;
 use xr_input::hands::emulated::HandEmulationPlugin;
 use xr_input::hands::hand_tracking::HandTrackingPlugin;
 use xr_input::hands::HandPlugin;
+use xr_input::xr_camera::XrCameraPlugin;
 use xr_input::OpenXrInput;
 
 const VIEW_TYPE: xr::ViewConfigurationType = xr::ViewConfigurationType::PRIMARY_STEREO;
@@ -81,7 +79,7 @@ impl Plugin for OpenXrPlugin {
                 debug!("Configured wgpu adapter Features: {:#?}", device.features());
                 warn!("Starting with OpenXR Instance");
                 app.insert_resource(xr_instance.clone());
-                app.insert_resource(blend_mode.clone());
+                app.insert_resource(blend_mode);
                 app.insert_resource(ActionSets(vec![]));
                 app.insert_resource(xr_instance);
                 app.insert_resource(blend_mode);
@@ -120,7 +118,9 @@ impl Plugin for OpenXrPlugin {
             (
                 xr_reset_per_frame_resources,
                 xr_wait_frame.run_if(xr_only()),
+                // xr_begin_frame.run_if(xr_only()),
                 locate_views.run_if(xr_only()),
+                
                 apply_deferred,
             )
                 .chain()
@@ -215,8 +215,10 @@ impl PluginGroup for DefaultXrPlugins {
                 reqeusted_extensions: self.reqeusted_extensions,
                 app_info: self.app_info.clone(),
             })
-            .add_after::<OpenXrPlugin, _>(OpenXrInput::new(XrControllerType::OculusTouch))
-            .add_after::<OpenXrPlugin, _>(XrInitPlugin)
+            .add(XrInitPlugin)
+            .add(OpenXrInput::new(XrControllerType::OculusTouch))
+            .add(OpenXrActionsPlugin)
+            .add(XrCameraPlugin)
             .add_before::<OpenXrPlugin, _>(XrEarlyInitPlugin)
             .add(HandPlugin)
             .add(HandTrackingPlugin)
@@ -318,6 +320,7 @@ pub fn xr_wait_frame(
                 return;
             }
         };
+        // frame_state.predicted_display_time = xr::Time::from_nanos(frame_state.predicted_display_time.as_nanos() + frame_state.predicted_display_period.as_nanos());
         **should_render = frame_state.should_render;
         **waited = true;
     }

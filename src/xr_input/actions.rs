@@ -6,7 +6,7 @@ use xr::{Action, Binding, Haptic, Posef, Vector2f};
 
 use crate::{
     resources::{XrInstance, XrSession},
-    xr_init::{XrCleanup, XrPrePostSetup, XrPreSetup},
+    xr_init::{xr_only, XrCleanup, XrPrePostSetup, XrPreSetup},
 };
 
 use super::oculus_touch::ActionSets;
@@ -16,13 +16,18 @@ pub use xr::sys::NULL_PATH;
 pub struct OpenXrActionsPlugin;
 impl Plugin for OpenXrActionsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(XrPreSetup, insert_setup_action_sets);
+        app.add_systems(PreUpdate, sync_actions.run_if(xr_only()));
+        app.add_systems(
+            XrPreSetup,
+            (insert_setup_action_sets, apply_deferred).chain(),
+        );
         app.add_systems(XrPrePostSetup, setup_oxr_actions);
         app.add_systems(XrCleanup, clean_actions);
     }
 }
 
 fn insert_setup_action_sets(mut cmds: Commands) {
+    info!("WHAT?!");
     cmds.insert_resource(SetupActionSets {
         sets: HashMap::new(),
     });
@@ -57,7 +62,6 @@ pub fn setup_oxr_actions(world: &mut World) {
     let right_path = instance.string_to_path("/user/hand/right").unwrap();
     let hands = [left_path, right_path];
 
-    let mut oxr_action_sets = Vec::new();
     let mut action_sets = XrActionSets { sets: default() };
     // let mut action_bindings: HashMap<&'static str, Vec<xr::Path>> = HashMap::new();
     let mut action_bindings: HashMap<
@@ -101,11 +105,11 @@ pub fn setup_oxr_actions(world: &mut World) {
                 }
             }
         }
-        oxr_action_sets.push(oxr_action_set);
+        // oxr_action_sets.push(oxr_action_set);
         action_sets.sets.insert(
             set_name,
             ActionSet {
-                // oxr_action_set,
+                oxr_action_set,
                 actions,
                 enabled: true,
             },
@@ -152,10 +156,15 @@ pub fn setup_oxr_actions(world: &mut World) {
             .expect("Unable to suggest interaction bindings!");
     }
     session
-        .attach_action_sets(&oxr_action_sets.iter().collect::<Vec<_>>())
+        .attach_action_sets(
+            &action_sets
+                .sets
+                .values()
+                .map(|set| &set.oxr_action_set)
+                .collect::<Vec<_>>(),
+        )
         .expect("Unable to attach action sets!");
 
-    world.insert_resource(ActionSets(oxr_action_sets));
     world.insert_resource(action_sets);
 }
 
@@ -267,6 +276,7 @@ pub struct ActionSet {
     // add functionality to enable/disable action sets
     enabled: bool,
     actions: HashMap<&'static str, TypedAction>,
+    oxr_action_set: xr::ActionSet,
 }
 
 #[derive(Resource)]
@@ -378,5 +388,22 @@ impl XrActionSets {
             TypedAction::Haptic(a) => Ok(a),
             _ => Err(ActionError::WrongActionType),
         }
+    }
+}
+
+pub fn sync_actions(action_sets: Res<XrActionSets>, session: Res<XrSession>) {
+    let active_sets = action_sets
+        .sets
+        .values()
+        .filter_map(|set| {
+            if set.enabled {
+                Some(xr::ActiveActionSet::new(&set.oxr_action_set))
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    if let Err(err) = session.sync_actions(&active_sets) {
+        warn!("OpenXR action sync error: {}", err);
     }
 }

@@ -170,7 +170,7 @@ pub fn spawn_hand_entities(mut commands: Commands) {
                     *bone,
                     OpenXRTracker,
                     *hand,
-                    BoneTrackingStatus::Emulated,
+                    BoneTrackingStatus::Tracked,
                     HandBoneRadius(0.1),
                 ))
                 .id();
