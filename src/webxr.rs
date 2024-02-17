@@ -1,3 +1,8 @@
+pub mod render;
+mod resources;
+
+pub use resources::*;
+
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Mutex;
@@ -16,8 +21,8 @@ use wasm_bindgen::closure::Closure;
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{
-    HtmlCanvasElement, WebGl2RenderingContext, XrFrame, XrReferenceSpace, XrReferenceSpaceType,
-    XrRenderStateInit, XrSession, XrSessionMode, XrWebGlLayer,
+    HtmlCanvasElement, WebGl2RenderingContext, XrReferenceSpaceType, XrRenderStateInit,
+    XrSessionMode,
 };
 use winit::platform::web::WindowExtWebSys;
 
@@ -33,12 +38,8 @@ impl Plugin for XrInitPlugin {
         app.set_runner(webxr_runner);
         app.insert_non_send_resource(future_session.clone());
         bevy::tasks::IoTaskPool::get().spawn_local(async move {
-            let result = init_webxr(
-                canvas,
-                XrSessionMode::ImmersiveVr,
-                XrReferenceSpaceType::Local,
-            )
-            .await;
+            let result =
+                init_webxr(canvas, XrSessionMode::Inline, XrReferenceSpaceType::Viewer).await;
             *future_session.0.lock().unwrap() = Some(result);
         });
     }
@@ -53,11 +54,12 @@ impl Plugin for XrInitPlugin {
     fn finish(&self, app: &mut App) {
         info!("finishing");
 
-        if let Some(Ok((session, reference_space))) = app
+        if let Some(result) = app
             .world
             .remove_non_send_resource::<FutureXrSession>()
             .and_then(|fxr| fxr.0.lock().unwrap().take())
         {
+            let (session, reference_space) = result.unwrap();
             app.insert_non_send_resource(session.clone())
                 .insert_non_send_resource(reference_space.clone());
             app.sub_app_mut(RenderApp)
@@ -97,13 +99,14 @@ fn webxr_runner(mut app: App) {
 
 fn run_xr_app(mut app: App) {
     let session = app.world.non_send_resource::<XrSession>().clone();
-    let inner_closure: Rc<RefCell<Option<Closure<dyn FnMut(f64, XrFrame)>>>> =
+    let inner_closure: Rc<RefCell<Option<Closure<dyn FnMut(f64, web_sys::XrFrame)>>>> =
         Rc::new(RefCell::new(None));
     let closure = inner_closure.clone();
-    *closure.borrow_mut() = Some(Closure::new(move |_time, frame: XrFrame| {
+    *closure.borrow_mut() = Some(Closure::new(move |_time, frame: web_sys::XrFrame| {
         let session = frame.session();
-        app.insert_non_send_resource(frame);
-        info!("update");
+        app.insert_non_send_resource(XrFrame(frame.clone()));
+        app.sub_app_mut(RenderApp)
+            .insert_non_send_resource(XrFrame(frame));
         app.update();
         session.request_animation_frame(
             inner_closure
@@ -143,7 +146,7 @@ async fn init_webxr(
     }
 
     info!("creating session");
-    let session: XrSession = JsFuture::from(xr.request_session(mode)).await?.into();
+    let session: web_sys::XrSession = JsFuture::from(xr.request_session(mode)).await?.into();
 
     info!("creating gl");
     let gl: WebGl2RenderingContext = {
@@ -161,7 +164,7 @@ async fn init_webxr(
             .dyn_into()?
     };
 
-    let xr_gl_layer = XrWebGlLayer::new_with_web_gl2_rendering_context(&session, &gl)?;
+    let xr_gl_layer = web_sys::XrWebGlLayer::new_with_web_gl2_rendering_context(&session, &gl)?;
     let mut render_state_init = XrRenderStateInit::new();
     render_state_init.base_layer(Some(&xr_gl_layer));
     session.update_render_state_with_state(&render_state_init);
@@ -171,5 +174,5 @@ async fn init_webxr(
         .into();
 
     info!("finished");
-    Ok((session, reference_space))
+    Ok((XrSession(session), XrReferenceSpace(reference_space)))
 }
