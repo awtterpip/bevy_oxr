@@ -1,15 +1,8 @@
-use std::sync::{Arc, Mutex};
-
-use ash::vk::Handle;
 use bevy::prelude::*;
 
-use openxr::{AnyGraphics, Vulkan};
+use openxr::AnyGraphics;
 
-use crate::openxr::init::Version;
-
-use super::extensions::XrExtensions;
-use super::init::{self, AppInfo, GraphicsBackend, GraphicsExt, XrInitError};
-type Result<T> = std::result::Result<T, XrInitError>;
+use super::graphics::{graphics_match, GraphicsExt, GraphicsType, GraphicsWrap};
 use super::types::*;
 
 #[derive(Deref, Clone)]
@@ -21,22 +14,22 @@ impl XrEntry {
     }
 
     pub fn create_instance(
-        entry: XrEntry,
+        &self,
         app_info: AppInfo,
         exts: XrExtensions,
         backend: GraphicsBackend,
     ) -> Result<XrInstance> {
-        let available_exts = entry.enumerate_extensions()?;
+        let available_exts = self.enumerate_extensions()?;
 
         if !backend.is_available(&available_exts) {
-            return Err(XrInitError::UnavailableBackend(backend));
+            return Err(XrError::UnavailableBackend(backend));
         }
 
         let required_exts = exts | backend.required_exts();
 
-        let instance = entry.create_instance(
+        let instance = self.0.create_instance(
             &openxr::ApplicationInfo {
-                application_name: app_info.name,
+                application_name: &app_info.name,
                 application_version: app_info.version.to_u32(),
                 engine_name: "Bevy",
                 engine_version: Version::BEVY.to_u32(),
@@ -45,7 +38,7 @@ impl XrEntry {
             &[],
         )?;
 
-        Ok(XrInstance(instance, backend))
+        Ok(XrInstance(instance, backend, app_info))
     }
 
     pub fn available_backends(&self) -> Result<Vec<GraphicsBackend>> {
@@ -65,187 +58,148 @@ impl From<openxr::Entry> for XrEntry {
 pub struct XrInstance(
     #[deref] pub(crate) openxr::Instance,
     pub(crate) GraphicsBackend,
+    pub(crate) AppInfo,
 );
 
 impl XrInstance {
     pub fn create_session(
         &self,
-        app_info: AppInfo,
         system_id: openxr::SystemId,
-        format: wgpu::TextureFormat,
-        resolution: UVec2,
     ) -> Result<(
         wgpu::Device,
         wgpu::Queue,
         wgpu::Adapter,
         wgpu::Instance,
-        openxr::Session<openxr::AnyGraphics>,
-        openxr::FrameWaiter,
-        FrameStreamInner,
+        XrSession,
+        XrFrameWaiter,
+        XrFrameStream,
     )> {
-        match self.1 {
-            GraphicsBackend::Vulkan => {
-                openxr::Vulkan::create_session(app_info, &self.0, system_id, format, resolution)
-            }
-        }
+        graphics_match!(
+            self.1;
+            _ => Api::create_session(&self.2, &self.0, system_id)
+        )
     }
+}
+
+impl GraphicsType for XrSession {
+    type Inner<G: GraphicsExt> = openxr::Session<G>;
 }
 
 #[derive(Resource, Deref, Clone)]
 pub struct XrSession(
     #[deref] pub(crate) openxr::Session<AnyGraphics>,
-    pub(crate) TypedSession,
+    pub(crate) GraphicsWrap<Self>,
 );
 
 impl XrSession {
     pub fn enumerate_swapchain_formats(&self) -> Result<Vec<wgpu::TextureFormat>> {
-        self.1.enumerate_swapchain_formats()
+        graphics_match!(
+            &self.1;
+            session => Ok(session.enumerate_swapchain_formats()?.into_iter().filter_map(Api::to_wgpu_format).collect())
+        )
     }
 
     pub fn create_swapchain(&self, info: SwapchainCreateInfo) -> Result<XrSwapchain> {
-        self.1.create_swapchain(info)
+        Ok(XrSwapchain(graphics_match!(
+            &self.1;
+            session => session.create_swapchain(&info.try_into()?)? => XrSwapchain
+        )))
     }
 }
 
-#[derive(Clone)]
-pub enum TypedSession {
-    Vulkan(openxr::Session<Vulkan>),
+pub struct XrFrameStream(pub(crate) GraphicsWrap<Self>);
+
+impl GraphicsType for XrFrameStream {
+    type Inner<G: GraphicsExt> = openxr::FrameStream<G>;
 }
 
-impl TypedSession {
-    pub fn into_any_graphics(&self) -> openxr::Session<AnyGraphics> {
-        match self {
-            TypedSession::Vulkan(session) => session.clone().into_any_graphics(),
-        }
+impl XrFrameStream {
+    pub fn begin(&mut self) -> openxr::Result<()> {
+        graphics_match!(
+            &mut self.0;
+            stream => stream.begin()
+        )
     }
 
-    pub fn enumerate_swapchain_formats(&self) -> Result<Vec<wgpu::TextureFormat>> {
-        Ok(match self {
-            TypedSession::Vulkan(session) => init::vulkan::enumerate_swapchain_formats(session),
-        }?)
-    }
+    pub fn end(
+        &mut self,
+        display_time: openxr::Time,
+        environment_blend_mode: openxr::EnvironmentBlendMode,
+        layers: &[&dyn CompositionLayer],
+    ) -> Result<()> {
+        graphics_match!(
+            &mut self.0;
+            stream => {
+                let mut new_layers = vec![];
 
-    pub fn create_swapchain(&self, info: SwapchainCreateInfo) -> Result<XrSwapchain> {
-        Ok(match self {
-            TypedSession::Vulkan(session) => {
-                XrSwapchain::Vulkan(session.create_swapchain(&info.try_into()?)?)
+                for (i, layer) in layers.into_iter().enumerate() {
+                    if let Some(swapchain) = layer.swapchain() {
+                        if !swapchain.0.using_graphics::<Api>() {
+                            warn!(
+                                "composition layer {i} is using graphics api '{}', expected graphics api '{}'. Excluding layer from frame submission.",
+                                swapchain.0.graphics_name(),
+                                std::any::type_name::<Api>(),
+                            );
+                            continue;
+                        }
+                    }
+                    new_layers.push(unsafe { std::mem::transmute(layer.header()) });
+                }
+
+                Ok(stream.end(display_time, environment_blend_mode, new_layers.as_slice())?)
             }
-        })
+        )
     }
 }
 
-#[derive(Resource, Default, Deref)]
-pub struct Framebuffers(pub Vec<wgpu::Texture>);
+#[derive(Deref, DerefMut)]
+pub struct XrFrameWaiter(pub openxr::FrameWaiter);
 
-#[derive(Clone)]
-pub struct Swapchain {
-    pub inner: Arc<Mutex<XrSwapchain>>,
-    pub format: wgpu::TextureFormat,
-    pub resolution: UVec2,
-}
+pub struct XrSwapchain(pub(crate) GraphicsWrap<Self>);
 
-pub enum FrameStreamInner {
-    Vulkan(openxr::FrameStream<openxr::Vulkan>),
-}
-
-pub enum XrSwapchain {
-    Vulkan(openxr::Swapchain<openxr::Vulkan>),
+impl GraphicsType for XrSwapchain {
+    type Inner<G: GraphicsExt> = openxr::Swapchain<G>;
 }
 
 impl XrSwapchain {
     pub fn acquire_image(&mut self) -> Result<u32> {
-        Ok(match self {
-            XrSwapchain::Vulkan(swap) => swap.acquire_image()?,
-        })
+        graphics_match!(
+            &mut self.0;
+            swap => Ok(swap.acquire_image()?)
+        )
     }
 
     pub fn wait_image(&mut self, timeout: openxr::Duration) -> Result<()> {
-        Ok(match self {
-            XrSwapchain::Vulkan(swap) => swap.wait_image(timeout)?,
-        })
+        graphics_match!(
+            &mut self.0;
+            swap => Ok(swap.wait_image(timeout)?)
+        )
     }
 
     pub fn release_image(&mut self) -> Result<()> {
-        Ok(match self {
-            XrSwapchain::Vulkan(swap) => swap.release_image()?,
-        })
+        graphics_match!(
+            &mut self.0;
+            swap => Ok(swap.release_image()?)
+        )
     }
 
     pub fn enumerate_images(
         &mut self,
-        device: wgpu::Device,
+        device: &wgpu::Device,
         format: wgpu::TextureFormat,
         resolution: UVec2,
     ) -> Result<Vec<wgpu::Texture>> {
-        match self {
-            XrSwapchain::Vulkan(swap) => swap.enumerate_imgs(device, format, resolution),
-        }
-    }
-}
-
-trait EnumerateImages {
-    fn enumerate_imgs(
-        &mut self,
-        device: wgpu::Device,
-        format: wgpu::TextureFormat,
-        resolution: UVec2,
-    ) -> Result<Vec<wgpu::Texture>>;
-}
-
-impl EnumerateImages for openxr::Swapchain<openxr::Vulkan> {
-    fn enumerate_imgs(
-        &mut self,
-        device: wgpu::Device,
-        format: wgpu::TextureFormat,
-        resolution: UVec2,
-    ) -> Result<Vec<wgpu::Texture>> {
-        let images = self.enumerate_images()?;
-        let images = images.into_iter().map(|color_image| {
-            let color_image = ash::vk::Image::from_raw(color_image);
-            let wgpu_hal_texture = unsafe {
-                <wgpu_hal::vulkan::Api as wgpu_hal::Api>::Device::texture_from_raw(
-                    color_image,
-                    &wgpu_hal::TextureDescriptor {
-                        label: Some("VR Swapchain"),
-                        size: wgpu::Extent3d {
-                            width: resolution.x,
-                            height: resolution.y,
-                            depth_or_array_layers: 2,
-                        },
-                        mip_level_count: 1,
-                        sample_count: 1,
-                        dimension: wgpu::TextureDimension::D2,
-                        format: format,
-                        usage: wgpu_hal::TextureUses::COLOR_TARGET
-                            | wgpu_hal::TextureUses::COPY_DST,
-                        memory_flags: wgpu_hal::MemoryFlags::empty(),
-                        view_formats: vec![],
-                    },
-                    None,
-                )
-            };
-            let texture = unsafe {
-                device.create_texture_from_hal::<wgpu_hal::vulkan::Api>(
-                    wgpu_hal_texture,
-                    &wgpu::TextureDescriptor {
-                        label: Some("VR Swapchain"),
-                        size: wgpu::Extent3d {
-                            width: resolution.x,
-                            height: resolution.y,
-                            depth_or_array_layers: 2,
-                        },
-                        mip_level_count: 1,
-                        sample_count: 1,
-                        dimension: wgpu::TextureDimension::D2,
-                        format: format,
-                        usage: wgpu::TextureUsages::RENDER_ATTACHMENT
-                            | wgpu::TextureUsages::COPY_DST,
-                        view_formats: &[],
-                    },
-                )
-            };
-            texture
-        });
-        Ok(images.collect())
+        graphics_match!(
+            &mut self.0;
+            swap => {
+                let mut images = vec![];
+                for image in swap.enumerate_images()? {
+                    unsafe {
+                        images.push(Api::to_wgpu_img(image, device, format, resolution)?);
+                    }
+                }
+                Ok(images)
+            }
+        )
     }
 }

@@ -9,14 +9,9 @@ use wgpu_hal::Api;
 
 use crate::openxr::extensions::XrExtensions;
 use crate::openxr::resources::*;
+use crate::openxr::types::Result;
 
-use super::{AppInfo, GraphicsExt, XrInitError};
-
-pub fn required_exts() -> XrExtensions {
-    let mut extensions = openxr::ExtensionSet::default();
-    extensions.khr_vulkan_enable2 = true;
-    extensions.into()
-}
+use super::{AppInfo, GraphicsExt, XrError};
 
 #[cfg(not(target_os = "android"))]
 const VK_TARGET_VERSION: Version = Version::new(1, 2, 0);
@@ -30,237 +25,6 @@ const VK_TARGET_VERSION_ASH: u32 = ash::vk::make_api_version(
     VK_TARGET_VERSION.patch() as u32,
 );
 
-pub fn enumerate_swapchain_formats(
-    session: &openxr::Session<openxr::Vulkan>,
-) -> openxr::Result<Vec<wgpu::TextureFormat>> {
-    let formats = session
-        .enumerate_swapchain_formats()?
-        .into_iter()
-        .filter_map(|f| vulkan_to_wgpu(ash::vk::Format::from_raw(f as _)))
-        .collect();
-    Ok(formats)
-}
-
-pub fn create_session(
-    app_info: AppInfo,
-    instance: &openxr::Instance,
-    system_id: openxr::SystemId,
-    format: wgpu::TextureFormat,
-    resolution: UVec2,
-) -> Result<
-    (
-        wgpu::Device,
-        wgpu::Queue,
-        wgpu::Adapter,
-        wgpu::Instance,
-        openxr::Session<openxr::AnyGraphics>,
-        openxr::FrameWaiter,
-        FrameStreamInner,
-    ),
-    XrInitError,
-> {
-    let reqs = instance.graphics_requirements::<openxr::Vulkan>(system_id)?;
-    if VK_TARGET_VERSION < reqs.min_api_version_supported
-        || VK_TARGET_VERSION.major() > reqs.max_api_version_supported.major()
-    {
-        error!(
-            "OpenXR runtime requires Vulkan version > {}, < {}.0.0",
-            reqs.min_api_version_supported,
-            reqs.max_api_version_supported.major() + 1
-        );
-        return Err(XrInitError::FailedGraphicsRequirements);
-    };
-    let vk_entry = unsafe { ash::Entry::load() }?;
-    let flags = wgpu_hal::InstanceFlags::empty();
-    let extensions =
-        <Vulkan as Api>::Instance::required_extensions(&vk_entry, VK_TARGET_VERSION_ASH, flags)?;
-    let device_extensions = vec![
-        ash::extensions::khr::Swapchain::name(),
-        ash::extensions::khr::DrawIndirectCount::name(),
-        #[cfg(target_os = "android")]
-        ash::extensions::khr::TimelineSemaphore::name(),
-    ];
-
-    let vk_instance = unsafe {
-        let extensions_cchar: Vec<_> = extensions.iter().map(|s| s.as_ptr()).collect();
-
-        let app_name = CString::new(app_info.name)?;
-        let vk_app_info = ash::vk::ApplicationInfo::builder()
-            .application_name(&app_name)
-            .application_version(1)
-            .engine_name(&app_name)
-            .engine_version(1)
-            .api_version(VK_TARGET_VERSION_ASH);
-
-        let vk_instance = instance
-            .create_vulkan_instance(
-                system_id,
-                std::mem::transmute(vk_entry.static_fn().get_instance_proc_addr),
-                &ash::vk::InstanceCreateInfo::builder()
-                    .application_info(&vk_app_info)
-                    .enabled_extension_names(&extensions_cchar) as *const _
-                    as *const _,
-            )?
-            .map_err(ash::vk::Result::from_raw)?;
-
-        ash::Instance::load(
-            vk_entry.static_fn(),
-            ash::vk::Instance::from_raw(vk_instance as _),
-        )
-    };
-
-    let vk_instance_ptr = vk_instance.handle().as_raw() as *const c_void;
-
-    let vk_physical_device = ash::vk::PhysicalDevice::from_raw(unsafe {
-        instance.vulkan_graphics_device(system_id, vk_instance.handle().as_raw() as _)? as _
-    });
-    let vk_physical_device_ptr = vk_physical_device.as_raw() as *const c_void;
-
-    let vk_device_properties =
-        unsafe { vk_instance.get_physical_device_properties(vk_physical_device) };
-
-    if vk_device_properties.api_version < VK_TARGET_VERSION_ASH {
-        unsafe { vk_instance.destroy_instance(None) }
-        error!(
-            "Vulkan physical device doesn't support version {}.{}.{}",
-            VK_TARGET_VERSION.major(),
-            VK_TARGET_VERSION.minor(),
-            VK_TARGET_VERSION.patch()
-        );
-        return Err(XrInitError::FailedGraphicsRequirements);
-    }
-
-    let wgpu_vk_instance = unsafe {
-        <Vulkan as Api>::Instance::from_raw(
-            vk_entry.clone(),
-            vk_instance.clone(),
-            VK_TARGET_VERSION_ASH,
-            0,
-            None,
-            extensions,
-            flags,
-            false,
-            Some(Box::new(())),
-        )?
-    };
-
-    let wgpu_features = wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES
-        | wgpu::Features::MULTIVIEW
-        | wgpu::Features::MULTI_DRAW_INDIRECT_COUNT
-        | wgpu::Features::MULTI_DRAW_INDIRECT;
-
-    let Some(wgpu_exposed_adapter) = wgpu_vk_instance.expose_adapter(vk_physical_device) else {
-        error!("WGPU failed to provide an adapter");
-        return Err(XrInitError::FailedGraphicsRequirements);
-    };
-
-    let enabled_extensions = wgpu_exposed_adapter
-        .adapter
-        .required_device_extensions(wgpu_features);
-
-    let (wgpu_open_device, vk_device_ptr, queue_family_index) = {
-        let extensions_cchar: Vec<_> = device_extensions.iter().map(|s| s.as_ptr()).collect();
-        let mut enabled_phd_features = wgpu_exposed_adapter
-            .adapter
-            .physical_device_features(&enabled_extensions, wgpu_features);
-        let family_index = 0;
-        let family_info = ash::vk::DeviceQueueCreateInfo::builder()
-            .queue_family_index(family_index)
-            .queue_priorities(&[1.0])
-            .build();
-        let family_infos = [family_info];
-        let info = enabled_phd_features
-            .add_to_device_create_builder(
-                ash::vk::DeviceCreateInfo::builder()
-                    .queue_create_infos(&family_infos)
-                    .push_next(&mut ash::vk::PhysicalDeviceMultiviewFeatures {
-                        multiview: ash::vk::TRUE,
-                        ..Default::default()
-                    }),
-            )
-            .enabled_extension_names(&extensions_cchar)
-            .build();
-        let vk_device = unsafe {
-            let vk_device = instance
-                .create_vulkan_device(
-                    system_id,
-                    std::mem::transmute(vk_entry.static_fn().get_instance_proc_addr),
-                    vk_physical_device.as_raw() as _,
-                    &info as *const _ as *const _,
-                )?
-                .map_err(ash::vk::Result::from_raw)?;
-
-            ash::Device::load(
-                vk_instance.fp_v1_0(),
-                ash::vk::Device::from_raw(vk_device as _),
-            )
-        };
-        let vk_device_ptr = vk_device.handle().as_raw() as *const c_void;
-
-        let wgpu_open_device = unsafe {
-            wgpu_exposed_adapter.adapter.device_from_raw(
-                vk_device,
-                true,
-                &enabled_extensions,
-                wgpu_features,
-                family_info.queue_family_index,
-                0,
-            )
-        }?;
-
-        (
-            wgpu_open_device,
-            vk_device_ptr,
-            family_info.queue_family_index,
-        )
-    };
-
-    let wgpu_instance =
-        unsafe { wgpu::Instance::from_hal::<wgpu_hal::api::Vulkan>(wgpu_vk_instance) };
-    let wgpu_adapter = unsafe { wgpu_instance.create_adapter_from_hal(wgpu_exposed_adapter) };
-    let (wgpu_device, wgpu_queue) = unsafe {
-        wgpu_adapter.create_device_from_hal(
-            wgpu_open_device,
-            &wgpu::DeviceDescriptor {
-                label: None,
-                features: wgpu_features,
-                limits: wgpu::Limits {
-                    max_bind_groups: 8,
-                    max_storage_buffer_binding_size: wgpu_adapter
-                        .limits()
-                        .max_storage_buffer_binding_size,
-                    max_push_constant_size: 4,
-                    ..Default::default()
-                },
-            },
-            None,
-        )
-    }?;
-
-    let (session, frame_wait, frame_stream) = unsafe {
-        instance.create_session::<openxr::Vulkan>(
-            system_id,
-            &openxr::vulkan::SessionCreateInfo {
-                instance: vk_instance_ptr,
-                physical_device: vk_physical_device_ptr,
-                device: vk_device_ptr,
-                queue_family_index,
-                queue_index: 0,
-            },
-        )
-    }?;
-
-    Ok((
-        wgpu_device,
-        wgpu_queue,
-        wgpu_adapter,
-        wgpu_instance,
-        session.into_any_graphics(),
-        frame_wait,
-        FrameStreamInner::Vulkan(frame_stream),
-    ))
-}
-
 impl GraphicsExt for openxr::Vulkan {
     fn from_wgpu_format(format: wgpu::TextureFormat) -> Option<Self::Format> {
         wgpu_to_vulkan(format).map(|f| f.as_raw() as _)
@@ -271,24 +35,280 @@ impl GraphicsExt for openxr::Vulkan {
     }
 
     fn create_session(
-        app_info: AppInfo,
+        app_info: &AppInfo,
         instance: &openxr::Instance,
         system_id: openxr::SystemId,
+    ) -> Result<(
+        wgpu::Device,
+        wgpu::Queue,
+        wgpu::Adapter,
+        wgpu::Instance,
+        XrSession,
+        XrFrameWaiter,
+        XrFrameStream,
+    )> {
+        let reqs = instance.graphics_requirements::<openxr::Vulkan>(system_id)?;
+        if VK_TARGET_VERSION < reqs.min_api_version_supported
+            || VK_TARGET_VERSION.major() > reqs.max_api_version_supported.major()
+        {
+            error!(
+                "OpenXR runtime requires Vulkan version > {}, < {}.0.0",
+                reqs.min_api_version_supported,
+                reqs.max_api_version_supported.major() + 1
+            );
+            return Err(XrError::FailedGraphicsRequirements);
+        };
+        let vk_entry = unsafe { ash::Entry::load() }?;
+        let flags = wgpu_hal::InstanceFlags::empty();
+        let extensions = <Vulkan as Api>::Instance::required_extensions(
+            &vk_entry,
+            VK_TARGET_VERSION_ASH,
+            flags,
+        )?;
+        let device_extensions = vec![
+            ash::extensions::khr::Swapchain::name(),
+            ash::extensions::khr::DrawIndirectCount::name(),
+            #[cfg(target_os = "android")]
+            ash::extensions::khr::TimelineSemaphore::name(),
+        ];
+
+        let vk_instance = unsafe {
+            let extensions_cchar: Vec<_> = extensions.iter().map(|s| s.as_ptr()).collect();
+
+            let app_name = CString::new(app_info.name.clone().into_owned())?;
+            let vk_app_info = ash::vk::ApplicationInfo::builder()
+                .application_name(&app_name)
+                .application_version(1)
+                .engine_name(&app_name)
+                .engine_version(1)
+                .api_version(VK_TARGET_VERSION_ASH);
+
+            let vk_instance = instance
+                .create_vulkan_instance(
+                    system_id,
+                    std::mem::transmute(vk_entry.static_fn().get_instance_proc_addr),
+                    &ash::vk::InstanceCreateInfo::builder()
+                        .application_info(&vk_app_info)
+                        .enabled_extension_names(&extensions_cchar) as *const _
+                        as *const _,
+                )?
+                .map_err(ash::vk::Result::from_raw)?;
+
+            ash::Instance::load(
+                vk_entry.static_fn(),
+                ash::vk::Instance::from_raw(vk_instance as _),
+            )
+        };
+
+        let vk_instance_ptr = vk_instance.handle().as_raw() as *const c_void;
+
+        let vk_physical_device = ash::vk::PhysicalDevice::from_raw(unsafe {
+            instance.vulkan_graphics_device(system_id, vk_instance.handle().as_raw() as _)? as _
+        });
+        let vk_physical_device_ptr = vk_physical_device.as_raw() as *const c_void;
+
+        let vk_device_properties =
+            unsafe { vk_instance.get_physical_device_properties(vk_physical_device) };
+
+        if vk_device_properties.api_version < VK_TARGET_VERSION_ASH {
+            unsafe { vk_instance.destroy_instance(None) }
+            error!(
+                "Vulkan physical device doesn't support version {}.{}.{}",
+                VK_TARGET_VERSION.major(),
+                VK_TARGET_VERSION.minor(),
+                VK_TARGET_VERSION.patch()
+            );
+            return Err(XrError::FailedGraphicsRequirements);
+        }
+
+        let wgpu_vk_instance = unsafe {
+            <Vulkan as Api>::Instance::from_raw(
+                vk_entry.clone(),
+                vk_instance.clone(),
+                VK_TARGET_VERSION_ASH,
+                0,
+                None,
+                extensions,
+                flags,
+                false,
+                Some(Box::new(())),
+            )?
+        };
+
+        let wgpu_features = wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES
+            | wgpu::Features::MULTIVIEW
+            | wgpu::Features::MULTI_DRAW_INDIRECT_COUNT
+            | wgpu::Features::MULTI_DRAW_INDIRECT;
+
+        let Some(wgpu_exposed_adapter) = wgpu_vk_instance.expose_adapter(vk_physical_device) else {
+            error!("WGPU failed to provide an adapter");
+            return Err(XrError::FailedGraphicsRequirements);
+        };
+
+        let enabled_extensions = wgpu_exposed_adapter
+            .adapter
+            .required_device_extensions(wgpu_features);
+
+        let (wgpu_open_device, vk_device_ptr, queue_family_index) = {
+            let extensions_cchar: Vec<_> = device_extensions.iter().map(|s| s.as_ptr()).collect();
+            let mut enabled_phd_features = wgpu_exposed_adapter
+                .adapter
+                .physical_device_features(&enabled_extensions, wgpu_features);
+            let family_index = 0;
+            let family_info = ash::vk::DeviceQueueCreateInfo::builder()
+                .queue_family_index(family_index)
+                .queue_priorities(&[1.0])
+                .build();
+            let family_infos = [family_info];
+            let info = enabled_phd_features
+                .add_to_device_create_builder(
+                    ash::vk::DeviceCreateInfo::builder()
+                        .queue_create_infos(&family_infos)
+                        .push_next(&mut ash::vk::PhysicalDeviceMultiviewFeatures {
+                            multiview: ash::vk::TRUE,
+                            ..Default::default()
+                        }),
+                )
+                .enabled_extension_names(&extensions_cchar)
+                .build();
+            let vk_device = unsafe {
+                let vk_device = instance
+                    .create_vulkan_device(
+                        system_id,
+                        std::mem::transmute(vk_entry.static_fn().get_instance_proc_addr),
+                        vk_physical_device.as_raw() as _,
+                        &info as *const _ as *const _,
+                    )?
+                    .map_err(ash::vk::Result::from_raw)?;
+
+                ash::Device::load(
+                    vk_instance.fp_v1_0(),
+                    ash::vk::Device::from_raw(vk_device as _),
+                )
+            };
+            let vk_device_ptr = vk_device.handle().as_raw() as *const c_void;
+
+            let wgpu_open_device = unsafe {
+                wgpu_exposed_adapter.adapter.device_from_raw(
+                    vk_device,
+                    true,
+                    &enabled_extensions,
+                    wgpu_features,
+                    family_info.queue_family_index,
+                    0,
+                )
+            }?;
+
+            (
+                wgpu_open_device,
+                vk_device_ptr,
+                family_info.queue_family_index,
+            )
+        };
+
+        let wgpu_instance =
+            unsafe { wgpu::Instance::from_hal::<wgpu_hal::api::Vulkan>(wgpu_vk_instance) };
+        let wgpu_adapter = unsafe { wgpu_instance.create_adapter_from_hal(wgpu_exposed_adapter) };
+        let (wgpu_device, wgpu_queue) = unsafe {
+            wgpu_adapter.create_device_from_hal(
+                wgpu_open_device,
+                &wgpu::DeviceDescriptor {
+                    label: None,
+                    features: wgpu_features,
+                    limits: wgpu::Limits {
+                        max_bind_groups: 8,
+                        max_storage_buffer_binding_size: wgpu_adapter
+                            .limits()
+                            .max_storage_buffer_binding_size,
+                        max_push_constant_size: 4,
+                        ..Default::default()
+                    },
+                },
+                None,
+            )
+        }?;
+
+        let (session, frame_wait, frame_stream) = unsafe {
+            instance.create_session::<openxr::Vulkan>(
+                system_id,
+                &openxr::vulkan::SessionCreateInfo {
+                    instance: vk_instance_ptr,
+                    physical_device: vk_physical_device_ptr,
+                    device: vk_device_ptr,
+                    queue_family_index,
+                    queue_index: 0,
+                },
+            )
+        }?;
+
+        Ok((
+            wgpu_device,
+            wgpu_queue,
+            wgpu_adapter,
+            wgpu_instance,
+            XrSession(
+                session.clone().into_any_graphics(),
+                super::GraphicsWrap::Vulkan(session),
+            ),
+            XrFrameWaiter(frame_wait),
+            XrFrameStream(super::GraphicsWrap::Vulkan(frame_stream)),
+        ))
+    }
+
+    unsafe fn to_wgpu_img(
+        color_image: Self::SwapchainImage,
+        device: &wgpu::Device,
         format: wgpu::TextureFormat,
         resolution: UVec2,
-    ) -> Result<
-        (
-            wgpu::Device,
-            wgpu::Queue,
-            wgpu::Adapter,
-            wgpu::Instance,
-            openxr::Session<openxr::AnyGraphics>,
-            openxr::FrameWaiter,
-            FrameStreamInner,
-        ),
-        XrInitError,
-    > {
-        create_session(app_info, instance, system_id, format, resolution)
+    ) -> Result<wgpu::Texture> {
+        let color_image = ash::vk::Image::from_raw(color_image);
+        let wgpu_hal_texture = unsafe {
+            <wgpu_hal::vulkan::Api as wgpu_hal::Api>::Device::texture_from_raw(
+                color_image,
+                &wgpu_hal::TextureDescriptor {
+                    label: Some("VR Swapchain"),
+                    size: wgpu::Extent3d {
+                        width: resolution.x,
+                        height: resolution.y,
+                        depth_or_array_layers: 2,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: format,
+                    usage: wgpu_hal::TextureUses::COLOR_TARGET | wgpu_hal::TextureUses::COPY_DST,
+                    memory_flags: wgpu_hal::MemoryFlags::empty(),
+                    view_formats: vec![],
+                },
+                None,
+            )
+        };
+        let texture = unsafe {
+            device.create_texture_from_hal::<wgpu_hal::vulkan::Api>(
+                wgpu_hal_texture,
+                &wgpu::TextureDescriptor {
+                    label: Some("VR Swapchain"),
+                    size: wgpu::Extent3d {
+                        width: resolution.x,
+                        height: resolution.y,
+                        depth_or_array_layers: 2,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: format,
+                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_DST,
+                    view_formats: &[],
+                },
+            )
+        };
+        Ok(texture)
+    }
+
+    fn required_exts() -> XrExtensions {
+        let mut extensions = openxr::ExtensionSet::default();
+        extensions.khr_vulkan_enable2 = true;
+        extensions.into()
     }
 }
 
