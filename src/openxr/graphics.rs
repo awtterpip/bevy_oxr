@@ -6,11 +6,6 @@ use crate::openxr::resources::*;
 use crate::openxr::types::{AppInfo, Result, XrError};
 use crate::types::BlendMode;
 
-trait GraphicWrapper {
-    type Inner<T: GraphicsExt>;
-    type Func: Fn();
-}
-
 pub trait GraphicsExt: openxr::Graphics {
     fn from_wgpu_format(format: wgpu::TextureFormat) -> Option<Self::Format>;
     fn to_wgpu_format(format: Self::Format) -> Option<wgpu::TextureFormat>;
