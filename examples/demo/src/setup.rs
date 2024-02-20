@@ -1,10 +1,7 @@
 use bevy::{
-    prelude::{
-        shape, Assets, Camera3dBundle, Color, Commands, Mesh, PbrBundle, PointLight,
-        PointLightBundle, ResMut, SpatialBundle, StandardMaterial, Transform, Vec3,
-    },
-    transform::TransformBundle,
-    utils::default,
+    math::primitives::{Cuboid, Plane3d}, prelude::{
+        Assets, Camera3dBundle, Color, Commands, Mesh, PbrBundle, ResMut, StandardMaterial, Transform, Vec3,
+    }, render::mesh::Meshable, utils::default
 };
 use bevy_oxr::xr_input::interactions::{Touched, XRInteractable, XRInteractableState};
 use bevy_rapier3d::{
@@ -29,8 +26,8 @@ pub fn setup_scene(
     // plane
     commands.spawn((
         PbrBundle {
-            mesh: meshes.add(shape::Plane::from_size(5.0).into()),
-            material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
+            mesh: meshes.add(Plane3d::new(Vec3::Y).mesh()),
+            material: materials.add(StandardMaterial::from(Color::rgb(0.3, 0.5, 0.3))),
             transform: Transform::from_xyz(0.0, ground_height, 0.0),
             ..default()
         },
@@ -41,8 +38,8 @@ pub fn setup_scene(
     // cube
     commands.spawn((
         PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
-            material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+            mesh: meshes.add(Cuboid::from_size(Vec3::splat(0.1))),
+            material: materials.add(StandardMaterial::from(Color::rgb(0.8, 0.7, 0.6))),
             transform: Transform::from_xyz(0.0, 1.0, 0.0),
             ..default()
         },

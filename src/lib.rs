@@ -94,6 +94,8 @@ impl Plugin for OpenXrPlugin {
                         render_adapter,
                         render_instance,
                     ),
+                    // Expose this? if yes we also have to set this in the non xr case
+                    synchronous_pipeline_compilation: true,
                 });
                 app.insert_resource(XrStatus::Disabled);
                 app.world.send_event(StartXrSession);

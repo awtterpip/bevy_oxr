@@ -1,22 +1,23 @@
 use crate::xr_init::{xr_only, XrCleanup, XrSetup};
 use crate::xr_input::{QuatConv, Vec3Conv};
 use crate::{locate_views, xr_wait_frame, LEFT_XR_TEXTURE_HANDLE, RIGHT_XR_TEXTURE_HANDLE};
+use bevy::core_pipeline::core_3d::graph::Core3d;
 use bevy::core_pipeline::tonemapping::{DebandDither, Tonemapping};
-use bevy::ecs::system::lifetimeless::Read;
 use bevy::math::Vec3A;
 use bevy::prelude::*;
 use bevy::render::camera::{
-    CameraProjection, CameraProjectionPlugin, CameraRenderGraph, RenderTarget,
+    CameraMainTextureUsages, CameraProjection, CameraProjectionPlugin, CameraRenderGraph, RenderTarget
 };
 use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
 use bevy::render::primitives::Frustum;
 use bevy::render::view::{
-    update_frusta, ColorGrading, ExtractedView, VisibilitySystems, VisibleEntities,
+    update_frusta, ColorGrading, VisibilitySystems, VisibleEntities,
 };
 use bevy::transform::TransformSystem;
 use openxr::Fovf;
+use wgpu::TextureUsages;
 
-use super::trackers::{OpenXRLeftEye, OpenXRRightEye, OpenXRTracker, OpenXRTrackingRoot};
+use super::trackers::{OpenXRLeftEye, OpenXRRightEye, OpenXRTracker};
 
 pub struct XrCameraPlugin;
 
@@ -100,40 +101,41 @@ pub struct XrCameraBundle {
     pub tonemapping: Tonemapping,
     pub dither: DebandDither,
     pub color_grading: ColorGrading,
+    pub main_texture_usages: CameraMainTextureUsages,
     pub xr_camera_type: XrCamera,
 }
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd, Component, ExtractComponent)]
 pub struct XrCamera(Eye);
 
-#[derive(Component)]
-pub(super) struct TransformExtract;
-
-impl ExtractComponent for TransformExtract {
-    type Query = Read<Transform>;
-
-    type Filter = ();
-
-    type Out = Transform;
-
-    fn extract_component(item: bevy::ecs::query::QueryItem<'_, Self::Query>) -> Option<Self::Out> {
-        Some(*item)
-    }
-}
-
-#[derive(Component)]
-pub(super) struct GlobalTransformExtract;
-
-impl ExtractComponent for GlobalTransformExtract {
-    type Query = Read<GlobalTransform>;
-
-    type Filter = ();
-
-    type Out = GlobalTransform;
-
-    fn extract_component(item: bevy::ecs::query::QueryItem<'_, Self::Query>) -> Option<Self::Out> {
-        Some(*item)
-    }
-}
+// #[derive(Component)]
+// pub(super) struct TransformExtract;
+//
+// impl ExtractComponent for TransformExtract {
+//     type Query = Read<Transform>;
+//
+//     type Filter = ();
+//
+//     type Out = Transform;
+//
+//     fn extract_component(item: bevy::ecs::query::QueryItem<'_, Self::Query>) -> Option<Self::Out> {
+//         Some(*item)
+//     }
+// }
+//
+// #[derive(Component)]
+// pub(super) struct GlobalTransformExtract;
+//
+// impl ExtractComponent for GlobalTransformExtract {
+//     type Query = Read<GlobalTransform>;
+//
+//     type Filter = ();
+//
+//     type Out = GlobalTransform;
+//
+//     fn extract_component(item: bevy::ecs::query::QueryItem<'_, Self::Query>) -> Option<Self::Out> {
+//         Some(*item)
+//     }
+// }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum Eye {
@@ -153,7 +155,7 @@ impl XrCameraBundle {
                 viewport: None,
                 ..default()
             },
-            camera_render_graph: CameraRenderGraph::new(bevy::core_pipeline::core_3d::graph::NAME),
+            camera_render_graph: CameraRenderGraph::new(Core3d),
             xr_projection: Default::default(),
             visible_entities: Default::default(),
             frustum: Default::default(),
@@ -164,6 +166,11 @@ impl XrCameraBundle {
             dither: DebandDither::Enabled,
             color_grading: Default::default(),
             xr_camera_type: XrCamera(eye),
+            main_texture_usages: CameraMainTextureUsages(
+                TextureUsages::RENDER_ATTACHMENT
+                    | TextureUsages::TEXTURE_BINDING
+                    | TextureUsages::COPY_SRC,
+            ),
         }
     }
 }

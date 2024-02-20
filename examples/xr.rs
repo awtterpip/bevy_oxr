@@ -6,6 +6,7 @@ use bevy_oxr::graphics::XrAppInfo;
 use bevy_oxr::input::XrInput;
 use bevy_oxr::resources::{XrFrameState, XrSession};
 
+use bevy_oxr::xr_init::xr_only;
 use bevy_oxr::xr_input::actions::XrActionSets;
 use bevy_oxr::xr_input::hands::common::HandInputDebugRenderer;
 use bevy_oxr::xr_input::interactions::{
@@ -36,21 +37,21 @@ fn main() {
         .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(FrameTimeDiagnosticsPlugin)
         .add_systems(Startup, setup)
-        .add_systems(Update, proto_locomotion)
+        .add_systems(Update, proto_locomotion.run_if(xr_only()))
         .insert_resource(PrototypeLocomotionConfig::default())
         .add_systems(Startup, spawn_controllers_example)
         .add_plugins(HandInputDebugRenderer)
         .add_systems(
             Update,
-            draw_interaction_gizmos.after(update_interactable_states),
+            draw_interaction_gizmos.after(update_interactable_states).run_if(xr_only()),
         )
-        .add_systems(Update, draw_socket_gizmos.after(update_interactable_states))
-        .add_systems(Update, interactions.before(update_interactable_states))
+        .add_systems(Update, draw_socket_gizmos.after(update_interactable_states).run_if(xr_only()))
+        .add_systems(Update, interactions.before(update_interactable_states).run_if(xr_only()))
         .add_systems(
             Update,
             socket_interactions.before(update_interactable_states),
         )
-        .add_systems(Update, prototype_interaction_input)
+        .add_systems(Update, prototype_interaction_input.run_if(xr_only()))
         .add_systems(Update, update_interactable_states)
         .add_systems(Update, update_grabbables.after(update_interactable_states))
         .add_event::<InteractionEvent>()
@@ -65,14 +66,14 @@ fn setup(
 ) {
     // plane
     commands.spawn(PbrBundle {
-        mesh: meshes.add(shape::Plane::from_size(5.0).into()),
-        material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
+        mesh: meshes.add(Plane3d::new(Vec3::Y).mesh()),
+        material: materials.add(StandardMaterial::from(Color::rgb(0.3, 0.5, 0.3))),
         ..default()
     });
     // cube
     commands.spawn(PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
-        material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+        mesh: meshes.add(Cuboid::from_size(Vec3::splat(0.1)).mesh()),
+        material: materials.add(StandardMaterial::from(Color::rgb(0.8, 0.7, 0.6))),
         transform: Transform::from_xyz(0.0, 0.5, 0.0),
         ..default()
     });
@@ -191,8 +192,8 @@ pub struct Grabbable;
 
 pub fn update_grabbables(
     mut events: EventReader<InteractionEvent>,
-    mut grabbable_query: Query<(&mut Transform, With<Grabbable>, Without<XRDirectInteractor>)>,
-    interactor_query: Query<(&GlobalTransform, &XRInteractorState, Without<Grabbable>)>,
+    mut grabbable_query: Query<&mut Transform, (With<Grabbable>, Without<XRDirectInteractor>)>,
+    interactor_query: Query<(&GlobalTransform, &XRInteractorState), Without<Grabbable>>,
 ) {
     //so basically the idea is to try all the events?
     for event in events.read() {
@@ -207,7 +208,7 @@ pub fn update_grabbables(
                             XRInteractorState::Idle => (),
                             XRInteractorState::Selecting => {
                                 // info!("its a direct interactor?");
-                                *grabbable_transform.0 = interactor_transform.0.compute_transform();
+                                *grabbable_transform = interactor_transform.0.compute_transform();
                             }
                         }
                     }

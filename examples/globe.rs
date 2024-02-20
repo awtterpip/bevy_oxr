@@ -1,5 +1,6 @@
 use bevy::diagnostic::LogDiagnosticsPlugin;
 use bevy::prelude::*;
+use bevy::render::render_asset::RenderAssetUsages;
 use bevy::transform::components::Transform;
 use bevy_oxr::graphics::XrAppInfo;
 use bevy_oxr::resources::XrViews;
@@ -66,6 +67,7 @@ fn uv_debug_texture() -> Image {
         TextureDimension::D2,
         &texture_data,
         TextureFormat::Rgba8UnormSrgb,
+        RenderAssetUsages::RENDER_WORLD,
     )
 }
 
@@ -81,13 +83,7 @@ fn setup(
     commands.spawn((
         PbrBundle {
             mesh: meshes.add(
-                shape::UVSphere {
-                    radius,
-                    sectors: 10,
-                    stacks: 10,
-                }
-                .try_into()
-                .unwrap(),
+                Sphere::new(radius)
             ),
             material: materials.add(StandardMaterial {
                 base_color_texture: Some(images.add(uv_debug_texture())),
@@ -100,8 +96,8 @@ fn setup(
     ));
     // cube
     commands.spawn(PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
-        material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+        mesh: meshes.add(Cuboid::from_size(Vec3::splat(0.1)).mesh()),
+        material: materials.add(StandardMaterial::from(Color::rgb(0.8, 0.7, 0.6))),
         transform: Transform::from_xyz(0.0, 0.5, 0.0),
         ..default()
     });
@@ -186,7 +182,7 @@ fn pull_to_ground(
     root.translation += diff * adjustment_rate;
 
     // Rotate player to be upright on sphere
-    let angle_diff = Quat::from_rotation_arc(root.up(), up);
+    let angle_diff = Quat::from_rotation_arc(*root.up(), up);
     let point = root.translation + offset;
     root.rotate_around(point, Quat::IDENTITY.slerp(angle_diff, adjustment_rate));
 }

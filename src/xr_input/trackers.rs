@@ -1,5 +1,6 @@
 use bevy::hierarchy::Parent;
 use bevy::log::{debug, info};
+use bevy::math::Quat;
 use bevy::prelude::{
     Added, BuildChildren, Commands, Component, Entity, Query, Res, Transform, Vec3, With, Without,
 };
@@ -48,20 +49,23 @@ pub fn adopt_open_xr_trackers(
     }
 }
 
+pub fn verify_quat(mut quat: Quat) -> Quat {
+    if quat.length() == 0.0 || !quat.is_finite() {
+        quat = Quat::IDENTITY;
+    }
+    quat.normalize()
+}
+
 pub fn update_open_xr_controllers(
     oculus_controller: Res<OculusController>,
-    mut left_controller_query: Query<(
-        &mut Transform,
-        Option<&mut AimPose>,
-        With<OpenXRLeftController>,
-        Without<OpenXRRightController>,
-    )>,
-    mut right_controller_query: Query<(
-        &mut Transform,
-        Option<&mut AimPose>,
-        With<OpenXRRightController>,
-        Without<OpenXRLeftController>,
-    )>,
+    mut left_controller_query: Query<
+        (&mut Transform, Option<&mut AimPose>),
+        (With<OpenXRLeftController>, Without<OpenXRRightController>),
+    >,
+    mut right_controller_query: Query<
+        (&mut Transform, Option<&mut AimPose>),
+        (With<OpenXRRightController>, Without<OpenXRLeftController>),
+    >,
     frame_state: Res<XrFrameState>,
     xr_input: Res<XrInput>,
     session: Res<XrSession>,
@@ -81,7 +85,7 @@ pub fn update_open_xr_controllers(
             Some(mut pose) => {
                 *pose = AimPose(Transform {
                     translation: left_aim_space.0.pose.position.to_vec3(),
-                    rotation: left_aim_space.0.pose.orientation.to_quat(),
+                    rotation: verify_quat(left_aim_space.0.pose.orientation.to_quat()),
                     scale: Vec3::splat(1.0),
                 });
             }
@@ -99,7 +103,7 @@ pub fn update_open_xr_controllers(
     let left_rotataion = left_controller_query.get_single_mut();
     match left_rotataion {
         Ok(mut left_entity) => {
-            left_entity.0.rotation = left_grip_space.0.pose.orientation.to_quat()
+            left_entity.0.rotation = verify_quat(left_grip_space.0.pose.orientation.to_quat())
         }
         Err(_) => (),
     }
@@ -114,7 +118,7 @@ pub fn update_open_xr_controllers(
             Some(mut pose) => {
                 *pose = AimPose(Transform {
                     translation: right_aim_space.0.pose.position.to_vec3(),
-                    rotation: right_aim_space.0.pose.orientation.to_quat(),
+                    rotation: verify_quat(right_aim_space.0.pose.orientation.to_quat()),
                     scale: Vec3::splat(1.0),
                 });
             }
@@ -132,7 +136,7 @@ pub fn update_open_xr_controllers(
     let right_rotataion = right_controller_query.get_single_mut();
     match right_rotataion {
         Ok(mut right_entity) => {
-            right_entity.0.rotation = right_grip_space.0.pose.orientation.to_quat()
+            right_entity.0.rotation = verify_quat(right_grip_space.0.pose.orientation.to_quat())
         }
         Err(_) => (),
     }

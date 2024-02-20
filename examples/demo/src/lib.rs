@@ -1,19 +1,13 @@
 use std::{f32::consts::PI, ops::Mul, time::Duration};
 
 use bevy::{
-    diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
-    ecs::schedule::ScheduleLabel,
-    input::{keyboard::KeyCode, Input},
-    log::info,
-    prelude::{
+    diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin}, ecs::schedule::ScheduleLabel, input::{keyboard::KeyCode, ButtonInput}, log::info, math::primitives::{Capsule3d, Cuboid}, prelude::{
         bevy_main, default, shape, App, Assets, Color, Commands, Component, Entity, Event,
         EventReader, EventWriter, FixedUpdate, Gizmos, GlobalTransform, IntoSystemConfigs,
         IntoSystemSetConfigs, Mesh, PbrBundle, PostUpdate, Quat, Query, Res, ResMut, Resource,
         Schedule, SpatialBundle, StandardMaterial, Startup, Transform, Update, Vec3, Vec3Swizzles,
         With, Without, World,
-    },
-    time::{Fixed, Time, Timer, TimerMode},
-    transform::TransformSystem,
+    }, render::mesh::Meshable, time::{Fixed, Time, Timer, TimerMode}, transform::TransformSystem
 };
 use bevy_oxr::{
     graphics::{extensions::XrExtensions, XrAppInfo, XrPreferdBlendMode},
@@ -226,12 +220,8 @@ fn spawn_capsule(
 ) {
     commands.spawn((
         PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Capsule {
-                radius: 0.033,
-                depth: 0.115,
-                ..default()
-            })),
-            material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+            mesh: meshes.add(Capsule3d::new(0.033, 0.115).mesh()),
+            material: materials.add(StandardMaterial::from(Color::rgb(0.8, 0.7, 0.6))),
             transform: Transform::from_xyz(0.0, 2.0, 0.0),
             ..default()
         },
@@ -376,7 +366,7 @@ fn update_physics_hands(
         &Hand,
         &mut Velocity,
     )>,
-    hand_query: Query<(&Transform, &HandBone, &Hand, Without<PhysicsHandBone>)>,
+    hand_query: Query<(&Transform, &HandBone, &Hand), Without<PhysicsHandBone>>,
     time: Res<Time>,
     mut gizmos: Gizmos,
 ) {
@@ -586,8 +576,8 @@ fn cube_spawner(
         // cube
         commands.spawn((
             PbrBundle {
-                mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
-                material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+                mesh: meshes.add(Cuboid::from_size(Vec3::splat(0.1)).mesh()),
+                material: materials.add(StandardMaterial::from(Color::rgb(0.8, 0.7, 0.6))),
                 transform: Transform::from_xyz(0.0, 1.0, 0.0),
                 ..default()
             },
@@ -660,7 +650,7 @@ pub struct GhostTimers {
 
 pub fn handle_ghost_hand_events(
     mut events: EventReader<GhostHandEvent>,
-    mut bones: Query<(&Hand, &mut CollisionGroups, With<PhysicsHandBone>)>,
+    mut bones: Query<(&Hand, &mut CollisionGroups), With<PhysicsHandBone>>,
 ) {
     for event in events.read() {
         // info!(
@@ -708,20 +698,19 @@ pub struct Grabbable;
 
 pub fn update_grabbables(
     mut events: EventReader<InteractionEvent>,
-    mut grabbable_query: Query<(
-        Entity,
-        &mut Transform,
-        With<Grabbable>,
-        Without<XRDirectInteractor>,
-        Option<&mut RigidBody>,
-    )>,
-    mut interactor_query: Query<(
-        &GlobalTransform,
-        &XRInteractorState,
-        &mut XRSelection,
-        &Hand,
+    mut grabbable_query: Query<
+        (Entity, &mut Transform, Option<&mut RigidBody>),
+        (Without<XRDirectInteractor>, With<Grabbable>),
+    >,
+    mut interactor_query: Query<
+        (
+            &GlobalTransform,
+            &XRInteractorState,
+            &mut XRSelection,
+            &Hand,
+        ),
         Without<Grabbable>,
-    )>,
+    >,
     mut writer: EventWriter<GhostHandEvent>,
     mut timers: ResMut<GhostTimers>,
 ) {
@@ -737,7 +726,7 @@ pub fn update_grabbables(
                         match *interactor_transform.2 {
                             XRSelection::Empty => {
                                 match interactor_transform.1 {
-                                    XRInteractorState::Idle => match grabbable_transform.4 {
+                                    XRInteractorState::Idle => match grabbable_transform.2 {
                                         Some(mut thing) => {
                                             *thing = RigidBody::Dynamic;
                                             *interactor_transform.2 = XRSelection::Empty;
@@ -746,7 +735,7 @@ pub fn update_grabbables(
                                     },
                                     XRInteractorState::Selecting => {
                                         // info!("its a direct interactor?");
-                                        match grabbable_transform.4 {
+                                        match grabbable_transform.2 {
                                             Some(mut thing) => {
                                                 *thing = RigidBody::KinematicPositionBased;
                                                 *interactor_transform.2 =

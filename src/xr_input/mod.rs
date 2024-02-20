@@ -37,7 +37,7 @@ use self::trackers::{
     adopt_open_xr_trackers, update_open_xr_controllers, OpenXRLeftEye, OpenXRRightEye,
     OpenXRTrackingRoot,
 };
-use self::xr_camera::{GlobalTransformExtract, TransformExtract, XrCamera};
+use self::xr_camera::{/* GlobalTransformExtract, TransformExtract, */ XrCamera};
 
 #[derive(Copy, Clone)]
 pub struct OpenXrInput {
