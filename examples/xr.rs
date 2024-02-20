@@ -6,7 +6,7 @@ use bevy_oxr::graphics::XrAppInfo;
 use bevy_oxr::input::XrInput;
 use bevy_oxr::resources::{XrFrameState, XrSession};
 
-use bevy_oxr::xr_init::xr_only;
+use bevy_oxr::xr_init::{xr_only, EndXrSession, StartXrSession};
 use bevy_oxr::xr_input::actions::XrActionSets;
 use bevy_oxr::xr_input::hands::common::HandInputDebugRenderer;
 use bevy_oxr::xr_input::interactions::{
@@ -43,10 +43,22 @@ fn main() {
         .add_plugins(HandInputDebugRenderer)
         .add_systems(
             Update,
-            draw_interaction_gizmos.after(update_interactable_states).run_if(xr_only()),
+            draw_interaction_gizmos
+                .after(update_interactable_states)
+                .run_if(xr_only()),
         )
-        .add_systems(Update, draw_socket_gizmos.after(update_interactable_states).run_if(xr_only()))
-        .add_systems(Update, interactions.before(update_interactable_states).run_if(xr_only()))
+        .add_systems(
+            Update,
+            draw_socket_gizmos
+                .after(update_interactable_states)
+                .run_if(xr_only()),
+        )
+        .add_systems(
+            Update,
+            interactions
+                .before(update_interactable_states)
+                .run_if(xr_only()),
+        )
         .add_systems(
             Update,
             socket_interactions.before(update_interactable_states),
@@ -54,8 +66,22 @@ fn main() {
         .add_systems(Update, prototype_interaction_input.run_if(xr_only()))
         .add_systems(Update, update_interactable_states)
         .add_systems(Update, update_grabbables.after(update_interactable_states))
+        .add_systems(Update, start_stop_session)
         .add_event::<InteractionEvent>()
         .run();
+}
+
+fn start_stop_session(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut start: EventWriter<StartXrSession>,
+    mut stop: EventWriter<EndXrSession>,
+) {
+    if keyboard.just_pressed(KeyCode::KeyS) {
+        start.send_default();
+    }
+    if keyboard.just_pressed(KeyCode::KeyE) {
+        stop.send_default();
+    }
 }
 
 /// set up a simple 3D scene

@@ -5,6 +5,7 @@ pub mod resource_macros;
 pub mod resources;
 pub mod xr_init;
 pub mod xr_input;
+pub mod prelude;
 
 use std::sync::atomic::AtomicBool;
 
