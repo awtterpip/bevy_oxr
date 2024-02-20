@@ -120,7 +120,6 @@ impl Plugin for OpenXrPlugin {
                 xr_wait_frame.run_if(xr_only()),
                 // xr_begin_frame.run_if(xr_only()),
                 locate_views.run_if(xr_only()),
-                
                 apply_deferred,
             )
                 .chain()
@@ -306,23 +305,27 @@ fn xr_begin_frame(swapchain: Res<XrSwapchain>) {
 }
 
 pub fn xr_wait_frame(
-    mut frame_state: ResMut<XrFrameState>,
-    mut frame_waiter: ResMut<XrFrameWaiter>,
-    mut should_render: ResMut<XrShouldRender>,
-    mut waited: ResMut<XrHasWaited>,
+    world: &mut World,
+    // mut frame_state: ResMut<XrFrameState>,
+    // mut frame_waiter: ResMut<XrFrameWaiter>,
+    // mut should_render: ResMut<XrShouldRender>,
+    // mut waited: ResMut<XrHasWaited>,
 ) {
+    let mut frame_waiter = world.get_resource_mut::<XrFrameWaiter>().unwrap();
     {
         let _span = info_span!("xr_wait_frame").entered();
-        *frame_state = match frame_waiter.wait() {
+
+        *world.get_resource_mut::<XrFrameState>().unwrap() = match frame_waiter.wait() {
             Ok(a) => a.into(),
             Err(e) => {
                 warn!("error: {}", e);
                 return;
             }
         };
+        let should_render = world.get_resource::<XrFrameState>().unwrap().should_render;
         // frame_state.predicted_display_time = xr::Time::from_nanos(frame_state.predicted_display_time.as_nanos() + frame_state.predicted_display_period.as_nanos());
-        **should_render = frame_state.should_render;
-        **waited = true;
+        **world.get_resource_mut::<XrShouldRender>().unwrap() = should_render;
+        **world.get_resource_mut::<XrHasWaited>().unwrap() = true;
     }
 }
 

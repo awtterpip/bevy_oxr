@@ -55,6 +55,7 @@ fn check_for_handtracking(
             .supports_hand_tracking(instance.system(FormFactor::HEAD_MOUNTED_DISPLAY).unwrap())
             .is_ok_and(|v| v);
     if hands {
+        info!("handtracking!");
         commands.insert_resource(HandTrackingData::new(&session).unwrap());
     } else {
         commands.insert_resource(DisableHandTracking::Both);
