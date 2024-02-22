@@ -1,26 +1,75 @@
+use std::ffi::c_void;
 use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
 
-use crate::passthrough::{Passthrough, PassthroughLayer};
+use crate::input::XrInput;
+use crate::passthrough::{CompositionLayerPassthrough, XrPassthroughLayer};
 use crate::resource_macros::*;
 use crate::xr::sys::CompositionLayerPassthroughFB;
 use crate::xr::{CompositionLayerBase, CompositionLayerFlags};
+use crate::{resource_macros::*, xr_resource_wrapper_copy};
 use bevy::prelude::*;
+use bevy::prelude::*;
+use bevy::render::extract_component::ExtractComponent;
+use bevy::render::extract_resource::{ExtractResource, ExtractResourcePlugin};
 use core::ptr;
 use openxr as xr;
 
 xr_resource_wrapper!(XrInstance, xr::Instance);
-xr_resource_wrapper!(XrSession, xr::Session<xr::AnyGraphics>);
-xr_resource_wrapper!(XrEnvironmentBlendMode, xr::EnvironmentBlendMode);
-xr_resource_wrapper!(XrResolution, UVec2);
-xr_resource_wrapper!(XrFormat, wgpu::TextureFormat);
+xr_resource_wrapper_copy!(XrEnvironmentBlendMode, xr::EnvironmentBlendMode);
+xr_resource_wrapper_copy!(XrResolution, UVec2);
+xr_resource_wrapper_copy!(XrFormat, wgpu::TextureFormat);
+xr_resource_wrapper_copy!(XrFrameState, xr::FrameState);
+xr_resource_wrapper!(XrViews, Vec<xr::View>);
 xr_arc_resource_wrapper!(XrSessionRunning, AtomicBool);
-xr_arc_resource_wrapper!(XrFrameWaiter, Mutex<xr::FrameWaiter>);
 xr_arc_resource_wrapper!(XrSwapchain, Swapchain);
-xr_arc_resource_wrapper!(XrFrameState, Mutex<xr::FrameState>);
-xr_arc_resource_wrapper!(XrViews, Mutex<Vec<xr::View>>);
-xr_arc_resource_wrapper!(XrPassthrough, Mutex<xr::sys::PassthroughFB>);
-xr_arc_resource_wrapper!(XrPassthroughLayer, Mutex<xr::sys::PassthroughLayerFB>);
+xr_no_clone_resource_wrapper!(XrFrameWaiter, xr::FrameWaiter);
+
+#[derive(Clone, Resource, ExtractResource)]
+pub enum XrSession {
+    Vulkan(xr::Session<xr::Vulkan>),
+}
+
+impl std::ops::Deref for XrSession {
+    type Target = xr::Session<xr::AnyGraphics>;
+
+    fn deref(&self) -> &Self::Target {
+        // SAFTEY: should be fine i think -Schmarni
+        unsafe {
+            match self {
+                XrSession::Vulkan(sess) => std::mem::transmute(sess),
+            }
+        }
+    }
+}
+
+pub struct VulkanOXrSessionSetupInfo {
+    pub(crate) device_ptr: *const c_void,
+    pub(crate) physical_device_ptr: *const c_void,
+    pub(crate) vk_instance_ptr: *const c_void,
+    pub(crate) queue_family_index: u32,
+    pub(crate) xr_system_id: xr::SystemId,
+}
+
+pub enum OXrSessionSetupInfo {
+    Vulkan(VulkanOXrSessionSetupInfo),
+}
+
+pub struct XrResourcePlugin;
+
+impl Plugin for XrResourcePlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugins(ExtractResourcePlugin::<XrResolution>::default());
+        app.add_plugins(ExtractResourcePlugin::<XrFormat>::default());
+        app.add_plugins(ExtractResourcePlugin::<XrSwapchain>::default());
+        app.add_plugins(ExtractResourcePlugin::<XrFrameState>::default());
+        app.add_plugins(ExtractResourcePlugin::<XrViews>::default());
+        app.add_plugins(ExtractResourcePlugin::<XrInput>::default());
+        app.add_plugins(ExtractResourcePlugin::<XrEnvironmentBlendMode>::default());
+        // app.add_plugins(ExtractResourcePlugin::<XrSessionRunning>::default());
+        app.add_plugins(ExtractResourcePlugin::<XrSession>::default());
+    }
+}
 
 pub enum Swapchain {
     Vulkan(SwapchainInner<xr::Vulkan>),
@@ -64,7 +113,7 @@ impl Swapchain {
         stage: &xr::Space,
         resolution: UVec2,
         environment_blend_mode: xr::EnvironmentBlendMode,
-        passthrough_layer: Option<PassthroughLayer>,
+        passthrough_layer: Option<&XrPassthroughLayer>,
     ) -> xr::Result<()> {
         match self {
             Swapchain::Vulkan(swapchain) => swapchain.end(
@@ -84,6 +133,14 @@ pub struct SwapchainInner<G: xr::Graphics> {
     pub(crate) handle: Mutex<xr::Swapchain<G>>,
     pub(crate) buffers: Vec<wgpu::Texture>,
     pub(crate) image_index: Mutex<usize>,
+}
+impl<G: xr::Graphics> Drop for SwapchainInner<G> {
+    fn drop(&mut self) {
+        for _ in 0..self.buffers.len() {
+            let v = self.buffers.remove(0);
+            Box::leak(Box::new(v));
+        }
+    }
 }
 
 impl<G: xr::Graphics> SwapchainInner<G> {
@@ -133,7 +190,7 @@ impl<G: xr::Graphics> SwapchainInner<G> {
         stage: &xr::Space,
         resolution: UVec2,
         environment_blend_mode: xr::EnvironmentBlendMode,
-        passthrough_layer: Option<PassthroughLayer>,
+        passthrough_layer: Option<&XrPassthroughLayer>,
     ) -> xr::Result<()> {
         let rect = xr::Rect2Di {
             offset: xr::Offset2Di { x: 0, y: 0 },
@@ -143,7 +200,7 @@ impl<G: xr::Graphics> SwapchainInner<G> {
             },
         };
         let swapchain = self.handle.lock().unwrap();
-        if views.len() == 0 {
+        if views.is_empty() {
             warn!("views are len of 0");
             return Ok(());
         }
@@ -151,21 +208,11 @@ impl<G: xr::Graphics> SwapchainInner<G> {
             Some(pass) => {
                 //bevy::log::info!("Rendering with pass through");
 
-                let passthrough_layer = xr::sys::CompositionLayerPassthroughFB {
-                    ty: CompositionLayerPassthroughFB::TYPE,
-                    next: ptr::null(),
-                    flags: CompositionLayerFlags::UNPREMULTIPLIED_ALPHA,
-                    space: xr::sys::Space::NULL,
-                    layer_handle: pass.0,
-                };
-
                 self.stream.lock().unwrap().end(
                     predicted_display_time,
                     environment_blend_mode,
                     &[
-                        unsafe {
-                            &*(&passthrough_layer as *const _ as *const CompositionLayerBase<G>)
-                        },
+                        &CompositionLayerPassthrough::from_xr_passthrough_layer(pass),
                         &xr::CompositionLayerProjection::new()
                             .layer_flags(CompositionLayerFlags::BLEND_TEXTURE_SOURCE_ALPHA)
                             .space(stage)
@@ -194,7 +241,7 @@ impl<G: xr::Graphics> SwapchainInner<G> {
             }
 
             None => {
-                bevy::log::info!("Rendering without pass through");
+                // bevy::log::info!("Rendering without pass through");
                 self.stream.lock().unwrap().end(
                     predicted_display_time,
                     environment_blend_mode,

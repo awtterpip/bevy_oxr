@@ -1,19 +1,64 @@
-use bevy::{app::PluginGroupBuilder, prelude::*};
+use bevy::prelude::*;
+use openxr::FormFactor;
 
-use self::{emulated::HandEmulationPlugin, hand_tracking::HandTrackingPlugin};
+use crate::{
+    resources::{XrInstance, XrSession},
+    xr_init::{XrCleanup, XrPreSetup, XrSetup},
+};
+
+use self::{
+    common::{spawn_hand_entities, HandBoneRadius, HandsResource},
+    hand_tracking::{DisableHandTracking, HandTrackingData},
+};
+
+use super::{trackers::OpenXRTracker, Hand};
 
 pub mod common;
 pub mod emulated;
 pub mod hand_tracking;
 
-pub struct XrHandPlugins;
+pub struct HandPlugin;
 
-impl PluginGroup for XrHandPlugins {
-    fn build(self) -> PluginGroupBuilder {
-        PluginGroupBuilder::start::<Self>()
-            .add(HandTrackingPlugin)
-            .add(HandEmulationPlugin)
-            .build()
+impl Plugin for HandPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(XrPreSetup, check_for_handtracking);
+        app.add_systems(XrSetup, spawn_hand_entities);
+        app.add_systems(XrCleanup, despawn_hand_entities);
+    }
+}
+
+#[allow(clippy::type_complexity)]
+fn despawn_hand_entities(
+    mut commands: Commands,
+    hand_entities: Query<
+        Entity,
+        (
+            With<OpenXRTracker>,
+            With<HandBone>,
+            With<BoneTrackingStatus>,
+        ),
+    >,
+) {
+    for e in &hand_entities {
+        commands.entity(e).despawn_recursive();
+    }
+    commands.remove_resource::<HandsResource>()
+}
+
+fn check_for_handtracking(
+    mut commands: Commands,
+    instance: Res<XrInstance>,
+    session: Res<XrSession>,
+) {
+    let hands = instance.exts().ext_hand_tracking.is_some()
+        && instance
+            .supports_hand_tracking(instance.system(FormFactor::HEAD_MOUNTED_DISPLAY).unwrap())
+            .is_ok_and(|v| v);
+    if hands {
+        info!("handtracking!");
+        commands.insert_resource(HandTrackingData::new(&session).unwrap());
+    } else {
+        commands.insert_resource(DisableHandTracking::Both);
     }
 }
 
@@ -54,21 +99,17 @@ pub enum HandBone {
 }
 impl HandBone {
     pub fn is_finger(&self) -> bool {
-        match &self {
-            HandBone::Wrist => false,
-            HandBone::Palm => false,
-            _ => true,
-        }
+        !matches!(self, HandBone::Wrist | HandBone::Palm)
     }
     pub fn is_metacarpal(&self) -> bool {
-        match &self {
-            HandBone::ThumbMetacarpal => true,
-            HandBone::IndexMetacarpal => true,
-            HandBone::MiddleMetacarpal => true,
-            HandBone::RingMetacarpal => true,
-            HandBone::LittleTip => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            HandBone::ThumbMetacarpal
+                | HandBone::IndexMetacarpal
+                | HandBone::MiddleMetacarpal
+                | HandBone::RingMetacarpal
+                | HandBone::LittleTip
+        )
     }
     pub const fn get_all_bones() -> [HandBone; 26] {
         [

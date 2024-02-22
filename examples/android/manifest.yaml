@@ -12,6 +12,8 @@ android:
         required: true
       - name: "com.oculus.experimental.enabled"
         required: true
+    uses_permission:
+      - name: "com.oculus.permission.HAND_TRACKING"
     application:
       label: "Bevy Openxr Android"
       theme: "@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen"

@@ -8,7 +8,3 @@ pub struct Handed<T> {
     pub left: T,
     pub right: T,
 }
-#[derive(Copy, Clone)]
-pub enum XrControllerType {
-    OculusTouch,
-}

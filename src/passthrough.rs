@@ -1,20 +1,135 @@
-use bevy::prelude::*;
+use bevy::render::extract_resource::ExtractResource;
+use bevy::{prelude::*, render::extract_resource::ExtractResourcePlugin};
 use std::{marker::PhantomData, mem, ptr};
 
-use crate::xr_init::XrRenderData;
+use crate::resources::XrSession;
+use crate::{
+    resources::XrInstance,
+    xr_arc_resource_wrapper,
+    xr_init::{XrCleanup, XrSetup},
+};
 use openxr as xr;
 use xr::{
-    sys::{
-        PassthroughCreateInfoFB, PassthroughFB, PassthroughLayerFB, Space,
-        SystemPassthroughProperties2FB,
-    },
-    CompositionLayerBase, CompositionLayerFlags, Graphics, PassthroughCapabilityFlagsFB,
+    sys::{Space, SystemPassthroughProperties2FB},
+    CompositionLayerBase, CompositionLayerFlags, FormFactor, Graphics,
+    PassthroughCapabilityFlagsFB,
 };
 
-use crate::resources::XrInstance;
-use crate::resources::XrSession;
-pub struct PassthroughLayer(pub xr::sys::PassthroughLayerFB);
-pub struct Passthrough(pub xr::sys::PassthroughFB);
+#[derive(
+    Clone, Copy, Default, Debug, Resource, PartialEq, PartialOrd, Ord, Eq, Reflect, ExtractResource,
+)]
+pub enum XrPassthroughState {
+    #[default]
+    Unsupported,
+    Running,
+    Paused,
+}
+
+xr_arc_resource_wrapper!(XrPassthrough, xr::Passthrough);
+xr_arc_resource_wrapper!(XrPassthroughLayer, xr::PassthroughLayer);
+
+pub struct PassthroughPlugin;
+
+impl Plugin for PassthroughPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_event::<ResumePassthrough>();
+        app.add_event::<PausePassthrough>();
+        app.add_plugins(ExtractResourcePlugin::<XrPassthroughLayer>::default());
+        app.add_plugins(ExtractResourcePlugin::<XrPassthroughState>::default());
+        app.register_type::<XrPassthroughState>();
+        app.add_systems(Startup, check_passthrough_support);
+        app.add_systems(
+            XrSetup,
+            setup_passthrough
+                .run_if(|state: Res<XrPassthroughState>| *state != XrPassthroughState::Unsupported),
+        );
+        app.add_systems(XrCleanup, cleanup_passthrough);
+        app.add_systems(
+            Update,
+            resume_passthrough.run_if(
+                resource_exists_and_equals(XrPassthroughState::Paused)
+                    .and_then(on_event::<ResumePassthrough>()),
+            ),
+        );
+        app.add_systems(
+            Update,
+            pause_passthrough.run_if(
+                resource_exists_and_equals(XrPassthroughState::Running)
+                    .and_then(on_event::<PausePassthrough>()),
+            ),
+        );
+    }
+}
+
+fn check_passthrough_support(mut cmds: Commands, instance: Option<Res<XrInstance>>) {
+    match instance {
+        None => cmds.insert_resource(XrPassthroughState::Unsupported),
+        Some(instance) => {
+            let supported = instance.exts().fb_passthrough.is_some()
+                && supports_passthrough(
+                    &instance,
+                    instance.system(FormFactor::HEAD_MOUNTED_DISPLAY).unwrap(),
+                )
+                .is_ok_and(|v| v);
+            match supported {
+                false => cmds.insert_resource(XrPassthroughState::Unsupported),
+                true => cmds.insert_resource(XrPassthroughState::Paused),
+            }
+        }
+    }
+}
+
+fn resume_passthrough(
+    layer: Res<XrPassthroughLayer>,
+    mut state: ResMut<XrPassthroughState>,
+    mut clear_color: ResMut<ClearColor>,
+) {
+    if let Err(e) = layer.resume() {
+        warn!("Unable to resume Passthrough: {}", e);
+        return;
+    }
+    clear_color.set_a(0.0);
+    clear_color.set_r(0.0);
+    clear_color.set_g(0.0);
+    clear_color.set_b(0.0);
+    *state = XrPassthroughState::Running;
+}
+fn pause_passthrough(
+    layer: Res<XrPassthroughLayer>,
+    mut state: ResMut<XrPassthroughState>,
+    mut clear_color: ResMut<ClearColor>,
+) {
+    if let Err(e) = layer.pause() {
+        warn!("Unable to resume Passthrough: {}", e);
+        return;
+    }
+    clear_color.set_a(1.0);
+    *state = XrPassthroughState::Paused;
+}
+
+fn cleanup_passthrough(mut cmds: Commands) {
+    cmds.remove_resource::<XrPassthrough>();
+    cmds.remove_resource::<XrPassthroughLayer>();
+}
+
+fn setup_passthrough(mut cmds: Commands, session: Res<XrSession>) {
+    match create_passthrough(&session) {
+        Ok((passthrough, layer)) => {
+            cmds.insert_resource(XrPassthrough::from(passthrough));
+            cmds.insert_resource(XrPassthroughLayer::from(layer));
+        }
+        Err(e) => {
+            warn!("Unable to create passthrough: {}", e);
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Reflect, Event)]
+pub struct ResumePassthrough;
+
+#[derive(Clone, Copy, Debug, Default, Reflect, Event)]
+pub struct PausePassthrough;
+
 fn cvt(x: xr::sys::Result) -> xr::Result<xr::sys::Result> {
     if x.into_raw() >= 0 {
         Ok(x)
@@ -38,14 +153,14 @@ impl<'a, G: Graphics> std::ops::Deref for CompositionLayerPassthrough<'a, G> {
 }
 
 impl<'a, G: xr::Graphics> CompositionLayerPassthrough<'a, G> {
-    pub(crate) fn from_xr_passthrough_layer(layer: &PassthroughLayer) -> Self {
+    pub(crate) fn from_xr_passthrough_layer(layer: &XrPassthroughLayer) -> Self {
         Self {
             inner: xr::sys::CompositionLayerPassthroughFB {
                 ty: xr::sys::CompositionLayerPassthroughFB::TYPE,
                 next: ptr::null(),
                 flags: CompositionLayerFlags::BLEND_TEXTURE_SOURCE_ALPHA,
                 space: Space::NULL,
-                layer_handle: layer.0,
+                layer_handle: *layer.inner(),
             },
             _marker: PhantomData,
         }
@@ -77,103 +192,32 @@ pub fn supports_passthrough(instance: &XrInstance, system: xr::SystemId) -> xr::
 }
 
 #[inline]
-pub fn start_passthrough(
-    instance: &XrInstance,
+pub fn create_passthrough(
     xr_session: &XrSession,
-) -> xr::Result<(xr::sys::PassthroughFB, xr::sys::PassthroughLayerFB)> {
-    unsafe {
-        // Create feature
-        let mut passthrough_feature = xr::sys::PassthroughFB::NULL;
-        let mut passthrough_create_info = xr::sys::PassthroughCreateInfoFB {
-            ty: xr::sys::StructureType::PASSTHROUGH_CREATE_INFO_FB, // XR_TYPE_PASSTHROUGH_CREATE_INFO_FB
-            next: ptr::null(),
-            flags: xr::sys::PassthroughFlagsFB::IS_RUNNING_AT_CREATION,
-        };
-        // bevy::log::info!("xr_session.as_raw(): {:?}", xr_session.as_raw());
-        // bevy::log::info!("&passthrough_create_info: {:?}", &passthrough_create_info);
-        // bevy::log::info!("&mut passthrough_feature: {:?}", &mut passthrough_feature);
-        // bevy::log::info!(
-        //     "instance.exts().fb_passthrough.unwrap(): {:?}",
-        //     instance.exts().fb_passthrough.is_some()
-        // );
-        cvt(
-            (instance.exts().fb_passthrough.unwrap().create_passthrough)(
-                xr_session.as_raw(),
-                &passthrough_create_info as *const _,
-                &mut passthrough_feature as *mut _,
-            ),
-        )?;
-        // bevy::log::info!("Created passthrough feature");
-        // Create layer
-        let mut passthrough_layer = xr::sys::PassthroughLayerFB::NULL;
-        let mut layer_create_info: xr::sys::PassthroughLayerCreateInfoFB =
-            xr::sys::PassthroughLayerCreateInfoFB {
-                ty: xr::sys::StructureType::PASSTHROUGH_LAYER_CREATE_INFO_FB, // XR_TYPE_PASSTHROUGH_LAYER_CREATE_INFO_FB
-                next: ptr::null(),
-                passthrough: passthrough_feature, // XR_PASSTHROUGH_HANDLE
-                flags: xr::sys::PassthroughFlagsFB::IS_RUNNING_AT_CREATION, // XR_PASSTHROUGH_IS_RUNNING_AT_CREATION_BIT_FB
-                purpose: xr::sys::PassthroughLayerPurposeFB::RECONSTRUCTION, // XR_PASSTHROUGH_LAYER_PURPOSE_RECONSTRUCTION_FB
-            };
-        cvt((instance
-            .exts()
-            .fb_passthrough
-            .unwrap()
-            .create_passthrough_layer)(
-            xr_session.as_raw(),
-            &layer_create_info as *const _,
-            &mut passthrough_layer as *mut _,
-        ))?;
-        // bevy::log::info!("Created passthrough layer");
-        // // Start layer
-
-        // bevy::log::info!("passthrough_feature: {:?}", passthrough_feature);
-        // // cvt((instance.exts().fb_passthrough.unwrap().passthrough_start)(
-        // //     passthrough_feature,
-        // // ))?;
-        // bevy::log::info!("Started passthrough layer");
-        // bevy::log::info!("Passed everything in  start");
-        Ok((passthrough_feature, passthrough_layer))
-    }
+) -> xr::Result<(xr::Passthrough, xr::PassthroughLayer)> {
+    let passthrough = match xr_session {
+        XrSession::Vulkan(session) => {
+            session.create_passthrough(xr::PassthroughFlagsFB::IS_RUNNING_AT_CREATION)
+        }
+    }?;
+    let passthrough_layer = match xr_session {
+        XrSession::Vulkan(session) => session.create_passthrough_layer(
+            &passthrough,
+            xr::PassthroughFlagsFB::IS_RUNNING_AT_CREATION,
+            xr::PassthroughLayerPurposeFB::RECONSTRUCTION,
+        ),
+    }?;
+    Ok((passthrough, passthrough_layer))
 }
 
-#[inline]
-pub fn passthrough_layer_resume(mut xr_data_resource: ResMut<XrRenderData>) -> xr::Result<()> {
-    unsafe {
-        let passthrough_layer = &xr_data_resource.xr_passthrough_layer;
-        {
-            let passthrough_layer_locked = passthrough_layer.lock().unwrap();
-            cvt((xr_data_resource
-                .xr_instance
-                .exts()
-                .fb_passthrough
-                .unwrap()
-                .passthrough_layer_resume)(
-                *passthrough_layer_locked
-            ))?;
-        }
-        xr_data_resource.xr_passthrough_active = true;
-        bevy::log::info!("Resumed passthrough layer");
-        Ok(())
-    }
-}
+/// Enable Passthrough on xr startup
+/// just sends the [`ResumePassthrough`] event in [`XrSetup`]
+pub struct EnablePassthroughStartup;
 
-#[inline]
-pub fn passthrough_layer_pause(mut xr_data_resource: ResMut<XrRenderData>) -> xr::Result<()> {
-    unsafe {
-        let passthrough_layer = &xr_data_resource.xr_passthrough_layer;
-        {
-            let passthrough_layer_locked = passthrough_layer.lock().unwrap();
-            cvt((xr_data_resource
-                .xr_instance
-                .exts()
-                .fb_passthrough
-                .unwrap()
-                .passthrough_layer_pause)(
-                *passthrough_layer_locked
-            ))?;
-        }
-        xr_data_resource.xr_passthrough_active = false;
-        bevy::log::info!("Paused passthrough layer");
-        Ok(())
+impl Plugin for EnablePassthroughStartup {
+    fn build(&self, app: &mut App) {
+        app.add_systems(XrSetup, |mut e: EventWriter<ResumePassthrough>| {
+            e.send_default();
+        });
     }
 }

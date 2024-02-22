@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use bevy::prelude::*;
+use bevy::{prelude::*, render::extract_resource::ExtractResource};
 use openxr as xr;
 use xr::{FrameState, FrameWaiter, ViewConfigurationType};
 
-#[derive(Clone, Resource)]
+#[derive(Clone, Resource, ExtractResource)]
 pub struct XrInput {
     //pub action_set: xr::ActionSet,
     //pub hand_pose: xr::Action<xr::Posef>,
@@ -16,8 +16,8 @@ pub struct XrInput {
 
 impl XrInput {
     pub fn new(
-        instance: xr::Instance,
-        session: xr::Session<xr::AnyGraphics>,
+        instance: &xr::Instance,
+        session: &xr::Session<xr::AnyGraphics>,
         // frame_state: &FrameState,
     ) -> xr::Result<Self> {
         // let right_hand_subaction_path = instance.string_to_path("/user/hand/right").unwrap();

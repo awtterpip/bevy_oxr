@@ -1,12 +1,94 @@
+use crate::prelude::XrSystems;
+use crate::xr_init::{xr_only, XrCleanup, XrSetup};
 use crate::xr_input::{QuatConv, Vec3Conv};
-use crate::{LEFT_XR_TEXTURE_HANDLE, RIGHT_XR_TEXTURE_HANDLE};
+use crate::{locate_views, xr_wait_frame, LEFT_XR_TEXTURE_HANDLE, RIGHT_XR_TEXTURE_HANDLE};
+use bevy::core_pipeline::core_3d::graph::Core3d;
 use bevy::core_pipeline::tonemapping::{DebandDither, Tonemapping};
+use bevy::ecs::system::lifetimeless::Read;
 use bevy::math::Vec3A;
 use bevy::prelude::*;
-use bevy::render::camera::{CameraProjection, CameraRenderGraph, RenderTarget};
+use bevy::render::camera::{
+    CameraMainTextureUsages, CameraProjection, CameraProjectionPlugin, CameraRenderGraph,
+    RenderTarget,
+};
+use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
 use bevy::render::primitives::Frustum;
-use bevy::render::view::{ColorGrading, VisibleEntities};
+use bevy::render::view::{
+    update_frusta, ColorGrading, ExtractedView, VisibilitySystems, VisibleEntities,
+};
+use bevy::render::{Render, RenderApp, RenderSet};
+use bevy::transform::TransformSystem;
 use openxr::Fovf;
+use wgpu::TextureUsages;
+
+use super::trackers::{OpenXRLeftEye, OpenXRRightEye, OpenXRTracker, OpenXRTrackingRoot};
+
+pub struct XrCameraPlugin;
+
+impl Plugin for XrCameraPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugins(CameraProjectionPlugin::<XRProjection>::default());
+        app.add_systems(
+            PreUpdate,
+            xr_camera_head_sync
+                .run_if(xr_only())
+                .after(xr_wait_frame)
+                .after(locate_views),
+        );
+        // a little late latching
+        app.add_systems(
+            PostUpdate,
+            xr_camera_head_sync
+                .before(TransformSystem::TransformPropagate)
+                .run_if(xr_only()),
+        );
+        app.add_systems(
+            PostUpdate,
+            update_frusta::<XRProjection>
+                .after(TransformSystem::TransformPropagate)
+                .before(VisibilitySystems::UpdatePerspectiveFrusta),
+        );
+        app.add_systems(
+            PostUpdate,
+            update_root_transform_components
+                .after(TransformSystem::TransformPropagate)
+                .xr_only(),
+        );
+        app.add_systems(XrSetup, setup_xr_cameras);
+        app.add_systems(XrCleanup, cleanup_xr_cameras);
+        app.add_plugins(ExtractComponentPlugin::<XrCamera>::default());
+        app.add_plugins(ExtractComponentPlugin::<XRProjection>::default());
+        app.add_plugins(ExtractComponentPlugin::<RootTransform>::default());
+        // app.add_plugins(ExtractComponentPlugin::<TransformExtract>::default());
+        // app.add_plugins(ExtractComponentPlugin::<GlobalTransformExtract>::default());
+        let render_app = app.sub_app_mut(RenderApp);
+        render_app.add_systems(
+            Render,
+            (locate_views, xr_camera_head_sync_render_world)
+                .chain()
+                .run_if(xr_only())
+                .in_set(RenderSet::PrepareAssets),
+            // .after(xr_wait_frame)
+            // .after(locate_views),
+        );
+    }
+}
+
+// might be unnesesary since it should be parented to the root
+fn cleanup_xr_cameras(mut commands: Commands, entities: Query<Entity, With<XrCamera>>) {
+    for e in &entities {
+        commands.entity(e).despawn_recursive();
+    }
+}
+
+fn setup_xr_cameras(mut commands: Commands) {
+    commands.spawn((
+        XrCameraBundle::new(Eye::Right),
+        OpenXRRightEye,
+        OpenXRTracker,
+    ));
+    commands.spawn((XrCameraBundle::new(Eye::Left), OpenXRLeftEye, OpenXRTracker));
+}
 
 #[derive(Bundle)]
 pub struct XrCamerasBundle {
@@ -40,13 +122,61 @@ pub struct XrCameraBundle {
     pub tonemapping: Tonemapping,
     pub dither: DebandDither,
     pub color_grading: ColorGrading,
-    pub xr_camera_type: XrCameraType,
+    pub main_texture_usages: CameraMainTextureUsages,
+    pub xr_camera_type: XrCamera,
+    pub root_transform: RootTransform,
 }
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd, Component)]
-pub enum XrCameraType {
-    Xr(Eye),
-    Flatscreen,
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd, Component, ExtractComponent)]
+pub struct XrCamera(Eye);
+
+#[derive(Component, ExtractComponent, Clone, Copy, Debug, Default, Deref, DerefMut)]
+pub struct RootTransform(pub GlobalTransform);
+
+fn update_root_transform_components(
+    mut component_query: Query<&mut RootTransform>,
+    root_query: Query<&GlobalTransform, With<OpenXRTrackingRoot>>,
+) {
+    let root = match root_query.get_single() {
+        Ok(v) => v,
+        Err(err) => {
+            warn!("No or too many XrTracking Roots: {}", err);
+            return;
+        }
+    };
+    component_query
+        .par_iter_mut()
+        .for_each(|mut root_transform| **root_transform = *root);
 }
+
+// #[derive(Component)]
+// pub(super) struct TransformExtract;
+//
+// impl ExtractComponent for TransformExtract {
+//     type Query = Read<Transform>;
+//
+//     type Filter = ();
+//
+//     type Out = Transform;
+//
+//     fn extract_component(item: bevy::ecs::query::QueryItem<'_, Self::Query>) -> Option<Self::Out> {
+//         Some(*item)
+//     }
+// }
+//
+// #[derive(Component)]
+// pub(super) struct GlobalTransformExtract;
+//
+// impl ExtractComponent for GlobalTransformExtract {
+//     type Query = Read<GlobalTransform>;
+//
+//     type Filter = ();
+//
+//     type Out = GlobalTransform;
+//
+//     fn extract_component(item: bevy::ecs::query::QueryItem<'_, Self::Query>) -> Option<Self::Out> {
+//         Some(*item)
+//     }
+// }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum Eye {
@@ -66,7 +196,7 @@ impl XrCameraBundle {
                 viewport: None,
                 ..default()
             },
-            camera_render_graph: CameraRenderGraph::new(bevy::core_pipeline::core_3d::graph::NAME),
+            camera_render_graph: CameraRenderGraph::new(Core3d),
             xr_projection: Default::default(),
             visible_entities: Default::default(),
             frustum: Default::default(),
@@ -76,12 +206,18 @@ impl XrCameraBundle {
             tonemapping: Default::default(),
             dither: DebandDither::Enabled,
             color_grading: Default::default(),
-            xr_camera_type: XrCameraType::Xr(eye),
+            xr_camera_type: XrCamera(eye),
+            main_texture_usages: CameraMainTextureUsages(
+                TextureUsages::RENDER_ATTACHMENT
+                    | TextureUsages::TEXTURE_BINDING
+                    | TextureUsages::COPY_SRC,
+            ),
+            root_transform: default(),
         }
     }
 }
 
-#[derive(Debug, Clone, Component, Reflect)]
+#[derive(Debug, Clone, Component, Reflect, ExtractComponent)]
 #[reflect(Component, Default)]
 pub struct XRProjection {
     pub near: f32,
@@ -240,23 +376,35 @@ impl CameraProjection for XRProjection {
 }
 
 pub fn xr_camera_head_sync(
-    views: ResMut<crate::resources::XrViews>,
-    mut query: Query<(&mut Transform, &XrCameraType, &mut XRProjection)>,
+    views: Res<crate::resources::XrViews>,
+    mut query: Query<(&mut Transform, &XrCamera, &mut XRProjection)>,
 ) {
-    let mut f = || -> Option<()> {
-        //TODO calculate HMD position
-        for (mut transform, camera_type, mut xr_projection) in query.iter_mut() {
-            let view_idx = match camera_type {
-                XrCameraType::Xr(eye) => *eye as usize,
-                XrCameraType::Flatscreen => return None,
-            };
-            let v = views.lock().unwrap();
-            let view = v.get(view_idx)?;
-            xr_projection.fov = view.fov;
-            transform.rotation = view.pose.orientation.to_quat();
-            transform.translation = view.pose.position.to_vec3();
-        }
-        Some(())
-    };
-    let _ = f();
+    //TODO calculate HMD position
+    for (mut transform, camera_type, mut xr_projection) in query.iter_mut() {
+        let view_idx = camera_type.0 as usize;
+        let view = match views.get(view_idx) {
+            Some(views) => views,
+            None => continue,
+        };
+        xr_projection.fov = view.fov;
+        transform.rotation = view.pose.orientation.to_quat();
+        transform.translation = view.pose.position.to_vec3();
+    }
+}
+
+pub fn xr_camera_head_sync_render_world(
+    views: Res<crate::resources::XrViews>,
+    mut query: Query<(&mut ExtractedView, &XrCamera, &RootTransform)>,
+) {
+    for (mut extracted_view, camera_type, root) in query.iter_mut() {
+        let view_idx = camera_type.0 as usize;
+        let view = match views.get(view_idx) {
+            Some(views) => views,
+            None => continue,
+        };
+        let mut transform = Transform::IDENTITY;
+        transform.rotation = view.pose.orientation.to_quat();
+        transform.translation = view.pose.position.to_vec3();
+        extracted_view.transform = root.mul_transform(transform);
+    }
 }

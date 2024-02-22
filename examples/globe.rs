@@ -1,9 +1,10 @@
 use bevy::diagnostic::LogDiagnosticsPlugin;
 use bevy::prelude::*;
+use bevy::render::render_asset::RenderAssetUsages;
 use bevy::transform::components::Transform;
 use bevy_oxr::graphics::XrAppInfo;
 use bevy_oxr::resources::XrViews;
-use bevy_oxr::xr_input::hands::common::{HandInputDebugRenderer, OpenXrHandInput};
+use bevy_oxr::xr_input::hands::common::HandInputDebugRenderer;
 use bevy_oxr::xr_input::interactions::{
     InteractionEvent, XRDirectInteractor, XRInteractorState, XRRayInteractor, XRSocketInteractor,
 };
@@ -31,7 +32,6 @@ fn main() {
         .add_systems(Update, (proto_locomotion, pull_to_ground).chain())
         .insert_resource(PrototypeLocomotionConfig::default())
         .add_systems(Startup, spawn_controllers_example)
-        .add_plugins(OpenXrHandInput)
         .add_plugins(HandInputDebugRenderer)
         .add_event::<InteractionEvent>()
         .run();
@@ -67,6 +67,7 @@ fn uv_debug_texture() -> Image {
         TextureDimension::D2,
         &texture_data,
         TextureFormat::Rgba8UnormSrgb,
+        RenderAssetUsages::RENDER_WORLD,
     )
 }
 
@@ -81,15 +82,7 @@ fn setup(
     let radius = 5.0;
     commands.spawn((
         PbrBundle {
-            mesh: meshes.add(
-                shape::UVSphere {
-                    radius,
-                    sectors: 10,
-                    stacks: 10,
-                }
-                .try_into()
-                .unwrap(),
-            ),
+            mesh: meshes.add(Sphere::new(radius)),
             material: materials.add(StandardMaterial {
                 base_color_texture: Some(images.add(uv_debug_texture())),
                 ..default()
@@ -101,8 +94,8 @@ fn setup(
     ));
     // cube
     commands.spawn(PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
-        material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+        mesh: meshes.add(Cuboid::from_size(Vec3::splat(0.1)).mesh()),
+        material: materials.add(StandardMaterial::from(Color::rgb(0.8, 0.7, 0.6))),
         transform: Transform::from_xyz(0.0, 0.5, 0.0),
         ..default()
     });
@@ -172,8 +165,7 @@ fn pull_to_ground(
     let (globe_pos, globe) = globe.single();
 
     // Get player position (position of playground + position within playground)
-    let v = views.lock().unwrap();
-    let Some(view) = v.get(0) else { return };
+    let Some(view) = views.first() else { return };
     let mut hmd_translation = view.pose.position.to_vec3();
     hmd_translation.y = 0.0;
     let local = root.translation;
@@ -188,7 +180,7 @@ fn pull_to_ground(
     root.translation += diff * adjustment_rate;
 
     // Rotate player to be upright on sphere
-    let angle_diff = Quat::from_rotation_arc(root.up(), up);
+    let angle_diff = Quat::from_rotation_arc(*root.up(), up);
     let point = root.translation + offset;
     root.rotate_around(point, Quat::IDENTITY.slerp(angle_diff, adjustment_rate));
 }

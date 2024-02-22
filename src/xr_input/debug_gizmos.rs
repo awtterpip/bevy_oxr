@@ -1,5 +1,6 @@
 use bevy::ecs::schedule::IntoSystemConfigs;
 use bevy::log::{debug, info};
+use bevy::math::primitives::Direction3d;
 use bevy::prelude::{
     Color, Gizmos, GlobalTransform, Plugin, Quat, Query, Res, Transform, Update, Vec2, Vec3, With,
     Without,
@@ -91,7 +92,7 @@ pub fn draw_gizmos(
     //     }
     // }
     //lock frame
-    let frame_state = *frame_state.lock().unwrap();
+    // let frame_state = *frame_state.lock().unwrap();
     //get controller
     let controller = oculus_controller.get_ref(&session, &frame_state, &xr_input, &action_sets);
     let root = tracking_root_query.get_single();
@@ -104,7 +105,7 @@ pub fn draw_gizmos(
                         y: 0.01,
                         z: 0.0,
                     },
-                Vec3::Y,
+                Direction3d::Y,
                 0.2,
                 Color::RED,
             );
@@ -168,7 +169,7 @@ fn draw_hand_gizmo(
             //draw face
             gizmos.circle(
                 face_translation_vec3,
-                face_quat_normal,
+                Direction3d::new_unchecked(face_quat_normal),
                 0.04,
                 Color::YELLOW_GREEN,
             );
@@ -185,7 +186,12 @@ fn draw_hand_gizmo(
             let b_offset_quat = face_quat;
             let b_translation_vec3 =
                 face_translation_vec3 + b_offset_quat.mul_vec3(Vec3::new(0.025, -0.01, 0.0));
-            gizmos.circle(b_translation_vec3, face_quat_normal, 0.0075, b_color);
+            gizmos.circle(
+                b_translation_vec3,
+                Direction3d::new_unchecked(face_quat_normal),
+                0.0075,
+                b_color,
+            );
 
             //button a
             let mut a_color = off_color;
@@ -199,7 +205,12 @@ fn draw_hand_gizmo(
             let a_offset_quat = face_quat;
             let a_translation_vec3 =
                 face_translation_vec3 + a_offset_quat.mul_vec3(Vec3::new(0.025, 0.01, 0.0));
-            gizmos.circle(a_translation_vec3, face_quat_normal, 0.0075, a_color);
+            gizmos.circle(
+                a_translation_vec3,
+                Direction3d::new_unchecked(face_quat_normal),
+                0.0075,
+                a_color,
+            );
 
             //joystick
             let joystick_offset_quat = face_quat;
@@ -211,7 +222,12 @@ fn draw_hand_gizmo(
             }
 
             //base
-            gizmos.circle(joystick_base_vec, face_quat_normal, 0.014, joystick_color);
+            gizmos.circle(
+                joystick_base_vec,
+                Direction3d::new_unchecked(face_quat_normal),
+                0.014,
+                joystick_color,
+            );
 
             let stick = controller.thumbstick(Hand::Left);
             let input = Vec3::new(stick.x, -stick.y, 0.0);
@@ -219,7 +235,12 @@ fn draw_hand_gizmo(
                 + joystick_offset_quat.mul_vec3(Vec3::new(-0.02, 0.0, -0.01))
                 + joystick_offset_quat.mul_vec3(input * 0.01);
             //top
-            gizmos.circle(joystick_top_vec, face_quat_normal, 0.005, joystick_color);
+            gizmos.circle(
+                joystick_top_vec,
+                Direction3d::new_unchecked(face_quat_normal),
+                0.005,
+                joystick_color,
+            );
 
             //trigger
             let trigger_state = controller.trigger(Hand::Left);
@@ -277,7 +298,7 @@ fn draw_hand_gizmo(
             //draw face
             gizmos.circle(
                 face_translation_vec3,
-                face_quat_normal,
+                Direction3d::new_unchecked(face_quat_normal),
                 0.04,
                 Color::YELLOW_GREEN,
             );
@@ -294,7 +315,12 @@ fn draw_hand_gizmo(
             let b_offset_quat = face_quat;
             let b_translation_vec3 =
                 face_translation_vec3 + b_offset_quat.mul_vec3(Vec3::new(-0.025, -0.01, 0.0));
-            gizmos.circle(b_translation_vec3, face_quat_normal, 0.0075, b_color);
+            gizmos.circle(
+                b_translation_vec3,
+                Direction3d::new_unchecked(face_quat_normal),
+                0.0075,
+                b_color,
+            );
 
             //button a
             let mut a_color = off_color;
@@ -308,7 +334,12 @@ fn draw_hand_gizmo(
             let a_offset_quat = face_quat;
             let a_translation_vec3 =
                 face_translation_vec3 + a_offset_quat.mul_vec3(Vec3::new(-0.025, 0.01, 0.0));
-            gizmos.circle(a_translation_vec3, face_quat_normal, 0.0075, a_color);
+            gizmos.circle(
+                a_translation_vec3,
+                Direction3d::new_unchecked(face_quat_normal),
+                0.0075,
+                a_color,
+            );
 
             //joystick time
             let joystick_offset_quat = face_quat;
@@ -320,7 +351,12 @@ fn draw_hand_gizmo(
             }
 
             //base
-            gizmos.circle(joystick_base_vec, face_quat_normal, 0.014, joystick_color);
+            gizmos.circle(
+                joystick_base_vec,
+                Direction3d::new_unchecked(face_quat_normal),
+                0.014,
+                joystick_color,
+            );
 
             let stick = controller.thumbstick(Hand::Right);
             let input = Vec3::new(stick.x, -stick.y, 0.0);
@@ -328,7 +364,12 @@ fn draw_hand_gizmo(
                 + joystick_offset_quat.mul_vec3(Vec3::new(0.02, 0.0, -0.01))
                 + joystick_offset_quat.mul_vec3(input * 0.01);
             //top
-            gizmos.circle(joystick_top_vec, face_quat_normal, 0.005, joystick_color);
+            gizmos.circle(
+                joystick_top_vec,
+                Direction3d::new_unchecked(face_quat_normal),
+                0.005,
+                joystick_color,
+            );
 
             //trigger
             let trigger_state = controller.trigger(Hand::Right);

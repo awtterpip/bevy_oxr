@@ -6,8 +6,9 @@ use bevy_oxr::graphics::XrAppInfo;
 use bevy_oxr::input::XrInput;
 use bevy_oxr::resources::{XrFrameState, XrSession};
 
+use bevy_oxr::xr_init::{xr_only, EndXrSession, StartXrSession, XrSetup};
 use bevy_oxr::xr_input::actions::XrActionSets;
-use bevy_oxr::xr_input::hands::common::{HandInputDebugRenderer, OpenXrHandInput};
+use bevy_oxr::xr_input::hands::common::HandInputDebugRenderer;
 use bevy_oxr::xr_input::interactions::{
     draw_interaction_gizmos, draw_socket_gizmos, interactions, socket_interactions,
     update_interactable_states, InteractionEvent, Touched, XRDirectInteractor, XRInteractable,
@@ -32,30 +33,55 @@ fn main() {
             },
             ..default()
         })
-        //.add_plugins(OpenXrDebugRenderer) //new debug renderer adds gizmos to
+        // .add_plugins(OpenXrDebugRenderer) //new debug renderer adds gizmos to
         .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(FrameTimeDiagnosticsPlugin)
         .add_systems(Startup, setup)
-        .add_systems(Update, proto_locomotion)
+        .add_systems(Update, proto_locomotion.run_if(xr_only()))
         .insert_resource(PrototypeLocomotionConfig::default())
-        .add_systems(Startup, spawn_controllers_example)
-        .add_plugins(OpenXrHandInput)
+        .add_systems(XrSetup, spawn_controllers_example)
         .add_plugins(HandInputDebugRenderer)
         .add_systems(
             Update,
-            draw_interaction_gizmos.after(update_interactable_states),
+            draw_interaction_gizmos
+                .after(update_interactable_states)
+                .run_if(xr_only()),
         )
-        .add_systems(Update, draw_socket_gizmos.after(update_interactable_states))
-        .add_systems(Update, interactions.before(update_interactable_states))
+        .add_systems(
+            Update,
+            draw_socket_gizmos
+                .after(update_interactable_states)
+                .run_if(xr_only()),
+        )
+        .add_systems(
+            Update,
+            interactions
+                .before(update_interactable_states)
+                .run_if(xr_only()),
+        )
         .add_systems(
             Update,
             socket_interactions.before(update_interactable_states),
         )
-        .add_systems(Update, prototype_interaction_input)
+        .add_systems(Update, prototype_interaction_input.run_if(xr_only()))
         .add_systems(Update, update_interactable_states)
         .add_systems(Update, update_grabbables.after(update_interactable_states))
+        .add_systems(Update, start_stop_session)
         .add_event::<InteractionEvent>()
         .run();
+}
+
+fn start_stop_session(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut start: EventWriter<StartXrSession>,
+    mut stop: EventWriter<EndXrSession>,
+) {
+    if keyboard.just_pressed(KeyCode::KeyS) {
+        start.send_default();
+    }
+    if keyboard.just_pressed(KeyCode::KeyE) {
+        stop.send_default();
+    }
 }
 
 /// set up a simple 3D scene
@@ -66,14 +92,14 @@ fn setup(
 ) {
     // plane
     commands.spawn(PbrBundle {
-        mesh: meshes.add(shape::Plane::from_size(5.0).into()),
-        material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
+        mesh: meshes.add(Plane3d::new(Vec3::Y).mesh()),
+        material: materials.add(StandardMaterial::from(Color::rgb(0.3, 0.5, 0.3))),
         ..default()
     });
     // cube
     commands.spawn(PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
-        material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+        mesh: meshes.add(Cuboid::from_size(Vec3::splat(0.1)).mesh()),
+        material: materials.add(StandardMaterial::from(Color::rgb(0.8, 0.7, 0.6))),
         transform: Transform::from_xyz(0.0, 0.5, 0.0),
         ..default()
     });
@@ -144,13 +170,14 @@ fn spawn_controllers_example(mut commands: Commands) {
     ));
 }
 
+#[allow(clippy::type_complexity)]
 fn prototype_interaction_input(
     oculus_controller: Res<OculusController>,
     frame_state: Res<XrFrameState>,
     xr_input: Res<XrInput>,
     session: Res<XrSession>,
     mut right_interactor_query: Query<
-        (&mut XRInteractorState),
+        &mut XRInteractorState,
         (
             With<XRDirectInteractor>,
             With<OpenXRRightController>,
@@ -158,7 +185,7 @@ fn prototype_interaction_input(
         ),
     >,
     mut left_interactor_query: Query<
-        (&mut XRInteractorState),
+        &mut XRInteractorState,
         (
             With<XRRayInteractor>,
             With<OpenXRLeftController>,
@@ -167,8 +194,6 @@ fn prototype_interaction_input(
     >,
     action_sets: Res<XrActionSets>,
 ) {
-    //lock frame
-    let frame_state = *frame_state.lock().unwrap();
     //get controller
     let controller = oculus_controller.get_ref(&session, &frame_state, &xr_input, &action_sets);
     //get controller triggers
@@ -194,8 +219,8 @@ pub struct Grabbable;
 
 pub fn update_grabbables(
     mut events: EventReader<InteractionEvent>,
-    mut grabbable_query: Query<(&mut Transform, With<Grabbable>, Without<XRDirectInteractor>)>,
-    interactor_query: Query<(&GlobalTransform, &XRInteractorState, Without<Grabbable>)>,
+    mut grabbable_query: Query<&mut Transform, (With<Grabbable>, Without<XRDirectInteractor>)>,
+    interactor_query: Query<(&GlobalTransform, &XRInteractorState), Without<Grabbable>>,
 ) {
     //so basically the idea is to try all the events?
     for event in events.read() {
@@ -210,7 +235,7 @@ pub fn update_grabbables(
                             XRInteractorState::Idle => (),
                             XRInteractorState::Selecting => {
                                 // info!("its a direct interactor?");
-                                *grabbable_transform.0 = interactor_transform.0.compute_transform();
+                                *grabbable_transform = interactor_transform.0.compute_transform();
                             }
                         }
                     }

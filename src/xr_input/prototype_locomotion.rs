@@ -59,28 +59,23 @@ impl Default for PrototypeLocomotionConfig {
 
 pub fn proto_locomotion(
     time: Res<Time>,
-    mut tracking_root_query: Query<(&mut Transform, With<OpenXRTrackingRoot>)>,
+    mut tracking_root_query: Query<&mut Transform, With<OpenXRTrackingRoot>>,
     oculus_controller: Res<OculusController>,
     frame_state: Res<XrFrameState>,
     xr_input: Res<XrInput>,
-    instance: Res<XrInstance>,
     session: Res<XrSession>,
     views: ResMut<XrViews>,
     mut gizmos: Gizmos,
     config_option: Option<ResMut<PrototypeLocomotionConfig>>,
     action_sets: Res<XrActionSets>,
 ) {
-    match config_option {
-        Some(_) => (),
+    let mut config = match config_option {
+        Some(c) => c,
         None => {
             info!("no locomotion config");
             return;
         }
-    }
-    //i hate this but im too tired to think
-    let mut config = config_option.unwrap();
-    //lock frame
-    let frame_state = *frame_state.lock().unwrap();
+    };
     //get controller
     let controller = oculus_controller.get_ref(&session, &frame_state, &xr_input, &action_sets);
     let root = tracking_root_query.get_single_mut();
@@ -88,12 +83,11 @@ pub fn proto_locomotion(
         Ok(mut position) => {
             //get the stick input and do some maths
             let stick = controller.thumbstick(Hand::Left);
-            let input = stick.x * position.0.right() + stick.y * position.0.forward();
+            let input = stick.x * *position.right() + stick.y * *position.forward();
             let reference_quat;
             match config.locomotion_type {
                 LocomotionType::Head => {
-                    let v = views.lock().unwrap();
-                    let views = v.get(0);
+                    let views = views.first();
                     match views {
                         Some(view) => {
                             reference_quat = view.pose.orientation.to_quat();
@@ -107,10 +101,9 @@ pub fn proto_locomotion(
                 }
             }
             let (yaw, _pitch, _roll) = reference_quat.to_euler(EulerRot::YXZ);
-            let reference_quat = Quat::from_axis_angle(position.0.up(), yaw);
+            let reference_quat = Quat::from_axis_angle(*position.up(), yaw);
             let locomotion_vec = reference_quat.mul_vec3(input);
-            position.0.translation +=
-                locomotion_vec * config.locomotion_speed * time.delta_seconds();
+            position.translation += locomotion_vec * config.locomotion_speed * time.delta_seconds();
 
             //now time for rotation
 
@@ -123,20 +116,19 @@ pub fn proto_locomotion(
                         return;
                     }
                     let smoth_rot = Quat::from_axis_angle(
-                        position.0.up(),
+                        *position.up(),
                         rot_input * config.smooth_rotation_speed * time.delta_seconds(),
                     );
                     //apply rotation
-                    let v = views.lock().unwrap();
-                    let views = v.get(0);
+                    let views = views.first();
                     match views {
                         Some(view) => {
                             let mut hmd_translation = view.pose.position.to_vec3();
                             hmd_translation.y = 0.0;
-                            let local = position.0.translation;
-                            let global = position.0.rotation.mul_vec3(hmd_translation) + local;
-                            gizmos.circle(global, position.0.up(), 0.1, Color::GREEN);
-                            position.0.rotate_around(global, smoth_rot);
+                            let local = position.translation;
+                            let global = position.rotation.mul_vec3(hmd_translation) + local;
+                            gizmos.circle(global, position.up(), 0.1, Color::GREEN);
+                            position.rotate_around(global, smoth_rot);
                         }
                         None => return,
                     }
@@ -157,18 +149,18 @@ pub fn proto_locomotion(
                             false => -1.0,
                         };
                         let smoth_rot =
-                            Quat::from_axis_angle(position.0.up(), config.snap_angle * dir);
+                            Quat::from_axis_angle(*position.up(), config.snap_angle * dir);
                         //apply rotation
-                        let v = views.lock().unwrap();
-                        let views = v.get(0);
+                        let v = views;
+                        let views = v.first();
                         match views {
                             Some(view) => {
                                 let mut hmd_translation = view.pose.position.to_vec3();
                                 hmd_translation.y = 0.0;
-                                let local = position.0.translation;
-                                let global = position.0.rotation.mul_vec3(hmd_translation) + local;
-                                gizmos.circle(global, position.0.up(), 0.1, Color::GREEN);
-                                position.0.rotate_around(global, smoth_rot);
+                                let local = position.translation;
+                                let global = position.rotation.mul_vec3(hmd_translation) + local;
+                                gizmos.circle(global, position.up(), 0.1, Color::GREEN);
+                                position.rotate_around(global, smoth_rot);
                             }
                             None => return,
                         }

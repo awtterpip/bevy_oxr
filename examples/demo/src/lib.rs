@@ -3,8 +3,9 @@ use std::{f32::consts::PI, ops::Mul, time::Duration};
 use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     ecs::schedule::ScheduleLabel,
-    input::{keyboard::KeyCode, Input},
+    input::{keyboard::KeyCode, ButtonInput},
     log::info,
+    math::primitives::{Capsule3d, Cuboid},
     prelude::{
         bevy_main, default, shape, App, Assets, Color, Commands, Component, Entity, Event,
         EventReader, EventWriter, FixedUpdate, Gizmos, GlobalTransform, IntoSystemConfigs,
@@ -12,6 +13,7 @@ use bevy::{
         Schedule, SpatialBundle, StandardMaterial, Startup, Transform, Update, Vec3, Vec3Swizzles,
         With, Without, World,
     },
+    render::mesh::Meshable,
     time::{Fixed, Time, Timer, TimerMode},
     transform::TransformSystem,
 };
@@ -19,11 +21,11 @@ use bevy_oxr::{
     graphics::{extensions::XrExtensions, XrAppInfo, XrPreferdBlendMode},
     input::XrInput,
     resources::{XrFrameState, XrInstance, XrSession},
-    xr_init::{xr_only, XrEnableRequest, XrEnableStatus},
+    xr_init::{xr_only, XrStatus},
     xr_input::{
         actions::XrActionSets,
         debug_gizmos::OpenXrDebugRenderer,
-        hands::common::{HandInputDebugRenderer, HandResource, HandsResource, OpenXrHandInput},
+        hands::common::{HandInputDebugRenderer, HandResource, HandsResource},
         hands::HandBone,
         interactions::{
             draw_interaction_gizmos, draw_socket_gizmos, interactions, socket_interactions,
@@ -41,19 +43,18 @@ use bevy_oxr::{
     DefaultXrPlugins,
 };
 
-fn input_stuff(
-    keys: Res<Input<KeyCode>>,
-    status: Res<XrEnableStatus>,
-    mut request: EventWriter<XrEnableRequest>,
-) {
-    if keys.just_pressed(KeyCode::Space) {
-        match status.into_inner() {
-            XrEnableStatus::Enabled => request.send(XrEnableRequest::TryDisable),
-            XrEnableStatus::Disabled => request.send(XrEnableRequest::TryEnable),
-            XrEnableStatus::Waiting => (),
-        }
-    }
-}
+// fn input_stuff(
+//     keys: Res<Input<KeyCode>>,
+//     status: Res<XrEnableStatus>,
+//     mut request: EventWriter<XrEnableRequest>,
+// ) {
+//     if keys.just_pressed(KeyCode::Space) {
+//         match status.into_inner() {
+//             XrEnableStatus::Enabled => request.send(XrEnableRequest::TryDisable),
+//             XrEnableStatus::Disabled => request.send(XrEnableRequest::TryEnable),
+//         }
+//     }
+// }
 
 mod setup;
 use crate::setup::setup_scene;
@@ -66,8 +67,9 @@ pub fn main() {
     info!("Running bevy_openxr demo");
     let mut app = App::new();
     let mut xr_extensions = XrExtensions::default();
+    xr_extensions.enable_fb_passthrough();
 
-    app.add_systems(Update, input_stuff)
+    app
         //lets get the usual diagnostic stuff added
         .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(FrameTimeDiagnosticsPlugin)
@@ -120,7 +122,7 @@ pub fn main() {
         //test capsule
         .add_systems(Startup, spawn_capsule)
         //physics hands
-        .add_plugins(OpenXrHandInput)
+        // .add_plugins(OpenXrHandInput)
         .add_plugins(HandInputDebugRenderer)
         .add_systems(Startup, spawn_physics_hands)
         .add_systems(
@@ -226,12 +228,8 @@ fn spawn_capsule(
 ) {
     commands.spawn((
         PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Capsule {
-                radius: 0.033,
-                depth: 0.115,
-                ..default()
-            })),
-            material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+            mesh: meshes.add(Capsule3d::new(0.033, 0.115).mesh()),
+            material: materials.add(StandardMaterial::from(Color::rgb(0.8, 0.7, 0.6))),
             transform: Transform::from_xyz(0.0, 2.0, 0.0),
             ..default()
         },
@@ -376,7 +374,7 @@ fn update_physics_hands(
         &Hand,
         &mut Velocity,
     )>,
-    hand_query: Query<(&Transform, &HandBone, &Hand, Without<PhysicsHandBone>)>,
+    hand_query: Query<(&Transform, &HandBone, &Hand), Without<PhysicsHandBone>>,
     time: Res<Time>,
     mut gizmos: Gizmos,
 ) {
@@ -560,8 +558,6 @@ fn request_cube_spawn(
 ) {
     timer.0.tick(time.delta());
     if timer.0.finished() {
-        //lock frame
-        let frame_state = *frame_state.lock().unwrap();
         //get controller
         let controller = oculus_controller.get_ref(&session, &frame_state, &xr_input, &action_sets);
         //get controller triggers
@@ -588,8 +584,8 @@ fn cube_spawner(
         // cube
         commands.spawn((
             PbrBundle {
-                mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
-                material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+                mesh: meshes.add(Cuboid::from_size(Vec3::splat(0.1)).mesh()),
+                material: materials.add(StandardMaterial::from(Color::rgb(0.8, 0.7, 0.6))),
                 transform: Transform::from_xyz(0.0, 1.0, 0.0),
                 ..default()
             },
@@ -628,8 +624,6 @@ fn prototype_interaction_input(
     >,
     action_sets: Res<XrActionSets>,
 ) {
-    //lock frame
-    let frame_state = *frame_state.lock().unwrap();
     //get controller
     let controller = oculus_controller.get_ref(&session, &frame_state, &xr_input, &action_sets);
     //get controller triggers
@@ -664,7 +658,7 @@ pub struct GhostTimers {
 
 pub fn handle_ghost_hand_events(
     mut events: EventReader<GhostHandEvent>,
-    mut bones: Query<(&Hand, &mut CollisionGroups, With<PhysicsHandBone>)>,
+    mut bones: Query<(&Hand, &mut CollisionGroups), With<PhysicsHandBone>>,
 ) {
     for event in events.read() {
         // info!(
@@ -712,20 +706,19 @@ pub struct Grabbable;
 
 pub fn update_grabbables(
     mut events: EventReader<InteractionEvent>,
-    mut grabbable_query: Query<(
-        Entity,
-        &mut Transform,
-        With<Grabbable>,
-        Without<XRDirectInteractor>,
-        Option<&mut RigidBody>,
-    )>,
-    mut interactor_query: Query<(
-        &GlobalTransform,
-        &XRInteractorState,
-        &mut XRSelection,
-        &Hand,
+    mut grabbable_query: Query<
+        (Entity, &mut Transform, Option<&mut RigidBody>),
+        (Without<XRDirectInteractor>, With<Grabbable>),
+    >,
+    mut interactor_query: Query<
+        (
+            &GlobalTransform,
+            &XRInteractorState,
+            &mut XRSelection,
+            &Hand,
+        ),
         Without<Grabbable>,
-    )>,
+    >,
     mut writer: EventWriter<GhostHandEvent>,
     mut timers: ResMut<GhostTimers>,
 ) {
@@ -741,7 +734,7 @@ pub fn update_grabbables(
                         match *interactor_transform.2 {
                             XRSelection::Empty => {
                                 match interactor_transform.1 {
-                                    XRInteractorState::Idle => match grabbable_transform.4 {
+                                    XRInteractorState::Idle => match grabbable_transform.2 {
                                         Some(mut thing) => {
                                             *thing = RigidBody::Dynamic;
                                             *interactor_transform.2 = XRSelection::Empty;
@@ -750,7 +743,7 @@ pub fn update_grabbables(
                                     },
                                     XRInteractorState::Selecting => {
                                         // info!("its a direct interactor?");
-                                        match grabbable_transform.4 {
+                                        match grabbable_transform.2 {
                                             Some(mut thing) => {
                                                 *thing = RigidBody::KinematicPositionBased;
                                                 *interactor_transform.2 =

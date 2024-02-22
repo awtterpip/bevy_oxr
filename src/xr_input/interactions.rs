@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use bevy::log::info;
+use bevy::log::{info, warn};
 use bevy::prelude::{
     Color, Component, Entity, Event, EventReader, EventWriter, Gizmos, GlobalTransform, Quat,
     Query, Transform, Vec3, With, Without,
@@ -93,9 +93,12 @@ pub fn draw_interaction_gizmos(
         ),
         Without<XRInteractable>,
     >,
-    tracking_root_query: Query<(&mut Transform, With<OpenXRTrackingRoot>)>,
+    tracking_root_query: Query<&mut Transform, With<OpenXRTrackingRoot>>,
 ) {
-    let root = tracking_root_query.get_single().unwrap().0;
+    let Ok(root) = tracking_root_query.get_single() else {
+        warn!("no or more than one tracking root");
+        return;
+    };
     for (global_transform, interactable_state) in interactable_query.iter() {
         let transform = global_transform.compute_transform();
         let color = match interactable_state {
@@ -137,7 +140,7 @@ pub fn draw_interaction_gizmos(
                     };
                     gizmos.ray(
                         root.translation + root.rotation.mul_vec3(aim.0.translation),
-                        root.rotation.mul_vec3(aim.0.forward()),
+                        root.rotation.mul_vec3(*aim.0.forward()),
                         color,
                     );
                 }
@@ -229,7 +232,7 @@ pub fn interactions(
         ),
         Without<XRInteractable>,
     >,
-    tracking_root_query: Query<(&mut Transform, With<OpenXRTrackingRoot>)>,
+    tracking_root_query: Query<&mut Transform, With<OpenXRTrackingRoot>>,
     mut writer: EventWriter<InteractionEvent>,
 ) {
     for (xr_interactable_global_transform, interactable_entity) in interactable_query.iter() {
@@ -280,12 +283,12 @@ pub fn interactions(
                     let center = sphere_transform.translation;
                     let radius: f32 = 0.1;
                     //I hate this but the aim pose needs the root for now
-                    let root = tracking_root_query.get_single().unwrap().0;
+                    let root = tracking_root_query.get_single().unwrap();
                     match aim {
                         Some(aim) => {
                             let ray_origin =
                                 root.translation + root.rotation.mul_vec3(aim.0.translation);
-                            let ray_dir = root.rotation.mul_vec3(aim.0.forward());
+                            let ray_dir = root.rotation.mul_vec3(*aim.0.forward());
 
                             if ray_sphere_intersection(
                                 center,

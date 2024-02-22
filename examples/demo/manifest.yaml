@@ -3,26 +3,29 @@ android:
     - "runtime_libs"
   manifest:
     package: "org.bevyengine.demo_openxr_android"
-    # Are features and permissions fliped?
     uses_feature:
       - name: "android.hardware.vr.headtracking"
         required: true
       - name: "oculus.software.handtracking"
-        required: false
-      # - name: "com.oculus.feature.PASSTHROUGH"
-      #   required: true
+        required: true
+      - name: "com.oculus.feature.PASSTHROUGH"
+        required: true
+      - name: "com.oculus.experimental.enabled"
+        required: true
     uses_permission:
       - name: "com.oculus.permission.HAND_TRACKING"
     application:
       label: "Bevy Openxr Android"
       theme: "@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen"
       meta_data:
+        - name: "com.oculus.intent.category.VR"
+          value: "vr_only"
         - name: "com.samsung.android.vr.application.mode"
           value: "vr_only"
         - name: "com.oculus.supportedDevices"
-          value: "quest|quest2|quest3"
+          value: "quest|quest2|quest3|questpro"
       activities:
-        - config_changes: "density|keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|uiMode"
+        - config_changes: "density|keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|uiMode|screenLayout"
           launch_mode: "singleTask"
           orientation: "landscape"
           intent_filters:
@@ -31,5 +34,6 @@ android:
               categories:
                 - "com.oculus.intent.category.VR"
                 - "android.intent.category.LAUNCHER"
+                - "org.khronos.openxr.intent.category.IMMERSIVE_HMD"
     sdk:
       target_sdk_version: 32

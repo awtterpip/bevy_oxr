@@ -9,9 +9,10 @@ crate-type = ["rlib", "cdylib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy = "0.12"
+bevy = "0.13"
 bevy_oxr.path = "../../"
-bevy_rapier3d = { git = "https://github.com/devil-ira/bevy_rapier", branch = "bevy-0.12" }
+# bevy_rapier3d = { git = "https://github.com/devil-ira/bevy_rapier", branch = "bevy-0.12" }
+bevy_rapier3d = "0.25"
 color-eyre = "0.6.2"
 
 

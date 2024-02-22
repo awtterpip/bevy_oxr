@@ -6,7 +6,7 @@ use crate::{
     input::XrInput,
     resources::{XrFrameState, XrSession},
     xr_init::xr_only,
-    xr_input::{hands::HandBone, trackers::OpenXRTrackingRoot, Hand, QuatConv, Vec3Conv},
+    xr_input::{hands::HandBone, Hand, QuatConv, Vec3Conv},
 };
 
 use super::BoneTrackingStatus;
@@ -63,6 +63,7 @@ pub struct HandJoint {
     pub radius: f32,
 }
 
+#[derive(Debug)]
 pub struct HandJoints {
     inner: [HandJoint; 26],
 }
@@ -87,7 +88,7 @@ impl<'a> HandTrackingRef<'a> {
                     Hand::Left => &self.tracking.left_hand,
                     Hand::Right => &self.tracking.right_hand,
                 },
-                self.frame_state.lock().unwrap().predicted_display_time,
+                self.frame_state.predicted_display_time,
             )
             .unwrap()
             .map(|joints| {
@@ -158,7 +159,6 @@ pub fn update_hand_bones(
     hand_tracking: Option<Res<HandTrackingData>>,
     xr_input: Res<XrInput>,
     xr_frame_state: Res<XrFrameState>,
-    root_query: Query<(&Transform, With<OpenXRTrackingRoot>, Without<HandBone>)>,
     mut bones: Query<(
         &mut Transform,
         &Hand,
@@ -174,9 +174,12 @@ pub fn update_hand_bones(
             return;
         }
     };
-    let (root_transform, _, _) = root_query.get_single().unwrap();
     let left_hand_data = hand_ref.get_poses(Hand::Left);
     let right_hand_data = hand_ref.get_poses(Hand::Right);
+    if left_hand_data.is_none() || right_hand_data.is_none() {
+        error!("something is very wrong for hand_tracking!! doesn't have data for both hands!");
+    }
+
     bones
         .par_iter_mut()
         .for_each(|(mut transform, hand, bone, mut radius, mut status)| {
@@ -194,7 +197,7 @@ pub fn update_hand_bones(
             let bone_data = match (hand, &left_hand_data, &right_hand_data) {
                 (Hand::Left, Some(data), _) => data.get_joint(*bone),
                 (Hand::Right, _, Some(data)) => data.get_joint(*bone),
-                _ => {
+                (hand, left_data, right_data) => {
                     *status = BoneTrackingStatus::Emulated;
                     return;
                 }
@@ -203,8 +206,7 @@ pub fn update_hand_bones(
                 *status = BoneTrackingStatus::Tracked;
             }
             radius.0 = bone_data.radius;
-            *transform = transform
-                .with_translation(root_transform.transform_point(bone_data.position))
-                .with_rotation(root_transform.rotation * bone_data.orientation)
+            transform.translation = bone_data.position;
+            transform.rotation = bone_data.orientation;
         });
 }

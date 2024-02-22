@@ -371,7 +371,7 @@ pub struct OculusController {
     pub aim_space: Option<Handed<Space>>,
 }
 impl OculusController {
-    pub fn new(mut action_sets: ResMut<SetupActionSets>) -> anyhow::Result<Self> {
+    pub fn new(mut action_sets: ResMut<SetupActionSets>) -> eyre::Result<Self> {
         let action_set =
             action_sets.add_action_set("oculus_input", "Oculus Touch Controller Input".into(), 0);
         action_set.new_action(
