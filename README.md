@@ -1,7 +1,6 @@
 # Bevy OpenXR
 
 A crate for adding openxr support to Bevy ( planned to be upstreamed ). 
-![image](https://github.com/awtterpip/bevy_openxr/assets/50841145/aa01fde4-7915-49b9-b486-ff61ce6d57a9)
 
 To see it in action run the example in `examples` with `cargo run --example xr`
 
@@ -9,6 +8,8 @@ To see it in action run the example in `examples` with `cargo run --example xr`
 Come hang out if you have questions or issues 
 https://discord.gg/M5UTBsjN
 
+![](https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExY2FlOXJrOG1pbzFkYTVjZHIybndqamF1a2YwZHU3dXgyZGcwdmFzMiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/CHbQyXOT5yZZ1VQRh7/giphy-downsized-large.gif)
+![](https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbHVmZXc2b3VhcGE2eHE2c2Y3NDR6cXNibHdjNjk5MmtyOHlkMXkwZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Hsvp5el2o7tzgOf9GQ/giphy-downsized-large.gif)
 ## Troubleshooting
 
 - Make sure, if you're on Linux, that you have the `openxr` package installed on your system.
