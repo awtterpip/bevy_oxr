@@ -83,6 +83,7 @@ impl Plugin for XrInitPlugin {
         );
         app.add_systems(XrSetup, setup_manual_texture_views);
         app.add_systems(XrCleanup, set_cleanup_res);
+        app.add_systems(PreUpdate, remove_cleanup_res.before(cleanup_xr));
         let render_app = app.sub_app_mut(RenderApp);
         render_app.add_systems(
             Render,
@@ -220,5 +221,5 @@ fn stop_xr_session(session: ResMut<XrSession>, mut status: ResMut<XrStatus>) {
             error!("Error while trying to request session exit: {}", err)
         }
     }
-    *status = XrStatus::Enabling;
+    *status = XrStatus::Disabling;
 }

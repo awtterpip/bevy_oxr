@@ -6,7 +6,7 @@ use bevy_oxr::graphics::XrAppInfo;
 use bevy_oxr::input::XrInput;
 use bevy_oxr::resources::{XrFrameState, XrSession};
 
-use bevy_oxr::xr_init::{xr_only, EndXrSession, StartXrSession};
+use bevy_oxr::xr_init::{xr_only, EndXrSession, StartXrSession, XrSetup};
 use bevy_oxr::xr_input::actions::XrActionSets;
 use bevy_oxr::xr_input::hands::common::HandInputDebugRenderer;
 use bevy_oxr::xr_input::interactions::{
@@ -33,39 +33,39 @@ fn main() {
             },
             ..default()
         })
-        //.add_plugins(OpenXrDebugRenderer) //new debug renderer adds gizmos to
+        // .add_plugins(OpenXrDebugRenderer) //new debug renderer adds gizmos to
         .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(FrameTimeDiagnosticsPlugin)
         .add_systems(Startup, setup)
-        // .add_systems(Update, proto_locomotion.run_if(xr_only()))
-        // .insert_resource(PrototypeLocomotionConfig::default())
-        .add_systems(Startup, spawn_controllers_example)
-        // .add_plugins(HandInputDebugRenderer)
-        // .add_systems(
-        //     Update,
-        //     draw_interaction_gizmos
-        //         .after(update_interactable_states)
-        //         .run_if(xr_only()),
-        // )
-        // .add_systems(
-        //     Update,
-        //     draw_socket_gizmos
-        //         .after(update_interactable_states)
-        //         .run_if(xr_only()),
-        // )
-        // .add_systems(
-        //     Update,
-        //     interactions
-        //         .before(update_interactable_states)
-        //         .run_if(xr_only()),
-        // )
-        // .add_systems(
-        //     Update,
-        //     socket_interactions.before(update_interactable_states),
-        // )
-        // .add_systems(Update, prototype_interaction_input.run_if(xr_only()))
-        // .add_systems(Update, update_interactable_states)
-        // .add_systems(Update, update_grabbables.after(update_interactable_states))
+        .add_systems(Update, proto_locomotion.run_if(xr_only()))
+        .insert_resource(PrototypeLocomotionConfig::default())
+        .add_systems(XrSetup, spawn_controllers_example)
+        .add_plugins(HandInputDebugRenderer)
+        .add_systems(
+            Update,
+            draw_interaction_gizmos
+                .after(update_interactable_states)
+                .run_if(xr_only()),
+        )
+        .add_systems(
+            Update,
+            draw_socket_gizmos
+                .after(update_interactable_states)
+                .run_if(xr_only()),
+        )
+        .add_systems(
+            Update,
+            interactions
+                .before(update_interactable_states)
+                .run_if(xr_only()),
+        )
+        .add_systems(
+            Update,
+            socket_interactions.before(update_interactable_states),
+        )
+        .add_systems(Update, prototype_interaction_input.run_if(xr_only()))
+        .add_systems(Update, update_interactable_states)
+        .add_systems(Update, update_grabbables.after(update_interactable_states))
         .add_systems(Update, start_stop_session)
         .add_event::<InteractionEvent>()
         .run();
@@ -170,13 +170,14 @@ fn spawn_controllers_example(mut commands: Commands) {
     ));
 }
 
+#[allow(clippy::type_complexity)]
 fn prototype_interaction_input(
     oculus_controller: Res<OculusController>,
     frame_state: Res<XrFrameState>,
     xr_input: Res<XrInput>,
     session: Res<XrSession>,
     mut right_interactor_query: Query<
-        (&mut XRInteractorState),
+        &mut XRInteractorState,
         (
             With<XRDirectInteractor>,
             With<OpenXRRightController>,
@@ -184,7 +185,7 @@ fn prototype_interaction_input(
         ),
     >,
     mut left_interactor_query: Query<
-        (&mut XRInteractorState),
+        &mut XRInteractorState,
         (
             With<XRRayInteractor>,
             With<OpenXRLeftController>,

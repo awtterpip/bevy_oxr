@@ -11,6 +11,7 @@ use std::sync::atomic::AtomicBool;
 
 use crate::xr_init::{StartXrSession, XrInitPlugin};
 use crate::xr_input::oculus_touch::ActionSets;
+use crate::xr_input::trackers::verify_quat;
 use bevy::app::{AppExit, PluginGroupBuilder};
 use bevy::core::TaskPoolThreadAssignmentPolicy;
 use bevy::ecs::system::SystemState;
@@ -36,6 +37,7 @@ use xr_input::hands::emulated::HandEmulationPlugin;
 use xr_input::hands::hand_tracking::HandTrackingPlugin;
 use xr_input::hands::HandPlugin;
 use xr_input::xr_camera::XrCameraPlugin;
+use xr_input::XrInputPlugin;
 
 const VIEW_TYPE: xr::ViewConfigurationType = xr::ViewConfigurationType::PRIMARY_STEREO;
 
@@ -129,15 +131,15 @@ impl Plugin for OpenXrPlugin {
                 .after(xr_poll_events),
         );
         let render_app = app.sub_app_mut(RenderApp);
-        render_app.add_systems(
-            Render,
-            xr_begin_frame
-                .run_if(xr_only())
-                .run_if(xr_after_wait_only())
-                // .run_if(xr_render_only())
-                .after(RenderSet::ExtractCommands)
-                .before(xr_pre_frame),
-        );
+        // render_app.add_systems(
+        //     Render,
+        //     xr_begin_frame
+        //         .run_if(xr_only())
+        //         .run_if(xr_after_wait_only())
+        //         // .run_if(xr_render_only())
+        //         .after(RenderSet::ExtractCommands)
+        //         .before(xr_pre_frame),
+        // );
         render_app.add_systems(
             Render,
             xr_pre_frame
@@ -174,7 +176,8 @@ impl Plugin for OpenXrPlugin {
 }
 
 fn clean_resources_render(mut cmds: &mut World) {
-    let session = cmds.remove_resource::<XrSession>().unwrap();
+    // let session = cmds.remove_resource::<XrSession>().unwrap();
+    cmds.remove_resource::<XrSession>();
     cmds.remove_resource::<XrResolution>();
     cmds.remove_resource::<XrFormat>();
     // cmds.remove_resource::<XrSessionRunning>();
@@ -190,7 +193,7 @@ fn clean_resources_render(mut cmds: &mut World) {
     warn!("Cleanup Resources Render");
 }
 fn clean_resources(mut cmds: &mut World) {
-    let session = cmds.remove_resource::<XrSession>().unwrap();
+    cmds.remove_resource::<XrSession>();
     cmds.remove_resource::<XrResolution>();
     cmds.remove_resource::<XrFormat>();
     // cmds.remove_resource::<XrSessionRunning>();
@@ -257,14 +260,14 @@ impl PluginGroup for DefaultXrPlugins {
                 app_info: self.app_info.clone(),
             })
             .add_after::<OpenXrPlugin, _>(XrInitPlugin)
-            // .add(XrInput)
-            // .add(XrActionsPlugin)
+            .add(XrInputPlugin)
+            .add(XrActionsPlugin)
             .add(XrCameraPlugin)
             .add_before::<OpenXrPlugin, _>(XrEarlyInitPlugin)
-            // .add(HandPlugin)
-            // .add(HandTrackingPlugin)
-            // .add(HandEmulationPlugin)
-            // .add(PassthroughPlugin)
+            .add(HandPlugin)
+            .add(HandTrackingPlugin)
+            .add(HandEmulationPlugin)
+            .add(PassthroughPlugin)
             .add(XrResourcePlugin)
             .set(WindowPlugin {
                 #[cfg(not(target_os = "android"))]
@@ -369,6 +372,7 @@ pub fn xr_wait_frame(
         **world.get_resource_mut::<XrShouldRender>().unwrap() = should_render;
         **world.get_resource_mut::<XrHasWaited>().unwrap() = true;
     }
+    world.get_resource::<XrSwapchain>().unwrap().begin().unwrap();
 }
 
 pub fn xr_pre_frame(
@@ -458,11 +462,26 @@ pub fn locate_views(
         xr_frame_state.predicted_display_time,
         &input.stage,
     ) {
-        Ok(this) => this,
+        Ok(this) => this
+            .1
+            .into_iter()
+            .map(|mut view| {
+                use crate::prelude::*;
+                let quat = view.pose.orientation.to_quat();
+                let fixed_quat = verify_quat(quat);
+                let oxr_quat = xr::Quaternionf {
+                    x: fixed_quat.x,
+                    y: fixed_quat.y,
+                    z: fixed_quat.z,
+                    w: fixed_quat.w,
+                };
+                view.pose.orientation = oxr_quat;
+                view
+            })
+            .collect(),
         Err(err) => {
             warn!("error: {}", err);
             return;
         }
     }
-    .1;
 }

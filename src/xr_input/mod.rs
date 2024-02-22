@@ -31,7 +31,7 @@ use bevy::utils::HashMap;
 use openxr::Binding;
 
 use self::actions::{setup_oxr_actions, XrActionsPlugin};
-use self::oculus_touch::{init_subaction_path, post_action_setup_oculus_controller, ActionSets};
+use self::oculus_touch::{init_subaction_path, post_action_setup_oculus_controller, ActionSets, OculusController};
 use self::trackers::{
     adopt_open_xr_trackers, update_open_xr_controllers, OpenXRLeftEye, OpenXRRightEye,
     OpenXRTrackingRoot,
@@ -39,17 +39,18 @@ use self::trackers::{
 use self::xr_camera::{/* GlobalTransformExtract, TransformExtract, */ XrCamera};
 
 #[derive(Copy, Clone)]
-pub struct XrInput;
+pub struct XrInputPlugin;
 #[derive(Clone, Copy, Debug, Ord, PartialOrd, Eq, PartialEq, Component)]
 pub enum Hand {
     Left,
     Right,
 }
 
-impl Plugin for XrInput {
+impl Plugin for XrInputPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(XrPostSetup, post_action_setup_oculus_controller);
         app.add_systems(XrSetup, setup_oculus_controller);
+        app.add_systems(XrCleanup, cleanup_oculus_controller);
         //adopt any new trackers
         app.add_systems(PreUpdate, adopt_open_xr_trackers.run_if(xr_only()));
         // app.add_systems(PreUpdate, action_set_system.run_if(xr_only()));
@@ -59,6 +60,10 @@ impl Plugin for XrInput {
         app.add_systems(XrSetup, setup_xr_root);
         app.add_systems(XrCleanup, cleanup_xr_root);
     }
+}
+
+fn cleanup_oculus_controller(mut commands: Commands) {
+commands.remove_resource::<OculusController>();
 }
 
 fn cleanup_xr_root(
@@ -74,6 +79,7 @@ fn setup_xr_root(
     tracking_root_query: Query<Entity, With<OpenXRTrackingRoot>>,
 ) {
     if tracking_root_query.get_single().is_err() {
+        info!("Creating XrTrackingRoot!");
         commands.spawn((SpatialBundle::default(), OpenXRTrackingRoot));
     }
 }

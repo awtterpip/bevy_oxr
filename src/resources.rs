@@ -134,6 +134,14 @@ pub struct SwapchainInner<G: xr::Graphics> {
     pub(crate) buffers: Vec<wgpu::Texture>,
     pub(crate) image_index: Mutex<usize>,
 }
+impl<G: xr::Graphics> Drop for SwapchainInner<G> {
+    fn drop(&mut self) {
+        for _ in 0..self.buffers.len() {
+            let v = self.buffers.remove(0);
+            Box::leak(Box::new(v));
+        }
+    }
+}
 
 impl<G: xr::Graphics> SwapchainInner<G> {
     fn begin(&self) -> xr::Result<()> {
@@ -204,9 +212,7 @@ impl<G: xr::Graphics> SwapchainInner<G> {
                     predicted_display_time,
                     environment_blend_mode,
                     &[
-                        &CompositionLayerPassthrough::from_xr_passthrough_layer(
-                            pass,
-                        ),
+                        &CompositionLayerPassthrough::from_xr_passthrough_layer(pass),
                         &xr::CompositionLayerProjection::new()
                             .layer_flags(CompositionLayerFlags::BLEND_TEXTURE_SOURCE_ALPHA)
                             .space(stage)
