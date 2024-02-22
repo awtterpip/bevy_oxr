@@ -7,16 +7,14 @@ use bevy::{
         camera::{ManualTextureView, ManualTextureViews},
         extract_resource::{ExtractResource, ExtractResourcePlugin},
         renderer::{RenderAdapter, RenderDevice, RenderInstance},
+        Render, RenderApp, RenderSet,
     },
     window::{PrimaryWindow, RawHandleWrapper},
 };
 
 use crate::{
-    graphics,
-    resources::{
-        OXrSessionSetupInfo, XrFormat, XrInstance, XrResolution, XrSession, XrSessionRunning,
-        XrSwapchain,
-    },
+    clean_resources, graphics,
+    resources::{OXrSessionSetupInfo, XrFormat, XrInstance, XrResolution, XrSession, XrSwapchain},
     LEFT_XR_TEXTURE_HANDLE, RIGHT_XR_TEXTURE_HANDLE,
 };
 
@@ -52,6 +50,9 @@ pub fn xr_after_wait_only() -> impl FnMut(Res<XrHasWaited>) -> bool {
     resource_equals(XrHasWaited(true))
 }
 
+#[derive(Resource, Clone, Copy, ExtractResource)]
+pub struct CleanupRenderWorld;
+
 impl Plugin for XrEarlyInitPlugin {
     fn build(&self, app: &mut App) {
         add_schedules(app);
@@ -67,6 +68,7 @@ impl Plugin for XrInitPlugin {
         app.add_plugins(ExtractResourcePlugin::<XrStatus>::default());
         app.add_plugins(ExtractResourcePlugin::<XrShouldRender>::default());
         app.add_plugins(ExtractResourcePlugin::<XrHasWaited>::default());
+        app.add_plugins(ExtractResourcePlugin::<CleanupRenderWorld>::default());
         app.init_resource::<XrShouldRender>();
         app.init_resource::<XrHasWaited>();
         app.add_systems(PreUpdate, setup_xr.run_if(on_event::<SetupXrData>()))
@@ -80,7 +82,23 @@ impl Plugin for XrInitPlugin {
             stop_xr_session.run_if(on_event::<EndXrSession>()),
         );
         app.add_systems(XrSetup, setup_manual_texture_views);
+        app.add_systems(XrCleanup, set_cleanup_res);
+        let render_app = app.sub_app_mut(RenderApp);
+        render_app.add_systems(
+            Render,
+            remove_cleanup_res
+                .in_set(RenderSet::Cleanup)
+                .after(clean_resources),
+        );
     }
+}
+
+fn set_cleanup_res(mut commands: Commands) {
+    info!("Set Cleanup Res");
+    commands.insert_resource(CleanupRenderWorld);
+}
+fn remove_cleanup_res(mut commands: Commands) {
+    commands.remove_resource::<CleanupRenderWorld>();
 }
 
 fn setup_manual_texture_views(
@@ -135,7 +153,6 @@ pub(crate) struct CleanupXrData;
 #[allow(clippy::too_many_arguments)]
 fn start_xr_session(
     mut commands: Commands,
-    mut setup_xr: EventWriter<SetupXrData>,
     mut status: ResMut<XrStatus>,
     instance: Res<XrInstance>,
     primary_window: Query<&RawHandleWrapper, With<PrimaryWindow>>,

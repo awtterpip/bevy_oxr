@@ -11,7 +11,6 @@ pub mod xr_camera;
 
 use crate::resources::{XrInstance, XrSession};
 use crate::xr_init::{xr_only, XrCleanup, XrPostSetup, XrPreSetup, XrSetup};
-use crate::xr_input::controllers::XrControllerType;
 use crate::xr_input::oculus_touch::setup_oculus_controller;
 use crate::xr_input::xr_camera::{xr_camera_head_sync, Eye, XRProjection, XrCameraBundle};
 use crate::{locate_views, xr_wait_frame};
@@ -31,7 +30,7 @@ use bevy::transform::TransformSystem;
 use bevy::utils::HashMap;
 use openxr::Binding;
 
-use self::actions::{setup_oxr_actions, OpenXrActionsPlugin};
+use self::actions::{setup_oxr_actions, XrActionsPlugin};
 use self::oculus_touch::{init_subaction_path, post_action_setup_oculus_controller, ActionSets};
 use self::trackers::{
     adopt_open_xr_trackers, update_open_xr_controllers, OpenXRLeftEye, OpenXRRightEye,
@@ -40,30 +39,17 @@ use self::trackers::{
 use self::xr_camera::{/* GlobalTransformExtract, TransformExtract, */ XrCamera};
 
 #[derive(Copy, Clone)]
-pub struct OpenXrInput {
-    pub controller_type: XrControllerType,
-}
+pub struct XrInput;
 #[derive(Clone, Copy, Debug, Ord, PartialOrd, Eq, PartialEq, Component)]
 pub enum Hand {
     Left,
     Right,
 }
 
-impl OpenXrInput {
-    pub fn new(controller_type: XrControllerType) -> Self {
-        Self { controller_type }
-    }
-}
-
-impl Plugin for OpenXrInput {
+impl Plugin for XrInput {
     fn build(&self, app: &mut App) {
         app.add_systems(XrPostSetup, post_action_setup_oculus_controller);
-        // why only when the controller is oculus? that is still backed by generic actions
-        match self.controller_type {
-            XrControllerType::OculusTouch => {
-                app.add_systems(XrSetup, setup_oculus_controller);
-            }
-        }
+        app.add_systems(XrSetup, setup_oculus_controller);
         //adopt any new trackers
         app.add_systems(PreUpdate, adopt_open_xr_trackers.run_if(xr_only()));
         // app.add_systems(PreUpdate, action_set_system.run_if(xr_only()));

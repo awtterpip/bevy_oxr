@@ -447,6 +447,7 @@ pub fn start_xr_session(
         XrSession::Vulkan(session.clone()),
         resolution.into(),
         swapchain_format.into(),
+        // TODO: this shouldn't be in here
         AtomicBool::new(false).into(),
         frame_wait.into(),
         Swapchain::Vulkan(SwapchainInner {
@@ -458,7 +459,7 @@ pub fn start_xr_session(
         .into(),
         XrInput::new(xr_instance, &session.into_any_graphics())?,
         Vec::default().into(),
-        // Feels wrong to return a FrameState here, we probably should just wait for the next frame
+        // TODO: Feels wrong to return a FrameState here, we probably should just wait for the next frame
         xr::FrameState {
             predicted_display_time: xr::Time::from_nanos(1),
             predicted_display_period: xr::Duration::from_nanos(1),

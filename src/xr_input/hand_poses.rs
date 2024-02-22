@@ -136,8 +136,7 @@ pub fn get_simulated_open_hand_transforms(hand: Hand) -> [Transform; 26] {
             z: 0.01,
         },
     ];
-    let result = bones_to_transforms(test_hand_bones, hand);
-    return result;
+    bones_to_transforms(test_hand_bones, hand)
 }
 
 fn bones_to_transforms(hand_bones: [Vec3; 26], hand: Hand) -> [Transform; 26] {

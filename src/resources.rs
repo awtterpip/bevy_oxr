@@ -66,7 +66,7 @@ impl Plugin for XrResourcePlugin {
         app.add_plugins(ExtractResourcePlugin::<XrViews>::default());
         app.add_plugins(ExtractResourcePlugin::<XrInput>::default());
         app.add_plugins(ExtractResourcePlugin::<XrEnvironmentBlendMode>::default());
-        app.add_plugins(ExtractResourcePlugin::<XrSessionRunning>::default());
+        // app.add_plugins(ExtractResourcePlugin::<XrSessionRunning>::default());
         app.add_plugins(ExtractResourcePlugin::<XrSession>::default());
     }
 }

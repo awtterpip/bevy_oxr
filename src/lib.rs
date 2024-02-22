@@ -1,11 +1,11 @@
 pub mod graphics;
 pub mod input;
 pub mod passthrough;
+pub mod prelude;
 pub mod resource_macros;
 pub mod resources;
 pub mod xr_init;
 pub mod xr_input;
-pub mod prelude;
 
 use std::sync::atomic::AtomicBool;
 
@@ -28,16 +28,14 @@ use openxr as xr;
 use passthrough::{PassthroughPlugin, XrPassthroughLayer, XrPassthroughState};
 use resources::*;
 use xr_init::{
-    xr_after_wait_only, xr_only, xr_render_only, CleanupXrData, SetupXrData, XrEarlyInitPlugin,
-    XrHasWaited, XrShouldRender, XrStatus,
+    xr_after_wait_only, xr_only, xr_render_only, CleanupRenderWorld, CleanupXrData, SetupXrData,
+    XrCleanup, XrEarlyInitPlugin, XrHasWaited, XrPostCleanup, XrShouldRender, XrStatus,
 };
-use xr_input::actions::OpenXrActionsPlugin;
-use xr_input::controllers::XrControllerType;
+use xr_input::actions::XrActionsPlugin;
 use xr_input::hands::emulated::HandEmulationPlugin;
 use xr_input::hands::hand_tracking::HandTrackingPlugin;
 use xr_input::hands::HandPlugin;
 use xr_input::xr_camera::XrCameraPlugin;
-use xr_input::OpenXrInput;
 
 const VIEW_TYPE: xr::ViewConfigurationType = xr::ViewConfigurationType::PRIMARY_STEREO;
 
@@ -112,6 +110,8 @@ impl Plugin for OpenXrPlugin {
             app.add_plugins(RenderPlugin::default());
             app.insert_resource(XrStatus::Disabled);
         }
+        app.add_systems(XrPostCleanup, clean_resources);
+        app.add_systems(XrPostCleanup, || info!("Main World Post Cleanup!"));
         app.add_systems(
             PreUpdate,
             xr_poll_events.run_if(|status: Res<XrStatus>| *status != XrStatus::NoInstance),
@@ -164,7 +164,46 @@ impl Plugin for OpenXrPlugin {
                 .run_if(not(xr_render_only()))
                 .in_set(RenderSet::Cleanup),
         );
+        render_app.add_systems(
+            Render,
+            clean_resources_render
+                .run_if(resource_exists::<CleanupRenderWorld>)
+                .after(RenderSet::ExtractCommands),
+        );
     }
+}
+
+fn clean_resources_render(mut cmds: &mut World) {
+    let session = cmds.remove_resource::<XrSession>().unwrap();
+    cmds.remove_resource::<XrResolution>();
+    cmds.remove_resource::<XrFormat>();
+    // cmds.remove_resource::<XrSessionRunning>();
+    cmds.remove_resource::<XrFrameWaiter>();
+    cmds.remove_resource::<XrSwapchain>();
+    cmds.remove_resource::<XrInput>();
+    cmds.remove_resource::<XrViews>();
+    cmds.remove_resource::<XrFrameState>();
+    cmds.remove_resource::<CleanupRenderWorld>();
+    // unsafe {
+    //     (session.instance().fp().destroy_session)(session.as_raw());
+    // }
+    warn!("Cleanup Resources Render");
+}
+fn clean_resources(mut cmds: &mut World) {
+    let session = cmds.remove_resource::<XrSession>().unwrap();
+    cmds.remove_resource::<XrResolution>();
+    cmds.remove_resource::<XrFormat>();
+    // cmds.remove_resource::<XrSessionRunning>();
+    cmds.remove_resource::<XrFrameWaiter>();
+    cmds.remove_resource::<XrSwapchain>();
+    cmds.remove_resource::<XrInput>();
+    cmds.remove_resource::<XrViews>();
+    cmds.remove_resource::<XrFrameState>();
+    // cmds.remove_resource::<CleanupRenderWorld>();
+    // unsafe {
+    //     (session.instance().fp().destroy_session)(session.as_raw());
+    // }
+    warn!("Cleanup Resources");
 }
 
 fn xr_skip_frame(
@@ -217,15 +256,15 @@ impl PluginGroup for DefaultXrPlugins {
                 reqeusted_extensions: self.reqeusted_extensions,
                 app_info: self.app_info.clone(),
             })
-            .add(XrInitPlugin)
-            .add(OpenXrInput::new(XrControllerType::OculusTouch))
-            .add(OpenXrActionsPlugin)
+            .add_after::<OpenXrPlugin, _>(XrInitPlugin)
+            // .add(XrInput)
+            // .add(XrActionsPlugin)
             .add(XrCameraPlugin)
             .add_before::<OpenXrPlugin, _>(XrEarlyInitPlugin)
-            .add(HandPlugin)
-            .add(HandTrackingPlugin)
-            .add(HandEmulationPlugin)
-            .add(PassthroughPlugin)
+            // .add(HandPlugin)
+            // .add(HandTrackingPlugin)
+            // .add(HandEmulationPlugin)
+            // .add(PassthroughPlugin)
             .add(XrResourcePlugin)
             .set(WindowPlugin {
                 #[cfg(not(target_os = "android"))]

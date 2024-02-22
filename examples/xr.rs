@@ -37,35 +37,35 @@ fn main() {
         .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(FrameTimeDiagnosticsPlugin)
         .add_systems(Startup, setup)
-        .add_systems(Update, proto_locomotion.run_if(xr_only()))
-        .insert_resource(PrototypeLocomotionConfig::default())
+        // .add_systems(Update, proto_locomotion.run_if(xr_only()))
+        // .insert_resource(PrototypeLocomotionConfig::default())
         .add_systems(Startup, spawn_controllers_example)
-        .add_plugins(HandInputDebugRenderer)
-        .add_systems(
-            Update,
-            draw_interaction_gizmos
-                .after(update_interactable_states)
-                .run_if(xr_only()),
-        )
-        .add_systems(
-            Update,
-            draw_socket_gizmos
-                .after(update_interactable_states)
-                .run_if(xr_only()),
-        )
-        .add_systems(
-            Update,
-            interactions
-                .before(update_interactable_states)
-                .run_if(xr_only()),
-        )
-        .add_systems(
-            Update,
-            socket_interactions.before(update_interactable_states),
-        )
-        .add_systems(Update, prototype_interaction_input.run_if(xr_only()))
-        .add_systems(Update, update_interactable_states)
-        .add_systems(Update, update_grabbables.after(update_interactable_states))
+        // .add_plugins(HandInputDebugRenderer)
+        // .add_systems(
+        //     Update,
+        //     draw_interaction_gizmos
+        //         .after(update_interactable_states)
+        //         .run_if(xr_only()),
+        // )
+        // .add_systems(
+        //     Update,
+        //     draw_socket_gizmos
+        //         .after(update_interactable_states)
+        //         .run_if(xr_only()),
+        // )
+        // .add_systems(
+        //     Update,
+        //     interactions
+        //         .before(update_interactable_states)
+        //         .run_if(xr_only()),
+        // )
+        // .add_systems(
+        //     Update,
+        //     socket_interactions.before(update_interactable_states),
+        // )
+        // .add_systems(Update, prototype_interaction_input.run_if(xr_only()))
+        // .add_systems(Update, update_interactable_states)
+        // .add_systems(Update, update_grabbables.after(update_interactable_states))
         .add_systems(Update, start_stop_session)
         .add_event::<InteractionEvent>()
         .run();
