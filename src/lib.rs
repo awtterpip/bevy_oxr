@@ -29,8 +29,9 @@ use openxr as xr;
 use passthrough::{PassthroughPlugin, XrPassthroughLayer, XrPassthroughState};
 use resources::*;
 use xr_init::{
-    xr_after_wait_only, xr_only, xr_render_only, CleanupRenderWorld, CleanupXrData, SetupXrData,
-    XrCleanup, XrEarlyInitPlugin, XrHasWaited, XrPostCleanup, XrShouldRender, XrStatus,
+    xr_after_wait_only, xr_only, xr_render_only, CleanupRenderWorld, CleanupXrData,
+    ExitAppOnSessionExit, SetupXrData, StartSessionOnStartup, XrCleanup, XrEarlyInitPlugin,
+    XrHasWaited, XrPostCleanup, XrShouldRender, XrStatus,
 };
 use xr_input::actions::XrActionsPlugin;
 use xr_input::hands::emulated::HandEmulationPlugin;
@@ -55,6 +56,7 @@ pub struct OpenXrPlugin {
 impl Plugin for OpenXrPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(XrSessionRunning::new(AtomicBool::new(false)));
+        app.insert_resource(ExitAppOnSessionExit::default());
         #[cfg(not(target_arch = "wasm32"))]
         match graphics::initialize_xr_instance(
             SystemState::<Query<&RawHandleWrapper, With<PrimaryWindow>>>::new(&mut app.world)
@@ -99,7 +101,7 @@ impl Plugin for OpenXrPlugin {
                     synchronous_pipeline_compilation: true,
                 });
                 app.insert_resource(XrStatus::Disabled);
-                app.world.send_event(StartXrSession);
+                // app.world.send_event(StartXrSession);
             }
             Err(err) => {
                 warn!("OpenXR Instance Failed to initialize: {}", err);
@@ -123,7 +125,6 @@ impl Plugin for OpenXrPlugin {
             (
                 xr_reset_per_frame_resources,
                 xr_wait_frame.run_if(xr_only()),
-                // xr_begin_frame.run_if(xr_only()),
                 locate_views.run_if(xr_only()),
                 apply_deferred,
             )
@@ -131,15 +132,6 @@ impl Plugin for OpenXrPlugin {
                 .after(xr_poll_events),
         );
         let render_app = app.sub_app_mut(RenderApp);
-        // render_app.add_systems(
-        //     Render,
-        //     xr_begin_frame
-        //         .run_if(xr_only())
-        //         .run_if(xr_after_wait_only())
-        //         // .run_if(xr_render_only())
-        //         .after(RenderSet::ExtractCommands)
-        //         .before(xr_pre_frame),
-        // );
         render_app.add_systems(
             Render,
             xr_pre_frame
@@ -148,7 +140,6 @@ impl Plugin for OpenXrPlugin {
                 .run_if(xr_render_only())
                 .before(render_system)
                 .after(RenderSet::ExtractCommands),
-            // .in_set(RenderSet::Prepare),
         );
         render_app.add_systems(
             Render,
@@ -252,7 +243,7 @@ impl PluginGroup for DefaultXrPlugins {
                     ..default()
                 },
             })
-            .disable::<PipelinedRenderingPlugin>()
+            // .disable::<PipelinedRenderingPlugin>()
             .disable::<RenderPlugin>()
             .add_before::<RenderPlugin, _>(OpenXrPlugin {
                 prefered_blend_mode: self.prefered_blend_mode,
@@ -269,6 +260,7 @@ impl PluginGroup for DefaultXrPlugins {
             .add(HandEmulationPlugin)
             .add(PassthroughPlugin)
             .add(XrResourcePlugin)
+            .add(StartSessionOnStartup)
             .set(WindowPlugin {
                 #[cfg(not(target_os = "android"))]
                 primary_window: Some(Window {
@@ -300,7 +292,9 @@ fn xr_poll_events(
     instance: Option<Res<XrInstance>>,
     session: Option<Res<XrSession>>,
     session_running: Res<XrSessionRunning>,
+    exit_type: Res<ExitAppOnSessionExit>,
     mut app_exit: EventWriter<AppExit>,
+    mut start_session: EventWriter<StartXrSession>,
     mut setup_xr: EventWriter<SetupXrData>,
     mut cleanup_xr: EventWriter<CleanupXrData>,
 ) {
@@ -325,8 +319,20 @@ fn xr_poll_events(
                             session_running.store(false, std::sync::atomic::Ordering::Relaxed);
                             cleanup_xr.send_default();
                         }
-                        xr::SessionState::EXITING | xr::SessionState::LOSS_PENDING => {
-                            // app_exit.send(AppExit);
+                        xr::SessionState::EXITING => {
+                            if *exit_type == ExitAppOnSessionExit::Always
+                                || *exit_type == ExitAppOnSessionExit::OnlyOnExit
+                            {
+                                app_exit.send_default();
+                            }
+                        }
+                        xr::SessionState::LOSS_PENDING => {
+                            if *exit_type == ExitAppOnSessionExit::Always {
+                                app_exit.send_default();
+                            }
+                            if *exit_type == ExitAppOnSessionExit::OnlyOnExit {
+                                start_session.send_default();
+                            }
                         }
 
                         _ => {}
@@ -342,11 +348,6 @@ fn xr_poll_events(
             }
         }
     }
-}
-
-fn xr_begin_frame(swapchain: Res<XrSwapchain>) {
-    let _span = info_span!("xr_begin_frame").entered();
-    swapchain.begin().unwrap()
 }
 
 pub fn xr_wait_frame(
@@ -368,11 +369,19 @@ pub fn xr_wait_frame(
             }
         };
         let should_render = world.get_resource::<XrFrameState>().unwrap().should_render;
-        // frame_state.predicted_display_time = xr::Time::from_nanos(frame_state.predicted_display_time.as_nanos() + frame_state.predicted_display_period.as_nanos());
+        let mut frame_state = world.resource_mut::<XrFrameState>();
+        frame_state.predicted_display_time = xr::Time::from_nanos(
+            frame_state.predicted_display_time.as_nanos()
+                + frame_state.predicted_display_period.as_nanos(),
+        );
         **world.get_resource_mut::<XrShouldRender>().unwrap() = should_render;
         **world.get_resource_mut::<XrHasWaited>().unwrap() = true;
     }
-    world.get_resource::<XrSwapchain>().unwrap().begin().unwrap();
+    world
+        .get_resource::<XrSwapchain>()
+        .unwrap()
+        .begin()
+        .unwrap();
 }
 
 pub fn xr_pre_frame(

@@ -94,6 +94,27 @@ impl Plugin for XrInitPlugin {
     }
 }
 
+#[derive(Resource, Clone, Copy, PartialEq, Eq,Default)]
+pub enum ExitAppOnSessionExit {
+    #[default]
+    /// Restart XrSession when session is lost
+    OnlyOnExit,
+    /// Always exit the app
+    Always,
+    /// Keep app open when XrSession wants to exit or is lost
+    Never,
+}
+
+pub struct StartSessionOnStartup;
+
+impl Plugin for StartSessionOnStartup {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Startup, |mut event: EventWriter<StartXrSession>| {
+            event.send_default();
+        });
+    }
+}
+
 fn set_cleanup_res(mut commands: Commands) {
     info!("Set Cleanup Res");
     commands.insert_resource(CleanupRenderWorld);
