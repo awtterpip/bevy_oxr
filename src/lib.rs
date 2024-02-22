@@ -46,11 +46,11 @@ pub const LEFT_XR_TEXTURE_HANDLE: ManualTextureViewHandle = ManualTextureViewHan
 pub const RIGHT_XR_TEXTURE_HANDLE: ManualTextureViewHandle = ManualTextureViewHandle(3383858418);
 
 /// Adds OpenXR support to an App
-#[derive(Default)]
 pub struct OpenXrPlugin {
-    reqeusted_extensions: XrExtensions,
-    prefered_blend_mode: XrPreferdBlendMode,
-    app_info: XrAppInfo,
+    pub reqeusted_extensions: XrExtensions,
+    pub prefered_blend_mode: XrPreferdBlendMode,
+    pub app_info: XrAppInfo,
+    pub enable_pipelined_rendering: bool,
 }
 
 impl Plugin for OpenXrPlugin {
@@ -114,6 +114,9 @@ impl Plugin for OpenXrPlugin {
             app.add_plugins(RenderPlugin::default());
             app.insert_resource(XrStatus::Disabled);
         }
+        if self.enable_pipelined_rendering {
+            app.insert_resource(DoPipelinedRendering);
+        }
         app.add_systems(XrPostCleanup, clean_resources);
         app.add_systems(XrPostCleanup, || info!("Main World Post Cleanup!"));
         app.add_systems(
@@ -165,6 +168,9 @@ impl Plugin for OpenXrPlugin {
         );
     }
 }
+
+#[derive(Resource)]
+struct DoPipelinedRendering;
 
 fn clean_resources_render(mut cmds: &mut World) {
     // let session = cmds.remove_resource::<XrSession>().unwrap();
@@ -221,16 +227,26 @@ fn xr_skip_frame(
     }
 }
 
-#[derive(Default)]
 pub struct DefaultXrPlugins {
     pub reqeusted_extensions: XrExtensions,
     pub prefered_blend_mode: XrPreferdBlendMode,
     pub app_info: XrAppInfo,
+    pub enable_pipelined_rendering: bool,
+}
+impl Default for DefaultXrPlugins {
+    fn default() -> Self {
+        Self {
+            reqeusted_extensions: default(),
+            prefered_blend_mode: default(),
+            app_info: default(),
+            enable_pipelined_rendering: true,
+        }
+    }
 }
 
 impl PluginGroup for DefaultXrPlugins {
     fn build(self) -> PluginGroupBuilder {
-        DefaultPlugins
+        let plugins = DefaultPlugins
             .build()
             .set(TaskPoolPlugin {
                 task_pool_options: TaskPoolOptions {
@@ -243,12 +259,12 @@ impl PluginGroup for DefaultXrPlugins {
                     ..default()
                 },
             })
-            // .disable::<PipelinedRenderingPlugin>()
             .disable::<RenderPlugin>()
             .add_before::<RenderPlugin, _>(OpenXrPlugin {
                 prefered_blend_mode: self.prefered_blend_mode,
                 reqeusted_extensions: self.reqeusted_extensions,
                 app_info: self.app_info.clone(),
+                enable_pipelined_rendering: self.enable_pipelined_rendering,
             })
             .add_after::<OpenXrPlugin, _>(XrInitPlugin)
             .add(XrInputPlugin)
@@ -276,7 +292,12 @@ impl PluginGroup for DefaultXrPlugins {
                 #[cfg(target_os = "android")]
                 close_when_requested: true,
                 ..default()
-            })
+            });
+        if !self.enable_pipelined_rendering {
+            plugins.disable::<PipelinedRenderingPlugin>()
+        } else {
+            plugins
+        }
     }
 }
 
@@ -369,11 +390,13 @@ pub fn xr_wait_frame(
             }
         };
         let should_render = world.get_resource::<XrFrameState>().unwrap().should_render;
-        let mut frame_state = world.resource_mut::<XrFrameState>();
-        frame_state.predicted_display_time = xr::Time::from_nanos(
-            frame_state.predicted_display_time.as_nanos()
-                + frame_state.predicted_display_period.as_nanos(),
-        );
+        if world.contains_resource::<DoPipelinedRendering>() {
+            let mut frame_state = world.resource_mut::<XrFrameState>();
+            frame_state.predicted_display_time = xr::Time::from_nanos(
+                frame_state.predicted_display_time.as_nanos()
+                    + frame_state.predicted_display_period.as_nanos(),
+            );
+        }
         **world.get_resource_mut::<XrShouldRender>().unwrap() = should_render;
         **world.get_resource_mut::<XrHasWaited>().unwrap() = true;
     }

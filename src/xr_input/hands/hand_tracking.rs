@@ -176,9 +176,9 @@ pub fn update_hand_bones(
     };
     let left_hand_data = hand_ref.get_poses(Hand::Left);
     let right_hand_data = hand_ref.get_poses(Hand::Right);
-    if left_hand_data.is_none() || right_hand_data.is_none() {
-        error!("something is very wrong for hand_tracking!! doesn't have data for both hands!");
-    }
+    // if left_hand_data.is_none() || right_hand_data.is_none() {
+    //     error!("something is very wrong for hand_tracking!! doesn't have data for both hands!");
+    // }
 
     bones
         .par_iter_mut()
