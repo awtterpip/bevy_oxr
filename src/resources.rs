@@ -241,7 +241,7 @@ impl<G: xr::Graphics> SwapchainInner<G> {
             }
 
             None => {
-                bevy::log::info!("Rendering without pass through");
+                // bevy::log::info!("Rendering without pass through");
                 self.stream.lock().unwrap().end(
                     predicted_display_time,
                     environment_blend_mode,
