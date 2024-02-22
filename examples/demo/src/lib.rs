@@ -76,10 +76,10 @@ pub fn main() {
         //lets get the xr defaults added
         .add_plugins(DefaultXrPlugins {
             reqeusted_extensions: xr_extensions,
-            prefered_blend_mode: XrPreferdBlendMode::Opaque,
             app_info: XrAppInfo {
                 name: "Bevy OXR Demo".into(),
             },
+            ..Default::default()
         })
         //lets add the debug renderer for the controllers
         .add_plugins(OpenXrDebugRenderer)
