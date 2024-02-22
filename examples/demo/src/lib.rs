@@ -1,13 +1,21 @@
 use std::{f32::consts::PI, ops::Mul, time::Duration};
 
 use bevy::{
-    diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin}, ecs::schedule::ScheduleLabel, input::{keyboard::KeyCode, ButtonInput}, log::info, math::primitives::{Capsule3d, Cuboid}, prelude::{
+    diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
+    ecs::schedule::ScheduleLabel,
+    input::{keyboard::KeyCode, ButtonInput},
+    log::info,
+    math::primitives::{Capsule3d, Cuboid},
+    prelude::{
         bevy_main, default, shape, App, Assets, Color, Commands, Component, Entity, Event,
         EventReader, EventWriter, FixedUpdate, Gizmos, GlobalTransform, IntoSystemConfigs,
         IntoSystemSetConfigs, Mesh, PbrBundle, PostUpdate, Quat, Query, Res, ResMut, Resource,
         Schedule, SpatialBundle, StandardMaterial, Startup, Transform, Update, Vec3, Vec3Swizzles,
         With, Without, World,
-    }, render::mesh::Meshable, time::{Fixed, Time, Timer, TimerMode}, transform::TransformSystem
+    },
+    render::mesh::Meshable,
+    time::{Fixed, Time, Timer, TimerMode},
+    transform::TransformSystem,
 };
 use bevy_oxr::{
     graphics::{extensions::XrExtensions, XrAppInfo, XrPreferdBlendMode},

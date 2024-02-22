@@ -31,7 +31,9 @@ use bevy::utils::HashMap;
 use openxr::Binding;
 
 use self::actions::{setup_oxr_actions, XrActionsPlugin};
-use self::oculus_touch::{init_subaction_path, post_action_setup_oculus_controller, ActionSets, OculusController};
+use self::oculus_touch::{
+    init_subaction_path, post_action_setup_oculus_controller, ActionSets, OculusController,
+};
 use self::trackers::{
     adopt_open_xr_trackers, update_open_xr_controllers, OpenXRLeftEye, OpenXRRightEye,
     OpenXRTrackingRoot,
@@ -63,7 +65,7 @@ impl Plugin for XrInputPlugin {
 }
 
 fn cleanup_oculus_controller(mut commands: Commands) {
-commands.remove_resource::<OculusController>();
+    commands.remove_resource::<OculusController>();
 }
 
 fn cleanup_xr_root(

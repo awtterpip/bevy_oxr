@@ -94,7 +94,7 @@ impl Plugin for XrInitPlugin {
     }
 }
 
-#[derive(Resource, Clone, Copy, PartialEq, Eq,Default)]
+#[derive(Resource, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ExitAppOnSessionExit {
     #[default]
     /// Restart XrSession when session is lost

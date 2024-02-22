@@ -82,9 +82,7 @@ fn setup(
     let radius = 5.0;
     commands.spawn((
         PbrBundle {
-            mesh: meshes.add(
-                Sphere::new(radius)
-            ),
+            mesh: meshes.add(Sphere::new(radius)),
             material: materials.add(StandardMaterial {
                 base_color_texture: Some(images.add(uv_debug_texture())),
                 ..default()

@@ -186,7 +186,12 @@ fn draw_hand_gizmo(
             let b_offset_quat = face_quat;
             let b_translation_vec3 =
                 face_translation_vec3 + b_offset_quat.mul_vec3(Vec3::new(0.025, -0.01, 0.0));
-            gizmos.circle(b_translation_vec3, Direction3d::new_unchecked(face_quat_normal), 0.0075, b_color);
+            gizmos.circle(
+                b_translation_vec3,
+                Direction3d::new_unchecked(face_quat_normal),
+                0.0075,
+                b_color,
+            );
 
             //button a
             let mut a_color = off_color;
@@ -200,7 +205,12 @@ fn draw_hand_gizmo(
             let a_offset_quat = face_quat;
             let a_translation_vec3 =
                 face_translation_vec3 + a_offset_quat.mul_vec3(Vec3::new(0.025, 0.01, 0.0));
-            gizmos.circle(a_translation_vec3, Direction3d::new_unchecked(face_quat_normal), 0.0075, a_color);
+            gizmos.circle(
+                a_translation_vec3,
+                Direction3d::new_unchecked(face_quat_normal),
+                0.0075,
+                a_color,
+            );
 
             //joystick
             let joystick_offset_quat = face_quat;
@@ -212,7 +222,12 @@ fn draw_hand_gizmo(
             }
 
             //base
-            gizmos.circle(joystick_base_vec, Direction3d::new_unchecked(face_quat_normal), 0.014, joystick_color);
+            gizmos.circle(
+                joystick_base_vec,
+                Direction3d::new_unchecked(face_quat_normal),
+                0.014,
+                joystick_color,
+            );
 
             let stick = controller.thumbstick(Hand::Left);
             let input = Vec3::new(stick.x, -stick.y, 0.0);
@@ -220,7 +235,12 @@ fn draw_hand_gizmo(
                 + joystick_offset_quat.mul_vec3(Vec3::new(-0.02, 0.0, -0.01))
                 + joystick_offset_quat.mul_vec3(input * 0.01);
             //top
-            gizmos.circle(joystick_top_vec, Direction3d::new_unchecked(face_quat_normal), 0.005, joystick_color);
+            gizmos.circle(
+                joystick_top_vec,
+                Direction3d::new_unchecked(face_quat_normal),
+                0.005,
+                joystick_color,
+            );
 
             //trigger
             let trigger_state = controller.trigger(Hand::Left);
@@ -295,7 +315,12 @@ fn draw_hand_gizmo(
             let b_offset_quat = face_quat;
             let b_translation_vec3 =
                 face_translation_vec3 + b_offset_quat.mul_vec3(Vec3::new(-0.025, -0.01, 0.0));
-            gizmos.circle(b_translation_vec3, Direction3d::new_unchecked(face_quat_normal), 0.0075, b_color);
+            gizmos.circle(
+                b_translation_vec3,
+                Direction3d::new_unchecked(face_quat_normal),
+                0.0075,
+                b_color,
+            );
 
             //button a
             let mut a_color = off_color;
@@ -309,7 +334,12 @@ fn draw_hand_gizmo(
             let a_offset_quat = face_quat;
             let a_translation_vec3 =
                 face_translation_vec3 + a_offset_quat.mul_vec3(Vec3::new(-0.025, 0.01, 0.0));
-            gizmos.circle(a_translation_vec3, Direction3d::new_unchecked(face_quat_normal), 0.0075, a_color);
+            gizmos.circle(
+                a_translation_vec3,
+                Direction3d::new_unchecked(face_quat_normal),
+                0.0075,
+                a_color,
+            );
 
             //joystick time
             let joystick_offset_quat = face_quat;
@@ -321,7 +351,12 @@ fn draw_hand_gizmo(
             }
 
             //base
-            gizmos.circle(joystick_base_vec, Direction3d::new_unchecked(face_quat_normal), 0.014, joystick_color);
+            gizmos.circle(
+                joystick_base_vec,
+                Direction3d::new_unchecked(face_quat_normal),
+                0.014,
+                joystick_color,
+            );
 
             let stick = controller.thumbstick(Hand::Right);
             let input = Vec3::new(stick.x, -stick.y, 0.0);
@@ -329,7 +364,12 @@ fn draw_hand_gizmo(
                 + joystick_offset_quat.mul_vec3(Vec3::new(0.02, 0.0, -0.01))
                 + joystick_offset_quat.mul_vec3(input * 0.01);
             //top
-            gizmos.circle(joystick_top_vec, Direction3d::new_unchecked(face_quat_normal), 0.005, joystick_color);
+            gizmos.circle(
+                joystick_top_vec,
+                Direction3d::new_unchecked(face_quat_normal),
+                0.005,
+                joystick_color,
+            );
 
             //trigger
             let trigger_state = controller.trigger(Hand::Right);

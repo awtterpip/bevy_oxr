@@ -1,4 +1,7 @@
-use bevy::{ecs::schedule::{ScheduleLabel, Schedule, ExecutorKind}, app::App};
+use bevy::{
+    app::App,
+    ecs::schedule::{ExecutorKind, Schedule, ScheduleLabel},
+};
 
 #[derive(Debug, ScheduleLabel, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct XrPreSetup;

@@ -1,7 +1,11 @@
 use bevy::{
-    math::primitives::{Cuboid, Plane3d}, prelude::{
-        Assets, Camera3dBundle, Color, Commands, Mesh, PbrBundle, ResMut, StandardMaterial, Transform, Vec3,
-    }, render::mesh::Meshable, utils::default
+    math::primitives::{Cuboid, Plane3d},
+    prelude::{
+        Assets, Camera3dBundle, Color, Commands, Mesh, PbrBundle, ResMut, StandardMaterial,
+        Transform, Vec3,
+    },
+    render::mesh::Meshable,
+    utils::default,
 };
 use bevy_oxr::xr_input::interactions::{Touched, XRInteractable, XRInteractableState};
 use bevy_rapier3d::{
