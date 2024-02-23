@@ -1,10 +1,10 @@
 [package]
 name = "bevy_openxr_android"
 version = "0.1.0"
-edition = "2021"
 description = "Example for building an Android OpenXR app with Bevy"
+edition.workspace = true
+license.workspace = true
 publish = false
-license = "MIT OR Apache-2.0"
 
 [lib]
 name = "bevy_openxr_android"
@@ -12,9 +12,9 @@ crate-type = ["rlib", "cdylib"]
 
 
 [dependencies]
-bevy_oxr.path = "../.."
 bevy = "0.13"
-openxr = { git = "https://github.com/Ralith/openxrs", rev = "0177d2d", features = ["mint"] }
+bevy_oxr.path = "../.."
+openxr = { workspace = true, features = ["mint"] }
 
 # [profile.release]
 # lto = "fat"
