@@ -22,8 +22,7 @@ jobs:
         run: sudo apt-get install -y libasound2-dev portaudio19-dev build-essential libpulse-dev libdbus-1-dev libudev-dev libopenxr-loader1 libopenxr-dev
       - name: "Checks"
         run: |
-          cargo update
-          #cargo fmt --check
+          cargo fmt --check --all
           #cargo clippy --no-deps --tests -- -D warnings
           #cargo rustdoc -- -D warnings
       - name: "Build"
