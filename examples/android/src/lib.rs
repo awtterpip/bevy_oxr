@@ -24,7 +24,6 @@ fn main() {
             app_info: XrAppInfo {
                 name: "Bevy OXR Android Example".into(),
             },
-            enable_pipelined_rendering: true,
             ..Default::default()
         })
         // .add_plugins(OpenXrDebugRenderer)
