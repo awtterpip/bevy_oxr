@@ -1,4 +1,8 @@
 pub mod extensions;
+
+#[cfg(all(feature = "d3d12", windows))]
+mod d3d12;
+#[cfg(feature = "vulkan")]
 mod vulkan;
 
 use bevy::ecs::query::With;
@@ -16,6 +20,8 @@ use crate::resources::{
     XrSession, XrSessionRunning, XrSwapchain, XrViews,
 };
 use crate::OXrSessionSetupInfo;
+
+use crate::Backend;
 
 use openxr as xr;
 
@@ -63,16 +69,29 @@ pub fn start_xr_session(
     XrViews,
     XrFrameState,
 )> {
-    vulkan::start_xr_session(
-        window,
-        session_setup_data,
-        xr_instance,
-        render_device,
-        render_adapter,
-        wgpu_instance,
-    )
+    match session_setup_data {
+        #[cfg(feature = "vulkan")]
+        OXrSessionSetupInfo::Vulkan(_) => vulkan::start_xr_session(
+            window,
+            session_setup_data,
+            xr_instance,
+            render_device,
+            render_adapter,
+            wgpu_instance,
+        ),
+        #[cfg(all(feature = "d3d12", windows))]
+        OXrSessionSetupInfo::D3D12(_) => d3d12::start_xr_session(
+            window,
+            session_setup_data,
+            xr_instance,
+            render_device,
+            render_adapter,
+            wgpu_instance,
+        ),
+    }
 }
 pub fn initialize_xr_instance(
+    backend_preference: &[Backend],
     window: Option<RawHandleWrapper>,
     reqeusted_extensions: XrExtensions,
     prefered_blend_mode: XrPreferdBlendMode,
@@ -87,11 +106,57 @@ pub fn initialize_xr_instance(
     RenderAdapter,
     Instance,
 )> {
-    vulkan::initialize_xr_instance(window, reqeusted_extensions, prefered_blend_mode, app_info)
+    if backend_preference.is_empty() {
+        eyre::bail!("Cannot initialize with no backend selected");
+    }
+    let xr_entry = xr_entry()?;
+
+    #[cfg(target_os = "android")]
+    xr_entry.initialize_android_loader()?;
+
+    let available_extensions: XrExtensions = xr_entry.enumerate_extensions()?.into();
+
+    for backend in backend_preference {
+        match backend {
+            #[cfg(feature = "vulkan")]
+            Backend::Vulkan => {
+                if !available_extensions.raw().khr_vulkan_enable2 {
+                    continue;
+                }
+                return vulkan::initialize_xr_instance(
+                    window,
+                    xr_entry,
+                    reqeusted_extensions,
+                    available_extensions,
+                    prefered_blend_mode,
+                    app_info,
+                );
+            }
+            #[cfg(all(feature = "d3d12", windows))]
+            Backend::D3D12 => {
+                if !available_extensions.raw().khr_d3d12_enable {
+                    continue;
+                }
+                return d3d12::initialize_xr_instance(
+                    window,
+                    xr_entry,
+                    reqeusted_extensions,
+                    available_extensions,
+                    prefered_blend_mode,
+                    app_info,
+                );
+            }
+        }
+    }
+    eyre::bail!(
+        "No selected backend was supported by the runtime. Selected: {:?}",
+        backend_preference
+    );
 }
 
 pub fn try_full_init(
     world: &mut World,
+    backend_preference: &[Backend],
     reqeusted_extensions: XrExtensions,
     prefered_blend_mode: XrPreferdBlendMode,
     app_info: XrAppInfo,
@@ -115,6 +180,7 @@ pub fn try_full_init(
         render_adapter,
         wgpu_instance,
     ) = initialize_xr_instance(
+        backend_preference,
         primary_window.clone(),
         reqeusted_extensions,
         prefered_blend_mode,
