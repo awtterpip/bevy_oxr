@@ -51,8 +51,6 @@ pub struct OpenXrPlugin {
     pub reqeusted_extensions: XrExtensions,
     pub prefered_blend_mode: XrPreferdBlendMode,
     pub app_info: XrAppInfo,
-    /// Experimental might break stuff
-    pub enable_pipelined_rendering: bool,
     pub synchronous_pipeline_compilation: bool,
 }
 
@@ -121,9 +119,6 @@ impl Plugin for OpenXrPlugin {
             app.add_plugins(RenderPlugin::default());
             app.insert_resource(XrStatus::Disabled);
         }
-        if self.enable_pipelined_rendering {
-            app.insert_resource(DoPipelinedRendering);
-        }
         app.add_systems(XrPostCleanup, clean_resources);
         app.add_systems(XrPostCleanup, || info!("Main World Post Cleanup!"));
         app.add_systems(
@@ -187,8 +182,6 @@ pub enum Backend {
     D3D12,
 }
 
-#[derive(Resource)]
-struct DoPipelinedRendering;
 
 fn clean_resources_render(cmds: &mut World) {
     // let session = cmds.remove_resource::<XrSession>().unwrap();
@@ -261,8 +254,6 @@ pub struct DefaultXrPlugins {
     pub reqeusted_extensions: XrExtensions,
     pub prefered_blend_mode: XrPreferdBlendMode,
     pub app_info: XrAppInfo,
-    /// Experimental might break stuff
-    pub enable_pipelined_rendering: bool,
     pub synchronous_pipeline_compilation: bool,
 }
 impl Default for DefaultXrPlugins {
@@ -277,7 +268,6 @@ impl Default for DefaultXrPlugins {
             reqeusted_extensions: default(),
             prefered_blend_mode: default(),
             app_info: default(),
-            enable_pipelined_rendering: false,
             synchronous_pipeline_compilation: false,
         }
     }
@@ -285,7 +275,7 @@ impl Default for DefaultXrPlugins {
 
 impl PluginGroup for DefaultXrPlugins {
     fn build(self) -> PluginGroupBuilder {
-        let plugins = DefaultPlugins
+        DefaultPlugins
             .build()
             .set(TaskPoolPlugin {
                 task_pool_options: TaskPoolOptions {
@@ -299,12 +289,12 @@ impl PluginGroup for DefaultXrPlugins {
                 },
             })
             .disable::<RenderPlugin>()
+            .disable::<PipelinedRenderingPlugin>()
             .add_before::<RenderPlugin, _>(OpenXrPlugin {
                 backend_preference: self.backend_preference,
                 prefered_blend_mode: self.prefered_blend_mode,
                 reqeusted_extensions: self.reqeusted_extensions,
                 app_info: self.app_info.clone(),
-                enable_pipelined_rendering: self.enable_pipelined_rendering,
                 synchronous_pipeline_compilation: self.synchronous_pipeline_compilation,
             })
             .add_after::<OpenXrPlugin, _>(XrInitPlugin)
@@ -333,12 +323,7 @@ impl PluginGroup for DefaultXrPlugins {
                 #[cfg(target_os = "android")]
                 close_when_requested: true,
                 ..default()
-            });
-        if !self.enable_pipelined_rendering {
-            plugins.disable::<PipelinedRenderingPlugin>()
-        } else {
-            plugins
-        }
+            })
     }
 }
 
@@ -431,13 +416,6 @@ pub fn xr_wait_frame(
             }
         };
         let should_render = world.get_resource::<XrFrameState>().unwrap().should_render;
-        if world.contains_resource::<DoPipelinedRendering>() {
-            let mut frame_state = world.resource_mut::<XrFrameState>();
-            frame_state.predicted_display_time = xr::Time::from_nanos(
-                frame_state.predicted_display_time.as_nanos()
-                    + frame_state.predicted_display_period.as_nanos(),
-            );
-        }
         **world.get_resource_mut::<XrShouldRender>().unwrap() = should_render;
         **world.get_resource_mut::<XrHasWaited>().unwrap() = true;
     }
