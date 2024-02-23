@@ -51,7 +51,9 @@ pub struct OpenXrPlugin {
     pub reqeusted_extensions: XrExtensions,
     pub prefered_blend_mode: XrPreferdBlendMode,
     pub app_info: XrAppInfo,
+    /// Experimental might break stuff
     pub enable_pipelined_rendering: bool,
+    pub synchronous_pipeline_compilation: bool,
 }
 
 impl Plugin for OpenXrPlugin {
@@ -100,14 +102,17 @@ impl Plugin for OpenXrPlugin {
                         render_instance,
                     ),
                     // Expose this? if yes we also have to set this in the non xr case
-                    synchronous_pipeline_compilation: true,
+                    synchronous_pipeline_compilation: self.synchronous_pipeline_compilation,
                 });
                 app.insert_resource(XrStatus::Disabled);
                 // app.world.send_event(StartXrSession);
             }
             Err(err) => {
                 warn!("OpenXR Instance Failed to initialize: {}", err);
-                app.add_plugins(RenderPlugin::default());
+                app.add_plugins(RenderPlugin {
+                    synchronous_pipeline_compilation: self.synchronous_pipeline_compilation,
+                    ..Default::default()
+                });
                 app.insert_resource(XrStatus::NoInstance);
             }
         }
@@ -256,7 +261,9 @@ pub struct DefaultXrPlugins {
     pub reqeusted_extensions: XrExtensions,
     pub prefered_blend_mode: XrPreferdBlendMode,
     pub app_info: XrAppInfo,
+    /// Experimental might break stuff
     pub enable_pipelined_rendering: bool,
+    pub synchronous_pipeline_compilation: bool,
 }
 impl Default for DefaultXrPlugins {
     fn default() -> Self {
@@ -270,7 +277,8 @@ impl Default for DefaultXrPlugins {
             reqeusted_extensions: default(),
             prefered_blend_mode: default(),
             app_info: default(),
-            enable_pipelined_rendering: true,
+            enable_pipelined_rendering: false,
+            synchronous_pipeline_compilation: false,
         }
     }
 }
@@ -297,6 +305,7 @@ impl PluginGroup for DefaultXrPlugins {
                 reqeusted_extensions: self.reqeusted_extensions,
                 app_info: self.app_info.clone(),
                 enable_pipelined_rendering: self.enable_pipelined_rendering,
+                synchronous_pipeline_compilation: self.synchronous_pipeline_compilation,
             })
             .add_after::<OpenXrPlugin, _>(XrInitPlugin)
             .add(XrInputPlugin)
