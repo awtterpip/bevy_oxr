@@ -190,7 +190,7 @@ pub enum Backend {
 #[derive(Resource)]
 struct DoPipelinedRendering;
 
-fn clean_resources_render(mut cmds: &mut World) {
+fn clean_resources_render(cmds: &mut World) {
     // let session = cmds.remove_resource::<XrSession>().unwrap();
     cmds.remove_resource::<XrSession>();
     cmds.remove_resource::<XrResolution>();
@@ -207,7 +207,7 @@ fn clean_resources_render(mut cmds: &mut World) {
     // }
     warn!("Cleanup Resources Render");
 }
-fn clean_resources(mut cmds: &mut World) {
+fn clean_resources(cmds: &mut World) {
     cmds.remove_resource::<XrSession>();
     cmds.remove_resource::<XrResolution>();
     cmds.remove_resource::<XrFormat>();

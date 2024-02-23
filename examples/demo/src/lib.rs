@@ -1,27 +1,27 @@
-use std::{f32::consts::PI, ops::Mul, time::Duration};
+mod setup;
+
+use std::time::Duration;
 
 use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     ecs::schedule::ScheduleLabel,
-    input::{keyboard::KeyCode, ButtonInput},
     log::info,
     math::primitives::{Capsule3d, Cuboid},
     prelude::{
-        bevy_main, default, shape, App, Assets, Color, Commands, Component, Entity, Event,
-        EventReader, EventWriter, FixedUpdate, Gizmos, GlobalTransform, IntoSystemConfigs,
-        IntoSystemSetConfigs, Mesh, PbrBundle, PostUpdate, Quat, Query, Res, ResMut, Resource,
-        Schedule, SpatialBundle, StandardMaterial, Startup, Transform, Update, Vec3, Vec3Swizzles,
-        With, Without, World,
+        bevy_main, default, App, Assets, Color, Commands, Component, Entity, Event, EventReader,
+        EventWriter, FixedUpdate, GlobalTransform, IntoSystemConfigs, IntoSystemSetConfigs, Mesh,
+        PbrBundle, PostUpdate, Query, Res, ResMut, Resource, Schedule, SpatialBundle,
+        StandardMaterial, Startup, Transform, Update, Vec3, With, Without, World,
     },
     render::mesh::Meshable,
     time::{Fixed, Time, Timer, TimerMode},
     transform::TransformSystem,
 };
 use bevy_oxr::{
-    graphics::{extensions::XrExtensions, XrAppInfo, XrPreferdBlendMode},
+    graphics::{extensions::XrExtensions, XrAppInfo},
     input::XrInput,
-    resources::{XrFrameState, XrInstance, XrSession},
-    xr_init::{xr_only, XrStatus},
+    resources::{XrFrameState, XrSession},
+    xr_init::xr_only,
     xr_input::{
         actions::XrActionSets,
         debug_gizmos::OpenXrDebugRenderer,
@@ -34,29 +34,12 @@ use bevy_oxr::{
         },
         oculus_touch::OculusController,
         prototype_locomotion::{proto_locomotion, PrototypeLocomotionConfig},
-        trackers::{
-            OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker,
-            OpenXRTrackingRoot,
-        },
+        trackers::{OpenXRController, OpenXRLeftController, OpenXRRightController, OpenXRTracker},
         Hand,
     },
     DefaultXrPlugins,
 };
 
-// fn input_stuff(
-//     keys: Res<Input<KeyCode>>,
-//     status: Res<XrEnableStatus>,
-//     mut request: EventWriter<XrEnableRequest>,
-// ) {
-//     if keys.just_pressed(KeyCode::Space) {
-//         match status.into_inner() {
-//             XrEnableStatus::Enabled => request.send(XrEnableRequest::TryDisable),
-//             XrEnableStatus::Disabled => request.send(XrEnableRequest::TryEnable),
-//         }
-//     }
-// }
-
-mod setup;
 use crate::setup::setup_scene;
 use bevy_rapier3d::prelude::*;
 
@@ -376,7 +359,6 @@ fn update_physics_hands(
     )>,
     hand_query: Query<(&Transform, &HandBone, &Hand), Without<PhysicsHandBone>>,
     time: Res<Time>,
-    mut gizmos: Gizmos,
 ) {
     let matching = MatchingType::VelocityMatching;
     //sanity check do we even have hands?
@@ -532,13 +514,6 @@ fn get_start_and_end_entities(
     };
 }
 
-fn get_hand_res(res: &Res<'_, HandsResource>, hand: Hand) -> HandResource {
-    match hand {
-        Hand::Left => res.left.clone(),
-        Hand::Right => res.right.clone(),
-    }
-}
-
 #[derive(Event, Default)]
 pub struct SpawnCubeRequest;
 
@@ -549,7 +524,6 @@ fn request_cube_spawn(
     oculus_controller: Res<OculusController>,
     frame_state: Res<XrFrameState>,
     xr_input: Res<XrInput>,
-    instance: Res<XrInstance>,
     session: Res<XrSession>,
     mut writer: EventWriter<SpawnCubeRequest>,
     time: Res<Time>,
@@ -580,7 +554,7 @@ fn cube_spawner(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut events: EventReader<SpawnCubeRequest>,
 ) {
-    for request in events.read() {
+    for _request in events.read() {
         // cube
         commands.spawn((
             PbrBundle {
@@ -607,7 +581,7 @@ fn prototype_interaction_input(
     xr_input: Res<XrInput>,
     session: Res<XrSession>,
     mut right_interactor_query: Query<
-        (&mut XRInteractorState),
+        &mut XRInteractorState,
         (
             With<XRDirectInteractor>,
             With<OpenXRRightController>,
@@ -615,7 +589,7 @@ fn prototype_interaction_input(
         ),
     >,
     mut left_interactor_query: Query<
-        (&mut XRInteractorState),
+        &mut XRInteractorState,
         (
             With<XRDirectInteractor>,
             With<OpenXRLeftController>,
