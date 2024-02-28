@@ -49,6 +49,40 @@ impl Default for XrExtensions {
     }
 }
 
+macro_rules! unavailable_exts {
+    (
+        $exts:ty;
+        $(
+            $(
+                #[$meta:meta]
+            )*
+            $ident:ident
+        ),*
+        $(,)?
+    ) => {
+        impl $exts {
+            /// Returns any extensions needed by `required_exts` that aren't available in `self`
+            pub(crate) fn unavailable_exts(&self, required_exts: &Self) -> Vec<std::borrow::Cow<'static, str>> {
+                let mut exts = vec![];
+                $(
+                    $(
+                        #[$meta]
+                    )*
+                    if required_exts.0.$ident && !self.0.$ident {
+                        exts.push(std::borrow::Cow::Borrowed(stringify!($ident)))
+                    }
+                )*
+                for ext in required_exts.0.other.iter() {
+                    if !self.0.other.contains(ext) {
+                        exts.push(std::borrow::Cow::Owned(ext.clone()))
+                    }
+                }
+                exts
+            }
+        }
+    };
+}
+
 macro_rules! bitor {
     (
         $exts:ty;
@@ -254,4 +288,4 @@ macro_rules! impl_ext {
     };
 }
 
-impl_ext!(bitor, bitand);
+impl_ext!(bitor, bitand, unavailable_exts);

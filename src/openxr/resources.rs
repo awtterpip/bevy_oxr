@@ -1,12 +1,14 @@
 use bevy::prelude::*;
 
+use bevy::render::renderer::{RenderAdapter, RenderAdapterInfo, RenderInstance, RenderQueue};
+use bevy::render::settings::RenderCreation;
 use openxr::AnyGraphics;
 
 use super::graphics::{graphics_match, GraphicsExt, GraphicsType, GraphicsWrap};
 use super::types::*;
 
 #[derive(Deref, Clone)]
-pub struct XrEntry(openxr::Entry);
+pub struct XrEntry(pub openxr::Entry);
 
 impl XrEntry {
     pub fn enumerate_extensions(&self) -> Result<XrExtensions> {
@@ -48,37 +50,57 @@ impl XrEntry {
     }
 }
 
-impl From<openxr::Entry> for XrEntry {
-    fn from(value: openxr::Entry) -> Self {
-        Self(value)
-    }
-}
-
 #[derive(Resource, Deref, Clone)]
 pub struct XrInstance(
-    #[deref] pub(crate) openxr::Instance,
+    #[deref] pub openxr::Instance,
     pub(crate) GraphicsBackend,
     pub(crate) AppInfo,
 );
 
 impl XrInstance {
-    pub fn create_session(
+    pub fn init_graphics(
         &self,
         system_id: openxr::SystemId,
-    ) -> Result<(
-        wgpu::Device,
-        wgpu::Queue,
-        wgpu::Adapter,
-        wgpu::Instance,
-        XrSession,
-        XrFrameWaiter,
-        XrFrameStream,
-    )> {
+    ) -> Result<(RenderCreation, SessionCreateInfo)> {
         graphics_match!(
             self.1;
-            _ => Api::create_session(&self.2, &self.0, system_id)
+            _ => {
+                let (device, queue, adapter, instance, session_info) = Api::init_graphics(&self.2, &self, system_id)?;
+
+                Ok((RenderCreation::manual(device.into(), RenderQueue(queue.into()), RenderAdapterInfo(adapter.get_info()), RenderAdapter(adapter.into()), RenderInstance(instance.into())), SessionCreateInfo(Api::wrap(session_info))))
+            }
         )
     }
+
+    /// # Safety
+    ///
+    /// `info` must contain valid handles for the graphics api
+    pub unsafe fn create_session(
+        &self,
+        system_id: openxr::SystemId,
+        info: SessionCreateInfo,
+    ) -> Result<(XrSession, XrFrameWaiter, XrFrameStream)> {
+        if !info.0.using_graphics_of_val(&self.1) {
+            return Err(XrError::GraphicsBackendMismatch {
+                item: std::any::type_name::<SessionCreateInfo>(),
+                backend: info.0.graphics_name(),
+                expected_backend: self.1.graphics_name(),
+            });
+        }
+        graphics_match!(
+            info.0;
+            info => {
+                let (session, frame_waiter, frame_stream) = unsafe { self.0.create_session::<Api>(system_id, &info)? };
+                Ok((session.into(), XrFrameWaiter(frame_waiter), XrFrameStream(Api::wrap(frame_stream))))
+            }
+        )
+    }
+}
+
+pub struct SessionCreateInfo(pub(crate) GraphicsWrap<Self>);
+
+impl GraphicsType for SessionCreateInfo {
+    type Inner<G: GraphicsExt> = G::SessionCreateInfo;
 }
 
 impl GraphicsType for XrSession {
@@ -90,6 +112,12 @@ pub struct XrSession(
     #[deref] pub(crate) openxr::Session<AnyGraphics>,
     pub(crate) GraphicsWrap<Self>,
 );
+
+impl<G: GraphicsExt> From<openxr::Session<G>> for XrSession {
+    fn from(value: openxr::Session<G>) -> Self {
+        Self(value.clone().into_any_graphics(), G::wrap(value))
+    }
+}
 
 impl XrSession {
     pub fn enumerate_swapchain_formats(&self) -> Result<Vec<wgpu::TextureFormat>> {
@@ -107,6 +135,7 @@ impl XrSession {
     }
 }
 
+#[derive(Resource)]
 pub struct XrFrameStream(pub(crate) GraphicsWrap<Self>);
 
 impl GraphicsType for XrFrameStream {
@@ -135,8 +164,8 @@ impl XrFrameStream {
                 for (i, layer) in layers.into_iter().enumerate() {
                     if let Some(swapchain) = layer.swapchain() {
                         if !swapchain.0.using_graphics::<Api>() {
-                            warn!(
-                                "composition layer {i} is using graphics api '{}', expected graphics api '{}'. Excluding layer from frame submission.",
+                            error!(
+                                "Composition layer {i} is using graphics api '{}', expected graphics api '{}'. Excluding layer from frame submission.",
                                 swapchain.0.graphics_name(),
                                 std::any::type_name::<Api>(),
                             );
@@ -152,9 +181,10 @@ impl XrFrameStream {
     }
 }
 
-#[derive(Deref, DerefMut)]
+#[derive(Resource, Deref, DerefMut)]
 pub struct XrFrameWaiter(pub openxr::FrameWaiter);
 
+#[derive(Resource)]
 pub struct XrSwapchain(pub(crate) GraphicsWrap<Self>);
 
 impl GraphicsType for XrSwapchain {

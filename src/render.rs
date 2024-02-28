@@ -5,7 +5,7 @@ use bevy::render::camera::{RenderTarget, Viewport};
 
 use crate::types::Pose;
 
-pub(crate) const XR_TEXTURE_VIEW_INDEX: u32 = 1208214591;
+pub const XR_TEXTURE_VIEW_INDEX: u32 = 1208214591;
 
 #[derive(Debug, Clone)]
 pub struct XrView {

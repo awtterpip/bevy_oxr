@@ -1,15 +1,21 @@
 pub mod vulkan;
 
+use std::any::TypeId;
+
 use bevy::math::UVec2;
 
-use crate::openxr::resources::*;
 use crate::openxr::types::{AppInfo, Result, XrError};
 use crate::types::BlendMode;
 
-pub trait GraphicsExt: openxr::Graphics {
+pub unsafe trait GraphicsExt: openxr::Graphics {
+    /// Wrap the graphics specific type into the [GraphicsWrap] enum
+    fn wrap<T: GraphicsType>(item: T::Inner<Self>) -> GraphicsWrap<T>;
+    /// Convert from wgpu format to the graphics format
     fn from_wgpu_format(format: wgpu::TextureFormat) -> Option<Self::Format>;
+    /// Convert from the graphics format to wgpu format
     fn to_wgpu_format(format: Self::Format) -> Option<wgpu::TextureFormat>;
-    fn create_session(
+    /// Initialize graphics for this backend
+    fn init_graphics(
         app_info: &AppInfo,
         instance: &openxr::Instance,
         system_id: openxr::SystemId,
@@ -18,10 +24,9 @@ pub trait GraphicsExt: openxr::Graphics {
         wgpu::Queue,
         wgpu::Adapter,
         wgpu::Instance,
-        XrSession,
-        XrFrameWaiter,
-        XrFrameStream,
+        Self::SessionCreateInfo,
     )>;
+    /// Convert a swapchain function
     unsafe fn to_wgpu_img(
         image: Self::SwapchainImage,
         device: &wgpu::Device,
@@ -45,16 +50,32 @@ impl<T: GraphicsType> GraphicsWrap<T> {
         )
     }
 
-    fn graphics_type(&self) -> std::any::TypeId {
+    fn graphics_type(&self) -> TypeId {
         graphics_match!(
             self;
-            _ => std::any::TypeId::of::<Api>()
+            _ => TypeId::of::<Api>()
         )
     }
 
     /// Checks if this struct is using the wanted graphics api.
     pub fn using_graphics<G: GraphicsExt + 'static>(&self) -> bool {
-        self.graphics_type() == std::any::TypeId::of::<G>()
+        self.graphics_type() == TypeId::of::<G>()
+    }
+
+    /// Checks if the two values are both using the same graphics backend
+    pub fn using_graphics_of_val<V: GraphicsType>(&self, other: &GraphicsWrap<V>) -> bool {
+        self.graphics_type() == other.graphics_type()
+    }
+
+    pub fn as_type<G: GraphicsExt>(&self) -> Result<&T::Inner<G>> {
+        // graphics_match!(
+        //     self;
+        //     inner => if TypeId::of::<Api> == TypeId::of::<G> {
+        //         return Ok(inner)
+        //     }
+        // );
+
+        return Err(XrError::FailedGraphicsRequirements);
     }
 }
 

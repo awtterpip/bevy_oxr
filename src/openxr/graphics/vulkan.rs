@@ -8,7 +8,6 @@ use wgpu_hal::api::Vulkan;
 use wgpu_hal::Api;
 
 use crate::openxr::extensions::XrExtensions;
-use crate::openxr::resources::*;
 use crate::openxr::types::Result;
 
 use super::{AppInfo, GraphicsExt, XrError};
@@ -25,7 +24,7 @@ const VK_TARGET_VERSION_ASH: u32 = ash::vk::make_api_version(
     VK_TARGET_VERSION.patch() as u32,
 );
 
-impl GraphicsExt for openxr::Vulkan {
+unsafe impl GraphicsExt for openxr::Vulkan {
     fn from_wgpu_format(format: wgpu::TextureFormat) -> Option<Self::Format> {
         wgpu_to_vulkan(format).map(|f| f.as_raw() as _)
     }
@@ -34,7 +33,7 @@ impl GraphicsExt for openxr::Vulkan {
         vulkan_to_wgpu(ash::vk::Format::from_raw(format as _))
     }
 
-    fn create_session(
+    fn init_graphics(
         app_info: &AppInfo,
         instance: &openxr::Instance,
         system_id: openxr::SystemId,
@@ -43,9 +42,7 @@ impl GraphicsExt for openxr::Vulkan {
         wgpu::Queue,
         wgpu::Adapter,
         wgpu::Instance,
-        XrSession,
-        XrFrameWaiter,
-        XrFrameStream,
+        Self::SessionCreateInfo,
     )> {
         let reqs = instance.graphics_requirements::<openxr::Vulkan>(system_id)?;
         if VK_TARGET_VERSION < reqs.min_api_version_supported
@@ -228,30 +225,18 @@ impl GraphicsExt for openxr::Vulkan {
             )
         }?;
 
-        let (session, frame_wait, frame_stream) = unsafe {
-            instance.create_session::<openxr::Vulkan>(
-                system_id,
-                &openxr::vulkan::SessionCreateInfo {
-                    instance: vk_instance_ptr,
-                    physical_device: vk_physical_device_ptr,
-                    device: vk_device_ptr,
-                    queue_family_index,
-                    queue_index: 0,
-                },
-            )
-        }?;
-
         Ok((
             wgpu_device,
             wgpu_queue,
             wgpu_adapter,
             wgpu_instance,
-            XrSession(
-                session.clone().into_any_graphics(),
-                super::GraphicsWrap::Vulkan(session),
-            ),
-            XrFrameWaiter(frame_wait),
-            XrFrameStream(super::GraphicsWrap::Vulkan(frame_stream)),
+            openxr::vulkan::SessionCreateInfo {
+                instance: vk_instance_ptr,
+                physical_device: vk_physical_device_ptr,
+                device: vk_device_ptr,
+                queue_family_index,
+                queue_index: 0,
+            },
         ))
     }
 
@@ -309,6 +294,10 @@ impl GraphicsExt for openxr::Vulkan {
         let mut extensions = openxr::ExtensionSet::default();
         extensions.khr_vulkan_enable2 = true;
         extensions.into()
+    }
+
+    fn wrap<T: super::GraphicsType>(item: T::Inner<Self>) -> super::GraphicsWrap<T> {
+        super::GraphicsWrap::Vulkan(item)
     }
 }
 
