@@ -66,17 +66,6 @@ impl<T: GraphicsType> GraphicsWrap<T> {
     pub fn using_graphics_of_val<V: GraphicsType>(&self, other: &GraphicsWrap<V>) -> bool {
         self.graphics_type() == other.graphics_type()
     }
-
-    pub fn as_type<G: GraphicsExt>(&self) -> Result<&T::Inner<G>> {
-        // graphics_match!(
-        //     self;
-        //     inner => if TypeId::of::<Api> == TypeId::of::<G> {
-        //         return Ok(inner)
-        //     }
-        // );
-
-        return Err(XrError::FailedGraphicsRequirements);
-    }
 }
 
 pub trait GraphicsType {
