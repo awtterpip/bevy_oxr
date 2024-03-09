@@ -1,3 +1,4 @@
+mod action_paths;
 pub mod actions;
 #[cfg(not(target_family = "wasm"))]
 pub mod openxr;

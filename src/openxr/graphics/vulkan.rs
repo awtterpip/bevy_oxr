@@ -7,8 +7,8 @@ use openxr::Version;
 use wgpu_hal::api::Vulkan;
 use wgpu_hal::Api;
 
-use crate::openxr::extensions::XrExtensions;
 use crate::openxr::types::Result;
+use crate::openxr::{extensions::XrExtensions, WgpuGraphics};
 
 use super::{AppInfo, GraphicsExt, XrError};
 
@@ -37,13 +37,7 @@ unsafe impl GraphicsExt for openxr::Vulkan {
         app_info: &AppInfo,
         instance: &openxr::Instance,
         system_id: openxr::SystemId,
-    ) -> Result<(
-        wgpu::Device,
-        wgpu::Queue,
-        wgpu::Adapter,
-        wgpu::Instance,
-        Self::SessionCreateInfo,
-    )> {
+    ) -> Result<(WgpuGraphics, Self::SessionCreateInfo)> {
         let reqs = instance.graphics_requirements::<openxr::Vulkan>(system_id)?;
         if VK_TARGET_VERSION < reqs.min_api_version_supported
             || VK_TARGET_VERSION.major() > reqs.max_api_version_supported.major()
@@ -56,12 +50,9 @@ unsafe impl GraphicsExt for openxr::Vulkan {
             return Err(XrError::FailedGraphicsRequirements);
         };
         let vk_entry = unsafe { ash::Entry::load() }?;
-        let flags = wgpu_hal::InstanceFlags::empty();
-        let extensions = <Vulkan as Api>::Instance::required_extensions(
-            &vk_entry,
-            VK_TARGET_VERSION_ASH,
-            flags,
-        )?;
+        let flags = wgpu::InstanceFlags::empty();
+        let extensions =
+            <Vulkan as Api>::Instance::desired_extensions(&vk_entry, VK_TARGET_VERSION_ASH, flags)?;
         let device_extensions = vec![
             ash::extensions::khr::Swapchain::name(),
             ash::extensions::khr::DrawIndirectCount::name(),
@@ -211,8 +202,8 @@ unsafe impl GraphicsExt for openxr::Vulkan {
                 wgpu_open_device,
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    features: wgpu_features,
-                    limits: wgpu::Limits {
+                    required_features: wgpu_features,
+                    required_limits: wgpu::Limits {
                         max_bind_groups: 8,
                         max_storage_buffer_binding_size: wgpu_adapter
                             .limits()
@@ -226,10 +217,13 @@ unsafe impl GraphicsExt for openxr::Vulkan {
         }?;
 
         Ok((
-            wgpu_device,
-            wgpu_queue,
-            wgpu_adapter,
-            wgpu_instance,
+            WgpuGraphics(
+                wgpu_device,
+                wgpu_queue,
+                wgpu_adapter.get_info(),
+                wgpu_adapter,
+                wgpu_instance,
+            ),
             openxr::vulkan::SessionCreateInfo {
                 instance: vk_instance_ptr,
                 physical_device: vk_physical_device_ptr,
@@ -334,6 +328,7 @@ fn vulkan_to_wgpu(format: ash::vk::Format) -> Option<wgpu::TextureFormat> {
         F::B8G8R8A8_UNORM => Tf::Bgra8Unorm,
         F::R8G8B8A8_UINT => Tf::Rgba8Uint,
         F::R8G8B8A8_SINT => Tf::Rgba8Sint,
+        F::A2B10G10R10_UINT_PACK32 => Tf::Rgb10a2Uint,
         F::A2B10G10R10_UNORM_PACK32 => Tf::Rgb10a2Unorm,
         F::B10G11R11_UFLOAT_PACK32 => Tf::Rg11b10Float,
         F::R32G32_UINT => Tf::Rg32Uint,
@@ -350,6 +345,7 @@ fn vulkan_to_wgpu(format: ash::vk::Format) -> Option<wgpu::TextureFormat> {
         F::D32_SFLOAT => Tf::Depth32Float,
         F::D32_SFLOAT_S8_UINT => Tf::Depth32FloatStencil8,
         F::D16_UNORM => Tf::Depth16Unorm,
+        F::G8_B8R8_2PLANE_420_UNORM => Tf::NV12,
         F::E5B9G9R9_UFLOAT_PACK32 => Tf::Rgb9e5Ufloat,
         F::BC1_RGBA_UNORM_BLOCK => Tf::Bc1RgbaUnorm,
         F::BC1_RGBA_SRGB_BLOCK => Tf::Bc1RgbaUnormSrgb,
@@ -583,6 +579,7 @@ fn wgpu_to_vulkan(format: wgpu::TextureFormat) -> Option<ash::vk::Format> {
         Tf::Bgra8Unorm => F::B8G8R8A8_UNORM,
         Tf::Rgba8Uint => F::R8G8B8A8_UINT,
         Tf::Rgba8Sint => F::R8G8B8A8_SINT,
+        Tf::Rgb10a2Uint => F::A2B10G10R10_UINT_PACK32,
         Tf::Rgb10a2Unorm => F::A2B10G10R10_UNORM_PACK32,
         Tf::Rg11b10Float => F::B10G11R11_UFLOAT_PACK32,
         Tf::Rg32Uint => F::R32G32_UINT,
@@ -600,6 +597,7 @@ fn wgpu_to_vulkan(format: wgpu::TextureFormat) -> Option<ash::vk::Format> {
         Tf::Depth32FloatStencil8 => F::D32_SFLOAT_S8_UINT,
         Tf::Depth24Plus | Tf::Depth24PlusStencil8 | Tf::Stencil8 => return None, // Dependent on device properties
         Tf::Depth16Unorm => F::D16_UNORM,
+        Tf::NV12 => F::G8_B8R8_2PLANE_420_UNORM,
         Tf::Rgb9e5Ufloat => F::E5B9G9R9_UFLOAT_PACK32,
         Tf::Bc1RgbaUnorm => F::BC1_RGBA_UNORM_BLOCK,
         Tf::Bc1RgbaUnormSrgb => F::BC1_RGBA_SRGB_BLOCK,

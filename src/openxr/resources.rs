@@ -1,7 +1,8 @@
+use std::sync::Arc;
+
 use bevy::prelude::*;
 
-use bevy::render::renderer::{RenderAdapter, RenderAdapterInfo, RenderInstance, RenderQueue};
-use bevy::render::settings::RenderCreation;
+use bevy::render::extract_resource::ExtractResource;
 use openxr::AnyGraphics;
 
 use super::graphics::{graphics_match, GraphicsExt, GraphicsType, GraphicsWrap};
@@ -50,6 +51,16 @@ impl XrEntry {
     }
 }
 
+#[derive(Debug, Copy, Clone, Deref, Default, Eq, PartialEq, Ord, PartialOrd, Hash, Resource)]
+pub struct SystemId(pub openxr::SystemId);
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Resource)]
+pub struct XrGraphicsInfo {
+    pub blend_mode: EnvironmentBlendMode,
+    pub swapchain_resolution: UVec2,
+    pub swapchain_format: wgpu::TextureFormat,
+}
+
 #[derive(Resource, Deref, Clone)]
 pub struct XrInstance(
     #[deref] pub openxr::Instance,
@@ -61,13 +72,13 @@ impl XrInstance {
     pub fn init_graphics(
         &self,
         system_id: openxr::SystemId,
-    ) -> Result<(RenderCreation, SessionCreateInfo)> {
+    ) -> Result<(WgpuGraphics, SessionCreateInfo)> {
         graphics_match!(
             self.1;
             _ => {
-                let (device, queue, adapter, instance, session_info) = Api::init_graphics(&self.2, &self, system_id)?;
+                let (graphics, session_info) = Api::init_graphics(&self.2, &self, system_id)?;
 
-                Ok((RenderCreation::manual(device.into(), RenderQueue(queue.into()), RenderAdapterInfo(adapter.get_info()), RenderAdapter(adapter.into()), RenderInstance(instance.into())), SessionCreateInfo(Api::wrap(session_info))))
+                Ok((graphics, SessionCreateInfo(Api::wrap(session_info))))
             }
         )
     }
@@ -90,7 +101,7 @@ impl XrInstance {
         graphics_match!(
             info.0;
             info => {
-                let (session, frame_waiter, frame_stream) = unsafe { self.0.create_session::<Api>(system_id, &info)? };
+                let (session, frame_waiter, frame_stream) = self.0.create_session::<Api>(system_id, &info)?;
                 Ok((session.into(), XrFrameWaiter(frame_waiter), XrFrameStream(Api::wrap(frame_stream))))
             }
         )
@@ -218,7 +229,7 @@ impl XrSwapchain {
         device: &wgpu::Device,
         format: wgpu::TextureFormat,
         resolution: UVec2,
-    ) -> Result<Vec<wgpu::Texture>> {
+    ) -> Result<SwapchainImages> {
         graphics_match!(
             &mut self.0;
             swap => {
@@ -228,8 +239,24 @@ impl XrSwapchain {
                         images.push(Api::to_wgpu_img(image, device, format, resolution)?);
                     }
                 }
-                Ok(images)
+                Ok(SwapchainImages(images.into()))
             }
         )
     }
+}
+
+#[derive(Deref, Clone, Resource)]
+pub struct XrStage(pub Arc<openxr::Space>);
+
+#[derive(Debug, Deref, Resource, Clone)]
+pub struct SwapchainImages(pub Arc<Vec<wgpu::Texture>>);
+
+#[derive(Copy, Clone, Eq, PartialEq, Deref, DerefMut, Resource, ExtractResource)]
+pub struct XrTime(pub openxr::Time);
+
+#[derive(Clone, Copy, Eq, PartialEq, Default, Resource, ExtractResource)]
+pub enum XrStatus {
+    Enabled,
+    #[default]
+    Disabled,
 }

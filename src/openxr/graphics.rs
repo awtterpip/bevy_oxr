@@ -19,13 +19,7 @@ pub unsafe trait GraphicsExt: openxr::Graphics {
         app_info: &AppInfo,
         instance: &openxr::Instance,
         system_id: openxr::SystemId,
-    ) -> Result<(
-        wgpu::Device,
-        wgpu::Queue,
-        wgpu::Adapter,
-        wgpu::Instance,
-        Self::SessionCreateInfo,
-    )>;
+    ) -> Result<(WgpuGraphics, Self::SessionCreateInfo)>;
     /// Convert a swapchain function
     unsafe fn to_wgpu_img(
         image: Self::SwapchainImage,
@@ -109,7 +103,7 @@ macro_rules! graphics_match {
 
 pub(crate) use graphics_match;
 
-use super::XrExtensions;
+use super::{WgpuGraphics, XrExtensions};
 
 impl From<openxr::EnvironmentBlendMode> for BlendMode {
     fn from(value: openxr::EnvironmentBlendMode) -> Self {

@@ -43,8 +43,8 @@ impl From<XrExtensions> for ExtensionSet {
 }
 impl Default for XrExtensions {
     fn default() -> Self {
-        let mut exts = ExtensionSet::default();
-        exts.ext_hand_tracking = true;
+        let exts = ExtensionSet::default();
+        //exts.ext_hand_tracking = true;
         Self(exts)
     }
 }

@@ -14,11 +14,11 @@ vulkan = ["dep:ash"]
 [dependencies]
 anyhow = "1.0.79"
 async-std = "1.12.0"
-bevy = "0.12.1"
+bevy = "0.13.0"
 paste = "1.0.14"
 thiserror = "1.0.57"
-wgpu = "0.17.1"
-wgpu-hal = "0.17.1"
+wgpu = "0.19.3"
+wgpu-hal = "0.19.3"
 winit = "0.28.7"
 
 [target.'cfg(target_family = "unix")'.dependencies]
@@ -34,7 +34,7 @@ ash = { version = "0.37.3", optional = true }
 js-sys = "0.3"
 wasm-bindgen = "0.2.91"
 glow = "0.12.1"
-web-sys = { version = "0.3.68", features = [
+web-sys = { version = "0.3.67", features = [
     # STANDARD
     'console',
     'Document',
@@ -88,6 +88,3 @@ web-sys = { version = "0.3.68", features = [
     'XrSystem',
 ] }
 wasm-bindgen-futures = "0.4"
-
-[workspace]
-members = ["xr_api"]

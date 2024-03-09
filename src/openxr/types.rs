@@ -4,9 +4,18 @@ use super::graphics::{graphics_match, GraphicsExt, GraphicsWrap};
 
 pub use super::extensions::XrExtensions;
 pub use openxr::{
-    Extent2Di, Graphics, Offset2Di, Rect2Di, SwapchainCreateFlags, SwapchainUsageFlags, SystemId,
+    EnvironmentBlendMode, Extent2Di, FormFactor, Graphics, Offset2Di, Rect2Di,
+    SwapchainCreateFlags, SwapchainUsageFlags,
 };
 pub type Result<T> = std::result::Result<T, XrError>;
+
+pub struct WgpuGraphics(
+    pub wgpu::Device,
+    pub wgpu::Queue,
+    pub wgpu::AdapterInfo,
+    pub wgpu::Adapter,
+    pub wgpu::Instance,
+);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Version(pub u8, pub u8, pub u16);
@@ -21,10 +30,19 @@ impl Version {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct AppInfo {
     pub name: Cow<'static, str>,
     pub version: Version,
+}
+
+impl Default for AppInfo {
+    fn default() -> Self {
+        Self {
+            name: "Bevy".into(),
+            version: Version::BEVY,
+        }
+    }
 }
 
 pub type GraphicsBackend = GraphicsWrap<()>;
@@ -78,8 +96,14 @@ mod error {
         VulkanLoadingError(#[from] ash::LoadingError),
         #[error("Graphics backend '{0:?}' is not available")]
         UnavailableBackend(GraphicsBackend),
-        #[error("No available backend")]
+        #[error("No compatible backend available")]
         NoAvailableBackend,
+        #[error("No compatible view configuration available")]
+        NoAvailableViewConfiguration,
+        #[error("No compatible blend mode available")]
+        NoAvailableBlendMode,
+        #[error("No compatible format available")]
+        NoAvailableFormat,
         #[error("OpenXR runtime does not support these extensions: {0}")]
         UnavailableExtensions(UnavailableExts),
         #[error("Could not meet graphics requirements for platform. See console for details")]
