@@ -12,6 +12,8 @@ linked = ["openxr/linked"]
 vulkan = ["dep:ash"]
 
 [dependencies]
+bevy_openxr.path = "./crates/bevy_openxr"
+bevy_xr.path = "./crates/bevy_xr"
 anyhow = "1.0.79"
 async-std = "1.12.0"
 bevy = "0.13.0"
@@ -88,3 +90,9 @@ web-sys = { version = "0.3.67", features = [
     'XrSystem',
 ] }
 wasm-bindgen-futures = "0.4"
+
+[workspace]
+members = ["crates/*"]
+
+[workspace.dependencies]
+bevy = "0.13.0"

@@ -7,10 +7,11 @@ use openxr::Version;
 use wgpu_hal::api::Vulkan;
 use wgpu_hal::Api;
 
-use crate::openxr::types::Result;
-use crate::openxr::{extensions::XrExtensions, WgpuGraphics};
+use crate::error::XrError;
+use crate::extensions::XrExtensions;
+use crate::types::*;
 
-use super::{AppInfo, GraphicsExt, XrError};
+use super::GraphicsExt;
 
 #[cfg(not(target_os = "android"))]
 const VK_TARGET_VERSION: Version = Version::new(1, 2, 0);

@@ -1,11 +1,10 @@
+#[cfg(feature = "vulkan")]
 pub mod vulkan;
 
 use std::any::TypeId;
 
-use bevy::math::UVec2;
-
-use crate::openxr::types::{AppInfo, Result, XrError};
-use crate::types::BlendMode;
+use crate::extensions::XrExtensions;
+use crate::types::*;
 
 pub unsafe trait GraphicsExt: openxr::Graphics {
     /// Wrap the graphics specific type into the [GraphicsWrap] enum
@@ -30,8 +29,42 @@ pub unsafe trait GraphicsExt: openxr::Graphics {
     fn required_exts() -> XrExtensions;
 }
 
+pub trait GraphicsType {
+    type Inner<G: GraphicsExt>;
+}
+
+impl GraphicsType for () {
+    type Inner<G: GraphicsExt> = ();
+}
+
+pub type GraphicsBackend = GraphicsWrap<()>;
+
+impl GraphicsBackend {
+    const ALL: &'static [Self] = &[Self::Vulkan(())];
+
+    pub fn available_backends(exts: &XrExtensions) -> Vec<Self> {
+        Self::ALL
+            .iter()
+            .copied()
+            .filter(|backend| backend.is_available(exts))
+            .collect()
+    }
+
+    pub fn is_available(&self, exts: &XrExtensions) -> bool {
+        self.required_exts().is_available(exts)
+    }
+
+    pub fn required_exts(&self) -> XrExtensions {
+        graphics_match!(
+            self;
+            _ => Api::required_exts()
+        )
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GraphicsWrap<T: GraphicsType> {
+    #[cfg(feature = "vulkan")]
     Vulkan(T::Inner<openxr::Vulkan>),
 }
 
@@ -62,21 +95,14 @@ impl<T: GraphicsType> GraphicsWrap<T> {
     }
 }
 
-pub trait GraphicsType {
-    type Inner<G: GraphicsExt>;
-}
-
-impl GraphicsType for () {
-    type Inner<G: GraphicsExt> = ();
-}
-
 macro_rules! graphics_match {
     (
         $field:expr;
         $var:pat => $expr:expr $(=> $($return:tt)*)?
     ) => {
         match $field {
-            $crate::openxr::graphics::GraphicsWrap::Vulkan($var) => {
+            #[cfg(feature = "vulkan")]
+            $crate::graphics::GraphicsWrap::Vulkan($var) => {
                 #[allow(unused)]
                 type Api = openxr::Vulkan;
                 graphics_match!(@arm_impl Vulkan; $expr $(=> $($return)*)?)
@@ -101,32 +127,5 @@ macro_rules! graphics_match {
     };
 }
 
+use bevy::math::UVec2;
 pub(crate) use graphics_match;
-
-use super::{WgpuGraphics, XrExtensions};
-
-impl From<openxr::EnvironmentBlendMode> for BlendMode {
-    fn from(value: openxr::EnvironmentBlendMode) -> Self {
-        use openxr::EnvironmentBlendMode;
-        if value == EnvironmentBlendMode::OPAQUE {
-            BlendMode::Opaque
-        } else if value == EnvironmentBlendMode::ADDITIVE {
-            BlendMode::Additive
-        } else if value == EnvironmentBlendMode::ALPHA_BLEND {
-            BlendMode::AlphaBlend
-        } else {
-            unreachable!()
-        }
-    }
-}
-
-impl From<BlendMode> for openxr::EnvironmentBlendMode {
-    fn from(value: BlendMode) -> Self {
-        use openxr::EnvironmentBlendMode;
-        match value {
-            BlendMode::Opaque => EnvironmentBlendMode::OPAQUE,
-            BlendMode::Additive => EnvironmentBlendMode::ADDITIVE,
-            BlendMode::AlphaBlend => EnvironmentBlendMode::ALPHA_BLEND,
-        }
-    }
-}

@@ -62,7 +62,7 @@ macro_rules! unavailable_exts {
     ) => {
         impl $exts {
             /// Returns any extensions needed by `required_exts` that aren't available in `self`
-            pub(crate) fn unavailable_exts(&self, required_exts: &Self) -> Vec<std::borrow::Cow<'static, str>> {
+            pub fn unavailable_exts(&self, required_exts: &Self) -> Vec<std::borrow::Cow<'static, str>> {
                 let mut exts = vec![];
                 $(
                     $(
@@ -167,6 +167,7 @@ macro_rules! impl_ext {
             $macro! {
                 XrExtensions;
                 almalence_digital_lens_control,
+                bd_controller_interaction,
                 epic_view_configuration_fov,
                 ext_performance_settings,
                 ext_thermal_query,
@@ -183,13 +184,18 @@ macro_rules! impl_ext {
                 ext_hp_mixed_reality_controller,
                 ext_palm_pose,
                 ext_uuid,
-                extx_overlay,
+                ext_hand_interaction,
+                ext_active_action_set_priority,
+                ext_local_floor,
+                ext_hand_tracking_data_source,
+                ext_plane_detection,
                 fb_composition_layer_image_layout,
                 fb_composition_layer_alpha_blend,
                 #[cfg(target_os = "android")]
                 fb_android_surface_swapchain_create,
                 fb_swapchain_update_state,
                 fb_composition_layer_secure_content,
+                fb_body_tracking,
                 fb_display_refresh_rate,
                 fb_color_space,
                 fb_hand_tracking_mesh,
@@ -209,17 +215,29 @@ macro_rules! impl_ext {
                 fb_swapchain_update_state_android_surface,
                 fb_swapchain_update_state_opengl_es,
                 fb_swapchain_update_state_vulkan,
+                fb_touch_controller_pro,
+                fb_spatial_entity_sharing,
                 fb_space_warp,
+                fb_haptic_amplitude_envelope,
                 fb_scene,
+                fb_scene_capture,
                 fb_spatial_entity_container,
+                fb_face_tracking,
+                fb_eye_tracking_social,
                 fb_passthrough_keyboard_hands,
                 fb_composition_layer_settings,
+                fb_touch_controller_proximity,
+                fb_haptic_pcm,
+                fb_composition_layer_depth_test,
+                fb_spatial_entity_storage_batch,
+                fb_spatial_entity_user,
                 htc_vive_cosmos_controller_interaction,
                 htc_facial_tracking,
                 htc_vive_focus3_controller_interaction,
                 htc_hand_interaction,
                 htc_vive_wrist_tracker_interaction,
-                htcx_vive_tracker_interaction,
+                htc_passthrough,
+                htc_foveation,
                 huawei_controller_interaction,
                 #[cfg(target_os = "android")]
                 khr_android_thread_settings,
@@ -251,12 +269,21 @@ macro_rules! impl_ext {
                 khr_composition_layer_equirect2,
                 khr_binding_modification,
                 khr_swapchain_usage_input_attachment_bit,
+                meta_foveation_eye_tracked,
+                meta_local_dimming,
+                meta_passthrough_preferences,
+                meta_virtual_keyboard,
                 meta_vulkan_swapchain_create_info,
                 meta_performance_metrics,
+                meta_headset_id,
+                meta_passthrough_color_lut,
                 ml_ml2_controller_interaction,
+                ml_frame_end_info,
+                ml_global_dimmer,
+                ml_compat,
+                ml_user_calibration,
                 mnd_headless,
                 mnd_swapchain_usage_input_attachment_bit,
-                mndx_egl_enable,
                 msft_unbounded_reference_space,
                 msft_spatial_anchor,
                 msft_spatial_graph_bridge,
@@ -274,6 +301,9 @@ macro_rules! impl_ext {
                 #[cfg(target_os = "android")]
                 oculus_android_session_state_enable,
                 oculus_audio_device_guid,
+                oculus_external_camera,
+                oppo_controller_interaction,
+                qcom_tracking_optimization_settings,
                 ultraleap_hand_tracking_forearm,
                 valve_analog_threshold,
                 varjo_quad_views,
@@ -282,6 +312,7 @@ macro_rules! impl_ext {
                 varjo_environment_depth_estimation,
                 varjo_marker_tracking,
                 varjo_view_offset,
+                yvr_controller_interaction,
             }
         )*
 

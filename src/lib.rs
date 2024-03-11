@@ -1,8 +1,2 @@
-mod action_paths;
-pub mod actions;
-#[cfg(not(target_family = "wasm"))]
-pub mod openxr;
-pub mod render;
-pub mod types;
-#[cfg(target_family = "wasm")]
-pub mod webxr;
+pub use bevy_openxr;
+pub use bevy_xr;

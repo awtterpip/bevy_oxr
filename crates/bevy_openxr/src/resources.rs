@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
+use crate::error::XrError;
+use crate::graphics::*;
+use crate::layer_builder::CompositionLayer;
+use crate::types::*;
 use bevy::prelude::*;
-
 use bevy::render::extract_resource::ExtractResource;
 use openxr::AnyGraphics;
-
-use super::graphics::{graphics_match, GraphicsExt, GraphicsType, GraphicsWrap};
-use super::types::*;
 
 #[derive(Deref, Clone)]
 pub struct XrEntry(pub openxr::Entry);
@@ -49,16 +49,6 @@ impl XrEntry {
             &self.enumerate_extensions()?,
         ))
     }
-}
-
-#[derive(Debug, Copy, Clone, Deref, Default, Eq, PartialEq, Ord, PartialOrd, Hash, Resource)]
-pub struct SystemId(pub openxr::SystemId);
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Resource)]
-pub struct XrGraphicsInfo {
-    pub blend_mode: EnvironmentBlendMode,
-    pub swapchain_resolution: UVec2,
-    pub swapchain_format: wgpu::TextureFormat,
 }
 
 #[derive(Resource, Deref, Clone)]
@@ -229,7 +219,7 @@ impl XrSwapchain {
         device: &wgpu::Device,
         format: wgpu::TextureFormat,
         resolution: UVec2,
-    ) -> Result<SwapchainImages> {
+    ) -> Result<XrSwapchainImages> {
         graphics_match!(
             &mut self.0;
             swap => {
@@ -239,7 +229,7 @@ impl XrSwapchain {
                         images.push(Api::to_wgpu_img(image, device, format, resolution)?);
                     }
                 }
-                Ok(SwapchainImages(images.into()))
+                Ok(XrSwapchainImages(images.into()))
             }
         )
     }
@@ -249,14 +239,43 @@ impl XrSwapchain {
 pub struct XrStage(pub Arc<openxr::Space>);
 
 #[derive(Debug, Deref, Resource, Clone)]
-pub struct SwapchainImages(pub Arc<Vec<wgpu::Texture>>);
+pub struct XrSwapchainImages(pub Arc<Vec<wgpu::Texture>>);
 
 #[derive(Copy, Clone, Eq, PartialEq, Deref, DerefMut, Resource, ExtractResource)]
 pub struct XrTime(pub openxr::Time);
 
-#[derive(Clone, Copy, Eq, PartialEq, Default, Resource, ExtractResource)]
-pub enum XrStatus {
-    Enabled,
-    #[default]
-    Disabled,
+#[derive(Copy, Clone, Eq, PartialEq, Resource)]
+pub struct XrSwapchainInfo {
+    pub format: wgpu::TextureFormat,
+    pub resolution: UVec2,
 }
+
+#[derive(Debug, Copy, Clone, Deref, Default, Eq, PartialEq, Ord, PartialOrd, Hash, Resource)]
+pub struct SystemId(pub openxr::SystemId);
+
+#[derive(Clone, Copy, Eq, PartialEq, Default, Resource, ExtractResource)]
+pub struct XrStatus {
+    pub instance_created: bool,
+    pub session_created: bool,
+    pub session_ready: bool,
+    pub session_running: bool,
+}
+
+impl XrStatus {
+    pub const UNINITIALIZED: Self = Self {
+        instance_created: false,
+        session_created: false,
+        session_ready: false,
+        session_running: false,
+    };
+}
+
+#[derive(Clone, Copy, Resource)]
+pub struct XrGraphicsInfo {
+    pub blend_mode: EnvironmentBlendMode,
+    pub resolution: UVec2,
+    pub format: wgpu::TextureFormat,
+}
+
+#[derive(Clone, Resource)]
+pub struct XrViews(pub Vec<Entity>);

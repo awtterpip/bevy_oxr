@@ -1,0 +1,25 @@
+[package]
+name = "bevy_openxr"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["vulkan"]
+vulkan = ["dep:ash"]
+
+[dependencies]
+thiserror = "1.0.57"
+wgpu = "0.19.3"
+wgpu-hal = "0.19.3"
+
+bevy_xr.path = "../bevy_xr"
+bevy.workspace = true
+
+
+ash = { version = "0.37.3", optional = true }
+
+[target.'cfg(target_family = "unix")'.dependencies]
+openxr = { version = "0.18.0", features = ["mint"] }
+
+[target.'cfg(target_family = "windows")'.dependencies]
+openxr = { version = "0.18.0", features = ["mint", "static"] }
