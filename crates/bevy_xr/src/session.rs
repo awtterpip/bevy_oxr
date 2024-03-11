@@ -49,15 +49,15 @@ pub fn handle_xr_events(
     }
 }
 
-/// Event sent to backends to create an XR session
+/// Event sent to backends to create an XR session. Should only be called after [`XrInstanceCreated`] is recieved.
 #[derive(Event, Clone, Copy, Default)]
 pub struct CreateXrSession;
 
-/// Event sent to backends to begin an XR session
+/// Event sent to backends to begin an XR session. Should only be called after [`XrSessionState::Ready`] is recieved.
 #[derive(Event, Clone, Copy, Default)]
 pub struct BeginXrSession;
 
-/// Event sent to backends to end an XR session.
+/// Event sent to backends to end an XR session. Should only be called after [`XrSessionState::Running`] is recieved.
 #[derive(Event, Clone, Copy, Default)]
 pub struct EndXrSession;
 

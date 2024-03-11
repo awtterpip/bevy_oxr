@@ -9,8 +9,8 @@ use bevy::{
 use bevy_xr::camera::{XrCameraBundle, XrProjection, XrView};
 use openxr::CompositionLayerFlags;
 
-use crate::layer_builder::*;
 use crate::resources::*;
+use crate::{init::begin_xr_session, layer_builder::*};
 
 use crate::init::session_running;
 
@@ -19,11 +19,12 @@ pub struct XrRenderPlugin;
 impl Plugin for XrRenderPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
-            PreUpdate,
+            First,
             (
                 init_views.run_if(resource_added::<XrGraphicsInfo>),
                 wait_frame.run_if(session_running),
-            ),
+            )
+                .after(begin_xr_session),
         );
         // .add_systems(Startup, init_views);
         app.sub_app_mut(RenderApp).add_systems(
@@ -42,6 +43,7 @@ impl Plugin for XrRenderPlugin {
 
 pub const XR_TEXTURE_INDEX: u32 = 3383858418;
 
+// TODO: have cameras initialized externally and then recieved by this function.
 /// This is needed to properly initialize the texture views so that bevy will set them to the correct resolution despite them being updated in the render world.
 pub fn init_views(
     graphics_info: Res<XrGraphicsInfo>,
@@ -73,6 +75,8 @@ pub fn init_views(
 
 pub fn wait_frame(mut frame_waiter: ResMut<XrFrameWaiter>, mut commands: Commands) {
     let state = frame_waiter.wait().expect("Failed to wait frame");
+    // Here we insert the predicted display time for when this frame will be displayed.
+    // TODO: don't add predicted_display_period if pipelined rendering plugin not enabled
     commands.insert_resource(XrTime(openxr::Time::from_nanos(
         state.predicted_display_time.as_nanos() + state.predicted_display_period.as_nanos(),
     )));
@@ -227,31 +231,6 @@ pub fn insert_texture_views(
     for i in 0..2 {
         add_texture_view(&mut manual_texture_views, image, &graphics_info, i);
     }
-    // let left = image.create_view(&wgpu::TextureViewDescriptor {
-    //     dimension: Some(wgpu::TextureViewDimension::D2),
-    //     array_layer_count: Some(1),
-    //     ..Default::default()
-    // });
-    // let right = image.create_view(&wgpu::TextureViewDescriptor {
-    //     dimension: Some(wgpu::TextureViewDimension::D2),
-    //     array_layer_count: Some(1),
-    //     base_array_layer: 1,
-    //     ..Default::default()
-    // });
-    // let resolution = graphics_info.resolution;
-    // let format = graphics_info.format;
-    // let left = ManualTextureView {
-    //     texture_view: left.into(),
-    //     size: resolution,
-    //     format: format,
-    // };
-    // let right = ManualTextureView {
-    //     texture_view: right.into(),
-    //     size: resolution,
-    //     format: format,
-    // };
-    // manual_texture_views.insert(LEFT_XR_TEXTURE_HANDLE, left);
-    // manual_texture_views.insert(RIGHT_XR_TEXTURE_HANDLE, right);
 }
 
 pub fn add_texture_view(

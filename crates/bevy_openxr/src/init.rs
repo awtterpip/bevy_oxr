@@ -1,4 +1,4 @@
-use bevy::app::{App, First, Plugin, PreUpdate};
+use bevy::app::{App, First, Plugin};
 use bevy::ecs::event::EventWriter;
 use bevy::ecs::schedule::common_conditions::{not, on_event};
 use bevy::ecs::schedule::IntoSystemConfigs;
@@ -6,7 +6,6 @@ use bevy::ecs::system::{Commands, Res, ResMut, Resource};
 use bevy::ecs::world::World;
 use bevy::log::{error, info};
 use bevy::math::{uvec2, UVec2};
-use bevy::render::camera::ManualTextureViews;
 use bevy::render::extract_resource::ExtractResourcePlugin;
 use bevy::render::renderer::{
     RenderAdapter, RenderAdapterInfo, RenderDevice, RenderInstance, RenderQueue,
@@ -48,12 +47,12 @@ pub fn session_created(status: Option<Res<XrStatus>>) -> bool {
     status.is_some_and(|status| status.session_created)
 }
 
-pub fn session_running(status: Option<Res<XrStatus>>) -> bool {
-    status.is_some_and(|status| status.session_running)
-}
-
 pub fn session_ready(status: Option<Res<XrStatus>>) -> bool {
     status.is_some_and(|status| status.session_ready)
+}
+
+pub fn session_running(status: Option<Res<XrStatus>>) -> bool {
+    status.is_some_and(|status| status.session_running)
 }
 
 impl Plugin for XrInitPlugin {
@@ -74,6 +73,7 @@ fn xr_entry() -> Result<XrEntry> {
     Ok(XrEntry(entry))
 }
 
+/// This is called from [`XrInitPlugin::build()`]. Its a separate function so that we can return a [Result] and control flow is cleaner.
 fn init_xr(config: &XrInitPlugin, app: &mut App) -> Result<()> {
     let entry = xr_entry()?;
 
@@ -165,7 +165,8 @@ fn init_xr(config: &XrInitPlugin, app: &mut App) -> Result<()> {
             begin_xr_session
                 .run_if(session_ready)
                 .run_if(on_event::<BeginXrSession>()),
-        ),
+        )
+            .chain(),
     )
     .sub_app_mut(RenderApp)
     .insert_resource(instance)
@@ -208,12 +209,13 @@ pub fn create_xr_session(world: &mut World) {
         return;
     };
 
-    if let Err(e) = init_xr_session(world, instance, *system_id, create_info) {
+    if let Err(e) = create_xr_session_inner(world, instance, *system_id, create_info) {
         error!("Failed to initialize XrSession: {e}");
     }
 }
 
-fn init_xr_session(
+/// This is called from [create_xr_session]. It is a separate function to allow us to return a [Result] and make control flow cleaner.
+fn create_xr_session_inner(
     world: &mut World,
     instance: XrInstance,
     system_id: openxr::SystemId,
@@ -378,6 +380,7 @@ struct XrRenderResources {
     stage: XrStage,
 }
 
+/// This system transfers important render resources from the main world to the render world when a session is created.
 pub fn transfer_xr_resources(mut commands: Commands, mut world: ResMut<MainWorld>) {
     let Some(XrRenderResources {
         session,
@@ -399,6 +402,7 @@ pub fn transfer_xr_resources(mut commands: Commands, mut world: ResMut<MainWorld
     commands.insert_resource(stage);
 }
 
+/// Poll any OpenXR events and handle them accordingly
 pub fn poll_events(
     instance: Res<XrInstance>,
     session: Option<Res<XrSession>>,
