@@ -7,7 +7,7 @@ use bevy::{
     },
 };
 use bevy_xr::camera::{XrCameraBundle, XrProjection, XrView};
-use openxr::CompositionLayerFlags;
+use openxr::{CompositionLayerFlags, ViewStateFlags};
 
 use crate::resources::*;
 use crate::{init::begin_xr_session, layer_builder::*};
@@ -51,6 +51,7 @@ pub fn init_views(
     swapchain_images: Res<XrSwapchainImages>,
     mut commands: Commands,
 ) {
+    let _span = info_span!("xr_init_views");
     let temp_tex = swapchain_images.first().unwrap();
     // this for loop is to easily add support for quad or mono views in the future.
     let mut views = vec![];
@@ -74,6 +75,7 @@ pub fn init_views(
 }
 
 pub fn wait_frame(mut frame_waiter: ResMut<XrFrameWaiter>, mut commands: Commands) {
+    let _span = info_span!("xr_wait_frame");
     let state = frame_waiter.wait().expect("Failed to wait frame");
     // Here we insert the predicted display time for when this frame will be displayed.
     // TODO: don't add predicted_display_period if pipelined rendering plugin not enabled
@@ -89,6 +91,7 @@ pub fn update_views(
     stage: Res<XrStage>,
     time: Res<XrTime>,
 ) {
+    let _span = info_span!("xr_wait_frame");
     let (_flags, xr_views) = session
         .locate_views(
             openxr::ViewConfigurationType::PRIMARY_STEREO,
@@ -222,6 +225,7 @@ pub fn insert_texture_views(
     mut manual_texture_views: ResMut<ManualTextureViews>,
     graphics_info: Res<XrGraphicsInfo>,
 ) {
+    let _span = info_span!("xr_insert_texture_views");
     let index = swapchain.acquire_image().expect("Failed to acquire image");
     swapchain
         .wait_image(openxr::Duration::INFINITE)
@@ -262,16 +266,37 @@ pub fn end_frame(
     stage: Res<XrStage>,
     display_time: Res<XrTime>,
     graphics_info: Res<XrGraphicsInfo>,
+    mut openxr_views: Local<Vec<openxr::View>>,
 ) {
+    let _span = info_span!("xr_end_frame");
     swapchain.release_image().unwrap();
-    let (_flags, views) = session
+    let (flags, views) = session
         .locate_views(
             openxr::ViewConfigurationType::PRIMARY_STEREO,
             **display_time,
             &stage,
         )
         .expect("Failed to locate views");
-
+    if openxr_views.len() != views.len() {
+        openxr_views.resize(views.len(), default());
+    }
+    match (
+        flags & ViewStateFlags::ORIENTATION_VALID == ViewStateFlags::ORIENTATION_VALID,
+        flags & ViewStateFlags::POSITION_VALID == ViewStateFlags::POSITION_VALID,
+    ) {
+        (true, true) => *openxr_views = views,
+        (true, false) => {
+            for (i, view) in openxr_views.iter_mut().enumerate() {
+                view.pose.orientation = views[i].pose.orientation;
+            }
+        }
+        (false, true) => {
+            for (i, view) in openxr_views.iter_mut().enumerate() {
+                view.pose.position = views[i].pose.position;
+            }
+        }
+        (false, false) => {}
+    }
     let rect = openxr::Rect2Di {
         offset: openxr::Offset2Di { x: 0, y: 0 },
         extent: openxr::Extent2Di {
@@ -288,8 +313,8 @@ pub fn end_frame(
                 .space(&stage)
                 .views(&[
                     CompositionLayerProjectionView::new()
-                        .pose(views[0].pose)
-                        .fov(views[0].fov)
+                        .pose(openxr_views[0].pose)
+                        .fov(openxr_views[0].fov)
                         .sub_image(
                             SwapchainSubImage::new()
                                 .swapchain(&swapchain)
@@ -297,8 +322,8 @@ pub fn end_frame(
                                 .image_rect(rect),
                         ),
                     CompositionLayerProjectionView::new()
-                        .pose(views[1].pose)
-                        .fov(views[1].fov)
+                        .pose(openxr_views[1].pose)
+                        .fov(openxr_views[1].fov)
                         .sub_image(
                             SwapchainSubImage::new()
                                 .swapchain(&swapchain)
