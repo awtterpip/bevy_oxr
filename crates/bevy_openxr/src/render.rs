@@ -25,7 +25,8 @@ impl Plugin for XrRenderPlugin {
                 wait_frame.run_if(session_running),
             )
                 .after(begin_xr_session),
-        );
+        )
+        .add_systems(PreUpdate, update_views.run_if(session_running));
         // .add_systems(Startup, init_views);
         app.sub_app_mut(RenderApp).add_systems(
             Render,
