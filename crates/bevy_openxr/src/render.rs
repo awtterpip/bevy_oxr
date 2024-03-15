@@ -32,7 +32,7 @@ impl Plugin for XrRenderPlugin {
             )
                 .after(begin_xr_session),
         )
-        .add_systems(PreUpdate, update_views.run_if(session_running));
+        .add_systems(PostUpdate, update_views.run_if(session_running));
         // .add_systems(Startup, init_views);
         app.sub_app_mut(RenderApp).add_systems(
             Render,
@@ -102,7 +102,7 @@ pub fn update_views(
     time: Res<XrTime>,
     mut openxr_views: Local<Vec<openxr::View>>,
 ) {
-    let _span = info_span!("xr_wait_frame");
+    let _span = info_span!("xr_update_views");
     let (flags, xr_views) = session
         .locate_views(
             openxr::ViewConfigurationType::PRIMARY_STEREO,
@@ -132,7 +132,7 @@ pub fn update_views(
     }
 
     for (i, view) in openxr_views.iter().enumerate() {
-        if let Some(((mut transform, mut projection), mut xr_view)) = view_entities
+        if let Some(((mut transform, mut projection), xr_view)) = view_entities
             .0
             .get_mut(i)
             .and_then(|(entity, view)| views.get_mut(*entity).ok().map(|res| (res, view)))
@@ -293,7 +293,6 @@ pub fn add_texture_view(
 
 pub fn end_frame(
     mut frame_stream: ResMut<XrFrameStream>,
-    session: Res<XrSession>,
     mut swapchain: ResMut<XrSwapchain>,
     stage: Res<XrStage>,
     display_time: Res<XrTime>,
