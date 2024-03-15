@@ -1,17 +1,25 @@
-use bevy::app::{App, First, Plugin};
+use bevy::app::{App, First, Plugin, PostUpdate};
+use bevy::ecs::component::Component;
+use bevy::ecs::entity::Entity;
 use bevy::ecs::event::EventWriter;
+use bevy::ecs::query::{With, Without};
 use bevy::ecs::schedule::common_conditions::{not, on_event};
 use bevy::ecs::schedule::IntoSystemConfigs;
-use bevy::ecs::system::{Commands, Res, ResMut, Resource};
+use bevy::ecs::system::{Commands, Query, Res, ResMut, Resource};
 use bevy::ecs::world::World;
-use bevy::log::{error, info};
+use bevy::hierarchy::{BuildChildren, Parent};
+use bevy::log::{error, info, warn};
 use bevy::math::{uvec2, UVec2};
+use bevy::prelude::{Deref, DerefMut};
+use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
 use bevy::render::extract_resource::ExtractResourcePlugin;
 use bevy::render::renderer::{
     RenderAdapter, RenderAdapterInfo, RenderDevice, RenderInstance, RenderQueue,
 };
 use bevy::render::settings::RenderCreation;
 use bevy::render::{ExtractSchedule, MainWorld, RenderApp, RenderPlugin};
+use bevy::transform::components::GlobalTransform;
+use bevy::transform::{TransformBundle, TransformSystem};
 use bevy_xr::session::{
     BeginXrSession, CreateXrSession, XrInstanceCreated, XrInstanceDestroyed, XrSessionState,
 };
@@ -140,6 +148,7 @@ fn init_xr(config: &XrInitPlugin, app: &mut App) -> Result<()> {
             ),
             synchronous_pipeline_compilation: config.synchronous_pipeline_compilation,
         },
+        ExtractComponentPlugin::<XrRoot>::default(),
         ExtractResourcePlugin::<XrTime>::default(),
         ExtractResourcePlugin::<XrStatus>::default(),
     ))
@@ -165,8 +174,13 @@ fn init_xr(config: &XrInitPlugin, app: &mut App) -> Result<()> {
             begin_xr_session
                 .run_if(session_ready)
                 .run_if(on_event::<BeginXrSession>()),
+            adopt_open_xr_trackers,
         )
             .chain(),
+    )
+    .add_systems(
+        PostUpdate,
+        update_root_transform_components.after(TransformSystem::TransformPropagate),
     )
     .sub_app_mut(RenderApp)
     .insert_resource(instance)
@@ -176,7 +190,55 @@ fn init_xr(config: &XrInitPlugin, app: &mut App) -> Result<()> {
         transfer_xr_resources.run_if(not(session_running)),
     );
 
+    app.world
+        .spawn((TransformBundle::default(), OpenXrTrackingRoot));
+
     Ok(())
+}
+
+#[derive(Component, ExtractComponent, Clone, Deref, DerefMut, Default)]
+pub struct XrRoot(pub GlobalTransform);
+
+#[derive(Component)]
+/// This is the root location of the playspace. Moving this entity around moves the rest of the playspace around.
+pub struct OpenXrTrackingRoot;
+
+#[derive(Component)]
+/// Marker component for any entities that should be children of [`OpenXrTrackingRoot`]
+pub struct OpenXrTracker;
+
+pub fn adopt_open_xr_trackers(
+    query: Query<Entity, (With<OpenXrTracker>, Without<Parent>)>,
+    mut commands: Commands,
+    tracking_root_query: Query<Entity, With<OpenXrTrackingRoot>>,
+) {
+    let root = tracking_root_query.get_single();
+    match root {
+        Ok(root) => {
+            // info!("root is");
+            for tracker in query.iter() {
+                info!("we got a new tracker");
+                commands.entity(root).add_child(tracker);
+            }
+        }
+        Err(_) => info!("root isnt spawned yet?"),
+    }
+}
+
+fn update_root_transform_components(
+    mut component_query: Query<&mut XrRoot>,
+    root_query: Query<&GlobalTransform, With<OpenXrTrackingRoot>>,
+) {
+    let root = match root_query.get_single() {
+        Ok(v) => v,
+        Err(err) => {
+            warn!("No or too many XrTracking Roots: {}", err);
+            return;
+        }
+    };
+    component_query
+        .par_iter_mut()
+        .for_each(|mut root_transform| **root_transform = *root);
 }
 
 /// This is used to store information from startup that is needed to create the session after the instance has been created.

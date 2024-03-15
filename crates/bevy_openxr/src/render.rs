@@ -2,17 +2,17 @@ use bevy::{
     prelude::*,
     render::{
         camera::{ManualTextureView, ManualTextureViewHandle, ManualTextureViews, RenderTarget},
-        extract_component::{ExtractComponent, ExtractComponentPlugin},
         extract_resource::ExtractResourcePlugin,
         renderer::render_system,
+        view::ExtractedView,
         Render, RenderApp, RenderSet,
     },
 };
 use bevy_xr::camera::{XrCamera, XrCameraBundle, XrProjection};
 use openxr::{CompositionLayerFlags, ViewStateFlags};
 
-use crate::resources::*;
-use crate::{init::begin_xr_session, layer_builder::*};
+use crate::{init::OpenXrTracker, resources::*};
+use crate::{init::XrRoot, layer_builder::*};
 
 use crate::init::session_running;
 
@@ -20,24 +20,27 @@ pub struct XrRenderPlugin;
 
 impl Plugin for XrRenderPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((
-            ExtractComponentPlugin::<XrView>::default(),
-            ExtractResourcePlugin::<XrViews>::default(),
-        ))
-        .add_systems(
-            First,
-            (
-                init_views.run_if(resource_added::<XrGraphicsInfo>),
-                wait_frame.run_if(session_running),
-            )
-                .after(begin_xr_session),
-        )
-        .add_systems(PreUpdate, update_views.run_if(session_running));
+        app.add_plugins((ExtractResourcePlugin::<XrViews>::default(),))
+            .add_systems(
+                PreUpdate,
+                (
+                    init_views.run_if(resource_added::<XrGraphicsInfo>),
+                    wait_frame.run_if(session_running),
+                    locate_views.run_if(session_running),
+                    update_views.run_if(session_running),
+                )
+                    .chain(),
+            );
         // .add_systems(Startup, init_views);
         app.sub_app_mut(RenderApp).add_systems(
             Render,
             (
-                insert_texture_views
+                (
+                    locate_views,
+                    update_views_render_world,
+                    insert_texture_views,
+                )
+                    .chain()
                     .in_set(RenderSet::PrepareAssets)
                     .before(render_system),
                 end_frame.in_set(RenderSet::Cleanup),
@@ -46,9 +49,6 @@ impl Plugin for XrRenderPlugin {
         );
     }
 }
-
-#[derive(Component, ExtractComponent, Clone)]
-pub struct XrView(pub openxr::View);
 
 pub const XR_TEXTURE_INDEX: u32 = 3383858418;
 
@@ -69,16 +69,19 @@ pub fn init_views(
         let view_handle =
             add_texture_view(&mut manual_texture_views, temp_tex, &graphics_info, index);
 
-        let entity = commands
-            .spawn((XrCameraBundle {
+        commands.spawn((
+            XrCameraBundle {
                 camera: Camera {
                     target: RenderTarget::TextureView(view_handle),
                     ..Default::default()
                 },
+                view: XrCamera(index),
                 ..Default::default()
-            },))
-            .id();
-        views.push((entity, default()));
+            },
+            OpenXrTracker,
+            XrRoot::default(),
+        ));
+        views.push(default());
     }
     commands.insert_resource(XrViews(views));
 }
@@ -92,21 +95,17 @@ pub fn wait_frame(
     let state = frame_waiter.wait().expect("Failed to wait frame");
     // Here we insert the predicted display time for when this frame will be displayed.
     // TODO: don't add predicted_display_period if pipelined rendering plugin not enabled
-    commands.insert_resource(XrTime(openxr::Time::from_nanos(
-        state.predicted_display_time.as_nanos(),
-    )));
+    commands.insert_resource(XrTime(state.predicted_display_time));
     frame_stream.begin().expect("Failed to begin frame");
 }
 
-pub fn update_views(
-    mut views: Query<(&mut Transform, &mut XrProjection), With<XrCamera>>,
-    mut view_entities: ResMut<XrViews>,
+pub fn locate_views(
     session: Res<XrSession>,
     stage: Res<XrStage>,
     time: Res<XrTime>,
-    mut openxr_views: Local<Vec<openxr::View>>,
+    mut openxr_views: ResMut<XrViews>,
 ) {
-    let _span = info_span!("xr_update_views");
+    let _span = info_span!("xr_locate_views");
     let (flags, xr_views) = session
         .locate_views(
             openxr::ViewConfigurationType::PRIMARY_STEREO,
@@ -121,7 +120,7 @@ pub fn update_views(
         flags & ViewStateFlags::ORIENTATION_VALID == ViewStateFlags::ORIENTATION_VALID,
         flags & ViewStateFlags::POSITION_VALID == ViewStateFlags::POSITION_VALID,
     ) {
-        (true, true) => *openxr_views = xr_views,
+        (true, true) => *openxr_views = XrViews(xr_views),
         (true, false) => {
             for (i, view) in openxr_views.iter_mut().enumerate() {
                 view.pose.orientation = xr_views[i].pose.orientation;
@@ -134,24 +133,45 @@ pub fn update_views(
         }
         (false, false) => {}
     }
+}
 
-    for (i, view) in openxr_views.iter().enumerate() {
-        if let Some(((mut transform, mut projection), xr_view)) = view_entities
-            .0
-            .get_mut(i)
-            .and_then(|(entity, view)| views.get_mut(*entity).ok().map(|res| (res, view)))
-        {
-            *xr_view = *view;
-            let projection_matrix = calculate_projection(projection.near, view.fov);
-            projection.projection_matrix = projection_matrix;
+pub fn update_views(
+    mut query: Query<(&mut Transform, &mut XrProjection, &XrCamera)>,
+    views: ResMut<XrViews>,
+) {
+    for (mut transform, mut projection, camera) in query.iter_mut() {
+        let Some(view) = views.get(camera.0 as usize) else {
+            continue;
+        };
 
-            let openxr::Quaternionf { x, y, z, w } = view.pose.orientation;
-            let rotation = Quat::from_xyzw(x, y, z, w);
-            transform.rotation = rotation;
-            let openxr::Vector3f { x, y, z } = view.pose.position;
-            let translation = Vec3::new(x, y, z);
-            transform.translation = translation;
-        }
+        let projection_matrix = calculate_projection(projection.near, view.fov);
+        projection.projection_matrix = projection_matrix;
+
+        let openxr::Quaternionf { x, y, z, w } = view.pose.orientation;
+        let rotation = Quat::from_xyzw(x, y, z, w);
+        transform.rotation = rotation;
+        let openxr::Vector3f { x, y, z } = view.pose.position;
+        let translation = Vec3::new(x, y, z);
+        transform.translation = translation;
+    }
+}
+
+pub fn update_views_render_world(
+    views: Res<crate::resources::XrViews>,
+    mut query: Query<(&mut ExtractedView, &XrRoot, &XrCamera)>,
+) {
+    for (mut extracted_view, root, camera) in query.iter_mut() {
+        let Some(view) = views.get(camera.0 as usize) else {
+            continue;
+        };
+        let mut transform = Transform::IDENTITY;
+        let openxr::Quaternionf { x, y, z, w } = view.pose.orientation;
+        let rotation = Quat::from_xyzw(x, y, z, w);
+        transform.rotation = rotation;
+        let openxr::Vector3f { x, y, z } = view.pose.position;
+        let translation = Vec3::new(x, y, z);
+        transform.translation = translation;
+        extracted_view.transform = root.mul_transform(transform);
     }
 }
 
@@ -317,8 +337,8 @@ pub fn end_frame(
                 .space(&stage)
                 .views(&[
                     CompositionLayerProjectionView::new()
-                        .pose(openxr_views.0[0].1.pose)
-                        .fov(openxr_views.0[0].1.fov)
+                        .pose(openxr_views.0[0].pose)
+                        .fov(openxr_views.0[0].fov)
                         .sub_image(
                             SwapchainSubImage::new()
                                 .swapchain(&swapchain)
@@ -326,8 +346,8 @@ pub fn end_frame(
                                 .image_rect(rect),
                         ),
                     CompositionLayerProjectionView::new()
-                        .pose(openxr_views.0[1].1.pose)
-                        .fov(openxr_views.0[1].1.fov)
+                        .pose(openxr_views.0[1].pose)
+                        .fov(openxr_views.0[1].fov)
                         .sub_image(
                             SwapchainSubImage::new()
                                 .swapchain(&swapchain)

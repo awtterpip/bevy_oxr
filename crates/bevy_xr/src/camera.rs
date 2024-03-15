@@ -30,7 +30,10 @@ impl Plugin for XrCameraPlugin {
                 .after(TransformSystem::TransformPropagate)
                 .before(VisibilitySystems::UpdatePerspectiveFrusta),
         );
-        app.add_plugins(ExtractComponentPlugin::<XrProjection>::default());
+        app.add_plugins((
+            ExtractComponentPlugin::<XrProjection>::default(),
+            ExtractComponentPlugin::<XrCamera>::default(),
+        ));
     }
 }
 
@@ -51,8 +54,8 @@ impl Default for XrProjection {
 }
 
 /// Marker component for an XR view. It is the backends responsibility to update this.
-#[derive(Clone, Copy, Component, Debug, Default)]
-pub struct XrCamera;
+#[derive(Clone, Copy, Component, ExtractComponent, Debug, Default)]
+pub struct XrCamera(pub u32);
 
 impl CameraProjection for XrProjection {
     fn get_projection_matrix(&self) -> Mat4 {
@@ -125,7 +128,7 @@ impl Default for XrCameraBundle {
             exposure: Default::default(),
             main_texture_usages: Default::default(),
             dither: DebandDither::Enabled,
-            view: XrCamera,
+            view: XrCamera(0),
         }
     }
 }

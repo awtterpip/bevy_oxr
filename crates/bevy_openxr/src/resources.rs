@@ -278,5 +278,5 @@ pub struct XrGraphicsInfo {
     pub format: wgpu::TextureFormat,
 }
 
-#[derive(Clone, Resource, ExtractResource)]
-pub struct XrViews(pub Vec<(Entity, openxr::View)>);
+#[derive(Clone, Resource, ExtractResource, Deref, DerefMut)]
+pub struct XrViews(pub Vec<openxr::View>);
