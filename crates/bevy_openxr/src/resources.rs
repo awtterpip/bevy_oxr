@@ -278,4 +278,4 @@ pub struct XrGraphicsInfo {
 }
 
 #[derive(Clone, Resource, ExtractResource)]
-pub struct XrViews(pub Vec<Entity>);
+pub struct XrViews(pub Vec<(Entity, openxr::View)>);

@@ -2,11 +2,13 @@ use bevy::{
     prelude::*,
     render::{
         camera::{ManualTextureView, ManualTextureViewHandle, ManualTextureViews, RenderTarget},
+        extract_component::{ExtractComponent, ExtractComponentPlugin},
+        extract_resource::ExtractResourcePlugin,
         renderer::render_system,
         Render, RenderApp, RenderSet,
     },
 };
-use bevy_xr::camera::{XrCameraBundle, XrProjection, XrView};
+use bevy_xr::camera::{XrCamera, XrCameraBundle, XrProjection};
 use openxr::{CompositionLayerFlags, ViewStateFlags};
 
 use crate::resources::*;
@@ -18,7 +20,11 @@ pub struct XrRenderPlugin;
 
 impl Plugin for XrRenderPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
+        app.add_plugins((
+            ExtractComponentPlugin::<XrView>::default(),
+            ExtractResourcePlugin::<XrViews>::default(),
+        ))
+        .add_systems(
             First,
             (
                 init_views.run_if(resource_added::<XrGraphicsInfo>),
@@ -42,6 +48,9 @@ impl Plugin for XrRenderPlugin {
     }
 }
 
+#[derive(Component, ExtractComponent, Clone)]
+pub struct XrView(pub openxr::View);
+
 pub const XR_TEXTURE_INDEX: u32 = 3383858418;
 
 // TODO: have cameras initialized externally and then recieved by this function.
@@ -62,15 +71,15 @@ pub fn init_views(
             add_texture_view(&mut manual_texture_views, temp_tex, &graphics_info, index);
 
         let entity = commands
-            .spawn(XrCameraBundle {
+            .spawn((XrCameraBundle {
                 camera: Camera {
                     target: RenderTarget::TextureView(view_handle),
                     ..Default::default()
                 },
                 ..Default::default()
-            })
+            },))
             .id();
-        views.push(entity);
+        views.push((entity, default()));
     }
     commands.insert_resource(XrViews(views));
 }
@@ -86,27 +95,49 @@ pub fn wait_frame(mut frame_waiter: ResMut<XrFrameWaiter>, mut commands: Command
 }
 
 pub fn update_views(
-    mut views: Query<(&mut Transform, &mut XrProjection), With<XrView>>,
-    view_entities: Res<XrViews>,
+    mut views: Query<(&mut Transform, &mut XrProjection), With<XrCamera>>,
+    mut view_entities: ResMut<XrViews>,
     session: Res<XrSession>,
     stage: Res<XrStage>,
     time: Res<XrTime>,
+    mut openxr_views: Local<Vec<openxr::View>>,
 ) {
     let _span = info_span!("xr_wait_frame");
-    let (_flags, xr_views) = session
+    let (flags, xr_views) = session
         .locate_views(
             openxr::ViewConfigurationType::PRIMARY_STEREO,
             **time,
             &stage,
         )
         .expect("Failed to locate views");
+    if openxr_views.len() != xr_views.len() {
+        openxr_views.resize(xr_views.len(), default());
+    }
+    match (
+        flags & ViewStateFlags::ORIENTATION_VALID == ViewStateFlags::ORIENTATION_VALID,
+        flags & ViewStateFlags::POSITION_VALID == ViewStateFlags::POSITION_VALID,
+    ) {
+        (true, true) => *openxr_views = xr_views,
+        (true, false) => {
+            for (i, view) in openxr_views.iter_mut().enumerate() {
+                view.pose.orientation = xr_views[i].pose.orientation;
+            }
+        }
+        (false, true) => {
+            for (i, view) in openxr_views.iter_mut().enumerate() {
+                view.pose.position = xr_views[i].pose.position;
+            }
+        }
+        (false, false) => {}
+    }
 
-    for (i, view) in xr_views.iter().enumerate() {
-        if let Some((mut transform, mut projection)) = view_entities
+    for (i, view) in openxr_views.iter().enumerate() {
+        if let Some(((mut transform, mut projection), mut xr_view)) = view_entities
             .0
-            .get(i)
-            .and_then(|entity| views.get_mut(*entity).ok())
+            .get_mut(i)
+            .and_then(|(entity, view)| views.get_mut(*entity).ok().map(|res| (res, view)))
         {
+            *xr_view = *view;
             let projection_matrix = calculate_projection(projection.near, view.fov);
             projection.projection_matrix = projection_matrix;
 
@@ -267,37 +298,10 @@ pub fn end_frame(
     stage: Res<XrStage>,
     display_time: Res<XrTime>,
     graphics_info: Res<XrGraphicsInfo>,
-    mut openxr_views: Local<Vec<openxr::View>>,
+    openxr_views: Res<XrViews>,
 ) {
     let _span = info_span!("xr_end_frame");
     swapchain.release_image().unwrap();
-    let (flags, views) = session
-        .locate_views(
-            openxr::ViewConfigurationType::PRIMARY_STEREO,
-            **display_time,
-            &stage,
-        )
-        .expect("Failed to locate views");
-    if openxr_views.len() != views.len() {
-        openxr_views.resize(views.len(), default());
-    }
-    match (
-        flags & ViewStateFlags::ORIENTATION_VALID == ViewStateFlags::ORIENTATION_VALID,
-        flags & ViewStateFlags::POSITION_VALID == ViewStateFlags::POSITION_VALID,
-    ) {
-        (true, true) => *openxr_views = views,
-        (true, false) => {
-            for (i, view) in openxr_views.iter_mut().enumerate() {
-                view.pose.orientation = views[i].pose.orientation;
-            }
-        }
-        (false, true) => {
-            for (i, view) in openxr_views.iter_mut().enumerate() {
-                view.pose.position = views[i].pose.position;
-            }
-        }
-        (false, false) => {}
-    }
     let rect = openxr::Rect2Di {
         offset: openxr::Offset2Di { x: 0, y: 0 },
         extent: openxr::Extent2Di {
@@ -314,8 +318,8 @@ pub fn end_frame(
                 .space(&stage)
                 .views(&[
                     CompositionLayerProjectionView::new()
-                        .pose(openxr_views[0].pose)
-                        .fov(openxr_views[0].fov)
+                        .pose(openxr_views.0[0].1.pose)
+                        .fov(openxr_views.0[0].1.fov)
                         .sub_image(
                             SwapchainSubImage::new()
                                 .swapchain(&swapchain)
@@ -323,8 +327,8 @@ pub fn end_frame(
                                 .image_rect(rect),
                         ),
                     CompositionLayerProjectionView::new()
-                        .pose(openxr_views[1].pose)
-                        .fov(openxr_views[1].fov)
+                        .pose(openxr_views.0[1].1.pose)
+                        .fov(openxr_views.0[1].1.fov)
                         .sub_image(
                             SwapchainSubImage::new()
                                 .swapchain(&swapchain)

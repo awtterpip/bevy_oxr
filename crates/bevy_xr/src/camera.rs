@@ -52,7 +52,7 @@ impl Default for XrProjection {
 
 /// Marker component for an XR view. It is the backends responsibility to update this.
 #[derive(Clone, Copy, Component, Debug, Default)]
-pub struct XrView;
+pub struct XrCamera;
 
 impl CameraProjection for XrProjection {
     fn get_projection_matrix(&self) -> Mat4 {
@@ -106,7 +106,7 @@ pub struct XrCameraBundle {
     pub color_grading: ColorGrading,
     pub exposure: Exposure,
     pub main_texture_usages: CameraMainTextureUsages,
-    pub view: XrView,
+    pub view: XrCamera,
 }
 
 impl Default for XrCameraBundle {
@@ -125,7 +125,7 @@ impl Default for XrCameraBundle {
             exposure: Default::default(),
             main_texture_usages: Default::default(),
             dither: DebandDither::Enabled,
-            view: XrView,
+            view: XrCamera,
         }
     }
 }
