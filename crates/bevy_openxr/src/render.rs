@@ -32,13 +32,12 @@ impl Plugin for XrRenderPlugin {
             )
                 .after(begin_xr_session),
         )
-        .add_systems(PostUpdate, update_views.run_if(session_running));
+        .add_systems(PreUpdate, update_views.run_if(session_running));
         // .add_systems(Startup, init_views);
         app.sub_app_mut(RenderApp).add_systems(
             Render,
             (
-                (begin_frame, insert_texture_views)
-                    .chain()
+                insert_texture_views
                     .in_set(RenderSet::PrepareAssets)
                     .before(render_system),
                 end_frame.in_set(RenderSet::Cleanup),
@@ -84,14 +83,19 @@ pub fn init_views(
     commands.insert_resource(XrViews(views));
 }
 
-pub fn wait_frame(mut frame_waiter: ResMut<XrFrameWaiter>, mut commands: Commands) {
+pub fn wait_frame(
+    mut frame_waiter: ResMut<XrFrameWaiter>,
+    mut commands: Commands,
+    frame_stream: ResMut<XrFrameStream>,
+) {
     let _span = info_span!("xr_wait_frame");
     let state = frame_waiter.wait().expect("Failed to wait frame");
     // Here we insert the predicted display time for when this frame will be displayed.
     // TODO: don't add predicted_display_period if pipelined rendering plugin not enabled
     commands.insert_resource(XrTime(openxr::Time::from_nanos(
-        state.predicted_display_time.as_nanos() + state.predicted_display_period.as_nanos(),
+        state.predicted_display_time.as_nanos(),
     )));
+    frame_stream.begin().expect("Failed to begin frame");
 }
 
 pub fn update_views(
@@ -245,10 +249,6 @@ fn calculate_projection(near_z: f32, fov: openxr::Fovf) -> Mat4 {
     }
 
     Mat4::from_cols_array(&cols)
-}
-
-pub fn begin_frame(mut frame_stream: ResMut<XrFrameStream>) {
-    frame_stream.begin().expect("Failed to begin frame");
 }
 
 pub fn insert_texture_views(

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use crate::error::XrError;
 use crate::graphics::*;
@@ -92,7 +92,7 @@ impl XrInstance {
             info.0;
             info => {
                 let (session, frame_waiter, frame_stream) = self.0.create_session::<Api>(system_id, &info)?;
-                Ok((session.into(), XrFrameWaiter(frame_waiter), XrFrameStream(Api::wrap(frame_stream))))
+                Ok((session.into(), XrFrameWaiter(frame_waiter), XrFrameStream(Api::wrap(Arc::new(Mutex::new(frame_stream))))))
             }
         )
     }
@@ -136,18 +136,18 @@ impl XrSession {
     }
 }
 
-#[derive(Resource)]
+#[derive(Resource, Clone)]
 pub struct XrFrameStream(pub(crate) GraphicsWrap<Self>);
 
 impl GraphicsType for XrFrameStream {
-    type Inner<G: GraphicsExt> = openxr::FrameStream<G>;
+    type Inner<G: GraphicsExt> = Arc<Mutex<openxr::FrameStream<G>>>;
 }
 
 impl XrFrameStream {
-    pub fn begin(&mut self) -> openxr::Result<()> {
+    pub fn begin(&self) -> openxr::Result<()> {
         graphics_match!(
-            &mut self.0;
-            stream => stream.begin()
+            &self.0;
+            stream => stream.lock().unwrap().begin()
         )
     }
 
@@ -158,8 +158,9 @@ impl XrFrameStream {
         layers: &[&dyn CompositionLayer],
     ) -> Result<()> {
         graphics_match!(
-            &mut self.0;
+            &self.0;
             stream => {
+                let mut stream = stream.lock().unwrap();
                 let mut new_layers = vec![];
 
                 for (i, layer) in layers.into_iter().enumerate() {

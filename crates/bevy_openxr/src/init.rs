@@ -345,6 +345,7 @@ fn create_xr_session_inner(
     world.insert_resource(images.clone());
     world.insert_resource(graphics_info.clone());
     world.insert_resource(stage.clone());
+    world.insert_resource(frame_stream.clone());
     world.insert_resource(XrRenderResources {
         session,
         frame_stream,

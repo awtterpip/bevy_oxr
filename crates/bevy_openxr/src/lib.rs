@@ -1,6 +1,6 @@
 use bevy::{
     app::{PluginGroup, PluginGroupBuilder},
-    render::RenderPlugin,
+    render::{pipelined_rendering::PipelinedRenderingPlugin, RenderPlugin},
     utils::default,
 };
 use bevy_xr::camera::XrCameraPlugin;
@@ -21,6 +21,7 @@ pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
     plugins
         .build()
         .disable::<RenderPlugin>()
+        .disable::<PipelinedRenderingPlugin>()
         .add_before::<RenderPlugin, _>(bevy_xr::session::XrSessionPlugin)
         .add_before::<RenderPlugin, _>(XrInitPlugin {
             app_info: default(),
