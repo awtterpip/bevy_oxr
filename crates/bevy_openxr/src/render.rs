@@ -3,19 +3,16 @@ use bevy::{
     render::{
         camera::{ManualTextureView, ManualTextureViewHandle, ManualTextureViews, RenderTarget},
         extract_resource::ExtractResourcePlugin,
-        renderer::render_system,
-        view::ExtractedView,
         Render, RenderApp, RenderSet,
     },
+    transform::TransformSystem,
 };
-use bevy_xr::{
-    camera::{XrCamera, XrCameraBundle, XrProjection},
-    session::session_running,
-};
+use bevy_xr::camera::{XrCamera, XrCameraBundle, XrProjection};
 use openxr::{CompositionLayerFlags, ViewStateFlags};
 
-use crate::{init::OpenXrTracker, resources::*};
-use crate::{init::XrRoot, layer_builder::*};
+use crate::init::{session_started, XrPreUpdateSet};
+use crate::layer_builder::*;
+use crate::resources::*;
 
 pub struct XrRenderPlugin;
 
@@ -26,27 +23,30 @@ impl Plugin for XrRenderPlugin {
                 PreUpdate,
                 (
                     init_views.run_if(resource_added::<XrGraphicsInfo>),
-                    wait_frame.run_if(session_running),
-                    locate_views.run_if(session_running),
-                    update_views.run_if(session_running),
+                    wait_frame.run_if(session_started),
                 )
-                    .chain(),
+                    .chain()
+                    .after(XrPreUpdateSet::HandleEvents),
+            )
+            .add_systems(
+                PostUpdate,
+                (locate_views, update_views)
+                    .chain()
+                    .run_if(session_started)
+                    .before(TransformSystem::TransformPropagate),
             );
-        // .add_systems(Startup, init_views);
         app.sub_app_mut(RenderApp).add_systems(
             Render,
             (
                 (
-                    //locate_views,
-                    update_views_render_world,
-                    insert_texture_views,
+                    // begin_frame,
+                    insert_texture_views
                 )
                     .chain()
-                    .in_set(RenderSet::PrepareAssets)
-                    .before(render_system),
-                end_frame.in_set(RenderSet::Cleanup),
+                    .in_set(RenderSet::PrepareAssets),
+                (locate_views, end_frame).chain().in_set(RenderSet::Cleanup),
             )
-                .run_if(session_running),
+                .run_if(session_started),
         );
     }
 }
@@ -79,8 +79,8 @@ pub fn init_views(
                 view: XrCamera(index),
                 ..Default::default()
             },
-            OpenXrTracker,
-            XrRoot::default(),
+            // OpenXrTracker,
+            // XrRoot::default(),
         ));
         views.push(default());
     }
@@ -90,7 +90,7 @@ pub fn init_views(
 pub fn wait_frame(
     mut frame_waiter: ResMut<XrFrameWaiter>,
     mut commands: Commands,
-    frame_stream: ResMut<XrFrameStream>,
+    frame_stream: Res<XrFrameStream>,
 ) {
     let _span = info_span!("xr_wait_frame");
     let state = frame_waiter.wait().expect("Failed to wait frame");
@@ -154,25 +154,6 @@ pub fn update_views(
         let openxr::Vector3f { x, y, z } = view.pose.position;
         let translation = Vec3::new(x, y, z);
         transform.translation = translation;
-    }
-}
-
-pub fn update_views_render_world(
-    views: Res<crate::resources::XrViews>,
-    mut query: Query<(&mut ExtractedView, &XrRoot, &XrCamera)>,
-) {
-    for (mut extracted_view, root, camera) in query.iter_mut() {
-        let Some(view) = views.get(camera.0 as usize) else {
-            continue;
-        };
-        let mut transform = Transform::IDENTITY;
-        let openxr::Quaternionf { x, y, z, w } = view.pose.orientation;
-        let rotation = Quat::from_xyzw(x, y, z, w);
-        transform.rotation = rotation;
-        let openxr::Vector3f { x, y, z } = view.pose.position;
-        let translation = Vec3::new(x, y, z);
-        transform.translation = translation;
-        extracted_view.transform = root.mul_transform(transform);
     }
 }
 
@@ -312,6 +293,10 @@ pub fn add_texture_view(
     handle
 }
 
+pub fn begin_frame(frame_stream: ResMut<XrFrameStream>) {
+    frame_stream.begin().expect("Failed to begin frame")
+}
+
 pub fn end_frame(
     mut frame_stream: ResMut<XrFrameStream>,
     mut swapchain: ResMut<XrSwapchain>,
@@ -357,5 +342,5 @@ pub fn end_frame(
                         ),
                 ])],
         )
-        .expect("Failed to end stream");
+        .expect("Failed to end frame");
 }

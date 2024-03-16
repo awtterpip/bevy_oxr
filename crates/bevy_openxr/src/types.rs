@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::error::XrError;
+pub use crate::error::XrError;
 pub use crate::extensions::XrExtensions;
 use crate::graphics::GraphicsExt;
 

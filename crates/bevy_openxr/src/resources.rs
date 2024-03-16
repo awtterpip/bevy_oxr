@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use crate::error::XrError;
@@ -63,13 +64,13 @@ impl XrInstance {
     pub fn init_graphics(
         &self,
         system_id: openxr::SystemId,
-    ) -> Result<(WgpuGraphics, SessionCreateInfo)> {
+    ) -> Result<(WgpuGraphics, XrSessionGraphicsInfo)> {
         graphics_match!(
             self.1;
             _ => {
                 let (graphics, session_info) = Api::init_graphics(&self.2, &self, system_id)?;
 
-                Ok((graphics, SessionCreateInfo(Api::wrap(session_info))))
+                Ok((graphics, XrSessionGraphicsInfo(Api::wrap(session_info))))
             }
         )
     }
@@ -80,11 +81,11 @@ impl XrInstance {
     pub unsafe fn create_session(
         &self,
         system_id: openxr::SystemId,
-        info: SessionCreateInfo,
+        info: XrSessionGraphicsInfo,
     ) -> Result<(XrSession, XrFrameWaiter, XrFrameStream)> {
         if !info.0.using_graphics_of_val(&self.1) {
             return Err(XrError::GraphicsBackendMismatch {
-                item: std::any::type_name::<SessionCreateInfo>(),
+                item: std::any::type_name::<XrSessionGraphicsInfo>(),
                 backend: info.0.graphics_name(),
                 expected_backend: self.1.graphics_name(),
             });
@@ -99,14 +100,11 @@ impl XrInstance {
     }
 }
 
-pub struct SessionCreateInfo(pub(crate) GraphicsWrap<Self>);
+#[derive(Clone)]
+pub struct XrSessionGraphicsInfo(pub(crate) GraphicsWrap<Self>);
 
-impl GraphicsType for SessionCreateInfo {
+impl GraphicsType for XrSessionGraphicsInfo {
     type Inner<G: GraphicsExt> = G::SessionCreateInfo;
-}
-
-impl GraphicsType for XrSession {
-    type Inner<G: GraphicsExt> = openxr::Session<G>;
 }
 
 #[derive(Resource, Deref, Clone)]
@@ -114,6 +112,10 @@ pub struct XrSession(
     #[deref] pub(crate) openxr::Session<AnyGraphics>,
     pub(crate) GraphicsWrap<Self>,
 );
+
+impl GraphicsType for XrSession {
+    type Inner<G: GraphicsExt> = openxr::Session<G>;
+}
 
 impl<G: GraphicsExt> From<openxr::Session<G>> for XrSession {
     fn from(value: openxr::Session<G>) -> Self {
@@ -159,7 +161,7 @@ impl XrFrameStream {
         layers: &[&dyn CompositionLayer],
     ) -> Result<()> {
         graphics_match!(
-            &self.0;
+            &mut self.0;
             stream => {
                 let mut stream = stream.lock().unwrap();
                 let mut new_layers = vec![];
@@ -253,7 +255,7 @@ pub struct XrSwapchainInfo {
 }
 
 #[derive(Debug, Copy, Clone, Deref, Default, Eq, PartialEq, Ord, PartialOrd, Hash, Resource)]
-pub struct SystemId(pub openxr::SystemId);
+pub struct XrSystemId(pub openxr::SystemId);
 
 #[derive(Clone, Copy, Resource)]
 pub struct XrGraphicsInfo {
@@ -264,3 +266,29 @@ pub struct XrGraphicsInfo {
 
 #[derive(Clone, Resource, ExtractResource, Deref, DerefMut)]
 pub struct XrViews(pub Vec<openxr::View>);
+
+#[derive(Clone)]
+/// This is used to store information from startup that is needed to create the session after the instance has been created.
+pub struct XrSessionCreateInfo {
+    /// List of blend modes the openxr session can use. If [None], pick the first available blend mode.
+    pub blend_modes: Option<Vec<EnvironmentBlendMode>>,
+    /// List of formats the openxr session can use. If [None], pick the first available format
+    pub formats: Option<Vec<wgpu::TextureFormat>>,
+    /// List of resolutions that the openxr swapchain can use. If [None] pick the first available resolution.
+    pub resolutions: Option<Vec<UVec2>>,
+    /// Graphics info used to create a session.
+    pub graphics_info: XrSessionGraphicsInfo,
+}
+
+#[derive(Resource, Clone, Default)]
+pub struct XrSessionStarted(Arc<AtomicBool>);
+
+impl XrSessionStarted {
+    pub fn set(&self, val: bool) {
+        self.0.store(val, Ordering::SeqCst);
+    }
+
+    pub fn get(&self) -> bool {
+        self.0.load(Ordering::SeqCst)
+    }
+}

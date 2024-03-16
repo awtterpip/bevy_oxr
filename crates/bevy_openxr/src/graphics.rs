@@ -3,6 +3,8 @@ pub mod vulkan;
 
 use std::any::TypeId;
 
+use bevy::math::UVec2;
+
 use crate::extensions::XrExtensions;
 use crate::types::*;
 
@@ -127,5 +129,4 @@ macro_rules! graphics_match {
     };
 }
 
-use bevy::math::UVec2;
 pub(crate) use graphics_match;

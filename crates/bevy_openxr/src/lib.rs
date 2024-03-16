@@ -2,6 +2,7 @@ use bevy::{
     app::{PluginGroup, PluginGroupBuilder},
     render::{pipelined_rendering::PipelinedRenderingPlugin, RenderPlugin},
     utils::default,
+    window::{PresentMode, Window, WindowPlugin},
 };
 use bevy_xr::camera::XrCameraPlugin;
 use init::XrInitPlugin;
@@ -34,4 +35,20 @@ pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
         })
         .add(XrRenderPlugin)
         .add(XrCameraPlugin)
+        .set(WindowPlugin {
+            #[cfg(not(target_os = "android"))]
+            primary_window: Some(Window {
+                transparent: true,
+                present_mode: PresentMode::AutoNoVsync,
+                // title: self.app_info.name.clone(),
+                ..default()
+            }),
+            #[cfg(target_os = "android")]
+            primary_window: None, // ?
+            #[cfg(target_os = "android")]
+            exit_condition: bevy::window::ExitCondition::DontExit,
+            #[cfg(target_os = "android")]
+            close_when_requested: true,
+            ..default()
+        })
 }

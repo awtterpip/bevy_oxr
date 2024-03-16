@@ -1,34 +1,29 @@
-use bevy::app::{App, First, Plugin, PostUpdate, PreUpdate};
-use bevy::ecs::change_detection::DetectChangesMut;
-use bevy::ecs::component::Component;
-use bevy::ecs::entity::Entity;
-use bevy::ecs::query::{With, Without};
-use bevy::ecs::schedule::common_conditions::{not, on_event};
-use bevy::ecs::schedule::IntoSystemConfigs;
-use bevy::ecs::system::{Commands, Query, Res, ResMut, Resource};
-use bevy::ecs::world::World;
-use bevy::hierarchy::{BuildChildren, Parent};
-use bevy::log::{error, info, warn};
-use bevy::math::{uvec2, UVec2};
-use bevy::prelude::{Deref, DerefMut};
-use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
+use bevy::math::uvec2;
+use bevy::prelude::*;
 use bevy::render::extract_resource::ExtractResourcePlugin;
 use bevy::render::renderer::{
     RenderAdapter, RenderAdapterInfo, RenderDevice, RenderInstance, RenderQueue,
 };
 use bevy::render::settings::RenderCreation;
-use bevy::render::{ExtractSchedule, MainWorld, RenderApp, RenderPlugin};
-use bevy::transform::components::GlobalTransform;
-use bevy::transform::{TransformBundle, TransformSystem};
+use bevy::render::{MainWorld, RenderApp, RenderPlugin};
 use bevy_xr::session::{
     handle_session, session_available, session_running, status_equals, BeginXrSession,
-    CreateXrSession, XrStatus,
+    CreateXrSession, EndXrSession, XrSharedStatus, XrStatus,
 };
 
-use crate::error::XrError;
-use crate::graphics::GraphicsBackend;
+use crate::graphics::*;
 use crate::resources::*;
 use crate::types::*;
+
+pub fn session_started(started: Option<Res<XrSessionStarted>>) -> bool {
+    started.is_some_and(|started| started.get())
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, SystemSet)]
+pub enum XrPreUpdateSet {
+    PollEvents,
+    HandleEvents,
+}
 
 pub struct XrInitPlugin {
     /// Information about the app this is being used to build.
@@ -50,11 +45,92 @@ pub struct XrInitPlugin {
 
 impl Plugin for XrInitPlugin {
     fn build(&self, app: &mut App) {
-        if let Err(e) = init_xr(&self, app) {
-            error!("Failed to initialize openxr instance: {e}.");
-            app.add_plugins(RenderPlugin::default())
-                .insert_resource(XrStatus::Unavailable);
-        }
+        match self.init_xr() {
+            Ok((
+                instance,
+                system_id,
+                WgpuGraphics(device, queue, adapter_info, adapter, wgpu_instance),
+                session_create_info,
+            )) => {
+                let status = XrSharedStatus::new(XrStatus::Available);
+
+                app.add_plugins((
+                    RenderPlugin {
+                        render_creation: RenderCreation::manual(
+                            device.into(),
+                            RenderQueue(queue.into()),
+                            RenderAdapterInfo(adapter_info),
+                            RenderAdapter(adapter.into()),
+                            RenderInstance(wgpu_instance.into()),
+                        ),
+                        synchronous_pipeline_compilation: self.synchronous_pipeline_compilation,
+                    },
+                    ExtractResourcePlugin::<XrTime>::default(),
+                ))
+                .add_systems(
+                    PreUpdate,
+                    (
+                        poll_events
+                            .run_if(session_available)
+                            .in_set(XrPreUpdateSet::PollEvents),
+                        (
+                            (create_xr_session, apply_deferred)
+                                .chain()
+                                .run_if(on_event::<CreateXrSession>())
+                                .run_if(status_equals(XrStatus::Available)),
+                            begin_xr_session
+                                .run_if(on_event::<BeginXrSession>())
+                                .run_if(status_equals(XrStatus::Ready)),
+                            end_xr_session
+                                .run_if(on_event::<EndXrSession>())
+                                .run_if(session_started),
+                        )
+                            .in_set(XrPreUpdateSet::HandleEvents),
+                    ),
+                )
+                .insert_resource(instance.clone())
+                .insert_resource(system_id)
+                .insert_resource(status.clone())
+                .insert_non_send_resource(session_create_info);
+
+                let render_app = app.sub_app_mut(RenderApp);
+                render_app
+                    .insert_resource(instance)
+                    .insert_resource(system_id)
+                    .insert_resource(status)
+                    .add_systems(
+                        ExtractSchedule,
+                        transfer_xr_resources.run_if(not(session_running)),
+                    );
+            }
+            Err(e) => {
+                error!("Failed to initialize openxr: {e}");
+                let status = XrSharedStatus::new(XrStatus::Unavailable);
+
+                app.add_plugins(RenderPlugin::default())
+                    .insert_resource(status.clone());
+
+                let render_app = app.sub_app_mut(RenderApp);
+
+                render_app.insert_resource(status);
+            }
+        };
+
+        app.configure_sets(
+            PreUpdate,
+            (
+                XrPreUpdateSet::PollEvents.before(handle_session),
+                XrPreUpdateSet::HandleEvents.after(handle_session),
+            ),
+        );
+
+        let session_started = XrSessionStarted::default();
+
+        app.insert_resource(session_started.clone());
+
+        let render_app = app.sub_app_mut(RenderApp);
+
+        render_app.insert_resource(session_started);
     }
 }
 
@@ -66,214 +142,103 @@ fn xr_entry() -> Result<XrEntry> {
     Ok(XrEntry(entry))
 }
 
-/// This is called from [`XrInitPlugin::build()`]. Its a separate function so that we can return a [Result] and control flow is cleaner.
-fn init_xr(config: &XrInitPlugin, app: &mut App) -> Result<()> {
-    let entry = xr_entry()?;
+impl XrInitPlugin {
+    fn init_xr(&self) -> Result<(XrInstance, XrSystemId, WgpuGraphics, XrSessionCreateInfo)> {
+        let entry = xr_entry()?;
 
-    let available_exts = entry.enumerate_extensions()?;
+        let available_exts = entry.enumerate_extensions()?;
 
-    // check available extensions and send a warning for any wanted extensions that aren't available.
-    for ext in available_exts.unavailable_exts(&config.exts) {
-        error!(
-            "Extension \"{ext}\" not available in the current OpenXR runtime. Disabling extension."
-        );
-    }
-
-    let available_backends = GraphicsBackend::available_backends(&available_exts);
-
-    // Backend selection
-    let backend = if let Some(wanted_backends) = &config.backends {
-        let mut backend = None;
-        for wanted_backend in wanted_backends {
-            if available_backends.contains(wanted_backend) {
-                backend = Some(*wanted_backend);
-                break;
-            }
+        // check available extensions and send a warning for any wanted extensions that aren't available.
+        for ext in available_exts.unavailable_exts(&self.exts) {
+            error!(
+                "Extension \"{ext}\" not available in the current OpenXR runtime. Disabling extension."
+            );
         }
-        backend
-    } else {
-        available_backends.first().copied()
-    }
-    .ok_or(XrError::NoAvailableBackend)?;
 
-    let exts = config.exts.clone() & available_exts;
+        let available_backends = GraphicsBackend::available_backends(&available_exts);
 
-    let instance = entry.create_instance(
-        config.app_info.clone(),
-        exts,
-        &["XR_APILAYER_LUNARG_api_dump"],
-        backend,
-    )?;
-    let instance_props = instance.properties()?;
-
-    info!(
-        "Loaded OpenXR runtime: {} {}",
-        instance_props.runtime_name, instance_props.runtime_version
-    );
-
-    let system_id = instance.system(openxr::FormFactor::HEAD_MOUNTED_DISPLAY)?;
-    let system_props = instance.system_properties(system_id)?;
-
-    info!(
-        "Using system: {}",
-        if system_props.system_name.is_empty() {
-            "<unnamed>"
+        // Backend selection
+        let backend = if let Some(wanted_backends) = &self.backends {
+            let mut backend = None;
+            for wanted_backend in wanted_backends {
+                if available_backends.contains(wanted_backend) {
+                    backend = Some(*wanted_backend);
+                    break;
+                }
+            }
+            backend
         } else {
-            &system_props.system_name
+            available_backends.first().copied()
         }
-    );
+        .ok_or(XrError::NoAvailableBackend)?;
 
-    let (WgpuGraphics(device, queue, adapter_info, adapter, wgpu_instance), create_info) =
-        instance.init_graphics(system_id)?;
+        let exts = self.exts.clone() & available_exts;
 
-    app.add_plugins((
-        RenderPlugin {
-            render_creation: RenderCreation::manual(
-                device.into(),
-                RenderQueue(queue.into()),
-                RenderAdapterInfo(adapter_info),
-                RenderAdapter(adapter.into()),
-                RenderInstance(wgpu_instance.into()),
-            ),
-            synchronous_pipeline_compilation: config.synchronous_pipeline_compilation,
-        },
-        ExtractComponentPlugin::<XrRoot>::default(),
-        ExtractResourcePlugin::<XrTime>::default(),
-        ExtractResourcePlugin::<XrStatus>::default(),
-    ))
-    .insert_resource(instance.clone())
-    .insert_resource(SystemId(system_id))
-    .insert_resource(XrStatus::Available)
-    .insert_non_send_resource(XrSessionInitConfig {
-        blend_modes: config.blend_modes.clone(),
-        formats: config.formats.clone(),
-        resolutions: config.resolutions.clone(),
-        create_info,
-    })
-    .add_systems(
-        First,
-        poll_events.run_if(session_available).before(handle_session),
-    )
-    .add_systems(
-        PreUpdate,
-        (
-            create_xr_session
-                .run_if(on_event::<CreateXrSession>())
-                .run_if(status_equals(XrStatus::Available)),
-            begin_xr_session
-                .run_if(status_equals(XrStatus::Ready))
-                .run_if(on_event::<BeginXrSession>()),
-            adopt_open_xr_trackers,
-        )
-            .chain(),
-    )
-    .add_systems(
-        PostUpdate,
-        update_root_transform_components.after(TransformSystem::TransformPropagate),
-    )
-    .sub_app_mut(RenderApp)
-    .insert_resource(instance)
-    .insert_resource(SystemId(system_id))
-    .add_systems(
-        ExtractSchedule,
-        transfer_xr_resources.run_if(not(session_running)),
-    );
+        let instance = entry.create_instance(
+            self.app_info.clone(),
+            exts,
+            // &["XR_APILAYER_LUNARG_api_dump"],
+            &[],
+            backend,
+        )?;
+        let instance_props = instance.properties()?;
 
-    app.world
-        .spawn((TransformBundle::default(), OpenXrTrackingRoot));
-
-    Ok(())
-}
-
-#[derive(Component, ExtractComponent, Clone, Deref, DerefMut, Default)]
-pub struct XrRoot(pub GlobalTransform);
-
-#[derive(Component)]
-/// This is the root location of the playspace. Moving this entity around moves the rest of the playspace around.
-pub struct OpenXrTrackingRoot;
-
-#[derive(Component)]
-/// Marker component for any entities that should be children of [`OpenXrTrackingRoot`]
-pub struct OpenXrTracker;
-
-pub fn adopt_open_xr_trackers(
-    query: Query<Entity, (With<OpenXrTracker>, Without<Parent>)>,
-    mut commands: Commands,
-    tracking_root_query: Query<Entity, With<OpenXrTrackingRoot>>,
-) {
-    let root = tracking_root_query.get_single();
-    match root {
-        Ok(root) => {
-            // info!("root is");
-            for tracker in query.iter() {
-                info!("we got a new tracker");
-                commands.entity(root).add_child(tracker);
-            }
-        }
-        Err(_) => info!("root isnt spawned yet?"),
-    }
-}
-
-fn update_root_transform_components(
-    mut component_query: Query<&mut XrRoot>,
-    root_query: Query<&GlobalTransform, With<OpenXrTrackingRoot>>,
-) {
-    let root = match root_query.get_single() {
-        Ok(v) => v,
-        Err(err) => {
-            warn!("No or too many XrTracking Roots: {}", err);
-            return;
-        }
-    };
-    component_query
-        .par_iter_mut()
-        .for_each(|mut root_transform| **root_transform = *root);
-}
-
-/// This is used to store information from startup that is needed to create the session after the instance has been created.
-struct XrSessionInitConfig {
-    /// List of blend modes the openxr session can use. If [None], pick the first available blend mode.
-    blend_modes: Option<Vec<EnvironmentBlendMode>>,
-    /// List of formats the openxr session can use. If [None], pick the first available format
-    formats: Option<Vec<wgpu::TextureFormat>>,
-    /// List of resolutions that the openxr swapchain can use. If [None] pick the first available resolution.
-    resolutions: Option<Vec<UVec2>>,
-    /// Graphics info used to create a session.
-    create_info: SessionCreateInfo,
-}
-
-pub fn create_xr_session(world: &mut World) {
-    let Some(create_info) = world.remove_non_send_resource() else {
-        error!(
-            "Failed to retrive SessionCreateInfo. This is likely due to improper initialization."
+        info!(
+            "Loaded OpenXR runtime: {} {}",
+            instance_props.runtime_name, instance_props.runtime_version
         );
-        return;
-    };
 
-    let Some(instance) = world.get_resource().cloned() else {
-        error!("Failed to retrieve XrInstance. This is likely due to improper initialization.");
-        return;
-    };
+        let system_id = instance.system(openxr::FormFactor::HEAD_MOUNTED_DISPLAY)?;
+        let system_props = instance.system_properties(system_id)?;
 
-    let Some(system_id) = world.get_resource::<SystemId>().cloned() else {
-        error!("Failed to retrieve SystemId. THis is likely due to improper initialization");
-        return;
-    };
+        info!(
+            "Using system: {}",
+            if system_props.system_name.is_empty() {
+                "<unnamed>"
+            } else {
+                &system_props.system_name
+            }
+        );
 
-    if let Err(e) = create_xr_session_inner(world, instance, *system_id, create_info) {
-        error!("Failed to initialize XrSession: {e}");
+        let (graphics, graphics_info) = instance.init_graphics(system_id)?;
+
+        let session_create_info = XrSessionCreateInfo {
+            blend_modes: self.blend_modes.clone(),
+            formats: self.formats.clone(),
+            resolutions: self.resolutions.clone(),
+            graphics_info,
+        };
+
+        Ok((
+            instance,
+            XrSystemId(system_id),
+            graphics,
+            session_create_info,
+        ))
     }
 }
 
-/// This is called from [create_xr_session]. It is a separate function to allow us to return a [Result] and make control flow cleaner.
-fn create_xr_session_inner(
-    world: &mut World,
-    instance: XrInstance,
+fn init_xr_session(
+    device: &wgpu::Device,
+    instance: &XrInstance,
     system_id: openxr::SystemId,
-    config: XrSessionInitConfig,
-) -> Result<()> {
+    XrSessionCreateInfo {
+        blend_modes,
+        formats,
+        resolutions,
+        graphics_info,
+    }: XrSessionCreateInfo,
+) -> Result<(
+    XrSession,
+    XrFrameWaiter,
+    XrFrameStream,
+    XrSwapchain,
+    XrSwapchainImages,
+    XrGraphicsInfo,
+    XrStage,
+)> {
     let (session, frame_waiter, frame_stream) =
-        unsafe { instance.create_session(system_id, config.create_info)? };
+        unsafe { instance.create_session(system_id, graphics_info)? };
 
     // TODO!() support other view configurations
     let available_view_configurations = instance.enumerate_view_configurations(system_id)?;
@@ -286,7 +251,7 @@ fn create_xr_session_inner(
     let view_configuration_views =
         instance.enumerate_view_configuration_views(system_id, view_configuration_type)?;
 
-    let (resolution, _view) = if let Some(resolutions) = &config.resolutions {
+    let (resolution, _view) = if let Some(resolutions) = &resolutions {
         let mut preferred = None;
         for resolution in resolutions {
             for view_config in view_configuration_views.iter() {
@@ -328,7 +293,7 @@ fn create_xr_session_inner(
 
     let available_formats = session.enumerate_swapchain_formats()?;
 
-    let format = if let Some(formats) = &config.formats {
+    let format = if let Some(formats) = &formats {
         let mut format = None;
         for wanted_format in formats {
             if available_formats.contains(wanted_format) {
@@ -354,17 +319,13 @@ fn create_xr_session_inner(
         mip_count: 1,
     })?;
 
-    let images = swapchain.enumerate_images(
-        world.resource::<RenderDevice>().wgpu_device(),
-        format,
-        resolution,
-    )?;
+    let images = swapchain.enumerate_images(device, format, resolution)?;
 
     let available_blend_modes =
         instance.enumerate_environment_blend_modes(system_id, view_configuration_type)?;
 
     // blend mode selection
-    let blend_mode = if let Some(wanted_blend_modes) = &config.blend_modes {
+    let blend_mode = if let Some(wanted_blend_modes) = &blend_modes {
         let mut blend_mode = None;
         for wanted_blend_mode in wanted_blend_modes {
             if available_blend_modes.contains(wanted_blend_mode) {
@@ -390,29 +351,15 @@ fn create_xr_session_inner(
         format,
     };
 
-    world.insert_resource(session.clone());
-    world.insert_resource(frame_waiter);
-    world.insert_resource(images.clone());
-    world.insert_resource(graphics_info.clone());
-    world.insert_resource(stage.clone());
-    world.insert_resource(frame_stream.clone());
-    world.insert_resource(XrRenderResources {
+    Ok((
         session,
+        frame_waiter,
         frame_stream,
         swapchain,
         images,
         graphics_info,
         stage,
-    });
-
-    Ok(())
-}
-
-pub fn begin_xr_session(session: Res<XrSession>, mut status: ResMut<XrStatus>) {
-    session
-        .begin(openxr::ViewConfigurationType::PRIMARY_STEREO)
-        .expect("Failed to begin session");
-    *status = XrStatus::Running;
+    ))
 }
 
 /// This is used solely to transport resources from the main world to the render world.
@@ -424,6 +371,51 @@ struct XrRenderResources {
     images: XrSwapchainImages,
     graphics_info: XrGraphicsInfo,
     stage: XrStage,
+}
+
+pub fn create_xr_session(
+    device: Res<RenderDevice>,
+    instance: Res<XrInstance>,
+    create_info: NonSend<XrSessionCreateInfo>,
+    system_id: Res<XrSystemId>,
+    mut commands: Commands,
+) {
+    match init_xr_session(
+        device.wgpu_device(),
+        &instance,
+        **system_id,
+        create_info.clone(),
+    ) {
+        Ok((session, frame_waiter, frame_stream, swapchain, images, graphics_info, stage)) => {
+            commands.insert_resource(session.clone());
+            commands.insert_resource(frame_waiter);
+            commands.insert_resource(images.clone());
+            commands.insert_resource(graphics_info.clone());
+            commands.insert_resource(stage.clone());
+            commands.insert_resource(frame_stream.clone());
+            commands.insert_resource(XrRenderResources {
+                session,
+                frame_stream,
+                swapchain,
+                images,
+                graphics_info,
+                stage,
+            });
+        }
+        Err(e) => error!("Failed to initialize XrSession: {e}"),
+    }
+}
+
+pub fn begin_xr_session(session: Res<XrSession>, session_started: Res<XrSessionStarted>) {
+    session
+        .begin(openxr::ViewConfigurationType::PRIMARY_STEREO)
+        .expect("Failed to begin session");
+    session_started.set(true);
+}
+
+pub fn end_xr_session(session: Res<XrSession>, session_started: Res<XrSessionStarted>) {
+    session.end().expect("Failed to end session");
+    session_started.set(false);
 }
 
 /// This system transfers important render resources from the main world to the render world when a session is created.
@@ -448,8 +440,8 @@ pub fn transfer_xr_resources(mut commands: Commands, mut world: ResMut<MainWorld
     commands.insert_resource(stage);
 }
 
-/// Poll any OpenXR events and handle them accordingly
-pub fn poll_events(instance: Res<XrInstance>, mut status: ResMut<XrStatus>) {
+/// Polls any OpenXR events and handles them accordingly
+pub fn poll_events(instance: Res<XrInstance>, status: Res<XrSharedStatus>) {
     let mut buffer = Default::default();
     while let Some(event) = instance
         .poll_event(&mut buffer)
@@ -457,29 +449,28 @@ pub fn poll_events(instance: Res<XrInstance>, mut status: ResMut<XrStatus>) {
     {
         use openxr::Event::*;
         match event {
-            SessionStateChanged(e) => {
-                info!("entered XR state {:?}", e.state());
+            SessionStateChanged(state) => {
                 use openxr::SessionState;
 
-                match e.state() {
-                    SessionState::IDLE => {
-                        *status = XrStatus::Idle;
-                    }
-                    SessionState::READY => {
-                        *status = XrStatus::Ready;
-                    }
+                let state = state.state();
+
+                info!("entered XR state {:?}", state);
+
+                let new_status = match state {
+                    SessionState::IDLE => XrStatus::Idle,
+                    SessionState::READY => XrStatus::Ready,
                     SessionState::SYNCHRONIZED | SessionState::VISIBLE | SessionState::FOCUSED => {
-                        status.set_if_neq(XrStatus::Running);
+                        XrStatus::Running
                     }
-                    SessionState::STOPPING => *status = XrStatus::Stopping,
-                    // TODO: figure out how to destroy the session
-                    SessionState::EXITING | SessionState::LOSS_PENDING => {
-                        *status = XrStatus::Exiting;
-                    }
-                    _ => {}
-                }
+                    SessionState::STOPPING => XrStatus::Stopping,
+                    SessionState::EXITING | SessionState::LOSS_PENDING => XrStatus::Exiting,
+                    _ => unreachable!(),
+                };
+
+                status.set(new_status);
             }
             InstanceLossPending(_) => {}
+            EventsLost(e) => warn!("lost {} XR events", e.lost_event_count()),
             _ => {}
         }
     }
