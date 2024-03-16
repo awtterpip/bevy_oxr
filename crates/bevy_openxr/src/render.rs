@@ -8,13 +8,14 @@ use bevy::{
         Render, RenderApp, RenderSet,
     },
 };
-use bevy_xr::camera::{XrCamera, XrCameraBundle, XrProjection};
+use bevy_xr::{
+    camera::{XrCamera, XrCameraBundle, XrProjection},
+    session::session_running,
+};
 use openxr::{CompositionLayerFlags, ViewStateFlags};
 
 use crate::{init::OpenXrTracker, resources::*};
 use crate::{init::XrRoot, layer_builder::*};
-
-use crate::init::session_running;
 
 pub struct XrRenderPlugin;
 
@@ -36,7 +37,7 @@ impl Plugin for XrRenderPlugin {
             Render,
             (
                 (
-                    locate_views,
+                    //locate_views,
                     update_views_render_world,
                     insert_texture_views,
                 )

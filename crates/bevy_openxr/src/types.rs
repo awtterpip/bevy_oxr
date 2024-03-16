@@ -4,7 +4,9 @@ use crate::error::XrError;
 pub use crate::extensions::XrExtensions;
 use crate::graphics::GraphicsExt;
 
-pub use openxr::{EnvironmentBlendMode, SwapchainCreateFlags, SwapchainUsageFlags};
+pub use openxr::{
+    ApiLayerProperties, EnvironmentBlendMode, SwapchainCreateFlags, SwapchainUsageFlags,
+};
 
 pub type Result<T> = std::result::Result<T, XrError>;
 

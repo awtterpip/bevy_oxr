@@ -1,7 +1,7 @@
-use bevy::app::{App, First, Plugin, PostUpdate};
+use bevy::app::{App, First, Plugin, PostUpdate, PreUpdate};
+use bevy::ecs::change_detection::DetectChangesMut;
 use bevy::ecs::component::Component;
 use bevy::ecs::entity::Entity;
-use bevy::ecs::event::EventWriter;
 use bevy::ecs::query::{With, Without};
 use bevy::ecs::schedule::common_conditions::{not, on_event};
 use bevy::ecs::schedule::IntoSystemConfigs;
@@ -21,7 +21,8 @@ use bevy::render::{ExtractSchedule, MainWorld, RenderApp, RenderPlugin};
 use bevy::transform::components::GlobalTransform;
 use bevy::transform::{TransformBundle, TransformSystem};
 use bevy_xr::session::{
-    BeginXrSession, CreateXrSession, XrInstanceCreated, XrInstanceDestroyed, XrSessionState,
+    handle_session, session_available, session_running, status_equals, BeginXrSession,
+    CreateXrSession, XrStatus,
 };
 
 use crate::error::XrError;
@@ -47,28 +48,12 @@ pub struct XrInitPlugin {
     pub synchronous_pipeline_compilation: bool,
 }
 
-pub fn instance_created(status: Option<Res<XrStatus>>) -> bool {
-    status.is_some_and(|status| status.instance_created)
-}
-
-pub fn session_created(status: Option<Res<XrStatus>>) -> bool {
-    status.is_some_and(|status| status.session_created)
-}
-
-pub fn session_ready(status: Option<Res<XrStatus>>) -> bool {
-    status.is_some_and(|status| status.session_ready)
-}
-
-pub fn session_running(status: Option<Res<XrStatus>>) -> bool {
-    status.is_some_and(|status| status.session_running)
-}
-
 impl Plugin for XrInitPlugin {
     fn build(&self, app: &mut App) {
         if let Err(e) = init_xr(&self, app) {
             error!("Failed to initialize openxr instance: {e}.");
             app.add_plugins(RenderPlugin::default())
-                .insert_resource(XrStatus::UNINITIALIZED);
+                .insert_resource(XrStatus::Unavailable);
         }
     }
 }
@@ -113,7 +98,12 @@ fn init_xr(config: &XrInitPlugin, app: &mut App) -> Result<()> {
 
     let exts = config.exts.clone() & available_exts;
 
-    let instance = entry.create_instance(config.app_info.clone(), exts, backend)?;
+    let instance = entry.create_instance(
+        config.app_info.clone(),
+        exts,
+        &["XR_APILAYER_LUNARG_api_dump"],
+        backend,
+    )?;
     let instance_props = instance.properties()?;
 
     info!(
@@ -136,7 +126,6 @@ fn init_xr(config: &XrInitPlugin, app: &mut App) -> Result<()> {
     let (WgpuGraphics(device, queue, adapter_info, adapter, wgpu_instance), create_info) =
         instance.init_graphics(system_id)?;
 
-    app.world.send_event(XrInstanceCreated);
     app.add_plugins((
         RenderPlugin {
             render_creation: RenderCreation::manual(
@@ -154,10 +143,7 @@ fn init_xr(config: &XrInitPlugin, app: &mut App) -> Result<()> {
     ))
     .insert_resource(instance.clone())
     .insert_resource(SystemId(system_id))
-    .insert_resource(XrStatus {
-        instance_created: true,
-        ..Default::default()
-    })
+    .insert_resource(XrStatus::Available)
     .insert_non_send_resource(XrSessionInitConfig {
         blend_modes: config.blend_modes.clone(),
         formats: config.formats.clone(),
@@ -166,13 +152,16 @@ fn init_xr(config: &XrInitPlugin, app: &mut App) -> Result<()> {
     })
     .add_systems(
         First,
+        poll_events.run_if(session_available).before(handle_session),
+    )
+    .add_systems(
+        PreUpdate,
         (
-            poll_events.run_if(instance_created),
             create_xr_session
-                .run_if(not(session_created))
-                .run_if(on_event::<CreateXrSession>()),
+                .run_if(on_event::<CreateXrSession>())
+                .run_if(status_equals(XrStatus::Available)),
             begin_xr_session
-                .run_if(session_ready)
+                .run_if(status_equals(XrStatus::Ready))
                 .run_if(on_event::<BeginXrSession>()),
             adopt_open_xr_trackers,
         )
@@ -401,7 +390,6 @@ fn create_xr_session_inner(
         format,
     };
 
-    world.resource_mut::<XrStatus>().session_created = true;
     world.insert_resource(session.clone());
     world.insert_resource(frame_waiter);
     world.insert_resource(images.clone());
@@ -420,16 +408,11 @@ fn create_xr_session_inner(
     Ok(())
 }
 
-pub fn begin_xr_session(
-    session: Res<XrSession>,
-    mut session_state: EventWriter<XrSessionState>,
-    mut status: ResMut<XrStatus>,
-) {
+pub fn begin_xr_session(session: Res<XrSession>, mut status: ResMut<XrStatus>) {
     session
         .begin(openxr::ViewConfigurationType::PRIMARY_STEREO)
         .expect("Failed to begin session");
-    status.session_running = true;
-    session_state.send(XrSessionState::Running);
+    *status = XrStatus::Running;
 }
 
 /// This is used solely to transport resources from the main world to the render world.
@@ -466,13 +449,7 @@ pub fn transfer_xr_resources(mut commands: Commands, mut world: ResMut<MainWorld
 }
 
 /// Poll any OpenXR events and handle them accordingly
-pub fn poll_events(
-    instance: Res<XrInstance>,
-    session: Option<Res<XrSession>>,
-    mut session_state: EventWriter<XrSessionState>,
-    mut instance_destroyed: EventWriter<XrInstanceDestroyed>,
-    mut status: ResMut<XrStatus>,
-) {
+pub fn poll_events(instance: Res<XrInstance>, mut status: ResMut<XrStatus>) {
     let mut buffer = Default::default();
     while let Some(event) = instance
         .poll_event(&mut buffer)
@@ -481,41 +458,28 @@ pub fn poll_events(
         use openxr::Event::*;
         match event {
             SessionStateChanged(e) => {
-                if let Some(ref session) = session {
-                    info!("entered XR state {:?}", e.state());
-                    use openxr::SessionState;
+                info!("entered XR state {:?}", e.state());
+                use openxr::SessionState;
 
-                    match e.state() {
-                        SessionState::IDLE => {
-                            status.session_ready = false;
-                            session_state.send(XrSessionState::Idle);
-                        }
-                        SessionState::READY => {
-                            status.session_ready = true;
-                            session_state.send(XrSessionState::Ready);
-                        }
-                        SessionState::STOPPING => {
-                            status.session_running = false;
-                            status.session_ready = false;
-                            session.end().expect("Failed to end session");
-                            session_state.send(XrSessionState::Stopping);
-                        }
-                        // TODO: figure out how to destroy the session
-                        SessionState::EXITING | SessionState::LOSS_PENDING => {
-                            status.session_running = false;
-                            status.session_created = false;
-                            status.session_ready = false;
-                            session.end().expect("Failed to end session");
-                            session_state.send(XrSessionState::Destroyed);
-                        }
-                        _ => {}
+                match e.state() {
+                    SessionState::IDLE => {
+                        *status = XrStatus::Idle;
                     }
+                    SessionState::READY => {
+                        *status = XrStatus::Ready;
+                    }
+                    SessionState::SYNCHRONIZED | SessionState::VISIBLE | SessionState::FOCUSED => {
+                        status.set_if_neq(XrStatus::Running);
+                    }
+                    SessionState::STOPPING => *status = XrStatus::Stopping,
+                    // TODO: figure out how to destroy the session
+                    SessionState::EXITING | SessionState::LOSS_PENDING => {
+                        *status = XrStatus::Exiting;
+                    }
+                    _ => {}
                 }
             }
-            InstanceLossPending(_) => {
-                *status = XrStatus::UNINITIALIZED;
-                instance_destroyed.send_default();
-            }
+            InstanceLossPending(_) => {}
             _ => {}
         }
     }

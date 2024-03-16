@@ -20,6 +20,7 @@ impl XrEntry {
         &self,
         app_info: AppInfo,
         exts: XrExtensions,
+        layers: &[&str],
         backend: GraphicsBackend,
     ) -> Result<XrInstance> {
         let available_exts = self.enumerate_extensions()?;
@@ -38,7 +39,7 @@ impl XrEntry {
                 engine_version: Version::BEVY.to_u32(),
             },
             &required_exts.into(),
-            &[],
+            layers,
         )?;
 
         Ok(XrInstance(instance, backend, app_info))
@@ -253,23 +254,6 @@ pub struct XrSwapchainInfo {
 
 #[derive(Debug, Copy, Clone, Deref, Default, Eq, PartialEq, Ord, PartialOrd, Hash, Resource)]
 pub struct SystemId(pub openxr::SystemId);
-
-#[derive(Clone, Copy, Eq, PartialEq, Default, Resource, ExtractResource)]
-pub struct XrStatus {
-    pub instance_created: bool,
-    pub session_created: bool,
-    pub session_ready: bool,
-    pub session_running: bool,
-}
-
-impl XrStatus {
-    pub const UNINITIALIZED: Self = Self {
-        instance_created: false,
-        session_created: false,
-        session_ready: false,
-        session_running: false,
-    };
-}
 
 #[derive(Clone, Copy, Resource)]
 pub struct XrGraphicsInfo {
