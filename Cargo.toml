@@ -13,7 +13,7 @@ repository = "https://github.com/awtterpip/bevy_oxr"
 [workspace.dependencies]
 eyre = "0.6.2"
 bevy = "0.13"
-openxr = { git = "https://github.com/Ralith/openxrs", rev = "0177d2d" }
+openxr = "0.18"
 color-eyre = "0.6.2"
 
 [package]
