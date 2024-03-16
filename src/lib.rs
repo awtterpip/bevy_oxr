@@ -182,7 +182,6 @@ pub enum Backend {
     D3D12,
 }
 
-
 fn clean_resources_render(cmds: &mut World) {
     // let session = cmds.remove_resource::<XrSession>().unwrap();
     cmds.remove_resource::<XrSession>();
