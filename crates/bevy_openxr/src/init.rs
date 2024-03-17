@@ -7,6 +7,7 @@ use bevy::render::renderer::{
 };
 use bevy::render::settings::RenderCreation;
 use bevy::render::{MainWorld, RenderApp, RenderPlugin};
+use bevy::winit::{UpdateMode, WinitSettings};
 use bevy_xr::session::{
     handle_session, session_available, session_running, status_equals, BeginXrSession,
     CreateXrSession, EndXrSession, XrSharedStatus, XrStatus,
@@ -101,6 +102,10 @@ impl Plugin for XrInitPlugin {
                 .insert_resource(instance.clone())
                 .insert_resource(system_id)
                 .insert_resource(status.clone())
+                .insert_resource(WinitSettings {
+                    focused_mode: UpdateMode::Continuous,
+                    unfocused_mode: UpdateMode::Continuous,
+                })
                 .insert_non_send_resource(session_create_info);
 
                 let render_app = app.sub_app_mut(RenderApp);
@@ -419,6 +424,7 @@ pub fn create_xr_session(
 }
 
 pub fn begin_xr_session(session: Res<XrSession>, session_started: Res<XrSessionStarted>) {
+    let _span = info_span!("xr_begin_session");
     session
         .begin(openxr::ViewConfigurationType::PRIMARY_STEREO)
         .expect("Failed to begin session");
@@ -426,6 +432,7 @@ pub fn begin_xr_session(session: Res<XrSession>, session_started: Res<XrSessionS
 }
 
 pub fn end_xr_session(session: Res<XrSession>, session_started: Res<XrSessionStarted>) {
+    let _span = info_span!("xr_end_session");
     session.end().expect("Failed to end session");
     session_started.set(false);
 }
@@ -475,6 +482,7 @@ pub fn poll_events(
     app_exiting: Res<AppExiting>,
     mut exit_app: EventWriter<AppExit>,
 ) {
+    let _span = info_span!("xr_poll_events");
     let mut buffer = Default::default();
     while let Some(event) = instance
         .poll_event(&mut buffer)
