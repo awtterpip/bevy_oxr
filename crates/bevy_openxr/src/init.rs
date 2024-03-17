@@ -7,6 +7,7 @@ use bevy::render::renderer::{
 };
 use bevy::render::settings::RenderCreation;
 use bevy::render::{MainWorld, RenderApp, RenderPlugin};
+use bevy::transform::TransformSystem;
 use bevy::winit::{UpdateMode, WinitSettings};
 use bevy_xr::session::{
     handle_session, session_available, session_running, status_equals, BeginXrSession,
@@ -26,6 +27,9 @@ pub enum XrPreUpdateSet {
     PollEvents,
     HandleEvents,
 }
+
+#[derive(Component)]
+pub struct XrTrackingRoot;
 
 #[derive(Resource, Clone, Copy, PartialEq)]
 pub struct AppExiting(bool);
@@ -71,6 +75,7 @@ impl Plugin for XrInitPlugin {
                         synchronous_pipeline_compilation: self.synchronous_pipeline_compilation,
                     },
                     ExtractResourcePlugin::<XrTime>::default(),
+                    ExtractResourcePlugin::<XrRootTransform>::default(),
                 ))
                 .add_systems(
                     PreUpdate,
@@ -94,6 +99,10 @@ impl Plugin for XrInitPlugin {
                     ),
                 )
                 .add_systems(
+                    PostUpdate,
+                    update_root_transform.after(TransformSystem::TransformPropagate),
+                )
+                .add_systems(
                     Last,
                     app_exit_xr
                         .run_if(resource_equals(AppExiting(false)))
@@ -106,13 +115,18 @@ impl Plugin for XrInitPlugin {
                     focused_mode: UpdateMode::Continuous,
                     unfocused_mode: UpdateMode::Continuous,
                 })
+                .init_resource::<XrRootTransform>()
                 .insert_non_send_resource(session_create_info);
+
+                app.world
+                    .spawn((TransformBundle::default(), XrTrackingRoot));
 
                 let render_app = app.sub_app_mut(RenderApp);
                 render_app
                     .insert_resource(instance)
                     .insert_resource(system_id)
                     .insert_resource(status)
+                    .init_resource::<XrRootTransform>()
                     .add_systems(
                         ExtractSchedule,
                         transfer_xr_resources.run_if(not(session_running)),
@@ -148,6 +162,15 @@ impl Plugin for XrInitPlugin {
 
         render_app.insert_resource(session_started);
     }
+}
+
+pub fn update_root_transform(
+    mut root_transform: ResMut<XrRootTransform>,
+    root: Query<&GlobalTransform, With<XrTrackingRoot>>,
+) {
+    let transform = root.single();
+
+    root_transform.0 = *transform;
 }
 
 fn xr_entry() -> Result<XrEntry> {

@@ -3,6 +3,7 @@ use bevy::{
     render::{
         camera::{ManualTextureView, ManualTextureViewHandle, ManualTextureViews, RenderTarget},
         extract_resource::ExtractResourcePlugin,
+        view::ExtractedView,
         Render, RenderApp, RenderSet,
     },
     transform::TransformSystem,
@@ -23,8 +24,10 @@ impl Plugin for XrRenderPlugin {
                 PreUpdate,
                 (
                     init_views.run_if(resource_added::<XrGraphicsInfo>),
-                    insert_texture_views.run_if(session_started),
                     wait_frame.run_if(session_started),
+                    insert_texture_views.run_if(session_started),
+                    locate_views.run_if(session_started),
+                    update_views.run_if(session_started),
                 )
                     .chain()
                     .after(XrPreUpdateSet::HandleEvents),
@@ -42,6 +45,9 @@ impl Plugin for XrRenderPlugin {
                 // (insert_texture_views)
                 //     .chain()
                 //     .in_set(RenderSet::PrepareAssets),
+                (locate_views, update_views_render_world)
+                    .chain()
+                    .in_set(RenderSet::PrepareAssets),
                 (end_frame).chain().in_set(RenderSet::Cleanup),
             )
                 .run_if(session_started),
@@ -152,6 +158,26 @@ pub fn update_views(
         let openxr::Vector3f { x, y, z } = view.pose.position;
         let translation = Vec3::new(x, y, z);
         transform.translation = translation;
+    }
+}
+
+pub fn update_views_render_world(
+    views: Res<XrViews>,
+    root: Res<XrRootTransform>,
+    mut query: Query<(&mut ExtractedView, &XrCamera)>,
+) {
+    for (mut extracted_view, camera) in query.iter_mut() {
+        let Some(view) = views.get(camera.0 as usize) else {
+            continue;
+        };
+        let mut transform = Transform::IDENTITY;
+        let openxr::Quaternionf { x, y, z, w } = view.pose.orientation;
+        let rotation = Quat::from_xyzw(x, y, z, w);
+        transform.rotation = rotation;
+        let openxr::Vector3f { x, y, z } = view.pose.position;
+        let translation = Vec3::new(x, y, z);
+        transform.translation = translation;
+        extracted_view.transform = root.0.mul_transform(transform);
     }
 }
 

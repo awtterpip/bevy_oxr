@@ -293,3 +293,6 @@ impl XrSessionStarted {
         self.0.load(Ordering::SeqCst)
     }
 }
+
+#[derive(ExtractResource, Resource, Clone, Copy, Default)]
+pub struct XrRootTransform(pub GlobalTransform);
