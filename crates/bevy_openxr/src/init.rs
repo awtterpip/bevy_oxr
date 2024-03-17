@@ -1,3 +1,4 @@
+use bevy::app::AppExit;
 use bevy::math::uvec2;
 use bevy::prelude::*;
 use bevy::render::extract_resource::ExtractResourcePlugin;
@@ -24,6 +25,9 @@ pub enum XrPreUpdateSet {
     PollEvents,
     HandleEvents,
 }
+
+#[derive(Resource, Clone, Copy, PartialEq)]
+pub struct AppExiting(bool);
 
 pub struct XrInitPlugin {
     /// Information about the app this is being used to build.
@@ -83,10 +87,16 @@ impl Plugin for XrInitPlugin {
                                 .run_if(status_equals(XrStatus::Ready)),
                             end_xr_session
                                 .run_if(on_event::<EndXrSession>())
-                                .run_if(session_started),
+                                .run_if(status_equals(XrStatus::Exiting)),
                         )
                             .in_set(XrPreUpdateSet::HandleEvents),
                     ),
+                )
+                .add_systems(
+                    Last,
+                    app_exit_xr
+                        .run_if(resource_equals(AppExiting(false)))
+                        .run_if(on_event::<AppExit>()),
                 )
                 .insert_resource(instance.clone())
                 .insert_resource(system_id)
@@ -126,7 +136,8 @@ impl Plugin for XrInitPlugin {
 
         let session_started = XrSessionStarted::default();
 
-        app.insert_resource(session_started.clone());
+        app.insert_resource(session_started.clone())
+            .insert_resource(AppExiting(false));
 
         let render_app = app.sub_app_mut(RenderApp);
 
@@ -177,8 +188,8 @@ impl XrInitPlugin {
         let instance = entry.create_instance(
             self.app_info.clone(),
             exts,
-            // &["XR_APILAYER_LUNARG_api_dump"],
-            &[],
+            &["XR_APILAYER_LUNARG_api_dump"],
+            // &[],
             backend,
         )?;
         let instance_props = instance.properties()?;
@@ -418,6 +429,17 @@ pub fn end_xr_session(session: Res<XrSession>, session_started: Res<XrSessionSta
     session_started.set(false);
 }
 
+pub fn app_exit_xr(
+    mut app_exiting: ResMut<AppExiting>,
+    mut app_exit_events: ResMut<Events<AppExit>>,
+    session_started: Res<XrSessionStarted>,
+) {
+    // we need to temporarily intercept the exit event to allow the session to exit.
+    app_exit_events.clear();
+    *app_exiting = AppExiting(true);
+    session_started.set(false);
+}
+
 /// This system transfers important render resources from the main world to the render world when a session is created.
 pub fn transfer_xr_resources(mut commands: Commands, mut world: ResMut<MainWorld>) {
     let Some(XrRenderResources {
@@ -441,7 +463,13 @@ pub fn transfer_xr_resources(mut commands: Commands, mut world: ResMut<MainWorld
 }
 
 /// Polls any OpenXR events and handles them accordingly
-pub fn poll_events(instance: Res<XrInstance>, status: Res<XrSharedStatus>) {
+pub fn poll_events(
+    instance: Res<XrInstance>,
+    status: Res<XrSharedStatus>,
+    session: Option<Res<XrSession>>,
+    app_exiting: Res<AppExiting>,
+    mut exit_app: EventWriter<AppExit>,
+) {
     let mut buffer = Default::default();
     while let Some(event) = instance
         .poll_event(&mut buffer)
@@ -462,7 +490,17 @@ pub fn poll_events(instance: Res<XrInstance>, status: Res<XrSharedStatus>) {
                     SessionState::SYNCHRONIZED | SessionState::VISIBLE | SessionState::FOCUSED => {
                         XrStatus::Running
                     }
-                    SessionState::STOPPING => XrStatus::Stopping,
+                    SessionState::STOPPING => {
+                        if app_exiting.0 {
+                            if let Some(session) = &session {
+                                session.end().expect("Failed to end session");
+                            }
+
+                            exit_app.send_default();
+                        }
+
+                        XrStatus::Stopping
+                    }
                     SessionState::EXITING | SessionState::LOSS_PENDING => XrStatus::Exiting,
                     _ => unreachable!(),
                 };
