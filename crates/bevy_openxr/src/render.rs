@@ -49,6 +49,9 @@ impl Plugin for XrRenderPlugin {
                 )
                     .chain()
                     .in_set(RenderSet::PrepareAssets),
+                begin_frame
+                    .before(RenderSet::Queue)
+                    .before(insert_texture_views),
                 wait_image.in_set(RenderSet::Render).before(render_system),
                 (end_frame).chain().in_set(RenderSet::Cleanup),
             )
@@ -93,17 +96,12 @@ pub fn init_views(
     commands.insert_resource(XrViews(views));
 }
 
-pub fn wait_frame(
-    mut frame_waiter: ResMut<XrFrameWaiter>,
-    mut commands: Commands,
-    frame_stream: Res<XrFrameStream>,
-) {
+pub fn wait_frame(mut frame_waiter: ResMut<XrFrameWaiter>, mut commands: Commands) {
     let _span = info_span!("xr_wait_frame");
     let state = frame_waiter.wait().expect("Failed to wait frame");
     // Here we insert the predicted display time for when this frame will be displayed.
     // TODO: don't add predicted_display_period if pipelined rendering plugin not enabled
     commands.insert_resource(XrTime(state.predicted_display_time));
-    frame_stream.begin().expect("Failed to begin frame");
 }
 
 pub fn locate_views(
