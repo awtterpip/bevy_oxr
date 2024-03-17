@@ -1,3 +1,5 @@
+use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+
 use bevy::{
     prelude::*,
     render::{
@@ -8,6 +10,7 @@ use bevy::{
         Render, RenderApp, RenderSet,
     },
     transform::TransformSystem,
+    utils::synccell::SyncCell,
 };
 use bevy_xr::camera::{XrCamera, XrCameraBundle, XrProjection};
 use openxr::{CompositionLayerFlags, ViewStateFlags};
@@ -18,8 +21,15 @@ use crate::resources::*;
 
 pub struct XrRenderPlugin;
 
+#[derive(Resource)]
+pub struct FrameReciever(pub SyncCell<Receiver<XrFrameState>>);
+
+#[derive(Resource)]
+pub struct FrameSender(pub SyncSender<XrFrameState>);
+
 impl Plugin for XrRenderPlugin {
     fn build(&self, app: &mut App) {
+        let (frame_sender, frame_reciever) = sync_channel(1);
         app.add_plugins((ExtractResourcePlugin::<XrViews>::default(),))
             .add_systems(
                 PreUpdate,
@@ -32,6 +42,8 @@ impl Plugin for XrRenderPlugin {
                     .chain()
                     .after(XrPreUpdateSet::HandleEvents),
             )
+            .insert_resource(FrameSender(frame_sender))
+            .insert_resource(UsePipelinedTime(true))
             .add_systems(
                 PostUpdate,
                 (locate_views, update_views)
@@ -39,28 +51,37 @@ impl Plugin for XrRenderPlugin {
                     .run_if(session_started)
                     .before(TransformSystem::TransformPropagate),
             );
-        app.sub_app_mut(RenderApp).add_systems(
-            Render,
-            (
+        app.sub_app_mut(RenderApp)
+            .add_systems(
+                Render,
                 (
-                    insert_texture_views,
-                    locate_views,
-                    update_views_render_world,
+                    (
+                        insert_texture_views,
+                        locate_views,
+                        update_views_render_world,
+                    )
+                        .chain()
+                        .in_set(RenderSet::PrepareAssets),
+                    (recieve_frame, begin_frame)
+                        .chain()
+                        .before(RenderSet::Queue)
+                        .after(RenderSet::ExtractCommands)
+                        .before(insert_texture_views),
+                    wait_image.in_set(RenderSet::Render).before(render_system),
+                    (end_frame).chain().in_set(RenderSet::Cleanup),
                 )
-                    .chain()
-                    .in_set(RenderSet::PrepareAssets),
-                begin_frame
-                    .before(RenderSet::Queue)
-                    .before(insert_texture_views),
-                wait_image.in_set(RenderSet::Render).before(render_system),
-                (end_frame).chain().in_set(RenderSet::Cleanup),
+                    .run_if(session_started),
             )
-                .run_if(session_started),
-        );
+            .insert_resource(XrFrameState::placeholder())
+            .insert_resource(FrameReciever(SyncCell::new(frame_reciever)));
     }
 }
 
 pub const XR_TEXTURE_INDEX: u32 = 3383858418;
+
+pub fn recieve_frame(mut receiver: ResMut<FrameReciever>, mut state: ResMut<XrFrameState>) {
+    *state = receiver.0.get().recv().unwrap();
+}
 
 // TODO: have cameras initialized externally and then recieved by this function.
 /// This is needed to properly initialize the texture views so that bevy will set them to the correct resolution despite them being updated in the render world.
@@ -96,25 +117,35 @@ pub fn init_views(
     commands.insert_resource(XrViews(views));
 }
 
-pub fn wait_frame(mut frame_waiter: ResMut<XrFrameWaiter>, mut commands: Commands) {
+pub fn wait_frame(
+    mut frame_waiter: ResMut<XrFrameWaiter>,
+    mut commands: Commands,
+    sender: Res<FrameSender>,
+) {
     let _span = info_span!("xr_wait_frame");
     let state = frame_waiter.wait().expect("Failed to wait frame");
     // Here we insert the predicted display time for when this frame will be displayed.
     // TODO: don't add predicted_display_period if pipelined rendering plugin not enabled
-    commands.insert_resource(XrTime(state.predicted_display_time));
+    commands.insert_resource(XrFrameState(state));
+    sender.0.send(XrFrameState(state)).unwrap();
 }
 
 pub fn locate_views(
     session: Res<XrSession>,
     stage: Res<XrStage>,
-    time: Res<XrTime>,
+    frame_state: Res<XrFrameState>,
     mut openxr_views: ResMut<XrViews>,
+    pipelined: Option<Res<UsePipelinedTime>>,
 ) {
     let _span = info_span!("xr_locate_views");
     let (flags, xr_views) = session
         .locate_views(
             openxr::ViewConfigurationType::PRIMARY_STEREO,
-            **time,
+            if pipelined.is_some_and(|t| t.0) {
+                frame_state.pipelined_time()
+            } else {
+                frame_state.predicted_display_time
+            },
             &stage,
         )
         .expect("Failed to locate views");
@@ -330,7 +361,7 @@ pub fn end_frame(
     mut frame_stream: ResMut<XrFrameStream>,
     mut swapchain: ResMut<XrSwapchain>,
     stage: Res<XrStage>,
-    display_time: Res<XrTime>,
+    frame_state: Res<XrFrameState>,
     graphics_info: Res<XrGraphicsInfo>,
     openxr_views: Res<XrViews>,
 ) {
@@ -345,7 +376,7 @@ pub fn end_frame(
     };
     frame_stream
         .end(
-            **display_time,
+            frame_state.predicted_display_time,
             graphics_info.blend_mode,
             &[&CompositionLayerProjection::new()
                 .layer_flags(CompositionLayerFlags::BLEND_TEXTURE_SOURCE_ALPHA)

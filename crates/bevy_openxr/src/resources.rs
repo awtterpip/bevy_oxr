@@ -244,8 +244,28 @@ pub struct XrStage(pub Arc<openxr::Space>);
 #[derive(Debug, Deref, Resource, Clone)]
 pub struct XrSwapchainImages(pub Arc<Vec<wgpu::Texture>>);
 
-#[derive(Copy, Clone, Eq, PartialEq, Deref, DerefMut, Resource, ExtractResource)]
-pub struct XrTime(pub openxr::Time);
+#[derive(Copy, Clone, Deref, DerefMut, Resource, ExtractResource)]
+pub struct XrFrameState(pub openxr::FrameState);
+
+impl XrFrameState {
+    pub(crate) fn placeholder() -> Self {
+        XrFrameState(openxr::FrameState {
+            predicted_display_time: openxr::Time::from_nanos(0),
+            predicted_display_period: openxr::Duration::from_nanos(0),
+            should_render: false,
+        })
+    }
+
+    /// Returns predicted_display_time + predicted_display_period
+    pub fn pipelined_time(&self) -> openxr::Time {
+        openxr::Time::from_nanos(
+            self.predicted_display_time.as_nanos() + self.predicted_display_period.as_nanos(),
+        )
+    }
+}
+
+#[derive(Resource)]
+pub struct UsePipelinedTime(pub bool);
 
 #[derive(Copy, Clone, Eq, PartialEq, Resource)]
 pub struct XrSwapchainInfo {

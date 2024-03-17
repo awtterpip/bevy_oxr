@@ -74,7 +74,7 @@ impl Plugin for XrInitPlugin {
                         ),
                         synchronous_pipeline_compilation: self.synchronous_pipeline_compilation,
                     },
-                    ExtractResourcePlugin::<XrTime>::default(),
+                    ExtractResourcePlugin::<XrFrameState>::default(),
                     ExtractResourcePlugin::<XrRootTransform>::default(),
                 ))
                 .add_systems(
