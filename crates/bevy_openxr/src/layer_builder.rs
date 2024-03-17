@@ -33,7 +33,7 @@ impl<'a> SwapchainSubImage<'a> {
     pub fn swapchain(mut self, value: &'a XrSwapchain) -> Self {
         graphics_match!(
             &value.0;
-            swap => self.inner.swapchain = swap.as_raw()
+            swap => self.inner.swapchain = swap.lock().unwrap().as_raw()
         );
         self.swapchain = Some(value);
         self

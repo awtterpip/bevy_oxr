@@ -87,7 +87,7 @@ impl Plugin for XrInitPlugin {
                                 .run_if(status_equals(XrStatus::Ready)),
                             end_xr_session
                                 .run_if(on_event::<EndXrSession>())
-                                .run_if(status_equals(XrStatus::Exiting)),
+                                .run_if(status_equals(XrStatus::Stopping)),
                         )
                             .in_set(XrPreUpdateSet::HandleEvents),
                     ),
@@ -188,8 +188,8 @@ impl XrInitPlugin {
         let instance = entry.create_instance(
             self.app_info.clone(),
             exts,
-            &["XR_APILAYER_LUNARG_api_dump"],
-            // &[],
+            // &["XR_APILAYER_LUNARG_api_dump"],
+            &[],
             backend,
         )?;
         let instance_props = instance.properties()?;
@@ -317,7 +317,7 @@ fn init_xr_session(
     }
     .ok_or(XrError::NoAvailableFormat)?;
 
-    let mut swapchain = session.create_swapchain(SwapchainCreateInfo {
+    let swapchain = session.create_swapchain(SwapchainCreateInfo {
         create_flags: SwapchainCreateFlags::EMPTY,
         usage_flags: SwapchainUsageFlags::COLOR_ATTACHMENT | SwapchainUsageFlags::SAMPLED,
         format,
@@ -404,6 +404,7 @@ pub fn create_xr_session(
             commands.insert_resource(graphics_info.clone());
             commands.insert_resource(stage.clone());
             commands.insert_resource(frame_stream.clone());
+            commands.insert_resource(swapchain.clone());
             commands.insert_resource(XrRenderResources {
                 session,
                 frame_stream,
@@ -433,11 +434,15 @@ pub fn app_exit_xr(
     mut app_exiting: ResMut<AppExiting>,
     mut app_exit_events: ResMut<Events<AppExit>>,
     session_started: Res<XrSessionStarted>,
+    session: Option<Res<XrSession>>,
 ) {
     // we need to temporarily intercept the exit event to allow the session to exit.
     app_exit_events.clear();
     *app_exiting = AppExiting(true);
     session_started.set(false);
+    if let Some(session) = &session {
+        session.request_exit().expect("Failed to request exit");
+    }
 }
 
 /// This system transfers important render resources from the main world to the render world when a session is created.

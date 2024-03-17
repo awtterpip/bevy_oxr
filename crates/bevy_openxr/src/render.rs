@@ -23,6 +23,7 @@ impl Plugin for XrRenderPlugin {
                 PreUpdate,
                 (
                     init_views.run_if(resource_added::<XrGraphicsInfo>),
+                    insert_texture_views.run_if(session_started),
                     wait_frame.run_if(session_started),
                 )
                     .chain()
@@ -38,13 +39,10 @@ impl Plugin for XrRenderPlugin {
         app.sub_app_mut(RenderApp).add_systems(
             Render,
             (
-                (
-                    // begin_frame,
-                    insert_texture_views
-                )
-                    .chain()
-                    .in_set(RenderSet::PrepareAssets),
-                (locate_views, end_frame).chain().in_set(RenderSet::Cleanup),
+                // (insert_texture_views)
+                //     .chain()
+                //     .in_set(RenderSet::PrepareAssets),
+                (end_frame).chain().in_set(RenderSet::Cleanup),
             )
                 .run_if(session_started),
         );
@@ -255,7 +253,7 @@ fn calculate_projection(near_z: f32, fov: openxr::Fovf) -> Mat4 {
 
 pub fn insert_texture_views(
     swapchain_images: Res<XrSwapchainImages>,
-    mut swapchain: ResMut<XrSwapchain>,
+    swapchain: ResMut<XrSwapchain>,
     mut manual_texture_views: ResMut<ManualTextureViews>,
     graphics_info: Res<XrGraphicsInfo>,
 ) {
@@ -298,8 +296,8 @@ pub fn begin_frame(frame_stream: ResMut<XrFrameStream>) {
 }
 
 pub fn end_frame(
-    mut frame_stream: ResMut<XrFrameStream>,
-    mut swapchain: ResMut<XrSwapchain>,
+    frame_stream: ResMut<XrFrameStream>,
+    swapchain: ResMut<XrSwapchain>,
     stage: Res<XrStage>,
     display_time: Res<XrTime>,
     graphics_info: Res<XrGraphicsInfo>,

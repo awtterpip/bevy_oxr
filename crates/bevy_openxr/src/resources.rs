@@ -134,7 +134,7 @@ impl XrSession {
     pub fn create_swapchain(&self, info: SwapchainCreateInfo) -> Result<XrSwapchain> {
         Ok(XrSwapchain(graphics_match!(
             &self.1;
-            session => session.create_swapchain(&info.try_into()?)? => XrSwapchain
+            session => Arc::new(Mutex::new(session.create_swapchain(&info.try_into()?)?)) => XrSwapchain
         )))
     }
 }
@@ -155,13 +155,13 @@ impl XrFrameStream {
     }
 
     pub fn end(
-        &mut self,
+        &self,
         display_time: openxr::Time,
         environment_blend_mode: openxr::EnvironmentBlendMode,
         layers: &[&dyn CompositionLayer],
     ) -> Result<()> {
         graphics_match!(
-            &mut self.0;
+            &self.0;
             stream => {
                 let mut stream = stream.lock().unwrap();
                 let mut new_layers = vec![];
@@ -189,44 +189,45 @@ impl XrFrameStream {
 #[derive(Resource, Deref, DerefMut)]
 pub struct XrFrameWaiter(pub openxr::FrameWaiter);
 
-#[derive(Resource)]
+#[derive(Resource, Clone)]
 pub struct XrSwapchain(pub(crate) GraphicsWrap<Self>);
 
 impl GraphicsType for XrSwapchain {
-    type Inner<G: GraphicsExt> = openxr::Swapchain<G>;
+    type Inner<G: GraphicsExt> = Arc<Mutex<openxr::Swapchain<G>>>;
 }
 
 impl XrSwapchain {
-    pub fn acquire_image(&mut self) -> Result<u32> {
+    pub fn acquire_image(&self) -> Result<u32> {
         graphics_match!(
-            &mut self.0;
-            swap => Ok(swap.acquire_image()?)
+            &self.0;
+            swap => Ok(swap.lock().unwrap().acquire_image()?)
         )
     }
 
-    pub fn wait_image(&mut self, timeout: openxr::Duration) -> Result<()> {
+    pub fn wait_image(&self, timeout: openxr::Duration) -> Result<()> {
         graphics_match!(
-            &mut self.0;
-            swap => Ok(swap.wait_image(timeout)?)
+            &self.0;
+            swap => Ok(swap.lock().unwrap().wait_image(timeout)?)
         )
     }
 
-    pub fn release_image(&mut self) -> Result<()> {
+    pub fn release_image(&self) -> Result<()> {
         graphics_match!(
-            &mut self.0;
-            swap => Ok(swap.release_image()?)
+            &self.0;
+            swap => Ok(swap.lock().unwrap().release_image()?)
         )
     }
 
     pub fn enumerate_images(
-        &mut self,
+        &self,
         device: &wgpu::Device,
         format: wgpu::TextureFormat,
         resolution: UVec2,
     ) -> Result<XrSwapchainImages> {
         graphics_match!(
-            &mut self.0;
+            &self.0;
             swap => {
+                let swap = swap.lock().unwrap();
                 let mut images = vec![];
                 for image in swap.enumerate_images()? {
                     unsafe {
