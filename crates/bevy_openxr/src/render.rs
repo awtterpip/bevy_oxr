@@ -3,6 +3,7 @@ use bevy::{
     render::{
         camera::{ManualTextureView, ManualTextureViewHandle, ManualTextureViews, RenderTarget},
         extract_resource::ExtractResourcePlugin,
+        renderer::render_system,
         view::ExtractedView,
         Render, RenderApp, RenderSet,
     },
@@ -25,7 +26,6 @@ impl Plugin for XrRenderPlugin {
                 (
                     init_views.run_if(resource_added::<XrGraphicsInfo>),
                     wait_frame.run_if(session_started),
-                    insert_texture_views.run_if(session_started),
                     locate_views.run_if(session_started),
                     update_views.run_if(session_started),
                 )
@@ -42,12 +42,14 @@ impl Plugin for XrRenderPlugin {
         app.sub_app_mut(RenderApp).add_systems(
             Render,
             (
-                // (insert_texture_views)
-                //     .chain()
-                //     .in_set(RenderSet::PrepareAssets),
-                (locate_views, update_views_render_world)
+                (
+                    insert_texture_views,
+                    locate_views,
+                    update_views_render_world,
+                )
                     .chain()
                     .in_set(RenderSet::PrepareAssets),
+                wait_image.in_set(RenderSet::Render).before(render_system),
                 (end_frame).chain().in_set(RenderSet::Cleanup),
             )
                 .run_if(session_started),
@@ -277,22 +279,27 @@ fn calculate_projection(near_z: f32, fov: openxr::Fovf) -> Mat4 {
     Mat4::from_cols_array(&cols)
 }
 
+/// # Safety
+/// Images inserted into texture views here should not be written to until [`wait_image`] is ran
 pub fn insert_texture_views(
     swapchain_images: Res<XrSwapchainImages>,
-    swapchain: ResMut<XrSwapchain>,
+    mut swapchain: ResMut<XrSwapchain>,
     mut manual_texture_views: ResMut<ManualTextureViews>,
     graphics_info: Res<XrGraphicsInfo>,
 ) {
     let _span = info_span!("xr_insert_texture_views");
     let index = swapchain.acquire_image().expect("Failed to acquire image");
-    swapchain
-        .wait_image(openxr::Duration::INFINITE)
-        .expect("Failed to wait image");
     let image = &swapchain_images[index as usize];
 
     for i in 0..2 {
         add_texture_view(&mut manual_texture_views, image, &graphics_info, i);
     }
+}
+
+pub fn wait_image(mut swapchain: ResMut<XrSwapchain>) {
+    swapchain
+        .wait_image(openxr::Duration::INFINITE)
+        .expect("Failed to wait image");
 }
 
 pub fn add_texture_view(
@@ -323,7 +330,7 @@ pub fn begin_frame(frame_stream: ResMut<XrFrameStream>) {
 
 pub fn end_frame(
     frame_stream: ResMut<XrFrameStream>,
-    swapchain: ResMut<XrSwapchain>,
+    mut swapchain: ResMut<XrSwapchain>,
     stage: Res<XrStage>,
     display_time: Res<XrTime>,
     graphics_info: Res<XrGraphicsInfo>,

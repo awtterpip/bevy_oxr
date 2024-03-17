@@ -432,7 +432,6 @@ pub fn create_xr_session(
             commands.insert_resource(graphics_info.clone());
             commands.insert_resource(stage.clone());
             commands.insert_resource(frame_stream.clone());
-            commands.insert_resource(swapchain.clone());
             commands.insert_resource(XrRenderResources {
                 session,
                 frame_stream,
