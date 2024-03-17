@@ -322,12 +322,12 @@ pub fn add_texture_view(
     handle
 }
 
-pub fn begin_frame(frame_stream: ResMut<XrFrameStream>) {
+pub fn begin_frame(mut frame_stream: ResMut<XrFrameStream>) {
     frame_stream.begin().expect("Failed to begin frame")
 }
 
 pub fn end_frame(
-    frame_stream: ResMut<XrFrameStream>,
+    mut frame_stream: ResMut<XrFrameStream>,
     mut swapchain: ResMut<XrSwapchain>,
     stage: Res<XrStage>,
     display_time: Res<XrTime>,

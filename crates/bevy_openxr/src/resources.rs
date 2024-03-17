@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::error::XrError;
 use crate::graphics::*;
@@ -94,7 +94,7 @@ impl XrInstance {
             info.0;
             info => {
                 let (session, frame_waiter, frame_stream) = self.0.create_session::<Api>(system_id, &info)?;
-                Ok((session.into(), XrFrameWaiter(frame_waiter), XrFrameStream(Api::wrap(Arc::new(Mutex::new(frame_stream))))))
+                Ok((session.into(), XrFrameWaiter(frame_waiter), XrFrameStream(Api::wrap(frame_stream))))
             }
         )
     }
@@ -139,31 +139,30 @@ impl XrSession {
     }
 }
 
-#[derive(Resource, Clone)]
+#[derive(Resource)]
 pub struct XrFrameStream(pub(crate) GraphicsWrap<Self>);
 
 impl GraphicsType for XrFrameStream {
-    type Inner<G: GraphicsExt> = Arc<Mutex<openxr::FrameStream<G>>>;
+    type Inner<G: GraphicsExt> = openxr::FrameStream<G>;
 }
 
 impl XrFrameStream {
-    pub fn begin(&self) -> openxr::Result<()> {
+    pub fn begin(&mut self) -> openxr::Result<()> {
         graphics_match!(
-            &self.0;
-            stream => stream.lock().unwrap().begin()
+            &mut self.0;
+            stream => stream.begin()
         )
     }
 
     pub fn end(
-        &self,
+        &mut self,
         display_time: openxr::Time,
         environment_blend_mode: openxr::EnvironmentBlendMode,
         layers: &[&dyn CompositionLayer],
     ) -> Result<()> {
         graphics_match!(
-            &self.0;
+            &mut self.0;
             stream => {
-                let mut stream = stream.lock().unwrap();
                 let mut new_layers = vec![];
 
                 for (i, layer) in layers.into_iter().enumerate() {
