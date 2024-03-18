@@ -59,6 +59,7 @@ pub fn handle_session(
     mut create_session: EventWriter<CreateXrSession>,
     mut begin_session: EventWriter<BeginXrSession>,
     mut end_session: EventWriter<EndXrSession>,
+    mut destroy_session: EventWriter<DestroyXrSession>,
 ) {
     let current_status = status.get();
     if *previous_status != Some(current_status) {
@@ -75,7 +76,9 @@ pub fn handle_session(
             XrStatus::Stopping => {
                 end_session.send_default();
             }
-            XrStatus::Exiting => {}
+            XrStatus::Exiting => {
+                destroy_session.send_default();
+            }
         }
     }
     *previous_status = Some(current_status);

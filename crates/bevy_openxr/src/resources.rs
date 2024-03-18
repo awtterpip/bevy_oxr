@@ -294,3 +294,7 @@ impl XrSessionStarted {
 
 #[derive(ExtractResource, Resource, Clone, Copy, Default)]
 pub struct XrRootTransform(pub GlobalTransform);
+
+#[derive(ExtractResource, Resource, Clone, Copy, Default, Deref, DerefMut, PartialEq)]
+/// This is inserted into the world to signify if the session should be cleaned up.
+pub struct XrCleanupSession(pub bool);

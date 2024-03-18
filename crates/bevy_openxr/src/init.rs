@@ -1,4 +1,3 @@
-use bevy::app::AppExit;
 use bevy::math::uvec2;
 use bevy::prelude::*;
 use bevy::render::extract_resource::ExtractResourcePlugin;
@@ -6,12 +5,12 @@ use bevy::render::renderer::{
     RenderAdapter, RenderAdapterInfo, RenderDevice, RenderInstance, RenderQueue,
 };
 use bevy::render::settings::RenderCreation;
-use bevy::render::{MainWorld, RenderApp, RenderPlugin};
+use bevy::render::{MainWorld, Render, RenderApp, RenderPlugin, RenderSet};
 use bevy::transform::TransformSystem;
 use bevy::winit::{UpdateMode, WinitSettings};
 use bevy_xr::session::{
     handle_session, session_available, session_running, status_equals, BeginXrSession,
-    CreateXrSession, EndXrSession, XrSharedStatus, XrStatus,
+    CreateXrSession, DestroyXrSession, EndXrSession, XrSharedStatus, XrStatus,
 };
 
 use crate::graphics::*;
@@ -30,9 +29,6 @@ pub enum XrPreUpdateSet {
 
 #[derive(Component)]
 pub struct XrTrackingRoot;
-
-#[derive(Resource, Clone, Copy, PartialEq)]
-pub struct AppExiting(bool);
 
 pub struct XrInitPlugin {
     /// Information about the app this is being used to build.
@@ -74,9 +70,11 @@ impl Plugin for XrInitPlugin {
                         ),
                         synchronous_pipeline_compilation: self.synchronous_pipeline_compilation,
                     },
+                    ExtractResourcePlugin::<XrCleanupSession>::default(),
                     ExtractResourcePlugin::<XrTime>::default(),
                     ExtractResourcePlugin::<XrRootTransform>::default(),
                 ))
+                .add_systems(First, reset_per_frame_resources)
                 .add_systems(
                     PreUpdate,
                     (
@@ -94,6 +92,9 @@ impl Plugin for XrInitPlugin {
                             end_xr_session
                                 .run_if(on_event::<EndXrSession>())
                                 .run_if(status_equals(XrStatus::Stopping)),
+                            destroy_xr_session
+                                .run_if(on_event::<DestroyXrSession>())
+                                .run_if(status_equals(XrStatus::Exiting)),
                         )
                             .in_set(XrPreUpdateSet::HandleEvents),
                     ),
@@ -102,12 +103,6 @@ impl Plugin for XrInitPlugin {
                     PostUpdate,
                     update_root_transform.after(TransformSystem::TransformPropagate),
                 )
-                .add_systems(
-                    Last,
-                    app_exit_xr
-                        .run_if(resource_equals(AppExiting(false)))
-                        .run_if(on_event::<AppExit>()),
-                )
                 .insert_resource(instance.clone())
                 .insert_resource(system_id)
                 .insert_resource(status.clone())
@@ -115,6 +110,7 @@ impl Plugin for XrInitPlugin {
                     focused_mode: UpdateMode::Continuous,
                     unfocused_mode: UpdateMode::Continuous,
                 })
+                .init_resource::<XrCleanupSession>()
                 .init_resource::<XrRootTransform>()
                 .insert_non_send_resource(session_create_info);
 
@@ -127,6 +123,13 @@ impl Plugin for XrInitPlugin {
                     .insert_resource(system_id)
                     .insert_resource(status)
                     .init_resource::<XrRootTransform>()
+                    .init_resource::<XrCleanupSession>()
+                    .add_systems(
+                        Render,
+                        destroy_xr_session_render
+                            .run_if(resource_equals(XrCleanupSession(true)))
+                            .after(RenderSet::ExtractCommands),
+                    )
                     .add_systems(
                         ExtractSchedule,
                         transfer_xr_resources.run_if(not(session_running)),
@@ -155,8 +158,7 @@ impl Plugin for XrInitPlugin {
 
         let session_started = XrSessionStarted::default();
 
-        app.insert_resource(session_started.clone())
-            .insert_resource(AppExiting(false));
+        app.insert_resource(session_started.clone());
 
         let render_app = app.sub_app_mut(RenderApp);
 
@@ -458,21 +460,6 @@ pub fn end_xr_session(session: Res<XrSession>, session_started: Res<XrSessionSta
     session_started.set(false);
 }
 
-pub fn app_exit_xr(
-    mut app_exiting: ResMut<AppExiting>,
-    mut app_exit_events: ResMut<Events<AppExit>>,
-    session_started: Res<XrSessionStarted>,
-    session: Option<Res<XrSession>>,
-) {
-    // we need to temporarily intercept the exit event to allow the session to exit.
-    app_exit_events.clear();
-    *app_exiting = AppExiting(true);
-    session_started.set(false);
-    if let Some(session) = &session {
-        session.request_exit().expect("Failed to request exit");
-    }
-}
-
 /// This system transfers important render resources from the main world to the render world when a session is created.
 pub fn transfer_xr_resources(mut commands: Commands, mut world: ResMut<MainWorld>) {
     let Some(XrRenderResources {
@@ -496,13 +483,7 @@ pub fn transfer_xr_resources(mut commands: Commands, mut world: ResMut<MainWorld
 }
 
 /// Polls any OpenXR events and handles them accordingly
-pub fn poll_events(
-    instance: Res<XrInstance>,
-    status: Res<XrSharedStatus>,
-    session: Option<Res<XrSession>>,
-    app_exiting: Res<AppExiting>,
-    mut exit_app: EventWriter<AppExit>,
-) {
+pub fn poll_events(instance: Res<XrInstance>, status: Res<XrSharedStatus>) {
     let _span = info_span!("xr_poll_events");
     let mut buffer = Default::default();
     while let Some(event) = instance
@@ -524,17 +505,7 @@ pub fn poll_events(
                     SessionState::SYNCHRONIZED | SessionState::VISIBLE | SessionState::FOCUSED => {
                         XrStatus::Running
                     }
-                    SessionState::STOPPING => {
-                        if app_exiting.0 {
-                            if let Some(session) = &session {
-                                session.end().expect("Failed to end session");
-                            }
-
-                            exit_app.send_default();
-                        }
-
-                        XrStatus::Stopping
-                    }
+                    SessionState::STOPPING => XrStatus::Stopping,
                     SessionState::EXITING | SessionState::LOSS_PENDING => XrStatus::Exiting,
                     _ => unreachable!(),
                 };
@@ -546,4 +517,26 @@ pub fn poll_events(
             _ => {}
         }
     }
+}
+
+pub fn reset_per_frame_resources(mut cleanup: ResMut<XrCleanupSession>) {
+    **cleanup = false;
+}
+
+pub fn destroy_xr_session(mut commands: Commands) {
+    commands.remove_resource::<XrSession>();
+    commands.remove_resource::<XrFrameWaiter>();
+    commands.remove_resource::<XrSwapchainImages>();
+    commands.remove_resource::<XrGraphicsInfo>();
+    commands.remove_resource::<XrStage>();
+    commands.insert_resource(XrCleanupSession(true));
+}
+
+pub fn destroy_xr_session_render(world: &mut World) {
+    world.remove_resource::<XrSwapchain>();
+    world.remove_resource::<XrFrameStream>();
+    world.remove_resource::<XrStage>();
+    world.remove_resource::<XrSwapchainImages>();
+    world.remove_resource::<XrGraphicsInfo>();
+    world.remove_resource::<XrSession>();
 }
