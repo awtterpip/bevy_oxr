@@ -108,7 +108,7 @@ impl HandBone {
                 | HandBone::IndexMetacarpal
                 | HandBone::MiddleMetacarpal
                 | HandBone::RingMetacarpal
-                | HandBone::LittleTip
+                | HandBone::LittleMetacarpal
         )
     }
     pub const fn get_all_bones() -> [HandBone; 26] {
