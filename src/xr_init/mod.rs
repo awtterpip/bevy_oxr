@@ -176,12 +176,12 @@ pub(crate) struct CleanupXrData;
 fn start_xr_session(
     mut commands: Commands,
     mut status: ResMut<XrStatus>,
-    instance: Res<XrInstance>,
+    instance: Option<Res<XrInstance>>,
     primary_window: Query<&RawHandleWrapper, With<PrimaryWindow>>,
-    setup_info: NonSend<OXrSessionSetupInfo>,
-    render_device: Res<RenderDevice>,
-    render_adapter: Res<RenderAdapter>,
-    render_instance: Res<RenderInstance>,
+    setup_info: Option<NonSend<OXrSessionSetupInfo>>,
+    render_device: Option<Res<RenderDevice>>,
+    render_adapter: Option<Res<RenderAdapter>>,
+    render_instance: Option<Res<RenderInstance>>,
 ) {
     info!("start Session");
     match *status {
@@ -199,6 +199,23 @@ fn start_xr_session(
             return;
         }
     }
+    let (
+        Some(instance),
+        Some(setup_info),
+        Some(render_device),
+        Some(render_adapter),
+        Some(render_instance),
+    ) = (
+        instance,
+        setup_info,
+        render_device,
+        render_adapter,
+        render_instance,
+    )
+    else {
+        error!("Missing resources after passing status check");
+        return;
+    };
     let (
         xr_session,
         xr_resolution,
