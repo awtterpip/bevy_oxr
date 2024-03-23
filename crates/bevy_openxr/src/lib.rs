@@ -8,6 +8,7 @@ use bevy_xr::camera::XrCameraPlugin;
 use init::XrInitPlugin;
 use render::XrRenderPlugin;
 
+pub mod actions;
 pub mod camera;
 pub mod error;
 pub mod extensions;

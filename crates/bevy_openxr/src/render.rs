@@ -93,6 +93,7 @@ pub fn init_views(
         ));
         views.push(default());
     }
+    commands.spawn(XrCameraBundle::default());
     commands.insert_resource(XrViews(views));
 }
 
