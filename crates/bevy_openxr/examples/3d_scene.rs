@@ -1,12 +1,37 @@
 //! A simple 3D scene with light shining over a cube sitting on a plane.
 
+use std::any::TypeId;
+
 use bevy::prelude::*;
-use bevy_openxr::add_xr_plugins;
+use bevy_openxr::{
+    actions::{create_action_sets, ActionApp},
+    add_xr_plugins, resources::{TypedAction, XrActions, XrInstance},
+};
+use bevy_xr::actions::{Action, ActionInfo, ActionState, ActionType};
+use openxr::Binding;
+
+pub struct Jump;
+
+impl Action for Jump {
+    type ActionType = bool;
+
+    fn info() -> ActionInfo {
+        ActionInfo {
+            pretty_name: "jump",
+            name: "jump",
+            action_type: ActionType::Bool,
+            type_id: TypeId::of::<Self>(),
+        }
+    }
+}
+
 
 fn main() {
     App::new()
         .add_plugins(add_xr_plugins(DefaultPlugins))
-        .add_systems(Startup, setup)
+        .add_systems(Startup, setup.after(create_action_sets))
+        .add_systems(Update, read_action_state)
+        .register_action::<Jump>()
         .run();
 }
 
@@ -15,7 +40,15 @@ fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    actions: Res<XrActions>,
+    instance: Res<XrInstance>,
 ) {
+    let TypedAction::Bool(action) = actions.get(&TypeId::of::<Jump>()).unwrap() else {
+        unreachable!()
+    };
+    instance.suggest_interaction_profile_bindings(instance.string_to_path("/interaction_profiles/oculus/touch_controller").unwrap(), &[
+        Binding::new(action, instance.string_to_path("/user/hand/right/input/a/click").unwrap())
+    ]).unwrap();
     // circular base
     commands.spawn(PbrBundle {
         mesh: meshes.add(Circle::new(4.0)),
@@ -49,3 +82,10 @@ fn setup(
     //     ..default()
     // });
 }
+
+fn read_action_state(
+    state: Res<ActionState<Jump>>
+) {
+    info!("{}", state.pressed())
+}
+

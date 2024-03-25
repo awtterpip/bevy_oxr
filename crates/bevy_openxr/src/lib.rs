@@ -1,3 +1,4 @@
+use actions::XrActionPlugin;
 use bevy::{
     app::{PluginGroup, PluginGroupBuilder},
     render::{pipelined_rendering::PipelinedRenderingPlugin, RenderPlugin},
@@ -36,6 +37,7 @@ pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
         })
         .add(XrRenderPlugin)
         .add(XrCameraPlugin)
+        .add(XrActionPlugin)
         .set(WindowPlugin {
             #[cfg(not(target_os = "android"))]
             primary_window: Some(Window {

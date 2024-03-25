@@ -70,6 +70,9 @@
                 # wayland
                 libxkbcommon
                 wayland
+                # xr
+                openxr-loader
+                libGL
               ])
               ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
                 pkgs.darwin.apple_sdk.frameworks.Cocoa

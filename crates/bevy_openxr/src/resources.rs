@@ -1,3 +1,4 @@
+use std::any::TypeId;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -7,6 +8,7 @@ use crate::layer_builder::CompositionLayer;
 use crate::types::*;
 use bevy::prelude::*;
 use bevy::render::extract_resource::ExtractResource;
+use bevy::utils::HashMap;
 use openxr::AnyGraphics;
 
 #[derive(Deref, Clone)]
@@ -298,3 +300,30 @@ pub struct XrRootTransform(pub GlobalTransform);
 #[derive(ExtractResource, Resource, Clone, Copy, Default, Deref, DerefMut, PartialEq)]
 /// This is inserted into the world to signify if the session should be cleaned up.
 pub struct XrCleanupSession(pub bool);
+
+#[derive(Resource, Clone, Deref)]
+pub struct XrActionSet(#[deref] pub openxr::ActionSet, bool);
+
+impl XrActionSet {
+    pub fn new(action_set: openxr::ActionSet) -> Self {
+        Self(action_set, false)
+    }
+
+    pub fn attach(&mut self) {
+        self.1 = true;
+    }
+
+    pub fn is_attached(&self) -> bool {
+        self.1
+    }
+}
+
+#[derive(Clone)]
+pub enum TypedAction {
+    Bool(openxr::Action<bool>),
+    Float(openxr::Action<f32>),
+    Vector(openxr::Action<openxr::Vector2f>),
+}
+
+#[derive(Resource, Clone, Deref)]
+pub struct XrActions(pub HashMap<TypeId, TypedAction>);

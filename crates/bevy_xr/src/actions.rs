@@ -1,9 +1,8 @@
-use std::marker::PhantomData;
+use std::{any::TypeId, marker::PhantomData};
 
-use bevy::{
-    app::{App, First, Plugin},
-    ecs::system::{ResMut, Resource},
-};
+use bevy::app::{App, Plugin};
+use bevy::ecs::system::Resource;
+use bevy::math::Vec2;
 
 pub struct ActionPlugin<A: Action>(PhantomData<A>);
 
@@ -15,14 +14,16 @@ impl<A: Action> Default for ActionPlugin<A> {
 
 impl<A: Action> Plugin for ActionPlugin<A> {
     fn build(&self, app: &mut App) {
-        app.add_systems(First, reset_action_state::<A>)
-            .init_resource::<Actions>();
-        app.world.resource_mut::<Actions>().0.push(A::INFO);
+        app.init_resource::<ActionList>()
+            .init_resource::<ActionState<A>>();
+        app.world.resource_mut::<ActionList>().0.push(A::info());
     }
 }
 
 pub enum ActionType {
     Bool,
+    Float,
+    Vector,
 }
 
 pub trait ActionTy: Send + Sync + Default + Clone + Copy {
@@ -33,25 +34,43 @@ impl ActionTy for bool {
     const TYPE: ActionType = ActionType::Bool;
 }
 
+impl ActionTy for f32 {
+    const TYPE: ActionType = ActionType::Float;
+}
+
+impl ActionTy for Vec2 {
+    const TYPE: ActionType = ActionType::Float;
+}
+
 pub trait Action: Send + Sync + 'static {
     type ActionType: ActionTy;
 
-    const INFO: ActionInfo;
+    fn info() -> ActionInfo;
 }
 
 pub struct ActionInfo {
     pub pretty_name: &'static str,
     pub name: &'static str,
     pub action_type: ActionType,
+    pub type_id: TypeId,
 }
 
 #[derive(Resource, Default)]
-pub struct Actions(pub Vec<ActionInfo>);
+pub struct ActionList(pub Vec<ActionInfo>);
 
-#[derive(Resource, Default)]
+#[derive(Resource)]
 pub struct ActionState<A: Action> {
     previous_state: A::ActionType,
     current_state: A::ActionType,
+}
+
+impl<A: Action> Default for ActionState<A> {
+    fn default() -> Self {
+        Self {
+            previous_state: Default::default(),
+            current_state: Default::default(),
+        }
+    }
 }
 
 impl<A: Action> ActionState<A> {
@@ -61,6 +80,10 @@ impl<A: Action> ActionState<A> {
 
     pub fn previous_state(&self) -> A::ActionType {
         self.previous_state
+    }
+
+    pub fn set(&mut self, state: A::ActionType) {
+        self.previous_state = std::mem::replace(&mut self.current_state, state);
     }
 }
 
@@ -79,19 +102,5 @@ impl<A: Action<ActionType = bool>> ActionState<A> {
 
     pub fn press(&mut self) {
         self.current_state = true
-    }
-}
-
-pub fn reset_action_state<A: Action>(mut action_state: ResMut<ActionState<A>>) {
-    action_state.previous_state = std::mem::take(&mut action_state.current_state);
-}
-
-pub trait ActionApp {
-    fn register_action<A: Action>(&mut self) -> &mut Self;
-}
-
-impl ActionApp for App {
-    fn register_action<A: Action>(&mut self) -> &mut Self {
-        self.add_plugins(ActionPlugin::<A>::default())
     }
 }
