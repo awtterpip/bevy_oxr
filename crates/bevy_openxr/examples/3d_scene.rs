@@ -7,24 +7,12 @@ use bevy_openxr::{
     actions::{create_action_sets, ActionApp},
     add_xr_plugins, resources::{TypedAction, XrActions, XrInstance},
 };
-use bevy_xr::actions::{Action, ActionInfo, ActionState, ActionType};
+use bevy_xr::actions::{Action, ActionState};
 use openxr::Binding;
 
+#[derive(Action)]
+#[action(action_type = bool, name = "jump")]
 pub struct Jump;
-
-impl Action for Jump {
-    type ActionType = bool;
-
-    fn info() -> ActionInfo {
-        ActionInfo {
-            pretty_name: "jump",
-            name: "jump",
-            action_type: ActionType::Bool,
-            type_id: TypeId::of::<Self>(),
-        }
-    }
-}
-
 
 fn main() {
     App::new()

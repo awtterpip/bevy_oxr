@@ -3,6 +3,7 @@ use std::{any::TypeId, marker::PhantomData};
 use bevy::app::{App, Plugin};
 use bevy::ecs::system::Resource;
 use bevy::math::Vec2;
+pub use bevy_xr_macros::Action;
 
 pub struct ActionPlugin<A: Action>(PhantomData<A>);
 
