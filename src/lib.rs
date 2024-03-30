@@ -316,7 +316,10 @@ impl PluginGroup for DefaultXrPlugins {
                     ..default()
                 }),
                 #[cfg(target_os = "android")]
-                primary_window: None, // ?
+                primary_window: Some(Window {
+                    present_mode: PresentMode::AutoNoVsync,
+                    ..default()
+                }),
                 #[cfg(target_os = "android")]
                 exit_condition: bevy::window::ExitCondition::DontExit,
                 #[cfg(target_os = "android")]
