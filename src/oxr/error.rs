@@ -1,10 +1,12 @@
-use crate::graphics::GraphicsBackend;
 use std::borrow::Cow;
 use std::fmt;
+
+use super::graphics::GraphicsBackend;
+
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum XrError {
+pub enum OXrError {
     #[error("OpenXR error: {0}")]
     OpenXrError(#[from] openxr::sys::Result),
     #[error("OpenXR loading error: {0}")]
@@ -17,10 +19,6 @@ pub enum XrError {
     WgpuRequestDeviceError(#[from] wgpu::RequestDeviceError),
     #[error("Unsupported texture format: {0:?}")]
     UnsupportedTextureFormat(wgpu::TextureFormat),
-    #[error("Vulkan error: {0}")]
-    VulkanError(#[from] ash::vk::Result),
-    #[error("Vulkan loading error: {0}")]
-    VulkanLoadingError(#[from] ash::LoadingError),
     #[error("Graphics backend '{0:?}' is not available")]
     UnavailableBackend(GraphicsBackend),
     #[error("No compatible backend available")]
@@ -45,9 +43,55 @@ pub enum XrError {
     },
     #[error("Failed to create CString: {0}")]
     NulError(#[from] std::ffi::NulError),
+    #[error("Graphics init error: {0}")]
+    InitError(InitError),
 }
 
-impl From<Vec<Cow<'static, str>>> for XrError {
+pub use init_error::InitError;
+
+/// This module is needed because thiserror does not allow conditional compilation within enums for some reason,
+/// so graphics api specific errors are implemented here.
+mod init_error {
+    use super::OXrError;
+    use std::fmt;
+
+    #[derive(Debug)]
+    pub enum InitError {
+        #[cfg(feature = "vulkan")]
+        VulkanError(ash::vk::Result),
+        #[cfg(feature = "vulkan")]
+        VulkanLoadingError(ash::LoadingError),
+    }
+
+    impl fmt::Display for InitError {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            match self {
+                #[cfg(feature = "vulkan")]
+                InitError::VulkanError(error) => write!(f, "Vulkan error: {}", error),
+                #[cfg(feature = "vulkan")]
+                InitError::VulkanLoadingError(error) => {
+                    write!(f, "Vulkan loading error: {}", error)
+                }
+            }
+        }
+    }
+
+    #[cfg(feature = "vulkan")]
+    impl From<ash::vk::Result> for OXrError {
+        fn from(value: ash::vk::Result) -> Self {
+            Self::InitError(InitError::VulkanError(value))
+        }
+    }
+
+    #[cfg(feature = "vulkan")]
+    impl From<ash::LoadingError> for OXrError {
+        fn from(value: ash::LoadingError) -> Self {
+            Self::InitError(InitError::VulkanLoadingError(value))
+        }
+    }
+}
+
+impl From<Vec<Cow<'static, str>>> for OXrError {
     fn from(value: Vec<Cow<'static, str>>) -> Self {
         Self::UnavailableExtensions(UnavailableExts(value))
     }

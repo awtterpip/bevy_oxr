@@ -1,2 +1,7 @@
-pub use bevy_openxr;
-pub use bevy_xr;
+#[cfg(not(target_family = "wasm"))]
+pub mod oxr;
+#[cfg(target_family = "wasm")]
+pub mod webxr;
+
+#[cfg(not(target_family = "wasm"))]
+pub use oxr::add_xr_plugins;

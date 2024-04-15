@@ -1,35 +1,36 @@
-use std::any::TypeId;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use crate::error::XrError;
-use crate::graphics::*;
-use crate::layer_builder::CompositionLayer;
-use crate::types::*;
 use bevy::prelude::*;
 use bevy::render::extract_resource::ExtractResource;
-use bevy::utils::HashMap;
 use openxr::AnyGraphics;
 
-#[derive(Deref, Clone)]
-pub struct XrEntry(pub openxr::Entry);
+use crate::oxr::error::OXrError;
+use crate::oxr::graphics::*;
+use crate::oxr::layer_builder::CompositionLayer;
+use crate::oxr::types::*;
 
-impl XrEntry {
-    pub fn enumerate_extensions(&self) -> Result<XrExtensions> {
+/// Wrapper around the entry point to the OpenXR API
+#[derive(Deref, Clone)]
+pub struct OXrEntry(pub openxr::Entry);
+
+impl OXrEntry {
+    /// Enumerate available extensions for this OpenXR runtime.
+    pub fn enumerate_extensions(&self) -> Result<OXrExtensions> {
         Ok(self.0.enumerate_extensions().map(Into::into)?)
     }
 
     pub fn create_instance(
         &self,
         app_info: AppInfo,
-        exts: XrExtensions,
+        exts: OXrExtensions,
         layers: &[&str],
         backend: GraphicsBackend,
-    ) -> Result<XrInstance> {
+    ) -> Result<OXrInstance> {
         let available_exts = self.enumerate_extensions()?;
 
         if !backend.is_available(&available_exts) {
-            return Err(XrError::UnavailableBackend(backend));
+            return Err(OXrError::UnavailableBackend(backend));
         }
 
         let required_exts = exts | backend.required_exts();
@@ -45,7 +46,7 @@ impl XrEntry {
             layers,
         )?;
 
-        Ok(XrInstance(instance, backend, app_info))
+        Ok(OXrInstance(instance, backend, app_info))
     }
 
     pub fn available_backends(&self) -> Result<Vec<GraphicsBackend>> {
@@ -55,39 +56,47 @@ impl XrEntry {
     }
 }
 
+/// Wrapper around [openxr::Instance] with additional data for safety.
 #[derive(Resource, Deref, Clone)]
-pub struct XrInstance(
+pub struct OXrInstance(
     #[deref] pub openxr::Instance,
     pub(crate) GraphicsBackend,
     pub(crate) AppInfo,
 );
 
-impl XrInstance {
+impl OXrInstance {
+    pub fn into_inner(self) -> openxr::Instance {
+        self.0
+    }
+
+    /// Initialize graphics. This is used to create [WgpuGraphics] for the bevy app and to get the [SessionCreateInfo] to make an XR session.
     pub fn init_graphics(
         &self,
         system_id: openxr::SystemId,
-    ) -> Result<(WgpuGraphics, XrSessionGraphicsInfo)> {
+    ) -> Result<(WgpuGraphics, SessionCreateInfo)> {
         graphics_match!(
             self.1;
             _ => {
                 let (graphics, session_info) = Api::init_graphics(&self.2, &self, system_id)?;
 
-                Ok((graphics, XrSessionGraphicsInfo(Api::wrap(session_info))))
+                Ok((graphics, SessionCreateInfo(Api::wrap(session_info))))
             }
         )
     }
 
+    /// Creates an [OXrSession]
+    ///
     /// # Safety
     ///
     /// `info` must contain valid handles for the graphics api
     pub unsafe fn create_session(
         &self,
         system_id: openxr::SystemId,
-        info: XrSessionGraphicsInfo,
-    ) -> Result<(XrSession, XrFrameWaiter, XrFrameStream)> {
+        info: SessionCreateInfo,
+    ) -> Result<(OXrSession, OXrFrameWaiter, OXrFrameStream)> {
         if !info.0.using_graphics_of_val(&self.1) {
-            return Err(XrError::GraphicsBackendMismatch {
-                item: std::any::type_name::<XrSessionGraphicsInfo>(),
+            return Err(OXrError::GraphicsBackendMismatch {
+                item: std::any::type_name::<SessionCreateInfo>(),
                 backend: info.0.graphics_name(),
                 expected_backend: self.1.graphics_name(),
             });
@@ -96,59 +105,61 @@ impl XrInstance {
             info.0;
             info => {
                 let (session, frame_waiter, frame_stream) = self.0.create_session::<Api>(system_id, &info)?;
-                Ok((session.into(), XrFrameWaiter(frame_waiter), XrFrameStream(Api::wrap(frame_stream))))
+                Ok((session.into(), OXrFrameWaiter(frame_waiter), OXrFrameStream(Api::wrap(frame_stream))))
             }
         )
     }
 }
 
-#[derive(Clone)]
-pub struct XrSessionGraphicsInfo(pub(crate) GraphicsWrap<Self>);
-
-impl GraphicsType for XrSessionGraphicsInfo {
-    type Inner<G: GraphicsExt> = G::SessionCreateInfo;
-}
-
+/// Graphics agnostic wrapper around [openxr::Session]
 #[derive(Resource, Deref, Clone)]
-pub struct XrSession(
-    #[deref] pub(crate) openxr::Session<AnyGraphics>,
-    pub(crate) GraphicsWrap<Self>,
+pub struct OXrSession(
+    #[deref] pub openxr::Session<AnyGraphics>,
+    pub GraphicsWrap<Self>,
 );
 
-impl GraphicsType for XrSession {
+impl GraphicsType for OXrSession {
     type Inner<G: GraphicsExt> = openxr::Session<G>;
 }
 
-impl<G: GraphicsExt> From<openxr::Session<G>> for XrSession {
-    fn from(value: openxr::Session<G>) -> Self {
-        Self(value.clone().into_any_graphics(), G::wrap(value))
+impl<G: GraphicsExt> From<openxr::Session<G>> for OXrSession {
+    fn from(session: openxr::Session<G>) -> Self {
+        Self::new(session)
     }
 }
 
-impl XrSession {
+impl OXrSession {
+    pub fn new<G: GraphicsExt>(session: openxr::Session<G>) -> Self {
+        Self(session.clone().into_any_graphics(), G::wrap(session))
+    }
+
+    /// Enumerate all available swapchain formats.
     pub fn enumerate_swapchain_formats(&self) -> Result<Vec<wgpu::TextureFormat>> {
         graphics_match!(
             &self.1;
-            session => Ok(session.enumerate_swapchain_formats()?.into_iter().filter_map(Api::to_wgpu_format).collect())
+            session => Ok(session.enumerate_swapchain_formats()?.into_iter().filter_map(Api::into_wgpu_format).collect())
         )
     }
 
-    pub fn create_swapchain(&self, info: SwapchainCreateInfo) -> Result<XrSwapchain> {
-        Ok(XrSwapchain(graphics_match!(
+    /// Creates an [OXrSwapchain].
+    pub fn create_swapchain(&self, info: SwapchainCreateInfo) -> Result<OXrSwapchain> {
+        Ok(OXrSwapchain(graphics_match!(
             &self.1;
-            session => session.create_swapchain(&info.try_into()?)? => XrSwapchain
+            session => session.create_swapchain(&info.try_into()?)? => OXrSwapchain
         )))
     }
 }
 
+/// Graphics agnostic wrapper around [openxr::FrameStream]
 #[derive(Resource)]
-pub struct XrFrameStream(pub(crate) GraphicsWrap<Self>);
+pub struct OXrFrameStream(pub GraphicsWrap<Self>);
 
-impl GraphicsType for XrFrameStream {
+impl GraphicsType for OXrFrameStream {
     type Inner<G: GraphicsExt> = openxr::FrameStream<G>;
 }
 
-impl XrFrameStream {
+impl OXrFrameStream {
+    /// Indicate that graphics device work is beginning.
     pub fn begin(&mut self) -> openxr::Result<()> {
         graphics_match!(
             &mut self.0;
@@ -156,6 +167,10 @@ impl XrFrameStream {
         )
     }
 
+    /// Indicate that all graphics work for the frame has been submitted
+    ///
+    /// `layers` is an array of references to any type of composition layer,
+    /// e.g. [`CompositionLayerProjection`](crate::oxr::layer_builder::CompositionLayerProjection)
     pub fn end(
         &mut self,
         display_time: openxr::Time,
@@ -187,17 +202,20 @@ impl XrFrameStream {
     }
 }
 
+/// Handle for waiting to render a frame. Check [`FrameWaiter`](openxr::FrameWaiter) for available methods.
 #[derive(Resource, Deref, DerefMut)]
-pub struct XrFrameWaiter(pub openxr::FrameWaiter);
+pub struct OXrFrameWaiter(pub openxr::FrameWaiter);
 
+/// Graphics agnostic wrapper around [openxr::Swapchain]
 #[derive(Resource)]
-pub struct XrSwapchain(pub(crate) GraphicsWrap<Self>);
+pub struct OXrSwapchain(pub GraphicsWrap<Self>);
 
-impl GraphicsType for XrSwapchain {
+impl GraphicsType for OXrSwapchain {
     type Inner<G: GraphicsExt> = openxr::Swapchain<G>;
 }
 
-impl XrSwapchain {
+impl OXrSwapchain {
+    /// Determine the index of the next image to render to in the swapchain image array
     pub fn acquire_image(&mut self) -> Result<u32> {
         graphics_match!(
             &mut self.0;
@@ -205,6 +223,7 @@ impl XrSwapchain {
         )
     }
 
+    /// Wait for the compositor to finish reading from the oldest unwaited acquired image
     pub fn wait_image(&mut self, timeout: openxr::Duration) -> Result<()> {
         graphics_match!(
             &mut self.0;
@@ -212,6 +231,7 @@ impl XrSwapchain {
         )
     }
 
+    /// Release the oldest acquired image
     pub fn release_image(&mut self) -> Result<()> {
         graphics_match!(
             &mut self.0;
@@ -219,12 +239,13 @@ impl XrSwapchain {
         )
     }
 
+    /// Enumerates swapchain images and converts them to wgpu [`Texture`](wgpu::Texture)s.
     pub fn enumerate_images(
         &self,
         device: &wgpu::Device,
         format: wgpu::TextureFormat,
         resolution: UVec2,
-    ) -> Result<XrSwapchainImages> {
+    ) -> Result<OXrSwapchainImages> {
         graphics_match!(
             &self.0;
             swap => {
@@ -234,43 +255,39 @@ impl XrSwapchain {
                         images.push(Api::to_wgpu_img(image, device, format, resolution)?);
                     }
                 }
-                Ok(XrSwapchainImages(images.into()))
+                Ok(OXrSwapchainImages(images.into()))
             }
         )
     }
 }
 
-#[derive(Deref, Clone, Resource)]
-pub struct XrStage(pub Arc<openxr::Space>);
-
+/// Stores the generated swapchain images.
 #[derive(Debug, Deref, Resource, Clone)]
-pub struct XrSwapchainImages(pub Arc<Vec<wgpu::Texture>>);
+pub struct OXrSwapchainImages(pub Arc<Vec<wgpu::Texture>>);
 
-#[derive(Copy, Clone, Eq, PartialEq, Deref, DerefMut, Resource, ExtractResource)]
-pub struct XrTime(pub openxr::Time);
+/// Thread safe wrapper around [openxr::Space] representing the stage.
+#[derive(Deref, Clone, Resource)]
+pub struct OXrStage(pub Arc<openxr::Space>);
 
-#[derive(Copy, Clone, Eq, PartialEq, Resource)]
-pub struct XrSwapchainInfo {
-    pub format: wgpu::TextureFormat,
-    pub resolution: UVec2,
-}
+/// Stores the latest generated [OXrViews]
+#[derive(Clone, Resource, ExtractResource, Deref, DerefMut)]
+pub struct OXrViews(pub Vec<openxr::View>);
 
+/// Wrapper around [openxr::SystemId] to allow it to be stored as a resource.
 #[derive(Debug, Copy, Clone, Deref, Default, Eq, PartialEq, Ord, PartialOrd, Hash, Resource)]
-pub struct XrSystemId(pub openxr::SystemId);
+pub struct OXrSystemId(pub openxr::SystemId);
 
+/// Resource storing graphics info for the currently running session.
 #[derive(Clone, Copy, Resource)]
-pub struct XrGraphicsInfo {
+pub struct OXrGraphicsInfo {
     pub blend_mode: EnvironmentBlendMode,
     pub resolution: UVec2,
     pub format: wgpu::TextureFormat,
 }
 
-#[derive(Clone, Resource, ExtractResource, Deref, DerefMut)]
-pub struct XrViews(pub Vec<openxr::View>);
-
 #[derive(Clone)]
 /// This is used to store information from startup that is needed to create the session after the instance has been created.
-pub struct XrSessionCreateInfo {
+pub struct SessionConfigInfo {
     /// List of blend modes the openxr session can use. If [None], pick the first available blend mode.
     pub blend_modes: Option<Vec<EnvironmentBlendMode>>,
     /// List of formats the openxr session can use. If [None], pick the first available format
@@ -278,13 +295,13 @@ pub struct XrSessionCreateInfo {
     /// List of resolutions that the openxr swapchain can use. If [None] pick the first available resolution.
     pub resolutions: Option<Vec<UVec2>>,
     /// Graphics info used to create a session.
-    pub graphics_info: XrSessionGraphicsInfo,
+    pub graphics_info: SessionCreateInfo,
 }
 
 #[derive(Resource, Clone, Default)]
-pub struct XrSessionStarted(Arc<AtomicBool>);
+pub struct OXrSessionStarted(Arc<AtomicBool>);
 
-impl XrSessionStarted {
+impl OXrSessionStarted {
     pub fn set(&self, val: bool) {
         self.0.store(val, Ordering::SeqCst);
     }
@@ -294,36 +311,14 @@ impl XrSessionStarted {
     }
 }
 
+/// The calculated display time for the app. Passed through the pipeline.
+#[derive(Copy, Clone, Eq, PartialEq, Deref, DerefMut, Resource, ExtractResource)]
+pub struct OXrTime(pub openxr::Time);
+
+/// The root transform's global position for late latching in the render world.
 #[derive(ExtractResource, Resource, Clone, Copy, Default)]
-pub struct XrRootTransform(pub GlobalTransform);
+pub struct OXrRootTransform(pub GlobalTransform);
 
 #[derive(ExtractResource, Resource, Clone, Copy, Default, Deref, DerefMut, PartialEq)]
 /// This is inserted into the world to signify if the session should be cleaned up.
-pub struct XrCleanupSession(pub bool);
-
-#[derive(Resource, Clone, Deref)]
-pub struct XrActionSet(#[deref] pub openxr::ActionSet, bool);
-
-impl XrActionSet {
-    pub fn new(action_set: openxr::ActionSet) -> Self {
-        Self(action_set, false)
-    }
-
-    pub fn attach(&mut self) {
-        self.1 = true;
-    }
-
-    pub fn is_attached(&self) -> bool {
-        self.1
-    }
-}
-
-#[derive(Clone)]
-pub enum TypedAction {
-    Bool(openxr::Action<bool>),
-    Float(openxr::Action<f32>),
-    Vector(openxr::Action<openxr::Vector2f>),
-}
-
-#[derive(Resource, Clone, Deref)]
-pub struct XrActions(pub HashMap<TypeId, TypedAction>);
+pub struct OXrCleanupSession(pub bool);
