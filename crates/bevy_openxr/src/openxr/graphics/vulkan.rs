@@ -7,11 +7,9 @@ use openxr::Version;
 use wgpu_hal::api::Vulkan;
 use wgpu_hal::Api;
 
-use crate::error::XrError;
-use crate::extensions::XrExtensions;
-use crate::types::*;
-
-use super::GraphicsExt;
+use super::{GraphicsExt, GraphicsType, GraphicsWrap};
+use crate::error::OXrError;
+use crate::types::{AppInfo, OXrExtensions, Result, WgpuGraphics};
 
 #[cfg(not(target_os = "android"))]
 const VK_TARGET_VERSION: Version = Version::new(1, 2, 0);
@@ -26,12 +24,72 @@ const VK_TARGET_VERSION_ASH: u32 = ash::vk::make_api_version(
 );
 
 unsafe impl GraphicsExt for openxr::Vulkan {
+    fn wrap<T: GraphicsType>(item: T::Inner<Self>) -> GraphicsWrap<T> {
+        GraphicsWrap::Vulkan(item)
+    }
+
+    fn required_exts() -> OXrExtensions {
+        let mut extensions = openxr::ExtensionSet::default();
+        extensions.khr_vulkan_enable2 = true;
+        extensions.into()
+    }
+
     fn from_wgpu_format(format: wgpu::TextureFormat) -> Option<Self::Format> {
         wgpu_to_vulkan(format).map(|f| f.as_raw() as _)
     }
 
-    fn to_wgpu_format(format: Self::Format) -> Option<wgpu::TextureFormat> {
+    fn into_wgpu_format(format: Self::Format) -> Option<wgpu::TextureFormat> {
         vulkan_to_wgpu(ash::vk::Format::from_raw(format as _))
+    }
+
+    unsafe fn to_wgpu_img(
+        color_image: Self::SwapchainImage,
+        device: &wgpu::Device,
+        format: wgpu::TextureFormat,
+        resolution: UVec2,
+    ) -> Result<wgpu::Texture> {
+        let color_image = ash::vk::Image::from_raw(color_image);
+        let wgpu_hal_texture = unsafe {
+            <wgpu_hal::vulkan::Api as wgpu_hal::Api>::Device::texture_from_raw(
+                color_image,
+                &wgpu_hal::TextureDescriptor {
+                    label: Some("VR Swapchain"),
+                    size: wgpu::Extent3d {
+                        width: resolution.x,
+                        height: resolution.y,
+                        depth_or_array_layers: 2,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: format,
+                    usage: wgpu_hal::TextureUses::COLOR_TARGET | wgpu_hal::TextureUses::COPY_DST,
+                    memory_flags: wgpu_hal::MemoryFlags::empty(),
+                    view_formats: vec![],
+                },
+                None,
+            )
+        };
+        let texture = unsafe {
+            device.create_texture_from_hal::<wgpu_hal::vulkan::Api>(
+                wgpu_hal_texture,
+                &wgpu::TextureDescriptor {
+                    label: Some("VR Swapchain"),
+                    size: wgpu::Extent3d {
+                        width: resolution.x,
+                        height: resolution.y,
+                        depth_or_array_layers: 2,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: format,
+                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_DST,
+                    view_formats: &[],
+                },
+            )
+        };
+        Ok(texture)
     }
 
     fn init_graphics(
@@ -48,7 +106,7 @@ unsafe impl GraphicsExt for openxr::Vulkan {
                 reqs.min_api_version_supported,
                 reqs.max_api_version_supported.major() + 1
             );
-            return Err(XrError::FailedGraphicsRequirements);
+            return Err(OXrError::FailedGraphicsRequirements);
         };
         let vk_entry = unsafe { ash::Entry::load() }?;
         let flags = wgpu::InstanceFlags::empty();
@@ -107,7 +165,7 @@ unsafe impl GraphicsExt for openxr::Vulkan {
                 VK_TARGET_VERSION.minor(),
                 VK_TARGET_VERSION.patch()
             );
-            return Err(XrError::FailedGraphicsRequirements);
+            return Err(OXrError::FailedGraphicsRequirements);
         }
 
         let wgpu_vk_instance = unsafe {
@@ -131,7 +189,7 @@ unsafe impl GraphicsExt for openxr::Vulkan {
 
         let Some(wgpu_exposed_adapter) = wgpu_vk_instance.expose_adapter(vk_physical_device) else {
             error!("WGPU failed to provide an adapter");
-            return Err(XrError::FailedGraphicsRequirements);
+            return Err(OXrError::FailedGraphicsRequirements);
         };
 
         let enabled_extensions = wgpu_exposed_adapter
@@ -233,66 +291,6 @@ unsafe impl GraphicsExt for openxr::Vulkan {
                 queue_index: 0,
             },
         ))
-    }
-
-    unsafe fn to_wgpu_img(
-        color_image: Self::SwapchainImage,
-        device: &wgpu::Device,
-        format: wgpu::TextureFormat,
-        resolution: UVec2,
-    ) -> Result<wgpu::Texture> {
-        let color_image = ash::vk::Image::from_raw(color_image);
-        let wgpu_hal_texture = unsafe {
-            <wgpu_hal::vulkan::Api as wgpu_hal::Api>::Device::texture_from_raw(
-                color_image,
-                &wgpu_hal::TextureDescriptor {
-                    label: Some("VR Swapchain"),
-                    size: wgpu::Extent3d {
-                        width: resolution.x,
-                        height: resolution.y,
-                        depth_or_array_layers: 2,
-                    },
-                    mip_level_count: 1,
-                    sample_count: 1,
-                    dimension: wgpu::TextureDimension::D2,
-                    format: format,
-                    usage: wgpu_hal::TextureUses::COLOR_TARGET | wgpu_hal::TextureUses::COPY_DST,
-                    memory_flags: wgpu_hal::MemoryFlags::empty(),
-                    view_formats: vec![],
-                },
-                None,
-            )
-        };
-        let texture = unsafe {
-            device.create_texture_from_hal::<wgpu_hal::vulkan::Api>(
-                wgpu_hal_texture,
-                &wgpu::TextureDescriptor {
-                    label: Some("VR Swapchain"),
-                    size: wgpu::Extent3d {
-                        width: resolution.x,
-                        height: resolution.y,
-                        depth_or_array_layers: 2,
-                    },
-                    mip_level_count: 1,
-                    sample_count: 1,
-                    dimension: wgpu::TextureDimension::D2,
-                    format: format,
-                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_DST,
-                    view_formats: &[],
-                },
-            )
-        };
-        Ok(texture)
-    }
-
-    fn required_exts() -> XrExtensions {
-        let mut extensions = openxr::ExtensionSet::default();
-        extensions.khr_vulkan_enable2 = true;
-        extensions.into()
-    }
-
-    fn wrap<T: super::GraphicsType>(item: T::Inner<Self>) -> super::GraphicsWrap<T> {
-        super::GraphicsWrap::Vulkan(item)
     }
 }
 

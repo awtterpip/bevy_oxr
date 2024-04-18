@@ -1,0 +1,14 @@
+[package]
+name = "bevy_webxr"
+version = "0.1.0"
+edition = "2021"
+
+
+# all dependencies are placed under this since on anything but wasm, this crate is completely empty
+[target.'cfg(target_family = "wasm")'.dependencies]
+thiserror = "1.0.57"
+wgpu = "0.19.3"
+wgpu-hal = "0.19.3"
+
+bevy_xr.path = "../bevy_xr"
+bevy.workspace = true
