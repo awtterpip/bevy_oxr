@@ -1,11 +1,10 @@
 //! A simple 3D scene with light shining over a cube sitting on a plane.
 
 use bevy::prelude::*;
-use bevy_xr::add_xr_plugins;
 
 fn main() {
     App::new()
-        .add_plugins(add_xr_plugins(DefaultPlugins))
+        .add_plugins(DefaultPlugins)
         .add_systems(Startup, setup)
         .run();
 }

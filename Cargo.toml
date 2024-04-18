@@ -1,114 +1,98 @@
 [package]
-name = "bevy_xr"
+name = "bevy_oxr"
 version = "0.1.0"
 edition = "2021"
-description = "Community crate for XR in Bevy"
+description = "Community crate for OpenXR in Bevy"
 repository = "https://github.com/awtterpip/bevy_oxr"
 license = "MIT/Apache-2.0"
 
 [features]
-default = ["vulkan"]
+default = ["linked", "vulkan"]
+linked = ["openxr/linked"]
 vulkan = ["dep:ash"]
 
 [dependencies]
+bevy_openxr.path = "./crates/bevy_openxr"
+bevy_xr.path = "./crates/bevy_xr"
+anyhow = "1.0.79"
+async-std = "1.12.0"
 bevy = "0.13.0"
+paste = "1.0.14"
+thiserror = "1.0.57"
 wgpu = "0.19.3"
 wgpu-hal = "0.19.3"
-thiserror = "1.0.57"
-bevy_xr_api.path = "bevy_xr_api"
+winit = "0.28.7"
+
+[target.'cfg(target_family = "unix")'.dependencies]
+openxr = { version = "0.17.1", features = ["mint"] }
+
+[target.'cfg(target_family = "windows")'.dependencies]
+openxr = { version = "0.17.1", features = ["mint", "static"] }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 ash = { version = "0.37.3", optional = true }
 
-[target.'cfg(target_family = "unix")'.dependencies]
-openxr = { version = "0.18.0", features = ["mint"] }
-
-[target.'cfg(target_family = "windows")'.dependencies]
-openxr = { version = "0.18.0", features = ["mint", "static"] }
-
-
-# [dependencies]
-# bevy_openxr.path = "./crates/bevy_openxr"
-# bevy_xr.path = "./crates/bevy_xr"
-# anyhow = "1.0.79"
-# async-std = "1.12.0"
-# bevy = "0.13.0"
-# paste = "1.0.14"
-# thiserror = "1.0.57"
-# wgpu = "0.19.3"
-# wgpu-hal = "0.19.3"
-# winit = "0.28.7"
-
-# [target.'cfg(target_family = "unix")'.dependencies]
-# openxr = { version = "0.17.1", features = ["mint"] }
-
-# [target.'cfg(target_family = "windows")'.dependencies]
-# openxr = { version = "0.17.1", features = ["mint", "static"] }
-
-# [target.'cfg(not(target_family = "wasm"))'.dependencies]
-# ash = { version = "0.37.3", optional = true }
-
-# [target.'cfg(target_family = "wasm")'.dependencies]
-# js-sys = "0.3"
-# wasm-bindgen = "0.2.91"
-# glow = "0.12.1"
-# web-sys = { version = "0.3.67", features = [
-#     # STANDARD
-#     'console',
-#     'Document',
-#     'Element',
-#     'Headers',
-#     'Navigator',
-#     'Window',
-#     # IO
-#     # 'Url',
-#     # WEBGL
-#     'Gpu',
-#     'HtmlCanvasElement',
-#     'WebGl2RenderingContext',
-#     'WebGlFramebuffer',
-#     'GamepadHapticActuator',
-#     ## XR
-#     'DomPointReadOnly',
-#     'XrWebGlLayer',
-#     'XrBoundedReferenceSpace',
-#     'XrEye',
-#     'XrFrame',
-#     'XrHandedness',
-#     'XrInputSource',
-#     'XrInputSourceArray',
-#     'XrInputSourceEvent',
-#     'XrInputSourceEventInit',
-#     'XrInputSourcesChangeEvent',
-#     'XrJointPose',
-#     'XrJointSpace',
-#     'XrPose',
-#     'XrReferenceSpace',
-#     'XrReferenceSpaceEvent',
-#     'XrReferenceSpaceEventInit',
-#     'XrReferenceSpaceType',
-#     'XrRenderState',
-#     'XrRenderStateInit',
-#     'XrRigidTransform',
-#     'XrSession',
-#     'XrSessionEvent',
-#     'XrSessionEventInit',
-#     'XrSessionInit',
-#     'XrSessionMode',
-#     'XrSpace',
-#     'XrTargetRayMode',
-#     'XrView',
-#     'XrViewerPose',
-#     'XrViewport',
-#     'XrVisibilityState',
-#     'XrWebGlLayer',
-#     'XrWebGlLayerInit',
-#     'XrSystem',
-# ] }
-# wasm-bindgen-futures = "0.4"
+[target.'cfg(target_family = "wasm")'.dependencies]
+js-sys = "0.3"
+wasm-bindgen = "0.2.91"
+glow = "0.12.1"
+web-sys = { version = "0.3.67", features = [
+    # STANDARD
+    'console',
+    'Document',
+    'Element',
+    'Headers',
+    'Navigator',
+    'Window',
+    # IO
+    # 'Url',
+    # WEBGL
+    'Gpu',
+    'HtmlCanvasElement',
+    'WebGl2RenderingContext',
+    'WebGlFramebuffer',
+    'GamepadHapticActuator',
+    ## XR
+    'DomPointReadOnly',
+    'XrWebGlLayer',
+    'XrBoundedReferenceSpace',
+    'XrEye',
+    'XrFrame',
+    'XrHandedness',
+    'XrInputSource',
+    'XrInputSourceArray',
+    'XrInputSourceEvent',
+    'XrInputSourceEventInit',
+    'XrInputSourcesChangeEvent',
+    'XrJointPose',
+    'XrJointSpace',
+    'XrPose',
+    'XrReferenceSpace',
+    'XrReferenceSpaceEvent',
+    'XrReferenceSpaceEventInit',
+    'XrReferenceSpaceType',
+    'XrRenderState',
+    'XrRenderStateInit',
+    'XrRigidTransform',
+    'XrSession',
+    'XrSessionEvent',
+    'XrSessionEventInit',
+    'XrSessionInit',
+    'XrSessionMode',
+    'XrSpace',
+    'XrTargetRayMode',
+    'XrView',
+    'XrViewerPose',
+    'XrViewport',
+    'XrVisibilityState',
+    'XrWebGlLayer',
+    'XrWebGlLayerInit',
+    'XrSystem',
+] }
+wasm-bindgen-futures = "0.4"
 
 [workspace]
-members = ["bevy_xr_api"]
+members = ["crates/*"]
 
 [workspace.dependencies]
 bevy = "0.13.0"
