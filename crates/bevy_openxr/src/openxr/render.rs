@@ -12,7 +12,7 @@ use bevy::{
 use bevy_xr::camera::{XrCamera, XrCameraBundle, XrProjection};
 use openxr::{CompositionLayerFlags, ViewStateFlags};
 
-use crate::init::{session_started, OXrPreUpdateSet};
+use crate::init::{session_started, OxrPreUpdateSet};
 use crate::layer_builder::*;
 use crate::resources::*;
 
@@ -20,17 +20,17 @@ pub struct XrRenderPlugin;
 
 impl Plugin for XrRenderPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((ExtractResourcePlugin::<OXrViews>::default(),))
+        app.add_plugins((ExtractResourcePlugin::<OxrViews>::default(),))
             .add_systems(
                 PreUpdate,
                 (
-                    init_views.run_if(resource_added::<OXrGraphicsInfo>),
+                    init_views.run_if(resource_added::<OxrGraphicsInfo>),
                     wait_frame.run_if(session_started),
                     locate_views.run_if(session_started),
                     update_views.run_if(session_started),
                 )
                     .chain()
-                    .after(OXrPreUpdateSet::HandleEvents),
+                    .after(OxrPreUpdateSet::HandleEvents),
             )
             .add_systems(
                 PostUpdate,
@@ -65,9 +65,9 @@ pub const XR_TEXTURE_INDEX: u32 = 3383858418;
 // TODO: have cameras initialized externally and then recieved by this function.
 /// This is needed to properly initialize the texture views so that bevy will set them to the correct resolution despite them being updated in the render world.
 pub fn init_views(
-    graphics_info: Res<OXrGraphicsInfo>,
+    graphics_info: Res<OxrGraphicsInfo>,
     mut manual_texture_views: ResMut<ManualTextureViews>,
-    swapchain_images: Res<OXrSwapchainImages>,
+    swapchain_images: Res<OxrSwapchainImages>,
     mut commands: Commands,
 ) {
     let _span = info_span!("xr_init_views");
@@ -93,22 +93,22 @@ pub fn init_views(
         ));
         views.push(default());
     }
-    commands.insert_resource(OXrViews(views));
+    commands.insert_resource(OxrViews(views));
 }
 
-pub fn wait_frame(mut frame_waiter: ResMut<OXrFrameWaiter>, mut commands: Commands) {
+pub fn wait_frame(mut frame_waiter: ResMut<OxrFrameWaiter>, mut commands: Commands) {
     let _span = info_span!("xr_wait_frame");
     let state = frame_waiter.wait().expect("Failed to wait frame");
     // Here we insert the predicted display time for when this frame will be displayed.
     // TODO: don't add predicted_display_period if pipelined rendering plugin not enabled
-    commands.insert_resource(OXrTime(state.predicted_display_time));
+    commands.insert_resource(OxrTime(state.predicted_display_time));
 }
 
 pub fn locate_views(
-    session: Res<OXrSession>,
-    stage: Res<OXrStage>,
-    time: Res<OXrTime>,
-    mut openxr_views: ResMut<OXrViews>,
+    session: Res<OxrSession>,
+    stage: Res<OxrStage>,
+    time: Res<OxrTime>,
+    mut openxr_views: ResMut<OxrViews>,
 ) {
     let _span = info_span!("xr_locate_views");
     let (flags, xr_views) = session
@@ -125,7 +125,7 @@ pub fn locate_views(
         flags & ViewStateFlags::ORIENTATION_VALID == ViewStateFlags::ORIENTATION_VALID,
         flags & ViewStateFlags::POSITION_VALID == ViewStateFlags::POSITION_VALID,
     ) {
-        (true, true) => *openxr_views = OXrViews(xr_views),
+        (true, true) => *openxr_views = OxrViews(xr_views),
         (true, false) => {
             for (i, view) in openxr_views.iter_mut().enumerate() {
                 view.pose.orientation = xr_views[i].pose.orientation;
@@ -142,7 +142,7 @@ pub fn locate_views(
 
 pub fn update_views(
     mut query: Query<(&mut Transform, &mut XrProjection, &XrCamera)>,
-    views: ResMut<OXrViews>,
+    views: ResMut<OxrViews>,
 ) {
     for (mut transform, mut projection, camera) in query.iter_mut() {
         let Some(view) = views.get(camera.0 as usize) else {
@@ -162,8 +162,8 @@ pub fn update_views(
 }
 
 pub fn update_views_render_world(
-    views: Res<OXrViews>,
-    root: Res<OXrRootTransform>,
+    views: Res<OxrViews>,
+    root: Res<OxrRootTransform>,
     mut query: Query<(&mut ExtractedView, &XrCamera)>,
 ) {
     for (mut extracted_view, camera) in query.iter_mut() {
@@ -280,10 +280,10 @@ fn calculate_projection(near_z: f32, fov: openxr::Fovf) -> Mat4 {
 /// # Safety
 /// Images inserted into texture views here should not be written to until [`wait_image`] is ran
 pub fn insert_texture_views(
-    swapchain_images: Res<OXrSwapchainImages>,
-    mut swapchain: ResMut<OXrSwapchain>,
+    swapchain_images: Res<OxrSwapchainImages>,
+    mut swapchain: ResMut<OxrSwapchain>,
     mut manual_texture_views: ResMut<ManualTextureViews>,
-    graphics_info: Res<OXrGraphicsInfo>,
+    graphics_info: Res<OxrGraphicsInfo>,
 ) {
     let _span = info_span!("xr_insert_texture_views");
     let index = swapchain.acquire_image().expect("Failed to acquire image");
@@ -294,7 +294,7 @@ pub fn insert_texture_views(
     }
 }
 
-pub fn wait_image(mut swapchain: ResMut<OXrSwapchain>) {
+pub fn wait_image(mut swapchain: ResMut<OxrSwapchain>) {
     swapchain
         .wait_image(openxr::Duration::INFINITE)
         .expect("Failed to wait image");
@@ -303,7 +303,7 @@ pub fn wait_image(mut swapchain: ResMut<OXrSwapchain>) {
 pub fn add_texture_view(
     manual_texture_views: &mut ManualTextureViews,
     texture: &wgpu::Texture,
-    info: &OXrGraphicsInfo,
+    info: &OxrGraphicsInfo,
     index: u32,
 ) -> ManualTextureViewHandle {
     let view = texture.create_view(&wgpu::TextureViewDescriptor {
@@ -322,17 +322,17 @@ pub fn add_texture_view(
     handle
 }
 
-pub fn begin_frame(mut frame_stream: ResMut<OXrFrameStream>) {
+pub fn begin_frame(mut frame_stream: ResMut<OxrFrameStream>) {
     frame_stream.begin().expect("Failed to begin frame")
 }
 
 pub fn end_frame(
-    mut frame_stream: ResMut<OXrFrameStream>,
-    mut swapchain: ResMut<OXrSwapchain>,
-    stage: Res<OXrStage>,
-    display_time: Res<OXrTime>,
-    graphics_info: Res<OXrGraphicsInfo>,
-    openxr_views: Res<OXrViews>,
+    mut frame_stream: ResMut<OxrFrameStream>,
+    mut swapchain: ResMut<OxrSwapchain>,
+    stage: Res<OxrStage>,
+    display_time: Res<OxrTime>,
+    graphics_info: Res<OxrGraphicsInfo>,
+    openxr_views: Res<OxrViews>,
 ) {
     let _span = info_span!("xr_end_frame");
     swapchain.release_image().unwrap();

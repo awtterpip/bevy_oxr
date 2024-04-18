@@ -1,13 +1,13 @@
 use std::borrow::Cow;
 
-use crate::error::OXrError;
+use crate::error::OxrError;
 use crate::graphics::{GraphicsExt, GraphicsType, GraphicsWrap};
 
-pub use crate::openxr::exts::OXrExtensions;
+pub use crate::openxr::exts::OxrExtensions;
 
 pub use openxr::{EnvironmentBlendMode, SwapchainCreateFlags, SwapchainUsageFlags};
 
-pub type Result<T> = std::result::Result<T, OXrError>;
+pub type Result<T> = std::result::Result<T, OxrError>;
 
 /// A container for all required graphics objects needed for a bevy app.
 pub struct WgpuGraphics(
@@ -70,14 +70,14 @@ pub struct SwapchainCreateInfo {
 }
 
 impl<G: GraphicsExt> TryFrom<SwapchainCreateInfo> for openxr::SwapchainCreateInfo<G> {
-    type Error = OXrError;
+    type Error = OxrError;
 
     fn try_from(value: SwapchainCreateInfo) -> Result<Self> {
         Ok(openxr::SwapchainCreateInfo {
             create_flags: value.create_flags,
             usage_flags: value.usage_flags,
             format: G::from_wgpu_format(value.format)
-                .ok_or(OXrError::UnsupportedTextureFormat(value.format))?,
+                .ok_or(OxrError::UnsupportedTextureFormat(value.format))?,
             sample_count: value.sample_count,
             width: value.width,
             height: value.height,

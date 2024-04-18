@@ -7,14 +7,16 @@ edition = "2021"
 default = ["vulkan"]
 vulkan = ["dep:ash"]
 
-# all dependencies are placed under this since on wasm, this crate is completely empty
+# bevy can't be placed behind target or proc macros won't work properly
+[dependencies]
+bevy.workspace = true
+
+# all other dependencies are placed under this since on wasm, this crate is completely empty
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 thiserror = "1.0.57"
 wgpu = "0.19.3"
 wgpu-hal = "0.19.3"
-
 bevy_xr.path = "../bevy_xr"
-bevy.workspace = true
 
 ash = { version = "0.37.3", optional = true }
 

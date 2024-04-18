@@ -7,7 +7,7 @@ use bevy::{
 };
 use bevy_xr::camera::XrCameraPlugin;
 use bevy_xr::session::XrSessionPlugin;
-use init::OXrInitPlugin;
+use init::OxrInitPlugin;
 use render::XrRenderPlugin;
 
 pub mod error;
@@ -25,7 +25,7 @@ pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
         .disable::<RenderPlugin>()
         .disable::<PipelinedRenderingPlugin>()
         .add_before::<RenderPlugin, _>(XrSessionPlugin)
-        .add_before::<RenderPlugin, _>(OXrInitPlugin {
+        .add_before::<RenderPlugin, _>(OxrInitPlugin {
             app_info: default(),
             exts: default(),
             blend_modes: default(),

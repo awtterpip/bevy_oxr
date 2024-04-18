@@ -5,14 +5,14 @@ use std::any::TypeId;
 
 use bevy::math::UVec2;
 
-use crate::types::{AppInfo, OXrExtensions, Result, WgpuGraphics};
+use crate::types::{AppInfo, OxrExtensions, Result, WgpuGraphics};
 
 /// This is an extension trait to the [`Graphics`](openxr::Graphics) trait and is how the graphics API should be interacted with.
 pub unsafe trait GraphicsExt: openxr::Graphics {
     /// Wrap the graphics specific type into the [GraphicsWrap] enum
     fn wrap<T: GraphicsType>(item: T::Inner<Self>) -> GraphicsWrap<T>;
     /// Returns all of the required openxr extensions to use this graphics API.
-    fn required_exts() -> OXrExtensions;
+    fn required_exts() -> OxrExtensions;
     /// Convert from wgpu format to the graphics format
     fn from_wgpu_format(format: wgpu::TextureFormat) -> Option<Self::Format>;
     /// Convert from the graphics format to wgpu format
@@ -64,7 +64,7 @@ pub type GraphicsBackend = GraphicsWrap<()>;
 impl GraphicsBackend {
     const ALL: &'static [Self] = &[Self::Vulkan(())];
 
-    pub fn available_backends(exts: &OXrExtensions) -> Vec<Self> {
+    pub fn available_backends(exts: &OxrExtensions) -> Vec<Self> {
         Self::ALL
             .iter()
             .copied()
@@ -72,11 +72,11 @@ impl GraphicsBackend {
             .collect()
     }
 
-    pub fn is_available(&self, exts: &OXrExtensions) -> bool {
+    pub fn is_available(&self, exts: &OxrExtensions) -> bool {
         self.required_exts().is_available(exts)
     }
 
-    pub fn required_exts(&self) -> OXrExtensions {
+    pub fn required_exts(&self) -> OxrExtensions {
         graphics_match!(
             self;
             _ => Api::required_exts()
@@ -125,14 +125,14 @@ impl<T: GraphicsType> GraphicsWrap<T> {
 /// # Example
 ///
 /// ```
-/// pub struct OXrFrameStream(GraphicsWrap<XrFrameStream>);
+/// pub struct OxrFrameStream(GraphicsWrap<XrFrameStream>);
 ///
-/// impl GraphicsType for OXrFrameStream {
+/// impl GraphicsType for OxrFrameStream {
 ///     // Here is the inner type
 ///     type Inner<G: GraphicsExt> = openxr::FrameStream<G>;
 /// }
 ///
-/// fn begin(frame_stream: &mut XrFrameStream) {
+/// fn begin(frame_stream: &mut OxrFrameStream) {
 ///     graphics_match! {
 ///         // get the inner 'GraphicsWrap' struct
 ///         &mut frame_stream.0;

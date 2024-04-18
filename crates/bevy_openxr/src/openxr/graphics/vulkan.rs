@@ -8,8 +8,8 @@ use wgpu_hal::api::Vulkan;
 use wgpu_hal::Api;
 
 use super::{GraphicsExt, GraphicsType, GraphicsWrap};
-use crate::error::OXrError;
-use crate::types::{AppInfo, OXrExtensions, Result, WgpuGraphics};
+use crate::error::OxrError;
+use crate::types::{AppInfo, OxrExtensions, Result, WgpuGraphics};
 
 #[cfg(not(target_os = "android"))]
 const VK_TARGET_VERSION: Version = Version::new(1, 2, 0);
@@ -28,7 +28,7 @@ unsafe impl GraphicsExt for openxr::Vulkan {
         GraphicsWrap::Vulkan(item)
     }
 
-    fn required_exts() -> OXrExtensions {
+    fn required_exts() -> OxrExtensions {
         let mut extensions = openxr::ExtensionSet::default();
         extensions.khr_vulkan_enable2 = true;
         extensions.into()
@@ -106,7 +106,7 @@ unsafe impl GraphicsExt for openxr::Vulkan {
                 reqs.min_api_version_supported,
                 reqs.max_api_version_supported.major() + 1
             );
-            return Err(OXrError::FailedGraphicsRequirements);
+            return Err(OxrError::FailedGraphicsRequirements);
         };
         let vk_entry = unsafe { ash::Entry::load() }?;
         let flags = wgpu::InstanceFlags::empty();
@@ -165,7 +165,7 @@ unsafe impl GraphicsExt for openxr::Vulkan {
                 VK_TARGET_VERSION.minor(),
                 VK_TARGET_VERSION.patch()
             );
-            return Err(OXrError::FailedGraphicsRequirements);
+            return Err(OxrError::FailedGraphicsRequirements);
         }
 
         let wgpu_vk_instance = unsafe {
@@ -189,7 +189,7 @@ unsafe impl GraphicsExt for openxr::Vulkan {
 
         let Some(wgpu_exposed_adapter) = wgpu_vk_instance.expose_adapter(vk_physical_device) else {
             error!("WGPU failed to provide an adapter");
-            return Err(OXrError::FailedGraphicsRequirements);
+            return Err(OxrError::FailedGraphicsRequirements);
         };
 
         let enabled_extensions = wgpu_exposed_adapter

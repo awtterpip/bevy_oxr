@@ -2,8 +2,8 @@ use bevy::prelude::{Deref, DerefMut};
 use openxr::ExtensionSet;
 
 #[derive(Clone, Debug, Eq, PartialEq, Deref, DerefMut)]
-pub struct OXrExtensions(ExtensionSet);
-impl OXrExtensions {
+pub struct OxrExtensions(ExtensionSet);
+impl OxrExtensions {
     pub fn raw_mut(&mut self) -> &mut ExtensionSet {
         &mut self.0
     }
@@ -27,21 +27,21 @@ impl OXrExtensions {
         self
     }
     /// returns true if all of the extensions enabled are also available in `available_exts`
-    pub fn is_available(&self, available_exts: &OXrExtensions) -> bool {
+    pub fn is_available(&self, available_exts: &OxrExtensions) -> bool {
         self.clone() & available_exts.clone() == *self
     }
 }
-impl From<ExtensionSet> for OXrExtensions {
+impl From<ExtensionSet> for OxrExtensions {
     fn from(value: ExtensionSet) -> Self {
         Self(value)
     }
 }
-impl From<OXrExtensions> for ExtensionSet {
-    fn from(val: OXrExtensions) -> Self {
+impl From<OxrExtensions> for ExtensionSet {
+    fn from(val: OxrExtensions) -> Self {
         val.0
     }
 }
-impl Default for OXrExtensions {
+impl Default for OxrExtensions {
     fn default() -> Self {
         let exts = ExtensionSet::default();
         //exts.ext_hand_tracking = true;
@@ -165,7 +165,7 @@ macro_rules! impl_ext {
     ) => {
         $(
             $macro! {
-                OXrExtensions;
+                OxrExtensions;
                 almalence_digital_lens_control,
                 bd_controller_interaction,
                 epic_view_configuration_fov,

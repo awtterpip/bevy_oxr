@@ -3,12 +3,12 @@ use std::mem;
 use openxr::{sys, CompositionLayerFlags, Fovf, Posef, Rect2Di, Space};
 
 use crate::graphics::graphics_match;
-use crate::resources::OXrSwapchain;
+use crate::resources::OxrSwapchain;
 
 #[derive(Copy, Clone)]
 pub struct SwapchainSubImage<'a> {
     inner: sys::SwapchainSubImage,
-    swapchain: Option<&'a OXrSwapchain>,
+    swapchain: Option<&'a OxrSwapchain>,
 }
 
 impl<'a> SwapchainSubImage<'a> {
@@ -30,7 +30,7 @@ impl<'a> SwapchainSubImage<'a> {
         &self.inner
     }
     #[inline]
-    pub fn swapchain(mut self, value: &'a OXrSwapchain) -> Self {
+    pub fn swapchain(mut self, value: &'a OxrSwapchain) -> Self {
         graphics_match!(
             &value.0;
             swap => self.inner.swapchain = swap.as_raw()
@@ -59,7 +59,7 @@ impl<'a> Default for SwapchainSubImage<'a> {
 #[derive(Copy, Clone)]
 pub struct CompositionLayerProjectionView<'a> {
     inner: sys::CompositionLayerProjectionView,
-    swapchain: Option<&'a OXrSwapchain>,
+    swapchain: Option<&'a OxrSwapchain>,
 }
 
 impl<'a> CompositionLayerProjectionView<'a> {
@@ -104,13 +104,13 @@ impl<'a> Default for CompositionLayerProjectionView<'a> {
     }
 }
 pub unsafe trait CompositionLayer<'a> {
-    fn swapchain(&self) -> Option<&'a OXrSwapchain>;
+    fn swapchain(&self) -> Option<&'a OxrSwapchain>;
     fn header(&self) -> &'a sys::CompositionLayerBaseHeader;
 }
 #[derive(Clone)]
 pub struct CompositionLayerProjection<'a> {
     inner: sys::CompositionLayerProjection,
-    swapchain: Option<&'a OXrSwapchain>,
+    swapchain: Option<&'a OxrSwapchain>,
     views: Vec<sys::CompositionLayerProjectionView>,
 }
 impl<'a> CompositionLayerProjection<'a> {
@@ -154,7 +154,7 @@ impl<'a> CompositionLayerProjection<'a> {
     }
 }
 unsafe impl<'a> CompositionLayer<'a> for CompositionLayerProjection<'a> {
-    fn swapchain(&self) -> Option<&'a OXrSwapchain> {
+    fn swapchain(&self) -> Option<&'a OxrSwapchain> {
         self.swapchain
     }
 

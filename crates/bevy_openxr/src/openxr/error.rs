@@ -6,7 +6,7 @@ use super::graphics::GraphicsBackend;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum OXrError {
+pub enum OxrError {
     #[error("OpenXR error: {0}")]
     OpenXrError(#[from] openxr::sys::Result),
     #[error("OpenXR loading error: {0}")]
@@ -52,7 +52,7 @@ pub use init_error::InitError;
 /// This module is needed because thiserror does not allow conditional compilation within enums for some reason,
 /// so graphics api specific errors are implemented here.
 mod init_error {
-    use super::OXrError;
+    use super::OxrError;
     use std::fmt;
 
     #[derive(Debug)]
@@ -77,21 +77,21 @@ mod init_error {
     }
 
     #[cfg(feature = "vulkan")]
-    impl From<ash::vk::Result> for OXrError {
+    impl From<ash::vk::Result> for OxrError {
         fn from(value: ash::vk::Result) -> Self {
             Self::InitError(InitError::VulkanError(value))
         }
     }
 
     #[cfg(feature = "vulkan")]
-    impl From<ash::LoadingError> for OXrError {
+    impl From<ash::LoadingError> for OxrError {
         fn from(value: ash::LoadingError) -> Self {
             Self::InitError(InitError::VulkanLoadingError(value))
         }
     }
 }
 
-impl From<Vec<Cow<'static, str>>> for OXrError {
+impl From<Vec<Cow<'static, str>>> for OxrError {
     fn from(value: Vec<Cow<'static, str>>) -> Self {
         Self::UnavailableExtensions(UnavailableExts(value))
     }
