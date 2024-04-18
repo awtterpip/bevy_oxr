@@ -125,7 +125,7 @@ impl<T: GraphicsType> GraphicsWrap<T> {
 /// # Example
 ///
 /// ```
-/// pub struct OxrFrameStream(GraphicsWrap<XrFrameStream>);
+/// pub struct OxrFrameStream(GraphicsWrap<OxrFrameStream>);
 ///
 /// impl GraphicsType for OxrFrameStream {
 ///     // Here is the inner type

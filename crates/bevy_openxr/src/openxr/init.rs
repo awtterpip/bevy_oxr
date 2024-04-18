@@ -418,7 +418,7 @@ fn init_xr_session(
 
 /// This is used solely to transport resources from the main world to the render world.
 #[derive(Resource)]
-struct XrRenderResources {
+struct OxrRenderResources {
     session: OxrSession,
     frame_stream: OxrFrameStream,
     swapchain: OxrSwapchain,
@@ -446,7 +446,7 @@ pub fn create_xr_session(
             commands.insert_resource(images.clone());
             commands.insert_resource(graphics_info.clone());
             commands.insert_resource(stage.clone());
-            commands.insert_resource(XrRenderResources {
+            commands.insert_resource(OxrRenderResources {
                 session,
                 frame_stream,
                 swapchain,
@@ -475,7 +475,7 @@ pub fn end_xr_session(session: Res<OxrSession>, session_started: Res<OxrSessionS
 
 /// This system transfers important render resources from the main world to the render world when a session is created.
 pub fn transfer_xr_resources(mut commands: Commands, mut world: ResMut<MainWorld>) {
-    let Some(XrRenderResources {
+    let Some(OxrRenderResources {
         session,
         frame_stream,
         swapchain,

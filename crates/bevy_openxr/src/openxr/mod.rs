@@ -8,7 +8,7 @@ use bevy::{
 use bevy_xr::camera::XrCameraPlugin;
 use bevy_xr::session::XrSessionPlugin;
 use init::OxrInitPlugin;
-use render::XrRenderPlugin;
+use render::OxrRenderPlugin;
 
 pub mod error;
 mod exts;
@@ -34,7 +34,7 @@ pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
             resolutions: default(),
             synchronous_pipeline_compilation: default(),
         })
-        .add(XrRenderPlugin)
+        .add(OxrRenderPlugin)
         .add(XrCameraPlugin)
         // .add(XrActionPlugin)
         .set(WindowPlugin {

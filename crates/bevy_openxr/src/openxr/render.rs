@@ -16,9 +16,9 @@ use crate::init::{session_started, OxrPreUpdateSet};
 use crate::layer_builder::*;
 use crate::resources::*;
 
-pub struct XrRenderPlugin;
+pub struct OxrRenderPlugin;
 
-impl Plugin for XrRenderPlugin {
+impl Plugin for OxrRenderPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((ExtractResourcePlugin::<OxrViews>::default(),))
             .add_systems(
