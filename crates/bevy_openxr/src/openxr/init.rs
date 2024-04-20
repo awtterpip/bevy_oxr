@@ -200,6 +200,9 @@ impl OxrInitPlugin {
     fn init_xr(&self) -> Result<(OxrInstance, OxrSystemId, WgpuGraphics, SessionConfigInfo)> {
         let entry = xr_entry()?;
 
+        #[cfg(target_os = "android")]
+        entry.initialize_android_loader()?;
+
         let available_exts = entry.enumerate_extensions()?;
 
         // check available extensions and send a warning for any wanted extensions that aren't available.
