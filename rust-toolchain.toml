@@ -1,0 +1,10 @@
+[toolchain]
+channel = "1.77.2"
+components = ["rust-src"]
+profile = "default"
+targets = [
+	"aarch64-apple-darwin",
+	"aarch64-linux-android",
+	"x86_64-pc-windows-msvc",
+	"x86_64-unknown-linux-gnu",
+]
