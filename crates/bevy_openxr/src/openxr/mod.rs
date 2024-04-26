@@ -12,6 +12,7 @@ use render::OxrRenderPlugin;
 
 pub mod error;
 mod exts;
+pub mod features;
 pub mod graphics;
 pub mod init;
 pub mod layer_builder;

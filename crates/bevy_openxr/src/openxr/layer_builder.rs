@@ -3,7 +3,7 @@ use std::mem;
 use openxr::{sys, CompositionLayerFlags, Fovf, Posef, Rect2Di, Space};
 
 use crate::graphics::graphics_match;
-use crate::resources::OxrSwapchain;
+use crate::resources::{OxrPassthroughLayer, OxrSwapchain};
 
 #[derive(Copy, Clone)]
 pub struct SwapchainSubImage<'a> {
@@ -105,7 +105,7 @@ impl<'a> Default for CompositionLayerProjectionView<'a> {
 }
 pub unsafe trait CompositionLayer<'a> {
     fn swapchain(&self) -> Option<&'a OxrSwapchain>;
-    fn header(&self) -> &'a sys::CompositionLayerBaseHeader;
+    fn header(&self) -> &sys::CompositionLayerBaseHeader;
 }
 #[derive(Clone)]
 pub struct CompositionLayerProjection<'a> {
@@ -158,12 +158,45 @@ unsafe impl<'a> CompositionLayer<'a> for CompositionLayerProjection<'a> {
         self.swapchain
     }
 
-    fn header(&self) -> &'a sys::CompositionLayerBaseHeader {
-        unsafe { std::mem::transmute(&self.inner) }
+    fn header(&self) -> &sys::CompositionLayerBaseHeader {
+        unsafe { mem::transmute(&self.inner) }
     }
 }
 impl<'a> Default for CompositionLayerProjection<'a> {
     fn default() -> Self {
         Self::new()
+    }
+}
+pub struct CompositionLayerPassthrough {
+    inner: sys::CompositionLayerPassthroughFB,
+}
+impl CompositionLayerPassthrough {
+    #[inline]
+    pub fn new() -> Self {
+        Self {
+            inner: openxr::sys::CompositionLayerPassthroughFB {
+                ty: openxr::sys::CompositionLayerPassthroughFB::TYPE,
+                ..unsafe { mem::zeroed() }
+            },
+        }
+    }
+    #[inline]
+    pub fn layer_handle(mut self, layer_handle: &OxrPassthroughLayer) -> Self {
+        self.inner.layer_handle = *layer_handle.inner();
+        self
+    }
+    #[inline]
+    pub fn layer_flags(mut self, value: CompositionLayerFlags) -> Self {
+        self.inner.flags = value;
+        self
+    }
+}
+unsafe impl<'a> CompositionLayer<'a> for CompositionLayerPassthrough {
+    fn swapchain(&self) -> Option<&'a OxrSwapchain> {
+        None
+    }
+
+    fn header(&self) -> &sys::CompositionLayerBaseHeader {
+        unsafe { mem::transmute(&self.inner) }
     }
 }

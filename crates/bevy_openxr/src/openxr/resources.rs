@@ -10,7 +10,9 @@ use crate::graphics::*;
 use crate::layer_builder::CompositionLayer;
 use crate::types::*;
 
-/// Wrapper around the entry point to the OpenXR API
+/// Wrapper around an [`Entry`](openxr::Entry) with some methods overridden to use bevy types.
+///
+/// See [`openxr::Entry`] for other available methods.
 #[derive(Deref, Clone)]
 pub struct OxrEntry(pub openxr::Entry);
 
@@ -20,6 +22,9 @@ impl OxrEntry {
         Ok(self.0.enumerate_extensions().map(Into::into)?)
     }
 
+    /// Creates an [`OxrInstance`].
+    ///
+    /// Calls [`create_instance`](openxr::Entry::create_instance) internally.
     pub fn create_instance(
         &self,
         app_info: AppInfo,
@@ -49,6 +54,7 @@ impl OxrEntry {
         Ok(OxrInstance(instance, backend, app_info))
     }
 
+    /// Returns a list of all of the backends the OpenXR runtime supports.
     pub fn available_backends(&self) -> Result<Vec<GraphicsBackend>> {
         Ok(GraphicsBackend::available_backends(
             &self.enumerate_extensions()?,
@@ -56,20 +62,48 @@ impl OxrEntry {
     }
 }
 
-/// Wrapper around [openxr::Instance] with additional data for safety.
+/// Wrapper around [`openxr::Instance`] with additional data for safety and some methods overriden to use bevy types.
+///
+/// See [`openxr::Instance`] for other available methods.
 #[derive(Resource, Deref, Clone)]
 pub struct OxrInstance(
-    #[deref] pub openxr::Instance,
+    #[deref] pub(crate) openxr::Instance,
+    /// [`GraphicsBackend`] is stored here to let us know what graphics API the current instance wants to target.
     pub(crate) GraphicsBackend,
     pub(crate) AppInfo,
 );
 
 impl OxrInstance {
+    /// Creates an [`OxrInstance`] from an [`openxr::Instance`] if needed.
+    /// In the majority of cases, you should use [`create_instance`](OxrEntry::create_instance) instead.
+    ///
+    /// # Safety
+    ///
+    /// The OpenXR instance passed in *must* have support for the backend specified.
+    pub unsafe fn from_inner(
+        instance: openxr::Instance,
+        backend: GraphicsBackend,
+        info: AppInfo,
+    ) -> Self {
+        Self(instance, backend, info)
+    }
+
+    /// Consumes self and returns the inner [`openxr::Instance`]
     pub fn into_inner(self) -> openxr::Instance {
         self.0
     }
 
-    /// Initialize graphics. This is used to create [WgpuGraphics] for the bevy app and to get the [SessionCreateInfo] to make an XR session.
+    /// Returns the current backend being used by this instance.
+    pub fn backend(&self) -> GraphicsBackend {
+        self.1
+    }
+
+    /// Returns the [`AppInfo`] being used by this instance.
+    pub fn app_info(&self) -> &AppInfo {
+        &self.2
+    }
+
+    /// Initialize graphics. This is used to create [WgpuGraphics] for the bevy app and to get the [SessionCreateInfo] needed to make an XR session.
     pub fn init_graphics(
         &self,
         system_id: openxr::SystemId,
@@ -85,6 +119,8 @@ impl OxrInstance {
     }
 
     /// Creates an [OxrSession]
+    ///
+    /// Calls [`create_session`](openxr::Instance::create_session) internally.
     ///
     /// # Safety
     ///
@@ -111,11 +147,18 @@ impl OxrInstance {
     }
 }
 
-/// Graphics agnostic wrapper around [openxr::Session]
+/// Graphics agnostic wrapper around [openxr::Session].
+///
+/// See [`openxr::Session`] for other available methods.
 #[derive(Resource, Deref, Clone)]
 pub struct OxrSession(
-    #[deref] pub openxr::Session<AnyGraphics>,
-    pub GraphicsWrap<Self>,
+    /// A session handle with [`AnyGraphics`].
+    /// Having this here allows the majority of [`Session`](openxr::Session)'s methods to work without having to rewrite them.
+    #[deref]
+    pub(crate) openxr::Session<AnyGraphics>,
+    /// A [`GraphicsWrap`] with [`openxr::Session<G>`] as the inner type.
+    /// This is so that we can still operate on functions that don't take [`AnyGraphics`] as the generic.
+    pub(crate) GraphicsWrap<Self>,
 );
 
 impl GraphicsType for OxrSession {
@@ -124,16 +167,27 @@ impl GraphicsType for OxrSession {
 
 impl<G: GraphicsExt> From<openxr::Session<G>> for OxrSession {
     fn from(session: openxr::Session<G>) -> Self {
-        Self::new(session)
+        Self::from_inner(session)
     }
 }
 
 impl OxrSession {
-    pub fn new<G: GraphicsExt>(session: openxr::Session<G>) -> Self {
+    /// Creates a new [`OxrSession`] from an [`openxr::Session`].
+    /// In the majority of cases, you should use [`create_session`](OxrInstance::create_session) instead.
+    pub fn from_inner<G: GraphicsExt>(session: openxr::Session<G>) -> Self {
         Self(session.clone().into_any_graphics(), G::wrap(session))
     }
 
-    /// Enumerate all available swapchain formats.
+    /// Returns [`GraphicsWrap`] with [`openxr::Session<G>`] as the inner type.
+    ///
+    /// This can be useful if you need access to the original [`openxr::Session`] with the graphics API still specified.
+    pub fn typed_session(&self) -> &GraphicsWrap<Self> {
+        &self.1
+    }
+
+    /// Enumerates all available swapchain formats and converts them to wgpu's [`TextureFormat`](wgpu::TextureFormat).
+    ///
+    /// Calls [`enumerate_swapchain_formats`](openxr::Session::enumerate_swapchain_formats) internally.
     pub fn enumerate_swapchain_formats(&self) -> Result<Vec<wgpu::TextureFormat>> {
         graphics_match!(
             &self.1;
@@ -142,13 +196,74 @@ impl OxrSession {
     }
 
     /// Creates an [OxrSwapchain].
+    ///
+    /// Calls [`create_swapchain`](openxr::Session::create_swapchain) internally.
     pub fn create_swapchain(&self, info: SwapchainCreateInfo) -> Result<OxrSwapchain> {
         Ok(OxrSwapchain(graphics_match!(
             &self.1;
             session => session.create_swapchain(&info.try_into()?)? => OxrSwapchain
         )))
     }
+
+    /// Creates a passthrough.
+    ///
+    /// Requires [`XR_FB_passthrough`](https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#XR_FB_passthrough).
+    ///
+    /// Calls [`create_passthrough`](openxr::Session::create_passthrough) internally.
+    pub fn create_passthrough(&self, flags: openxr::PassthroughFlagsFB) -> Result<OxrPassthrough> {
+        Ok(OxrPassthrough(
+            graphics_match! {
+                &self.1;
+                session => session.create_passthrough(flags)?
+            },
+            flags,
+        ))
+    }
+
+    /// Creates a passthrough layer that can be used to make a [`CompositionLayerPassthrough`](crate::layer_builder::CompositionLayerPassthrough) for frame submission.
+    ///
+    /// Requires [`XR_FB_passthrough`](https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#XR_FB_passthrough).
+    ///
+    /// Calls [`create_passthrough_layer`](openxr::Session::create_passthrough_layer) internally.
+    pub fn create_passthrough_layer(
+        &self,
+        passthrough: &OxrPassthrough,
+        purpose: openxr::PassthroughLayerPurposeFB,
+    ) -> Result<OxrPassthroughLayer> {
+        Ok(OxrPassthroughLayer(graphics_match! {
+            &self.1;
+            session => session.create_passthrough_layer(&passthrough.0, passthrough.1, purpose)?
+        }))
+    }
 }
+
+/// Wrapper around [`openxr::Passthrough`].
+///
+/// Used to [`start`](openxr::Passthrough::start) or [`pause`](openxr::Passthrough::pause) passthrough on the physical device.
+///
+/// See [`openxr::Passthrough`] for available methods.
+#[derive(Resource, Deref, DerefMut)]
+pub struct OxrPassthrough(
+    #[deref] pub openxr::Passthrough,
+    /// The flags are stored here so that they don't need to be passed in again when creating an [`OxrPassthroughLayer`].
+    openxr::PassthroughFlagsFB,
+);
+
+impl OxrPassthrough {
+    /// This function can create an [`OxrPassthrough`] from raw openxr types if needed.
+    /// In the majority of cases, you should use [`create_passthrough`](OxrSession::create_passthrough) instead.
+    pub fn from_inner(passthrough: openxr::Passthrough, flags: openxr::PassthroughFlagsFB) -> Self {
+        Self(passthrough, flags)
+    }
+}
+
+/// Wrapper around [`openxr::Passthrough`].
+///
+/// Used to create a [`CompositionLayerPassthrough`](crate::layer_builder::CompositionLayerPassthrough), and to [`pause`](openxr::PassthroughLayer::pause) or [`resume`](openxr::PassthroughLayer::resume) rendering of the passthrough layer.
+///
+/// See [`openxr::PassthroughLayer`] for available methods.
+#[derive(Resource, Deref, DerefMut)]
+pub struct OxrPassthroughLayer(pub openxr::PassthroughLayer);
 
 /// Graphics agnostic wrapper around [openxr::FrameStream]
 #[derive(Resource)]
@@ -159,7 +274,15 @@ impl GraphicsType for OxrFrameStream {
 }
 
 impl OxrFrameStream {
+    /// Creates a new [`OxrFrameStream`] from an [`openxr::FrameStream`].
+    /// In the majority of cases, you should use [`create_session`](OxrInstance::create_session) instead.
+    pub fn from_inner<G: GraphicsExt>(frame_stream: openxr::FrameStream<G>) -> Self {
+        Self(G::wrap(frame_stream))
+    }
+
     /// Indicate that graphics device work is beginning.
+    ///
+    /// Calls [`begin`](openxr::FrameStream::begin) internally.
     pub fn begin(&mut self) -> openxr::Result<()> {
         graphics_match!(
             &mut self.0;
@@ -169,8 +292,8 @@ impl OxrFrameStream {
 
     /// Indicate that all graphics work for the frame has been submitted
     ///
-    /// `layers` is an array of references to any type of composition layer,
-    /// e.g. [`CompositionLayerProjection`](crate::oxr::layer_builder::CompositionLayerProjection)
+    /// `layers` is an array of references to any type of composition layer that implements [`CompositionLayer`],
+    /// e.g. [`CompositionLayerProjection`](crate::layer_builder::CompositionLayerProjection)
     pub fn end(
         &mut self,
         display_time: openxr::Time,
@@ -202,7 +325,9 @@ impl OxrFrameStream {
     }
 }
 
-/// Handle for waiting to render a frame. Check [`FrameWaiter`](openxr::FrameWaiter) for available methods.
+/// Handle for waiting to render a frame.
+///
+/// See [`FrameWaiter`](openxr::FrameWaiter) for available methods.
 #[derive(Resource, Deref, DerefMut)]
 pub struct OxrFrameWaiter(pub openxr::FrameWaiter);
 
@@ -215,7 +340,15 @@ impl GraphicsType for OxrSwapchain {
 }
 
 impl OxrSwapchain {
-    /// Determine the index of the next image to render to in the swapchain image array
+    /// Creates a new [`OxrSwapchain`] from an [`openxr::Swapchain`].
+    /// In the majority of cases, you should use [`create_swapchain`](OxrSession::create_swapchain) instead.
+    pub fn from_inner<G: GraphicsExt>(swapchain: openxr::Swapchain<G>) -> Self {
+        Self(G::wrap(swapchain))
+    }
+
+    /// Determine the index of the next image to render to in the swapchain image array.
+    ///
+    /// Calls [`acquire_image`](openxr::Swapchain::acquire_image) internally.
     pub fn acquire_image(&mut self) -> Result<u32> {
         graphics_match!(
             &mut self.0;
@@ -223,7 +356,9 @@ impl OxrSwapchain {
         )
     }
 
-    /// Wait for the compositor to finish reading from the oldest unwaited acquired image
+    /// Wait for the compositor to finish reading from the oldest unwaited acquired image.
+    ///
+    /// Calls [`wait_image`](openxr::Swapchain::wait_image) internally.
     pub fn wait_image(&mut self, timeout: openxr::Duration) -> Result<()> {
         graphics_match!(
             &mut self.0;
@@ -231,7 +366,9 @@ impl OxrSwapchain {
         )
     }
 
-    /// Release the oldest acquired image
+    /// Release the oldest acquired image.
+    ///
+    /// Calls [`release_image`](openxr::Swapchain::release_image) internally.
     pub fn release_image(&mut self) -> Result<()> {
         graphics_match!(
             &mut self.0;
@@ -240,6 +377,8 @@ impl OxrSwapchain {
     }
 
     /// Enumerates swapchain images and converts them to wgpu [`Texture`](wgpu::Texture)s.
+    ///
+    /// Calls [`enumerate_images`](openxr::Swapchain::enumerate_images) internally.
     pub fn enumerate_images(
         &self,
         device: &wgpu::Device,

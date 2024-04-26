@@ -4,8 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["vulkan"]
+default = ["vulkan", "passthrough"]
 vulkan = ["dep:ash"]
+passthrough = []
 
 # bevy can't be placed behind target or proc macros won't work properly
 [dependencies]
