@@ -24,6 +24,7 @@ use bevy_xr::session::DestroyXrSession;
 use bevy_xr::session::EndXrSession;
 use bevy_xr::session::XrSharedStatus;
 use bevy_xr::session::XrStatus;
+use bevy_xr::session::XrStatusChanged;
 
 use crate::error::OxrError;
 use crate::graphics::*;
@@ -334,17 +335,15 @@ fn init_xr_session(
 
         preferred
     } else {
-        if let Some(config) = view_configuration_views.first() {
-            Some((
+        view_configuration_views.first().map(|config| {
+            (
                 UVec2::new(
                     config.recommended_image_rect_width,
                     config.recommended_image_rect_height,
                 ),
                 *config,
-            ))
-        } else {
-            None
-        }
+            )
+        })
     }
     .ok_or(OxrError::NoAvailableViewConfiguration)?;
 
@@ -499,7 +498,11 @@ pub fn transfer_xr_resources(mut commands: Commands, mut world: ResMut<MainWorld
 }
 
 /// Polls any OpenXR events and handles them accordingly
-pub fn poll_events(instance: Res<OxrInstance>, status: Res<XrSharedStatus>) {
+pub fn poll_events(
+    instance: Res<OxrInstance>,
+    status: Res<XrSharedStatus>,
+    mut changed_event: EventWriter<XrStatusChanged>,
+) {
     let _span = info_span!("xr_poll_events");
     let mut buffer = Default::default();
     while let Some(event) = instance
@@ -525,7 +528,7 @@ pub fn poll_events(instance: Res<OxrInstance>, status: Res<XrSharedStatus>) {
                     SessionState::EXITING | SessionState::LOSS_PENDING => XrStatus::Exiting,
                     _ => unreachable!(),
                 };
-
+                changed_event.send(XrStatusChanged(new_status));
                 status.set(new_status);
             }
             InstanceLossPending(_) => {}

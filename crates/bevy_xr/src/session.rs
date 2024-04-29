@@ -10,12 +10,16 @@ impl Plugin for XrSessionPlugin {
             .add_event::<DestroyXrSession>()
             .add_event::<BeginXrSession>()
             .add_event::<EndXrSession>()
+            .add_event::<XrStatusChanged>()
             .add_systems(
                 PreUpdate,
                 handle_session.run_if(resource_exists::<XrSharedStatus>),
             );
     }
 }
+
+#[derive(Event, Clone, Copy, Deref)]
+pub struct XrStatusChanged(pub XrStatus);
 
 #[derive(Resource, Clone)]
 pub struct XrSharedStatus(Arc<RwLock<XrStatus>>);
@@ -82,6 +86,13 @@ pub fn handle_session(
         }
     }
     *previous_status = Some(current_status);
+}
+
+/// A [`Condition`](bevy::ecs::schedule::Condition) that allows the system to run when the xr status changed to a specific [`XrStatus`].
+pub fn status_changed_to(status: XrStatus) -> impl FnMut(EventReader<XrStatusChanged>) -> bool + Clone {
+    move |mut reader: EventReader<XrStatusChanged>| {
+        reader.read().count() > 0 && reader.read().any(|new_status| new_status.0 == status)
+    }
 }
 
 /// A [`Condition`](bevy::ecs::schedule::Condition) system that says if the XR session is available. Returns true as long as [`XrStatus`] exists and isn't [`Unavailable`](XrStatus::Unavailable).

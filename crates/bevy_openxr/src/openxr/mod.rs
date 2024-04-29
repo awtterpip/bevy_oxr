@@ -19,6 +19,8 @@ pub mod layer_builder;
 pub mod render;
 pub mod resources;
 pub mod types;
+pub mod action_binding;
+pub mod action_set_attaching;
 
 pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
     plugins
@@ -37,6 +39,8 @@ pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
         })
         .add(OxrRenderPlugin)
         .add(XrCameraPlugin)
+        .add(action_set_attaching::OxrActionAttachingPlugin)
+        .add(action_binding::OxrActionBindingPlugin)
         // .add(XrActionPlugin)
         .set(WindowPlugin {
             #[cfg(not(target_os = "android"))]
