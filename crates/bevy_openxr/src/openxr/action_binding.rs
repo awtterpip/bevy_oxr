@@ -13,10 +13,11 @@ use crate::resources::OxrInstance;
 impl Plugin for OxrActionBindingPlugin {
     fn build(&self, app: &mut App) {
         app.add_schedule(Schedule::new(OxrSendActionBindings));
+        app.add_event::<OxrSuggestActionBinding>();
         app.add_systems(
             Update,
             run_action_binding_sugestion
-                .run_if(run_once().and_then(status_changed_to(XrStatus::Ready))),
+                .run_if(status_changed_to(XrStatus::Ready).and_then(run_once())),
         );
     }
 }

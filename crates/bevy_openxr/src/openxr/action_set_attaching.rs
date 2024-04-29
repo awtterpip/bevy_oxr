@@ -14,8 +14,9 @@ impl Plugin for OxrActionAttachingPlugin {
 
 fn attach_sets(session: Res<OxrSession>, mut events: EventReader<OxrAttachActionSet>) {
     let sets = events.read().map(|v| &v.0).collect::<Vec<_>>();
+    info!("attaching {} sessions", sets.len());
     match session.attach_action_sets(&sets) {
-        Ok(_) => {}
+        Ok(_) => {info!("attached sessions!")}
         Err(openxr::sys::Result::ERROR_ACTIONSETS_ALREADY_ATTACHED) => {
             error!("Action Sets Already attached!");
         }
