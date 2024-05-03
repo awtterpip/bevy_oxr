@@ -1,21 +1,31 @@
 {
   inputs = {
-    fenix.url = "github:nix-community/fenix";
-    flake-utils.url = "github:numtide/flake-utils";
-    naersk.url = "github:nix-community/naersk";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    fenix = {
+      url = "github:nix-community/fenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    flake-utils.url = "github:numtide/flake-utils";
   };
 
   outputs = {
     self,
+    nixpkgs,
     fenix,
     flake-utils,
-    naersk,
-    nixpkgs,
   }:
     flake-utils.lib.eachDefaultSystem (
       system: let
-        pkgs = nixpkgs.legacyPackages.${system};
+        # setup pkgs
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [fenix.overlays.default];
+          config = {
+            android_sdk.accept_license = true;
+            allowUnfree = true;
+          };
+        };
+        # the entire rust toolchain with required targets
         rustToolchain = with fenix.packages.${system};
           combine [
             (stable.withComponents [
@@ -27,15 +37,23 @@
             ])
 
             targets.wasm32-unknown-unknown.stable.rust-std
+            targets.aarch64-linux-android.stable.rust-std
           ];
-        rustPlatform = pkgs.makeRustPlatform {
-          inherit (rustToolchain) cargo rustc;
+        androidComposition = pkgs.androidenv.composeAndroidPackages {
+          abiVersions = ["arm64-v8a"];
+          includeNDK = true;
+          platformVersions = ["32"];
         };
       in {
         devShells.default = pkgs.mkShell rec {
           # build dependencies
           nativeBuildInputs = with pkgs; [
+            # the entire rust toolchain
             rustToolchain
+            # tool for cross compiling
+            cargo-apk
+            # xbuild
+
             pkg-config
 
             # Common cargo tools we often use
@@ -51,6 +69,7 @@
           buildInputs =
             [
               pkgs.zstd
+              pkgs.libxml2
             ]
             ++ pkgs.lib.optionals pkgs.stdenv.isLinux (with pkgs; [
               # bevy dependencies
@@ -75,11 +94,14 @@
             ])
             ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
               pkgs.darwin.apple_sdk.frameworks.Cocoa
-              rustPlatform.bindgenHook
               # # This is missing on mac m1 nix, for some reason.
               # # see https://stackoverflow.com/a/69732679
               pkgs.libiconv
             ];
+
+          # android vars
+          ANDROID_SDK_ROOT = "${androidComposition.androidsdk}/libexec/android-sdk";
+          ANDROID_NDK_ROOT = "${ANDROID_SDK_ROOT}/ndk-bundle";
 
           LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath buildInputs;
           # this is most likely not needed. for some reason shadows flicker without it.

@@ -14,6 +14,7 @@ bevy.workspace = true
 
 # all other dependencies are placed under this since on wasm, this crate is completely empty
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
+openxr = "0.18.0"
 thiserror = "1.0.57"
 wgpu = "0.19.3"
 wgpu-hal = "0.19.3"
