@@ -1,16 +1,72 @@
 use bevy::prelude::*;
+use bevy::render::Render;
+use bevy::render::RenderApp;
+use bevy::render::RenderSet;
 use openxr::sys::SystemPassthroughProperties2FB;
 use openxr::PassthroughCapabilityFlagsFB;
 
+use crate::layer_builder::PassthroughLayer;
 use crate::resources::*;
 use crate::types::*;
 
 pub struct OxrPassthroughPlugin;
 
 impl Plugin for OxrPassthroughPlugin {
-    fn build(&self, _app: &mut App) {
-        todo!()
+    fn build(&self, app: &mut App) {
+        let resources = app
+            .world
+            .get_resource::<OxrInstance>()
+            .and_then(|instance| {
+                app.world
+                    .get_resource::<OxrSystemId>()
+                    .map(|system_id| (instance, system_id))
+            });
+        if resources.is_some_and(|(instance, system)| {
+            supports_passthrough(instance, *system).is_ok_and(|s| s)
+        }) {
+            app.sub_app_mut(RenderApp).add_systems(
+                Render,
+                insert_passthrough
+                    .in_set(RenderSet::PrepareAssets)
+                    .run_if(resource_added::<OxrSession>),
+            );
+        } else {
+            error!("Passthrough is not supported with this runtime")
+        }
     }
+}
+
+pub fn insert_passthrough(world: &mut World) {
+    let session = world.resource::<OxrSession>();
+
+    let (passthrough, passthrough_layer) = create_passthrough(
+        session,
+        openxr::PassthroughFlagsFB::IS_RUNNING_AT_CREATION,
+        openxr::PassthroughLayerPurposeFB::RECONSTRUCTION,
+    )
+    .unwrap();
+
+    world
+        .resource_mut::<OxrRenderLayers>()
+        .insert(0, Box::new(PassthroughLayer));
+    world.insert_resource(passthrough);
+    world.insert_resource(passthrough_layer);
+}
+
+pub fn resume_passthrough(
+    passthrough: Res<OxrPassthrough>,
+    passthrough_layer: Res<OxrPassthroughLayer>,
+) {
+    passthrough.start().unwrap();
+    passthrough_layer.resume().unwrap();
+}
+
+pub fn pause_passthrough(
+    passthrough: Res<OxrPassthrough>,
+    passthrough_layer: Res<OxrPassthroughLayer>,
+) {
+    passthrough_layer.pause().unwrap();
+    passthrough.pause().unwrap();
 }
 
 pub fn create_passthrough(

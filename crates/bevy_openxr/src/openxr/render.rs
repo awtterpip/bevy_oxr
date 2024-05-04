@@ -10,11 +10,13 @@ use bevy::{
     transform::TransformSystem,
 };
 use bevy_xr::camera::{XrCamera, XrCameraBundle, XrProjection};
-use openxr::{CompositionLayerFlags, ViewStateFlags};
+use openxr::ViewStateFlags;
 
-use crate::init::{session_started, OxrPreUpdateSet};
-use crate::layer_builder::*;
 use crate::resources::*;
+use crate::{
+    init::{session_started, OxrPreUpdateSet},
+    layer_builder::ProjectionLayer,
+};
 
 pub struct OxrRenderPlugin;
 
@@ -39,24 +41,28 @@ impl Plugin for OxrRenderPlugin {
                     .run_if(session_started)
                     .before(TransformSystem::TransformPropagate),
             );
-        app.sub_app_mut(RenderApp).add_systems(
-            Render,
-            (
+        app.sub_app_mut(RenderApp)
+            .add_systems(
+                Render,
                 (
-                    insert_texture_views,
-                    locate_views,
-                    update_views_render_world,
+                    (
+                        insert_texture_views,
+                        locate_views,
+                        update_views_render_world,
+                    )
+                        .chain()
+                        .in_set(RenderSet::PrepareAssets),
+                    begin_frame
+                        .before(RenderSet::Queue)
+                        .before(insert_texture_views),
+                    wait_image.in_set(RenderSet::Render).before(render_system),
+                    (release_image, end_frame)
+                        .chain()
+                        .in_set(RenderSet::Cleanup),
                 )
-                    .chain()
-                    .in_set(RenderSet::PrepareAssets),
-                begin_frame
-                    .before(RenderSet::Queue)
-                    .before(insert_texture_views),
-                wait_image.in_set(RenderSet::Render).before(render_system),
-                (end_frame).chain().in_set(RenderSet::Cleanup),
+                    .run_if(session_started),
             )
-                .run_if(session_started),
-        );
+            .insert_resource(OxrRenderLayers(vec![Box::new(ProjectionLayer)]));
     }
 }
 
@@ -326,50 +332,73 @@ pub fn begin_frame(mut frame_stream: ResMut<OxrFrameStream>) {
     frame_stream.begin().expect("Failed to begin frame")
 }
 
-pub fn end_frame(
-    mut frame_stream: ResMut<OxrFrameStream>,
-    mut swapchain: ResMut<OxrSwapchain>,
-    stage: Res<OxrStage>,
-    display_time: Res<OxrTime>,
-    graphics_info: Res<OxrGraphicsInfo>,
-    openxr_views: Res<OxrViews>,
-) {
-    let _span = info_span!("xr_end_frame");
+pub fn release_image(mut swapchain: ResMut<OxrSwapchain>) {
+    let _span = info_span!("xr_release_image");
     swapchain.release_image().unwrap();
-    let rect = openxr::Rect2Di {
-        offset: openxr::Offset2Di { x: 0, y: 0 },
-        extent: openxr::Extent2Di {
-            width: graphics_info.resolution.x as _,
-            height: graphics_info.resolution.y as _,
-        },
-    };
-    frame_stream
-        .end(
-            **display_time,
-            graphics_info.blend_mode,
-            &[&CompositionLayerProjection::new()
-                .layer_flags(CompositionLayerFlags::BLEND_TEXTURE_SOURCE_ALPHA)
-                .space(&stage)
-                .views(&[
-                    CompositionLayerProjectionView::new()
-                        .pose(openxr_views.0[0].pose)
-                        .fov(openxr_views.0[0].fov)
-                        .sub_image(
-                            SwapchainSubImage::new()
-                                .swapchain(&swapchain)
-                                .image_array_index(0)
-                                .image_rect(rect),
-                        ),
-                    CompositionLayerProjectionView::new()
-                        .pose(openxr_views.0[1].pose)
-                        .fov(openxr_views.0[1].fov)
-                        .sub_image(
-                            SwapchainSubImage::new()
-                                .swapchain(&swapchain)
-                                .image_array_index(1)
-                                .image_rect(rect),
-                        ),
-                ])],
-        )
-        .expect("Failed to end frame");
 }
+
+pub fn end_frame(world: &mut World) {
+    let _span = info_span!("xr_end_frame");
+    world.resource_scope::<OxrFrameStream, ()>(|world, mut frame_stream| {
+        let mut layers = vec![];
+        for layer in world.resource::<OxrRenderLayers>().iter() {
+            layers.push(layer.get(world));
+        }
+        let layers: Vec<_> = layers.iter().map(Box::as_ref).collect();
+        frame_stream
+            .end(
+                **world.resource::<OxrTime>(),
+                world.resource::<OxrGraphicsInfo>().blend_mode,
+                &layers,
+            )
+            .expect("Failed to end frame");
+    });
+}
+
+// pub fn end_frame(
+//     mut frame_stream: ResMut<OxrFrameStream>,
+//     mut swapchain: ResMut<OxrSwapchain>,
+//     stage: Res<OxrStage>,
+//     display_time: Res<OxrTime>,
+//     graphics_info: Res<OxrGraphicsInfo>,
+//     openxr_views: Res<OxrViews>,
+// ) {
+//     let _span = info_span!("xr_end_frame");
+//     swapchain.release_image().unwrap();
+//     let rect = openxr::Rect2Di {
+//         offset: openxr::Offset2Di { x: 0, y: 0 },
+//         extent: openxr::Extent2Di {
+//             width: graphics_info.resolution.x as _,
+//             height: graphics_info.resolution.y as _,
+//         },
+//     };
+//     frame_stream
+//         .end(
+//             **display_time,
+//             graphics_info.blend_mode,
+//             &[&CompositionLayerProjection::new()
+//                 .layer_flags(CompositionLayerFlags::BLEND_TEXTURE_SOURCE_ALPHA)
+//                 .space(&stage)
+//                 .views(&[
+//                     CompositionLayerProjectionView::new()
+//                         .pose(openxr_views.0[0].pose)
+//                         .fov(openxr_views.0[0].fov)
+//                         .sub_image(
+//                             SwapchainSubImage::new()
+//                                 .swapchain(&swapchain)
+//                                 .image_array_index(0)
+//                                 .image_rect(rect),
+//                         ),
+//                     CompositionLayerProjectionView::new()
+//                         .pose(openxr_views.0[1].pose)
+//                         .fov(openxr_views.0[1].fov)
+//                         .sub_image(
+//                             SwapchainSubImage::new()
+//                                 .swapchain(&swapchain)
+//                                 .image_array_index(1)
+//                                 .image_rect(rect),
+//                         ),
+//                 ])],
+//         )
+//         .expect("Failed to end frame");
+// }

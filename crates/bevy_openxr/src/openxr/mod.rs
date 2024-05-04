@@ -10,6 +10,8 @@ use bevy_xr::session::XrSessionPlugin;
 use init::OxrInitPlugin;
 use render::OxrRenderPlugin;
 
+use self::{exts::OxrExtensions, features::passthrough::OxrPassthroughPlugin};
+
 pub mod error;
 mod exts;
 pub mod features;
@@ -28,7 +30,11 @@ pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
         .add_before::<RenderPlugin, _>(XrSessionPlugin)
         .add_before::<RenderPlugin, _>(OxrInitPlugin {
             app_info: default(),
-            exts: default(),
+            exts: {
+                let mut exts = OxrExtensions::default();
+                exts.enable_fb_passthrough();
+                exts
+            },
             blend_modes: default(),
             backends: default(),
             formats: Some(vec![wgpu::TextureFormat::Rgba8UnormSrgb]),
@@ -36,6 +42,7 @@ pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
             synchronous_pipeline_compilation: default(),
         })
         .add(OxrRenderPlugin)
+        .add(OxrPassthroughPlugin)
         .add(XrCameraPlugin)
         // .add(XrActionPlugin)
         .set(WindowPlugin {

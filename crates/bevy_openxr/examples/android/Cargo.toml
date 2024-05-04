@@ -41,6 +41,11 @@ launch_mode = "singleTask"
 orientation = "landscape"
 resizeable_activity = false
 
+[[package.metadata.android.uses_feature]]
+name = "com.oculus.feature.PASSTHROUGH"
+required = true
+version = 1
+
 [[package.metadata.android.application.activity.intent_filter]]
 actions = ["android.intent.action.MAIN"]
 categories = [

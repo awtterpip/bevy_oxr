@@ -7,7 +7,7 @@ use openxr::AnyGraphics;
 
 use crate::error::OxrError;
 use crate::graphics::*;
-use crate::layer_builder::CompositionLayer;
+use crate::layer_builder::{CompositionLayer, LayerProvider};
 use crate::types::*;
 
 /// Wrapper around an [`Entry`](openxr::Entry) with some methods overridden to use bevy types.
@@ -237,34 +237,6 @@ impl OxrSession {
     }
 }
 
-/// Wrapper around [`openxr::Passthrough`].
-///
-/// Used to [`start`](openxr::Passthrough::start) or [`pause`](openxr::Passthrough::pause) passthrough on the physical device.
-///
-/// See [`openxr::Passthrough`] for available methods.
-#[derive(Resource, Deref, DerefMut)]
-pub struct OxrPassthrough(
-    #[deref] pub openxr::Passthrough,
-    /// The flags are stored here so that they don't need to be passed in again when creating an [`OxrPassthroughLayer`].
-    openxr::PassthroughFlagsFB,
-);
-
-impl OxrPassthrough {
-    /// This function can create an [`OxrPassthrough`] from raw openxr types if needed.
-    /// In the majority of cases, you should use [`create_passthrough`](OxrSession::create_passthrough) instead.
-    pub fn from_inner(passthrough: openxr::Passthrough, flags: openxr::PassthroughFlagsFB) -> Self {
-        Self(passthrough, flags)
-    }
-}
-
-/// Wrapper around [`openxr::Passthrough`].
-///
-/// Used to create a [`CompositionLayerPassthrough`](crate::layer_builder::CompositionLayerPassthrough), and to [`pause`](openxr::PassthroughLayer::pause) or [`resume`](openxr::PassthroughLayer::resume) rendering of the passthrough layer.
-///
-/// See [`openxr::PassthroughLayer`] for available methods.
-#[derive(Resource, Deref, DerefMut)]
-pub struct OxrPassthroughLayer(pub openxr::PassthroughLayer);
-
 /// Graphics agnostic wrapper around [openxr::FrameStream]
 #[derive(Resource)]
 pub struct OxrFrameStream(pub GraphicsWrap<Self>);
@@ -415,6 +387,37 @@ pub struct OxrViews(pub Vec<openxr::View>);
 /// Wrapper around [openxr::SystemId] to allow it to be stored as a resource.
 #[derive(Debug, Copy, Clone, Deref, Default, Eq, PartialEq, Ord, PartialOrd, Hash, Resource)]
 pub struct OxrSystemId(pub openxr::SystemId);
+
+/// Wrapper around [`openxr::Passthrough`].
+///
+/// Used to [`start`](openxr::Passthrough::start) or [`pause`](openxr::Passthrough::pause) passthrough on the physical device.
+///
+/// See [`openxr::Passthrough`] for available methods.
+#[derive(Resource, Deref, DerefMut)]
+pub struct OxrPassthrough(
+    #[deref] pub openxr::Passthrough,
+    /// The flags are stored here so that they don't need to be passed in again when creating an [`OxrPassthroughLayer`].
+    openxr::PassthroughFlagsFB,
+);
+
+impl OxrPassthrough {
+    /// This function can create an [`OxrPassthrough`] from raw openxr types if needed.
+    /// In the majority of cases, you should use [`create_passthrough`](OxrSession::create_passthrough) instead.
+    pub fn from_inner(passthrough: openxr::Passthrough, flags: openxr::PassthroughFlagsFB) -> Self {
+        Self(passthrough, flags)
+    }
+}
+
+/// Wrapper around [`openxr::Passthrough`].
+///
+/// Used to create a [`CompositionLayerPassthrough`](crate::layer_builder::CompositionLayerPassthrough), and to [`pause`](openxr::PassthroughLayer::pause) or [`resume`](openxr::PassthroughLayer::resume) rendering of the passthrough layer.
+///
+/// See [`openxr::PassthroughLayer`] for available methods.
+#[derive(Resource, Deref, DerefMut)]
+pub struct OxrPassthroughLayer(pub openxr::PassthroughLayer);
+
+#[derive(Resource, Deref, DerefMut, Default)]
+pub struct OxrRenderLayers(pub Vec<Box<dyn LayerProvider + Send + Sync>>);
 
 /// Resource storing graphics info for the currently running session.
 #[derive(Clone, Copy, Resource)]

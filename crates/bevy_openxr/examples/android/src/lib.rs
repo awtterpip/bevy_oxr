@@ -8,6 +8,7 @@ fn main() {
     App::new()
         .add_plugins(add_xr_plugins(DefaultPlugins))
         .add_systems(Startup, setup)
+        .insert_resource(ClearColor(Color::NONE))
         .run();
 }
 

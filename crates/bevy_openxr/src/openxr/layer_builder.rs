@@ -1,9 +1,70 @@
 use std::mem;
 
+use bevy::ecs::world::World;
 use openxr::{sys, CompositionLayerFlags, Fovf, Posef, Rect2Di, Space};
 
 use crate::graphics::graphics_match;
-use crate::resources::{OxrPassthroughLayer, OxrSwapchain};
+use crate::resources::*;
+
+pub trait LayerProvider {
+    fn get<'a>(&'a self, world: &'a World) -> Box<dyn CompositionLayer + '_>;
+}
+
+pub struct ProjectionLayer;
+
+pub struct PassthroughLayer;
+
+impl LayerProvider for ProjectionLayer {
+    fn get<'a>(&self, world: &'a World) -> Box<dyn CompositionLayer<'a> + 'a> {
+        let stage = world.resource::<OxrStage>();
+        let openxr_views = world.resource::<OxrViews>();
+        let swapchain = world.resource::<OxrSwapchain>();
+        let graphics_info = world.resource::<OxrGraphicsInfo>();
+        let rect = openxr::Rect2Di {
+            offset: openxr::Offset2Di { x: 0, y: 0 },
+            extent: openxr::Extent2Di {
+                width: graphics_info.resolution.x as _,
+                height: graphics_info.resolution.y as _,
+            },
+        };
+
+        Box::new(
+            CompositionLayerProjection::new()
+                .layer_flags(CompositionLayerFlags::BLEND_TEXTURE_SOURCE_ALPHA)
+                .space(&stage)
+                .views(&[
+                    CompositionLayerProjectionView::new()
+                        .pose(openxr_views.0[0].pose)
+                        .fov(openxr_views.0[0].fov)
+                        .sub_image(
+                            SwapchainSubImage::new()
+                                .swapchain(&swapchain)
+                                .image_array_index(0)
+                                .image_rect(rect),
+                        ),
+                    CompositionLayerProjectionView::new()
+                        .pose(openxr_views.0[1].pose)
+                        .fov(openxr_views.0[1].fov)
+                        .sub_image(
+                            SwapchainSubImage::new()
+                                .swapchain(&swapchain)
+                                .image_array_index(1)
+                                .image_rect(rect),
+                        ),
+                ]),
+        )
+    }
+}
+
+impl LayerProvider for PassthroughLayer {
+    fn get<'a>(&'a self, world: &'a World) -> Box<dyn CompositionLayer + '_> {
+        Box::new(
+            CompositionLayerPassthrough::new()
+                .layer_handle(world.resource::<OxrPassthroughLayer>())
+                .layer_flags(CompositionLayerFlags::BLEND_TEXTURE_SOURCE_ALPHA),
+        )
+    }
+}
 
 #[derive(Copy, Clone)]
 pub struct SwapchainSubImage<'a> {
@@ -144,12 +205,10 @@ impl<'a> CompositionLayerProjection<'a> {
         self
     }
     #[inline]
-    pub fn views(mut self, value: &'a [CompositionLayerProjectionView<'a>]) -> Self {
-        for view in value {
-            self.views.push(view.inner.clone());
-        }
+    pub fn views(mut self, value: &[CompositionLayerProjectionView<'a>]) -> Self {
+        self.views = value.iter().map(|view| view.inner).collect();
         self.inner.views = self.views.as_slice().as_ptr() as *const _ as _;
-        self.inner.view_count = value.len() as u32;
+        self.inner.view_count = self.views.len() as u32;
         self
     }
 }
