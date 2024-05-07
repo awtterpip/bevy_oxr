@@ -28,6 +28,7 @@ use bevy_xr::session::XrStatusChanged;
 
 use crate::error::OxrError;
 use crate::graphics::*;
+use crate::reference_space::OxrPrimaryReferenceSpace;
 use crate::resources::*;
 use crate::types::*;
 
@@ -39,6 +40,8 @@ pub fn session_started(started: Option<Res<OxrSessionStarted>>) -> bool {
 pub enum OxrPreUpdateSet {
     PollEvents,
     HandleEvents,
+    UpdateCriticalComponents,
+    UpdateNonCriticalComponents,
 }
 
 pub struct OxrInitPlugin {
@@ -90,7 +93,7 @@ impl Plugin for OxrInitPlugin {
                 ))
                 .add_systems(First, reset_per_frame_resources)
                 .add_systems(
-                    PreUpdate,
+                    First,
                     (
                         poll_events
                             .run_if(session_available)
@@ -167,7 +170,9 @@ impl Plugin for OxrInitPlugin {
             (
                 OxrPreUpdateSet::PollEvents.before(handle_session),
                 OxrPreUpdateSet::HandleEvents.after(handle_session),
-            ),
+                OxrPreUpdateSet::UpdateCriticalComponents,
+                OxrPreUpdateSet::UpdateNonCriticalComponents,
+            ).chain(),
         );
 
         let session_started = OxrSessionStarted::default();
@@ -293,7 +298,6 @@ fn init_xr_session(
     OxrSwapchain,
     OxrSwapchainImages,
     OxrGraphicsInfo,
-    OxrStage,
 )> {
     let (session, frame_waiter, frame_stream) =
         unsafe { instance.create_session(system_id, graphics_info)? };
@@ -395,11 +399,6 @@ fn init_xr_session(
     }
     .ok_or(OxrError::NoAvailableBackend)?;
 
-    let stage = OxrStage(
-        session
-            .create_reference_space(openxr::ReferenceSpaceType::STAGE, openxr::Posef::IDENTITY)?
-            .into(),
-    );
 
     let graphics_info = OxrGraphicsInfo {
         blend_mode,
@@ -414,7 +413,6 @@ fn init_xr_session(
         swapchain,
         images,
         graphics_info,
-        stage,
     ))
 }
 
@@ -426,7 +424,6 @@ struct OxrRenderResources {
     swapchain: OxrSwapchain,
     images: OxrSwapchainImages,
     graphics_info: OxrGraphicsInfo,
-    stage: OxrStage,
 }
 
 pub fn create_xr_session(
@@ -442,19 +439,17 @@ pub fn create_xr_session(
         **system_id,
         create_info.clone(),
     ) {
-        Ok((session, frame_waiter, frame_stream, swapchain, images, graphics_info, stage)) => {
+        Ok((session, frame_waiter, frame_stream, swapchain, images, graphics_info)) => {
             commands.insert_resource(session.clone());
             commands.insert_resource(frame_waiter);
             commands.insert_resource(images.clone());
             commands.insert_resource(graphics_info.clone());
-            commands.insert_resource(stage.clone());
             commands.insert_resource(OxrRenderResources {
                 session,
                 frame_stream,
                 swapchain,
                 images,
                 graphics_info,
-                stage,
             });
         }
         Err(e) => error!("Failed to initialize XrSession: {e}"),
@@ -483,7 +478,6 @@ pub fn transfer_xr_resources(mut commands: Commands, mut world: ResMut<MainWorld
         swapchain,
         images,
         graphics_info,
-        stage,
     }) = world.remove_resource()
     else {
         return;
@@ -494,7 +488,6 @@ pub fn transfer_xr_resources(mut commands: Commands, mut world: ResMut<MainWorld
     commands.insert_resource(swapchain);
     commands.insert_resource(images);
     commands.insert_resource(graphics_info);
-    commands.insert_resource(stage);
 }
 
 /// Polls any OpenXR events and handles them accordingly
@@ -547,14 +540,14 @@ pub fn destroy_xr_session(mut commands: Commands) {
     commands.remove_resource::<OxrFrameWaiter>();
     commands.remove_resource::<OxrSwapchainImages>();
     commands.remove_resource::<OxrGraphicsInfo>();
-    commands.remove_resource::<OxrStage>();
+    commands.remove_resource::<OxrPrimaryReferenceSpace>();
     commands.insert_resource(OxrCleanupSession(true));
 }
 
 pub fn destroy_xr_session_render(world: &mut World) {
     world.remove_resource::<OxrSwapchain>();
     world.remove_resource::<OxrFrameStream>();
-    world.remove_resource::<OxrStage>();
+    world.remove_resource::<OxrPrimaryReferenceSpace>();
     world.remove_resource::<OxrSwapchainImages>();
     world.remove_resource::<OxrGraphicsInfo>();
     world.remove_resource::<OxrSession>();

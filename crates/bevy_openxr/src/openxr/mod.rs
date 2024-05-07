@@ -23,6 +23,8 @@ pub mod resources;
 pub mod types;
 pub mod action_binding;
 pub mod action_set_attaching;
+pub mod reference_space;
+pub mod helper_traits;
 
 pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
     plugins
@@ -50,17 +52,14 @@ pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
         .add(action_binding::OxrActionBindingPlugin)
         // .add(XrActionPlugin)
         .set(WindowPlugin {
-            #[cfg(not(target_os = "android"))]
             primary_window: Some(Window {
                 transparent: true,
                 present_mode: PresentMode::AutoNoVsync,
                 // title: self.app_info.name.clone(),
                 ..default()
             }),
-            #[cfg(target_os = "android")]
-            primary_window: None, // ?
-            #[cfg(target_os = "android")]
-            exit_condition: bevy::window::ExitCondition::DontExit,
+            // #[cfg(target_os = "android")]
+            // exit_condition: bevy::window::ExitCondition::DontExit,
             #[cfg(target_os = "android")]
             close_when_requested: true,
             ..default()

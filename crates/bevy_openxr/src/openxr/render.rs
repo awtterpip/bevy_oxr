@@ -12,7 +12,7 @@ use bevy::{
 use bevy_xr::camera::{XrCamera, XrCameraBundle, XrProjection};
 use openxr::ViewStateFlags;
 
-use crate::resources::*;
+use crate::{reference_space::OxrPrimaryReferenceSpace, resources::*};
 use crate::{
     init::{session_started, OxrPreUpdateSet},
     layer_builder::ProjectionLayer,
@@ -112,7 +112,7 @@ pub fn wait_frame(mut frame_waiter: ResMut<OxrFrameWaiter>, mut commands: Comman
 
 pub fn locate_views(
     session: Res<OxrSession>,
-    stage: Res<OxrStage>,
+    ref_space: Res<OxrPrimaryReferenceSpace>,
     time: Res<OxrTime>,
     mut openxr_views: ResMut<OxrViews>,
 ) {
@@ -121,7 +121,7 @@ pub fn locate_views(
         .locate_views(
             openxr::ViewConfigurationType::PRIMARY_STEREO,
             **time,
-            &stage,
+            &ref_space,
         )
         .expect("Failed to locate views");
     if openxr_views.len() != xr_views.len() {

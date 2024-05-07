@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 bevy_openxr.path = "../.."
 bevy.workspace = true
+bevy_xr_utils.path = "../../../bevy_xr_utils"
 
 
 [lib]
