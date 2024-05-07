@@ -24,6 +24,7 @@ ash = { version = "0.37.3", optional = true }
 
 [target.'cfg(target_family = "unix")'.dependencies]
 openxr = { version = "0.18.0", features = ["mint"] }
+wgpu = { version = "0.19.3", features = ["vulkan-portability"] }
 
 [target.'cfg(target_family = "windows")'.dependencies]
 openxr = { version = "0.18.0", features = ["mint", "static"] }
