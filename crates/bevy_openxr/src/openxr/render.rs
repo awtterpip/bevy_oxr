@@ -9,7 +9,7 @@ use bevy::{
     },
     transform::TransformSystem,
 };
-use bevy_xr::camera::{XrCamera, XrCameraBundle, XrProjection};
+use bevy_xr::{camera::{XrCamera, XrCameraBundle, XrProjection}, session::session_running};
 use openxr::ViewStateFlags;
 
 use crate::{reference_space::OxrPrimaryReferenceSpace, resources::*};
@@ -28,17 +28,17 @@ impl Plugin for OxrRenderPlugin {
                 (
                     init_views.run_if(resource_added::<OxrGraphicsInfo>),
                     wait_frame.run_if(session_started),
-                    locate_views.run_if(session_started),
-                    update_views.run_if(session_started),
+                    locate_views.run_if(session_running),
+                    update_views.run_if(session_running),
                 )
                     .chain()
-                    .after(OxrPreUpdateSet::HandleEvents),
+                    .after(OxrPreUpdateSet::UpdateNonCriticalComponents),
             )
             .add_systems(
                 PostUpdate,
                 (locate_views, update_views)
                     .chain()
-                    .run_if(session_started)
+                    .run_if(session_running)
                     .before(TransformSystem::TransformPropagate),
             );
         app.sub_app_mut(RenderApp)
@@ -47,7 +47,7 @@ impl Plugin for OxrRenderPlugin {
                 (
                     (
                         insert_texture_views,
-                        locate_views,
+                        locate_views.run_if(resource_exists::<OxrPrimaryReferenceSpace>),
                         update_views_render_world,
                     )
                         .chain()

@@ -93,7 +93,7 @@ impl Plugin for OxrInitPlugin {
                 ))
                 .add_systems(First, reset_per_frame_resources)
                 .add_systems(
-                    First,
+                    PreUpdate,
                     (
                         poll_events
                             .run_if(session_available)

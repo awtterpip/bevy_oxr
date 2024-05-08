@@ -6,7 +6,9 @@ use bevy_xr::{
 use openxr::SpaceLocationFlags;
 
 use crate::{
-    init::OxrTrackingRoot, reference_space::{OxrPrimaryReferenceSpace, OxrReferenceSpace}, resources::{OxrSession, OxrTime}
+    init::OxrTrackingRoot,
+    reference_space::{OxrPrimaryReferenceSpace, OxrReferenceSpace},
+    resources::{OxrSession, OxrTime},
 };
 
 pub struct HandTrackingPlugin {
@@ -124,9 +126,7 @@ fn locate_hands(
     )>,
     mut bone_query: Query<(&HandBone, &mut HandBoneRadius, &mut Transform)>,
 ) {
-    info!("updating hands 0 ");
     for (tracker, ref_space, hand_entities) in &tracker_query {
-        info!("updating hands 1 ");
         let ref_space = ref_space.map(|v| &v.0).unwrap_or(&default_ref_space.0);
         // relate_hand_joints also provides velocities
         let joints = match ref_space.locate_hand_joints(tracker, **time) {
@@ -149,7 +149,6 @@ fn locate_hands(
             }
         };
         for (bone, mut bone_radius, mut transform) in bone_entities {
-            info!("updating hands");
             let joint = joints[*bone as usize];
             **bone_radius = joint.radius;
 

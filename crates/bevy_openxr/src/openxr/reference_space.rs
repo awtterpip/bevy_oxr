@@ -14,7 +14,7 @@ pub struct OxrReferenceSpacePlugin {
 impl Default for OxrReferenceSpacePlugin {
     fn default() -> Self {
         Self {
-            default_primary_ref_space: openxr::ReferenceSpaceType::LOCAL_FLOOR_EXT,
+            default_primary_ref_space: openxr::ReferenceSpaceType::STAGE,
         }
     }
 }

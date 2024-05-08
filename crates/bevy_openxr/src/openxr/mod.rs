@@ -10,21 +10,25 @@ use bevy_xr::session::XrSessionPlugin;
 use init::OxrInitPlugin;
 use render::OxrRenderPlugin;
 
-use self::{exts::OxrExtensions, features::passthrough::OxrPassthroughPlugin};
+use self::{
+    exts::OxrExtensions,
+    features::{handtracking::HandTrackingPlugin, passthrough::OxrPassthroughPlugin},
+    reference_space::OxrReferenceSpacePlugin,
+};
 
+pub mod action_binding;
+pub mod action_set_attaching;
 pub mod error;
 mod exts;
 pub mod features;
 pub mod graphics;
+pub mod helper_traits;
 pub mod init;
 pub mod layer_builder;
+pub mod reference_space;
 pub mod render;
 pub mod resources;
 pub mod types;
-pub mod action_binding;
-pub mod action_set_attaching;
-pub mod reference_space;
-pub mod helper_traits;
 
 pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
     plugins
@@ -37,6 +41,7 @@ pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
             exts: {
                 let mut exts = OxrExtensions::default();
                 exts.enable_fb_passthrough();
+                exts.enable_hand_tracking();
                 exts
             },
             blend_modes: default(),
@@ -45,8 +50,10 @@ pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
             resolutions: default(),
             synchronous_pipeline_compilation: default(),
         })
+        .add(OxrReferenceSpacePlugin::default())
         .add(OxrRenderPlugin)
         .add(OxrPassthroughPlugin)
+        .add(HandTrackingPlugin::default())
         .add(XrCameraPlugin)
         .add(action_set_attaching::OxrActionAttachingPlugin)
         .add(action_binding::OxrActionBindingPlugin)

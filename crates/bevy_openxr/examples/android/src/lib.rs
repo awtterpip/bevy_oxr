@@ -1,10 +1,7 @@
 //! A simple 3D scene with light shining over a cube sitting on a plane.
 
 use bevy::prelude::*;
-use bevy_openxr::{
-    add_xr_plugins, features::handtracking::HandTrackingPlugin, init::OxrInitPlugin,
-    reference_space::OxrReferenceSpacePlugin, types::OxrExtensions,
-};
+use bevy_openxr::{add_xr_plugins, init::OxrInitPlugin, types::OxrExtensions};
 
 #[bevy_main]
 fn main() {
@@ -23,8 +20,6 @@ fn main() {
             resolutions: default(),
             synchronous_pipeline_compilation: default(),
         }))
-        .add_plugins(HandTrackingPlugin::default())
-        .add_plugins(OxrReferenceSpacePlugin::default())
         .add_plugins(bevy_xr_utils::hand_gizmos::HandGizmosPlugin)
         .add_systems(Startup, setup)
         .insert_resource(ClearColor(Color::NONE))

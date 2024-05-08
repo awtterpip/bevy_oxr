@@ -83,6 +83,9 @@ pub fn create_passthrough(
 
 #[inline]
 pub fn supports_passthrough(instance: &OxrInstance, system: OxrSystemId) -> Result<bool> {
+    if instance.exts().fb_passthrough.is_none() {
+        return Ok(false);
+    }
     unsafe {
         let mut hand = openxr::sys::SystemPassthroughProperties2FB {
             ty: SystemPassthroughProperties2FB::TYPE,
