@@ -61,6 +61,24 @@ pub struct OxrInitPlugin {
     /// Passed into the render plugin when added to the app.
     pub synchronous_pipeline_compilation: bool,
 }
+impl Default for OxrInitPlugin {
+    fn default() -> Self {
+        Self {
+            app_info: default(),
+            exts: {
+                let mut exts = OxrExtensions::default();
+                exts.enable_fb_passthrough();
+                exts.enable_hand_tracking();
+                exts
+            },
+            blend_modes: default(),
+            backends: default(),
+            formats: Some(vec![wgpu::TextureFormat::Rgba8UnormSrgb]),
+            resolutions: default(),
+            synchronous_pipeline_compilation: default(),
+        }
+    }
+}
 
 #[derive(Component)]
 pub struct OxrTrackingRoot;
@@ -172,7 +190,8 @@ impl Plugin for OxrInitPlugin {
                 OxrPreUpdateSet::HandleEvents.after(handle_session),
                 OxrPreUpdateSet::UpdateCriticalComponents,
                 OxrPreUpdateSet::UpdateNonCriticalComponents,
-            ).chain(),
+            )
+                .chain(),
         );
 
         let session_started = OxrSessionStarted::default();
@@ -398,7 +417,6 @@ fn init_xr_session(
         available_blend_modes.first().copied()
     }
     .ok_or(OxrError::NoAvailableBackend)?;
-
 
     let graphics_info = OxrGraphicsInfo {
         blend_mode,

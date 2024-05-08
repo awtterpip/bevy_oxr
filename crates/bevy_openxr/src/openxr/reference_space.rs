@@ -9,7 +9,7 @@ use bevy_xr::session::{status_changed_to, XrStatus};
 use crate::{init::OxrPreUpdateSet, resources::OxrSession};
 
 pub struct OxrReferenceSpacePlugin {
-    default_primary_ref_space: openxr::ReferenceSpaceType,
+    pub default_primary_ref_space: openxr::ReferenceSpaceType,
 }
 impl Default for OxrReferenceSpacePlugin {
     fn default() -> Self {

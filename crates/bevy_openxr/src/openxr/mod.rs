@@ -36,20 +36,7 @@ pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
         .disable::<RenderPlugin>()
         .disable::<PipelinedRenderingPlugin>()
         .add_before::<RenderPlugin, _>(XrSessionPlugin)
-        .add_before::<RenderPlugin, _>(OxrInitPlugin {
-            app_info: default(),
-            exts: {
-                let mut exts = OxrExtensions::default();
-                exts.enable_fb_passthrough();
-                exts.enable_hand_tracking();
-                exts
-            },
-            blend_modes: default(),
-            backends: default(),
-            formats: Some(vec![wgpu::TextureFormat::Rgba8UnormSrgb]),
-            resolutions: default(),
-            synchronous_pipeline_compilation: default(),
-        })
+        .add_before::<RenderPlugin, _>(OxrInitPlugin::default())
         .add(OxrReferenceSpacePlugin::default())
         .add(OxrRenderPlugin)
         .add(OxrPassthroughPlugin)
