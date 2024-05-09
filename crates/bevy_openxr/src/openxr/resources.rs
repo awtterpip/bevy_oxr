@@ -377,8 +377,8 @@ impl OxrSwapchain {
 pub struct OxrSwapchainImages(pub Arc<Vec<wgpu::Texture>>);
 
 /// Thread safe wrapper around [openxr::Space] representing the stage.
-#[derive(Deref, Clone, Resource)]
-pub struct OxrStage(pub Arc<openxr::Space>);
+// #[derive(Deref, Clone, Resource)]
+// pub struct OxrStage(pub Arc<openxr::Space>);
 
 /// Stores the latest generated [OxrViews]
 #[derive(Clone, Resource, ExtractResource, Deref, DerefMut)]

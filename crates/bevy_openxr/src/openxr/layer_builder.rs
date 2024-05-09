@@ -4,6 +4,7 @@ use bevy::ecs::world::World;
 use openxr::{sys, CompositionLayerFlags, Fovf, Posef, Rect2Di, Space};
 
 use crate::graphics::graphics_match;
+use crate::reference_space::OxrPrimaryReferenceSpace;
 use crate::resources::*;
 
 pub trait LayerProvider {
@@ -16,7 +17,7 @@ pub struct PassthroughLayer;
 
 impl LayerProvider for ProjectionLayer {
     fn get<'a>(&self, world: &'a World) -> Box<dyn CompositionLayer<'a> + 'a> {
-        let stage = world.resource::<OxrStage>();
+        let stage = world.resource::<OxrPrimaryReferenceSpace>();
         let openxr_views = world.resource::<OxrViews>();
         let swapchain = world.resource::<OxrSwapchain>();
         let graphics_info = world.resource::<OxrGraphicsInfo>();

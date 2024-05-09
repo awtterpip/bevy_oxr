@@ -8,6 +8,9 @@ default = ["vulkan", "passthrough"]
 vulkan = ["dep:ash"]
 passthrough = []
 
+[dev-dependencies]
+bevy_xr_utils.path = "../bevy_xr_utils"
+
 # bevy can't be placed behind target or proc macros won't work properly
 [dependencies]
 bevy.workspace = true

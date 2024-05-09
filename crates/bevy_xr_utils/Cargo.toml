@@ -1,5 +1,5 @@
 [package]
-name = "bevy_xr"
+name = "bevy_xr_utils"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,4 +7,4 @@ edition = "2021"
 
 [dependencies]
 bevy.workspace = true
-bevy_xr_macros.path = "macros"
+bevy_xr.path = "../bevy_xr"
