@@ -64,7 +64,12 @@ impl GraphicsType for () {
 pub type GraphicsBackend = GraphicsWrap<()>;
 
 impl GraphicsBackend {
-    const ALL: &'static [Self] = &[Self::Vulkan(())];
+    const ALL: &'static [Self] = &[
+        #[cfg(feature = "vulkan")]
+        Self::Vulkan(()),
+        #[cfg(all(feature = "d3d12", windows))]
+        Self::D3D12(()),
+    ];
 
     pub fn available_backends(exts: &OxrExtensions) -> Vec<Self> {
         Self::ALL
