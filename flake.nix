@@ -38,6 +38,7 @@
 
             targets.wasm32-unknown-unknown.stable.rust-std
             targets.aarch64-linux-android.stable.rust-std
+            targets.x86_64-pc-windows-gnu.stable.rust-std
           ];
         androidComposition = pkgs.androidenv.composeAndroidPackages {
           abiVersions = ["arm64-v8a"];

@@ -61,6 +61,8 @@ mod init_error {
         VulkanError(ash::vk::Result),
         #[cfg(feature = "vulkan")]
         VulkanLoadingError(ash::LoadingError),
+        #[cfg(all(feature = "d3d12", windows))]
+        FailedToFindD3D12Adapter,
     }
 
     impl fmt::Display for InitError {
@@ -72,6 +74,11 @@ mod init_error {
                 InitError::VulkanLoadingError(error) => {
                     write!(f, "Vulkan loading error: {}", error)
                 }
+                #[cfg(all(feature = "d3d12", windows))]
+                InitError::FailedToFindD3D12Adapter => write!(
+                    f,
+                    "Failed to find D3D12 adapter matching LUID provided by the OpenXR runtime"
+                ),
             }
         }
     }

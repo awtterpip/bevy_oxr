@@ -1,3 +1,5 @@
+#[cfg(all(feature = "d3d12", windows))]
+mod d3d12;
 #[cfg(feature = "vulkan")]
 pub mod vulkan;
 
@@ -89,6 +91,8 @@ impl GraphicsBackend {
 pub enum GraphicsWrap<T: GraphicsType> {
     #[cfg(feature = "vulkan")]
     Vulkan(T::Inner<openxr::Vulkan>),
+    #[cfg(all(feature = "d3d12", windows))]
+    D3D12(T::Inner<openxr::D3D12>),
 }
 
 impl<T: GraphicsType> GraphicsWrap<T> {
@@ -156,6 +160,12 @@ macro_rules! graphics_match {
                 #[allow(unused)]
                 type Api = openxr::Vulkan;
                 graphics_match!(@arm_impl Vulkan; $expr $(=> $($return)*)?)
+            },
+            #[cfg(all(feature = "d3d12", windows))]
+            $crate::graphics::GraphicsWrap::D3D12($var) => {
+                #[allow(unused)]
+                type Api = openxr::D3D12;
+                graphics_match!(@arm_impl D3D12; $expr $(=> $($return)*)?)
             },
         }
     };

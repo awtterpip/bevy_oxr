@@ -4,8 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["vulkan", "passthrough"]
+default = ["vulkan", "d3d12", "passthrough"]
 vulkan = ["dep:ash"]
+d3d12 = ["wgpu/dx12", "wgpu-hal/dx12", "dep:winapi", "dep:d3d12"]
 passthrough = []
 
 [dev-dependencies]
@@ -30,3 +31,5 @@ openxr = { version = "0.18.0", features = ["mint"] }
 
 [target.'cfg(target_family = "windows")'.dependencies]
 openxr = { version = "0.18.0", features = ["mint", "static"] }
+winapi = { version = "0.3.9", optional = true }
+d3d12 = { version = "0.19", features = ["libloading"], optional = true }
