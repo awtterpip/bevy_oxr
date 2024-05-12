@@ -4,19 +4,22 @@ use bevy::{
         camera::{ManualTextureView, ManualTextureViewHandle, ManualTextureViews, RenderTarget},
         extract_resource::ExtractResourcePlugin,
         renderer::render_system,
-        view::ExtractedView,
+        view::{ExtractedView, ExtractedViews},
         Render, RenderApp, RenderSet,
     },
     transform::TransformSystem,
 };
-use bevy_xr::{camera::{XrCamera, XrCameraBundle, XrProjection}, session::session_running};
+use bevy_xr::{
+    camera::{XrCamera, XrCameraBundle, XrProjection},
+    session::session_running,
+};
 use openxr::ViewStateFlags;
 
-use crate::{reference_space::OxrPrimaryReferenceSpace, resources::*};
 use crate::{
     init::{session_started, OxrPreUpdateSet},
     layer_builder::ProjectionLayer,
 };
+use crate::{reference_space::OxrPrimaryReferenceSpace, resources::*};
 
 pub struct OxrRenderPlugin;
 
@@ -80,10 +83,9 @@ pub fn init_views(
     let temp_tex = swapchain_images.first().unwrap();
     // this for loop is to easily add support for quad or mono views in the future.
     let mut views = vec![];
-    for index in 0..2 {
+    for index in 0..1 {
         info!("{}", graphics_info.resolution);
-        let view_handle =
-            add_texture_view(&mut manual_texture_views, temp_tex, &graphics_info, index);
+        let view_handle = add_texture_view(&mut manual_texture_views, temp_tex, &graphics_info);
 
         commands.spawn((
             XrCameraBundle {
@@ -147,43 +149,50 @@ pub fn locate_views(
 }
 
 pub fn update_views(
-    mut query: Query<(&mut Transform, &mut XrProjection, &XrCamera)>,
+    mut query: Query<(&mut Camera, &mut XrProjection, &XrCamera)>,
     views: ResMut<OxrViews>,
 ) {
-    for (mut transform, mut projection, camera) in query.iter_mut() {
-        let Some(view) = views.get(camera.0 as usize) else {
+    for (mut camera, mut projection, _) in query.iter_mut() {
+        let Some(view) = views.get(0) else {
             continue;
         };
 
         let projection_matrix = calculate_projection(projection.near, view.fov);
         projection.projection_matrix = projection_matrix;
 
-        let openxr::Quaternionf { x, y, z, w } = view.pose.orientation;
-        let rotation = Quat::from_xyzw(x, y, z, w);
-        transform.rotation = rotation;
-        let openxr::Vector3f { x, y, z } = view.pose.position;
-        let translation = Vec3::new(x, y, z);
-        transform.translation = translation;
+        for (i, transform) in camera.views.iter_mut().enumerate() {
+            let Some(view) = views.get(i) else {
+                continue;
+            };
+            let openxr::Quaternionf { x, y, z, w } = view.pose.orientation;
+            let rotation = Quat::from_xyzw(x, y, z, w);
+            transform.rotation = rotation;
+            let openxr::Vector3f { x, y, z } = view.pose.position;
+            let translation = Vec3::new(x, y, z);
+            transform.translation = translation;
+        }
     }
 }
 
 pub fn update_views_render_world(
     views: Res<OxrViews>,
     root: Res<OxrRootTransform>,
-    mut query: Query<(&mut ExtractedView, &XrCamera)>,
+    mut query: Query<(&mut ExtractedViews, &XrCamera)>,
 ) {
     for (mut extracted_view, camera) in query.iter_mut() {
-        let Some(view) = views.get(camera.0 as usize) else {
-            continue;
-        };
-        let mut transform = Transform::IDENTITY;
-        let openxr::Quaternionf { x, y, z, w } = view.pose.orientation;
-        let rotation = Quat::from_xyzw(x, y, z, w);
-        transform.rotation = rotation;
-        let openxr::Vector3f { x, y, z } = view.pose.position;
-        let translation = Vec3::new(x, y, z);
-        transform.translation = translation;
-        extracted_view.transform = root.0.mul_transform(transform);
+        for (i, extracted_view) in extracted_view.views.iter_mut().enumerate() {
+            let Some(view) = views.get(i) else {
+                continue;
+            };
+            let mut transform = Transform::IDENTITY;
+            let openxr::Quaternionf { x, y, z, w } = view.pose.orientation;
+            let rotation = Quat::from_xyzw(x, y, z, w);
+            transform.rotation = rotation;
+            let openxr::Vector3f { x, y, z } = view.pose.position;
+            let translation = Vec3::new(x, y, z);
+            transform.translation = translation;
+            extracted_view.transform = root.0.mul_transform(transform);
+        }
     }
 }
 
@@ -295,8 +304,8 @@ pub fn insert_texture_views(
     let index = swapchain.acquire_image().expect("Failed to acquire image");
     let image = &swapchain_images[index as usize];
 
-    for i in 0..2 {
-        add_texture_view(&mut manual_texture_views, image, &graphics_info, i);
+    for i in 0..1 {
+        add_texture_view(&mut manual_texture_views, image, &graphics_info);
     }
 }
 
@@ -310,20 +319,18 @@ pub fn add_texture_view(
     manual_texture_views: &mut ManualTextureViews,
     texture: &wgpu::Texture,
     info: &OxrGraphicsInfo,
-    index: u32,
 ) -> ManualTextureViewHandle {
     let view = texture.create_view(&wgpu::TextureViewDescriptor {
-        dimension: Some(wgpu::TextureViewDimension::D2),
-        array_layer_count: Some(1),
-        base_array_layer: index,
+        dimension: Some(wgpu::TextureViewDimension::D2Array),
         ..default()
     });
     let view = ManualTextureView {
         texture_view: view.into(),
         size: info.resolution,
+        depth: 2,
         format: info.format,
     };
-    let handle = ManualTextureViewHandle(XR_TEXTURE_INDEX + index);
+    let handle = ManualTextureViewHandle(XR_TEXTURE_INDEX);
     manual_texture_views.insert(handle, view);
     handle
 }

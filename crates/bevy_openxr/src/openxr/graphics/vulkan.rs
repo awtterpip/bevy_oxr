@@ -1,7 +1,7 @@
-use std::ffi::{c_void, CString};
+use std::ffi::{self, c_char, c_void, CStr, CString};
 
 use ash::vk::Handle;
-use bevy::log::error;
+use bevy::log::{debug, error, warn};
 use bevy::math::UVec2;
 use openxr::Version;
 use wgpu_hal::api::Vulkan;
@@ -115,6 +115,8 @@ unsafe impl GraphicsExt for openxr::Vulkan {
         let device_extensions = vec![
             ash::extensions::khr::Swapchain::name(),
             ash::extensions::khr::DrawIndirectCount::name(),
+            ash::vk::KhrImagelessFramebufferFn::name(),
+            ash::vk::KhrImageFormatListFn::name(),
             #[cfg(target_os = "android")]
             ash::extensions::khr::TimelineSemaphore::name(),
         ];
@@ -136,6 +138,7 @@ unsafe impl GraphicsExt for openxr::Vulkan {
                     std::mem::transmute(vk_entry.static_fn().get_instance_proc_addr),
                     &ash::vk::InstanceCreateInfo::builder()
                         .application_info(&vk_app_info)
+                        // .enabled_layer_names(&layers_names_raw)
                         .enabled_extension_names(&extensions_cchar) as *const _
                         as *const _,
                 )?

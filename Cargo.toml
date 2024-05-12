@@ -15,4 +15,4 @@ bevy = "0.13.0"
 members = ["crates/*", "crates/bevy_openxr/examples/android"]
 
 [workspace.dependencies]
-bevy = "0.13.0"
+bevy = { git = "https://github.com/awtterpip/bevy.git", branch = "multiview-0.13.2" }
