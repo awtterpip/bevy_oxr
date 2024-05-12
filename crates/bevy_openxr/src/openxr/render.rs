@@ -184,6 +184,10 @@ pub fn update_views_render_world(
             let Some(view) = views.get(i) else {
                 continue;
             };
+
+            let projection_matrix = calculate_projection(0.1, view.fov);
+            extracted_view.projection = projection_matrix;
+            extracted_view.view_projection = None;
             let mut transform = Transform::IDENTITY;
             let openxr::Quaternionf { x, y, z, w } = view.pose.orientation;
             let rotation = Quat::from_xyzw(x, y, z, w);
