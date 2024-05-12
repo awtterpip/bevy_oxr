@@ -1,13 +1,21 @@
 //! A simple 3D scene with light shining over a cube sitting on a plane.
 
 use bevy::prelude::*;
-use bevy_openxr::add_xr_plugins;
+use bevy_openxr::{
+    add_xr_plugins,
+    features::{handtracking::HandTrackingPlugin, passthrough::OxrPassthroughPlugin},
+};
 
 fn main() {
     App::new()
-        .add_plugins(add_xr_plugins(DefaultPlugins))
-        .add_plugins(bevy_xr_utils::hand_gizmos::HandGizmosPlugin)
+        .add_plugins(
+            add_xr_plugins(DefaultPlugins)
+                .disable::<HandTrackingPlugin>()
+                .disable::<OxrPassthroughPlugin>(),
+        )
+        // .add_plugins(bevy_xr_utils::hand_gizmos::HandGizmosPlugin)
         .add_systems(Startup, setup)
+        .insert_resource(Msaa::Off)
         .run();
 }
 
@@ -39,7 +47,8 @@ fn setup(
         },
         transform: Transform::from_xyz(4.0, 8.0, 4.0),
         ..default()
-    }); commands.spawn(Camera3dBundle {
+    });
+    commands.spawn(Camera3dBundle {
         transform: Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
         ..default()
     });
