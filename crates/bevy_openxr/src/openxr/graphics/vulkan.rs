@@ -117,6 +117,8 @@ unsafe impl GraphicsExt for openxr::Vulkan {
             ash::extensions::khr::DrawIndirectCount::name(),
             #[cfg(target_os = "android")]
             ash::extensions::khr::TimelineSemaphore::name(),
+            ash::vk::KhrImagelessFramebufferFn::name(),
+            ash::vk::KhrImageFormatListFn::name(),
         ];
 
         let vk_instance = unsafe {
