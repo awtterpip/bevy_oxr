@@ -11,7 +11,6 @@ use init::OxrInitPlugin;
 use render::OxrRenderPlugin;
 
 use self::{
-    exts::OxrExtensions,
     features::{handtracking::HandTrackingPlugin, passthrough::OxrPassthroughPlugin},
     reference_space::OxrReferenceSpacePlugin,
 };
