@@ -1,4 +1,5 @@
 use bevy::{
+    ecs::query::QuerySingleError,
     prelude::*,
     render::{
         camera::{ManualTextureView, ManualTextureViewHandle, ManualTextureViews, RenderTarget},
@@ -14,7 +15,7 @@ use openxr::ViewStateFlags;
 
 use crate::{reference_space::OxrPrimaryReferenceSpace, resources::*};
 use crate::{
-    init::{session_started, OxrPreUpdateSet},
+    init::{session_started, OxrPreUpdateSet, OxrTrackingRoot},
     layer_builder::ProjectionLayer,
 };
 
@@ -74,29 +75,44 @@ pub fn init_views(
     graphics_info: Res<OxrGraphicsInfo>,
     mut manual_texture_views: ResMut<ManualTextureViews>,
     swapchain_images: Res<OxrSwapchainImages>,
+    root: Query<Entity, With<OxrTrackingRoot>>,
     mut commands: Commands,
 ) {
     let _span = info_span!("xr_init_views");
     let temp_tex = swapchain_images.first().unwrap();
     // this for loop is to easily add support for quad or mono views in the future.
-    let mut views = vec![];
+    let mut views = Vec::with_capacity(2);
     for index in 0..2 {
         info!("{}", graphics_info.resolution);
         let view_handle =
             add_texture_view(&mut manual_texture_views, temp_tex, &graphics_info, index);
 
-        commands.spawn((
-            XrCameraBundle {
-                camera: Camera {
-                    target: RenderTarget::TextureView(view_handle),
+        let cam = commands
+            .spawn((
+                XrCameraBundle {
+                    camera: Camera {
+                        target: RenderTarget::TextureView(view_handle),
+                        ..Default::default()
+                    },
+                    view: XrCamera(index),
                     ..Default::default()
                 },
-                view: XrCamera(index),
-                ..Default::default()
-            },
-            // OpenXrTracker,
-            // XrRoot::default(),
-        ));
+                // OpenXrTracker,
+                // XrRoot::default(),
+            ))
+            .id();
+        match root.get_single() {
+            Ok(root) => {
+                commands.entity(root).add_child(cam);
+            }
+            Err(QuerySingleError::NoEntities(_)) => {
+                warn!("No OxrTrackingRoot!");
+            }
+            Err(QuerySingleError::MultipleEntities(_)) => {
+                warn!("Multiple OxrTrackingRoots! this is not allowed");
+            }
+        }
+
         views.push(default());
     }
     commands.insert_resource(OxrViews(views));
