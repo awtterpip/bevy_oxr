@@ -28,6 +28,7 @@ pub mod reference_space;
 pub mod render;
 pub mod resources;
 pub mod types;
+pub mod action_set_syncing;
 
 pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
     plugins
