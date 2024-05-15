@@ -1,6 +1,7 @@
 use crate::resources::OxrSession;
 use bevy::prelude::*;
 use bevy_xr::session::status_changed_to;
+use openxr::ActionSet;
 
 impl Plugin for OxrActionAttachingPlugin {
     fn build(&self, app: &mut App) {
@@ -9,15 +10,28 @@ impl Plugin for OxrActionAttachingPlugin {
             PostUpdate,
             attach_sets.run_if(status_changed_to(bevy_xr::session::XrStatus::Ready)),
         );
+        app.init_resource::<AttachedActionSets>();
     }
 }
 
-fn attach_sets(session: Res<OxrSession>, mut events: EventReader<OxrAttachActionSet>) {
+fn attach_sets(
+    session: Res<OxrSession>,
+    mut events: EventReader<OxrAttachActionSet>,
+    mut attached: ResMut<AttachedActionSets>,
+) {
     let sets = events.read().map(|v| &v.0).collect::<Vec<_>>();
-    if sets.is_empty() {return;}
+    if sets.is_empty() {
+        return;
+    }
     info!("attaching {} sessions", sets.len());
     match session.attach_action_sets(&sets) {
-        Ok(_) => {info!("attached sessions!")}
+        Ok(_) => {
+            info!("attached sessions!");
+            for &set in sets.iter() {
+                let clone = set.clone();
+                attached.sets.push(clone);
+            }
+        }
         Err(openxr::sys::Result::ERROR_ACTIONSETS_ALREADY_ATTACHED) => {
             error!("Action Sets Already attached!");
         }
@@ -36,3 +50,8 @@ fn attach_sets(session: Res<OxrSession>, mut events: EventReader<OxrAttachAction
 pub struct OxrAttachActionSet(pub openxr::ActionSet);
 
 pub struct OxrActionAttachingPlugin;
+
+#[derive(Resource, Default)]
+pub struct AttachedActionSets {
+    pub sets: Vec<ActionSet>,
+}

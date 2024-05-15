@@ -84,6 +84,7 @@ fn bind_actions(instance: Res<OxrInstance>, mut actions: EventReader<OxrSuggestA
             ),
             openxr::sys::Result::ERROR_PATH_INVALID => error!("Invalid Path Suggested!"),
             openxr::sys::Result::ERROR_PATH_UNSUPPORTED => error!("Suggested Path Unsupported!"),
+            openxr::sys::Result::SUCCESS => info!("suggested binding success"),
             _ => {}
         }
     }
