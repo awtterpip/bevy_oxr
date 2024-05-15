@@ -1,10 +1,10 @@
 use crate::{init::OxrPreUpdateSet, resources::OxrSession};
 use bevy::prelude::*;
-use bevy_xr::session::{session_running, status_changed_to};
+use bevy_xr::session::session_running;
 
 impl Plugin for OxrActionSyncingPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<OxrAttachActionSet>();
+        app.add_event::<OxrSyncActionSet>();
         app.add_systems(
             PreUpdate,
             sync_sets
@@ -18,14 +18,14 @@ fn sync_sets(session: Res<OxrSession>, mut events: EventReader<OxrSyncActionSet>
     let sets = events
         .read()
         .map(|v| &v.0)
-        .map(|s| openxr::ActionSet::from(s))
+        .map(openxr::ActiveActionSet::new)
         .collect::<Vec<_>>();
 
     if sets.is_empty() {
         return;
     }
 
-    if let Err(err) = session.sync_actions(sets) {
+    if let Err(err) = session.sync_actions(&sets) {
         warn!("error while syncing actionsets: {}", err.to_string());
     }
 }
