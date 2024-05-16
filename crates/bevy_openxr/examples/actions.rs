@@ -2,22 +2,21 @@
 
 use std::borrow::Cow;
 
-use bevy::{prelude::*, scene::ron::value::Float};
+use bevy::prelude::*;
 use bevy_openxr::{
     action_binding::OxrSuggestActionBinding,
     action_set_attaching::{AttachedActionSets, OxrAttachActionSet},
     add_xr_plugins,
     resources::{OxrInstance, OxrSession},
 };
-use openxr::{ActionType, ActiveActionSet, Path, Vector2f};
+use openxr::{ActiveActionSet, Path, Vector2f};
 
 fn main() {
     App::new()
         .add_plugins(add_xr_plugins(DefaultPlugins))
         .add_plugins(bevy_xr_utils::hand_gizmos::HandGizmosPlugin)
         .add_systems(Startup, setup_scene)
-        .init_resource::<TestAction>()
-        .add_systems(Update, read_action)
+        .add_systems(Update, read_action_with_marker_component)
         .add_systems(Startup, create_action_entities)
         .add_systems(Startup, create_openxr_events.after(create_action_entities))
         .run();
@@ -58,44 +57,6 @@ fn setup_scene(
     });
 }
 
-#[derive(Resource, Default)]
-struct TestAction {
-    action: Option<openxr::Action<f32>>,
-}
-
-fn read_action(
-    session: ResMut<OxrSession>,
-    test: ResMut<TestAction>,
-    attached: ResMut<AttachedActionSets>,
-) {
-    //sync before
-    let why = &attached
-        .sets
-        .iter()
-        .map(|v| ActiveActionSet::from(v))
-        .collect::<Vec<_>>();
-    let sync = session.sync_actions(&why[..]);
-    match sync {
-        Ok(_) => info!("sync ok"),
-        Err(_) => error!("sync error"),
-    }
-
-    //now check the action
-    let action = &test.action;
-    match action {
-        Some(act) => {
-            let thing = act.state(&session, Path::NULL);
-            match thing {
-                Ok(a) => {
-                    info!("action state: {:?}", a);
-                }
-                Err(_) => info!("error getting state"),
-            }
-        }
-        None => info!("no action"),
-    }
-}
-
 #[derive(Component)]
 struct CreateActionSet {
     name: Cow<'static, str>,
@@ -116,6 +77,14 @@ struct CreateBinding {
     binding: Cow<'static, str>,
 }
 
+#[derive(Component)]
+struct ActionReference {
+    action: openxr::Action<f32>,
+}
+
+#[derive(Component)]
+struct CustomActionMarker;
+
 fn create_action_entities(mut commands: Commands) {
     //create a set
     let set = commands
@@ -127,11 +96,14 @@ fn create_action_entities(mut commands: Commands) {
         .id();
     //create an action
     let action = commands
-        .spawn(CreateAction {
-            action_name: "action_name".into(),
-            localized_name: "localized_name".into(),
-            action_type: bevy_xr::actions::ActionType::Float,
-        })
+        .spawn((
+            CreateAction {
+                action_name: "action_name".into(),
+                localized_name: "localized_name".into(),
+                action_type: bevy_xr::actions::ActionType::Float,
+            },
+            CustomActionMarker, //lets try a marker component
+        ))
         .id();
 
     //create a binding
@@ -155,8 +127,8 @@ fn create_openxr_events(
     instance: ResMut<OxrInstance>,
     mut binding_writer: EventWriter<OxrSuggestActionBinding>,
     mut attach_writer: EventWriter<OxrAttachActionSet>,
-    //please remove this
-    mut test: ResMut<TestAction>,
+    //not my favorite way of doing this
+    mut commands: Commands,
 ) {
     //lets create some sets!
     //we gonna need a collection of these sets for later
@@ -211,8 +183,10 @@ fn create_openxr_events(
                         .unwrap();
 
                     //please put this in a function so I dont go crazy
-                    //TODO remove this crap
-                    test.action = Some(action.clone());
+                    //insert a reference for later
+                    commands.entity(child).insert(ActionReference {
+                        action: action.clone(),
+                    });
                     //since we need actions for bindings lets go!!
                     for &bind in bindings.iter() {
                         //interaction profile
@@ -263,5 +237,40 @@ fn create_openxr_events(
         }
 
         attach_writer.send(OxrAttachActionSet(action_set));
+    }
+}
+
+fn read_action_with_marker_component(
+    action_query: Query<&ActionReference, With<CustomActionMarker>>,
+    session: ResMut<OxrSession>,
+    attached: ResMut<AttachedActionSets>,
+) {
+    //first we need to sync our actions
+    let why = &attached
+        .sets
+        .iter()
+        .map(|v| ActiveActionSet::from(v))
+        .collect::<Vec<_>>();
+    let sync = session.sync_actions(&why[..]);
+    match sync {
+        Ok(_) => info!("sync ok"),
+        Err(_) => error!("sync error"),
+    }
+    
+    //now for the actual checking
+    let action = action_query.get_single();
+    match action {
+        Ok(reference) => {
+            let state = reference.action.state(&session, Path::NULL);
+            match state {
+                Ok(a) => {
+                    info!("action state: {:?}", a);
+                }
+                Err(_) => info!("error getting state"),
+            }
+        }
+        Err(_) => {
+            info!("no action")
+        }
     }
 }
