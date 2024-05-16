@@ -2,14 +2,14 @@
 
 use std::borrow::Cow;
 
-use bevy::{prelude::*, utils::hashbrown::HashMap};
+use bevy::{prelude::*, scene::ron::value::Float};
 use bevy_openxr::{
     action_binding::OxrSuggestActionBinding,
     action_set_attaching::{AttachedActionSets, OxrAttachActionSet},
     add_xr_plugins,
     resources::{OxrInstance, OxrSession},
 };
-use openxr::{ActionType, ActiveActionSet, Path};
+use openxr::{ActionType, ActiveActionSet, Path, Vector2f};
 
 fn main() {
     App::new()
@@ -18,7 +18,6 @@ fn main() {
         .add_systems(Startup, setup_scene)
         .init_resource::<TestAction>()
         .add_systems(Update, read_action)
-        // .add_systems(Startup, create_action)
         .add_systems(Startup, create_action_entities)
         .add_systems(Startup, create_openxr_events.after(create_action_entities))
         .run();
@@ -61,45 +60,7 @@ fn setup_scene(
 
 #[derive(Resource, Default)]
 struct TestAction {
-    action: Option<openxr::Action<bool>>,
-}
-
-fn create_action(
-    mut writer: EventWriter<OxrSuggestActionBinding>,
-    instance: ResMut<OxrInstance>,
-    mut test: ResMut<TestAction>,
-    mut set_writer: EventWriter<OxrAttachActionSet>,
-) {
-    let name = "test";
-    let pretty_name = "pretty test";
-    let priority = u32::MIN;
-    //create action set
-    let set: openxr::ActionSet = instance
-        .create_action_set(name, pretty_name, priority)
-        .unwrap();
-
-    let action_name = "action_name";
-    let localized_name = "localized_name";
-    //create new action from action set
-    let bool_action: openxr::Action<bool> = set
-        .create_action::<bool>(action_name, localized_name, &[])
-        .unwrap();
-
-    //interaction profile
-    let profile = Cow::from("/interaction_profiles/valve/index_controller");
-    //bindings
-    let binding = vec![Cow::from("/user/hand/right/input/a/click")];
-    let sugestion = OxrSuggestActionBinding {
-        action: bool_action.as_raw(),
-        interaction_profile: profile,
-        bindings: binding,
-    };
-
-    //finally send the suggestion
-    writer.send(sugestion);
-    set_writer.send(OxrAttachActionSet(set.clone()));
-
-    test.action = Some(bool_action);
+    action: Option<openxr::Action<f32>>,
 }
 
 fn read_action(
@@ -107,7 +68,7 @@ fn read_action(
     test: ResMut<TestAction>,
     attached: ResMut<AttachedActionSets>,
 ) {
-    //maybe sync before?
+    //sync before
     let why = &attached
         .sets
         .iter()
@@ -119,7 +80,7 @@ fn read_action(
         Err(_) => error!("sync error"),
     }
 
-    //now check the action?
+    //now check the action
     let action = &test.action;
     match action {
         Some(act) => {
@@ -146,7 +107,7 @@ struct CreateActionSet {
 struct CreateAction {
     action_name: Cow<'static, str>,
     localized_name: Cow<'static, str>,
-    action_type: ActionType,
+    action_type: bevy_xr::actions::ActionType,
 }
 
 #[derive(Component)]
@@ -169,7 +130,7 @@ fn create_action_entities(mut commands: Commands) {
         .spawn(CreateAction {
             action_name: "action_name".into(),
             localized_name: "localized_name".into(),
-            action_type: ActionType::BOOLEAN_INPUT,
+            action_type: bevy_xr::actions::ActionType::Float,
         })
         .id();
 
@@ -177,7 +138,7 @@ fn create_action_entities(mut commands: Commands) {
     let binding = commands
         .spawn(CreateBinding {
             profile: "/interaction_profiles/valve/index_controller".into(),
-            binding: "/user/hand/right/input/a/click".into(),
+            binding: "/user/hand/right/input/thumbstick/y".into(),
         })
         .id();
 
@@ -188,9 +149,9 @@ fn create_action_entities(mut commands: Commands) {
 }
 
 fn create_openxr_events(
-    ActionSetsQuery: Query<(&CreateActionSet, &Children)>,
-    ActionsQuery: Query<(&CreateAction, &Children)>,
-    BindingsQuery: Query<&CreateBinding>,
+    action_sets_query: Query<(&CreateActionSet, &Children)>,
+    actions_query: Query<(&CreateAction, &Children)>,
+    bindings_query: Query<&CreateBinding>,
     instance: ResMut<OxrInstance>,
     mut binding_writer: EventWriter<OxrSuggestActionBinding>,
     mut attach_writer: EventWriter<OxrAttachActionSet>,
@@ -200,43 +161,105 @@ fn create_openxr_events(
     //lets create some sets!
     //we gonna need a collection of these sets for later
     // let mut ActionSets = HashMap::new();
-    for (set, children) in ActionSetsQuery.iter() {
+    for (set, children) in action_sets_query.iter() {
         //create action set
         let action_set: openxr::ActionSet = instance
             .create_action_set(&set.name, &set.pretty_name, set.priority)
             .unwrap();
 
-        // ActionSets.insert(set.name.clone(), action_set);
         //since the actions are made from the sets lets go
         for &child in children.iter() {
             //first get the action entity and stuff
-            let (create_action, bindings) = ActionsQuery.get(child).unwrap();
+            let (create_action, bindings) = actions_query.get(child).unwrap();
             //lets create dat actions
-            let bool_action: openxr::Action<bool> = action_set
-                .create_action::<bool>(
-                    &create_action.action_name,
-                    &create_action.localized_name,
-                    &[],
-                )
-                .unwrap();
-            //TODO remove this crap
-            test.action = Some(bool_action.clone());
-            //since we need actions for bindings lets go!!
-            for &bind in bindings.iter() {
-                //interaction profile
-                //get the binding entity and stuff
-                let create_binding = BindingsQuery.get(bind).unwrap();
-                let profile = Cow::from(create_binding.profile.clone());
-                //bindings
-                let binding = vec![Cow::from(create_binding.binding.clone())];
-                let sugestion = OxrSuggestActionBinding {
-                    action: bool_action.as_raw(),
-                    interaction_profile: profile,
-                    bindings: binding,
-                };
-                //finally send the suggestion
-                binding_writer.send(sugestion);
-            }
+            match create_action.action_type {
+                bevy_xr::actions::ActionType::Bool => {
+                    let action: openxr::Action<bool> = action_set
+                        .create_action::<bool>(
+                            &create_action.action_name,
+                            &create_action.localized_name,
+                            &[],
+                        )
+                        .unwrap();
+                    //please put this in a function so I dont go crazy
+                    //TODO remove this crap
+                    // test.action = Some(action.clone());
+                    //since we need actions for bindings lets go!!
+                    for &bind in bindings.iter() {
+                        //interaction profile
+                        //get the binding entity and stuff
+                        let create_binding = bindings_query.get(bind).unwrap();
+                        let profile = Cow::from(create_binding.profile.clone());
+                        //bindings
+                        let binding = vec![Cow::from(create_binding.binding.clone())];
+                        let sugestion = OxrSuggestActionBinding {
+                            action: action.as_raw(),
+                            interaction_profile: profile,
+                            bindings: binding,
+                        };
+                        //finally send the suggestion
+                        binding_writer.send(sugestion);
+                    }
+                }
+                bevy_xr::actions::ActionType::Float => {
+                    let action: openxr::Action<f32> = action_set
+                        .create_action::<f32>(
+                            &create_action.action_name,
+                            &create_action.localized_name,
+                            &[],
+                        )
+                        .unwrap();
+
+                    //please put this in a function so I dont go crazy
+                    //TODO remove this crap
+                    test.action = Some(action.clone());
+                    //since we need actions for bindings lets go!!
+                    for &bind in bindings.iter() {
+                        //interaction profile
+                        //get the binding entity and stuff
+                        let create_binding = bindings_query.get(bind).unwrap();
+                        let profile = Cow::from(create_binding.profile.clone());
+                        //bindings
+                        let binding = vec![Cow::from(create_binding.binding.clone())];
+                        let sugestion = OxrSuggestActionBinding {
+                            action: action.as_raw(),
+                            interaction_profile: profile,
+                            bindings: binding,
+                        };
+                        //finally send the suggestion
+                        binding_writer.send(sugestion);
+                    }
+                }
+                bevy_xr::actions::ActionType::Vector => {
+                    let action: openxr::Action<Vector2f> = action_set
+                        .create_action::<Vector2f>(
+                            &create_action.action_name,
+                            &create_action.localized_name,
+                            &[],
+                        )
+                        .unwrap();
+
+                    //please put this in a function so I dont go crazy
+                    //TODO remove this crap
+                    // test.action = Some(action.clone());
+                    //since we need actions for bindings lets go!!
+                    for &bind in bindings.iter() {
+                        //interaction profile
+                        //get the binding entity and stuff
+                        let create_binding = bindings_query.get(bind).unwrap();
+                        let profile = Cow::from(create_binding.profile.clone());
+                        //bindings
+                        let binding = vec![Cow::from(create_binding.binding.clone())];
+                        let sugestion = OxrSuggestActionBinding {
+                            action: action.as_raw(),
+                            interaction_profile: profile,
+                            bindings: binding,
+                        };
+                        //finally send the suggestion
+                        binding_writer.send(sugestion);
+                    }
+                }
+            };
         }
 
         attach_writer.send(OxrAttachActionSet(action_set));
