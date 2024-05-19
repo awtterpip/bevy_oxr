@@ -12,7 +12,7 @@ use bevy::{
 use bevy_xr::{camera::{XrCamera, XrCameraBundle, XrProjection}, session::session_running};
 use openxr::ViewStateFlags;
 
-use crate::{reference_space::OxrPrimaryReferenceSpace, resources::*};
+use crate::{reference_space::OxrPrimaryReferenceSpace, resources::*, session::OxrSession};
 use crate::{
     init::{session_started, OxrPreUpdateSet},
     layer_builder::ProjectionLayer,

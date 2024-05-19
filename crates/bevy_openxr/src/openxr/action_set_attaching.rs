@@ -1,4 +1,4 @@
-use crate::resources::OxrSession;
+use crate::session::{OxrSession, OxrSessionStatusEvent};
 use bevy::prelude::*;
 use bevy_xr::session::status_changed_to;
 
@@ -7,17 +7,25 @@ impl Plugin for OxrActionAttachingPlugin {
         app.add_event::<OxrAttachActionSet>();
         app.add_systems(
             PostUpdate,
-            attach_sets.run_if(status_changed_to(bevy_xr::session::XrStatus::Ready)),
+            attach_sets.run_if(|mut session_status_event: EventReader<OxrSessionStatusEvent>| {
+                session_status_event
+                    .read()
+                    .any(|s| *s == OxrSessionStatusEvent::Created)
+            }),
         );
     }
 }
 
 fn attach_sets(session: Res<OxrSession>, mut events: EventReader<OxrAttachActionSet>) {
     let sets = events.read().map(|v| &v.0).collect::<Vec<_>>();
-    if sets.is_empty() {return;}
+    if sets.is_empty() {
+        return;
+    }
     info!("attaching {} sessions", sets.len());
     match session.attach_action_sets(&sets) {
-        Ok(_) => {info!("attached sessions!")}
+        Ok(_) => {
+            info!("attached sessions!")
+        }
         Err(openxr::sys::Result::ERROR_ACTIONSETS_ALREADY_ATTACHED) => {
             error!("Action Sets Already attached!");
         }

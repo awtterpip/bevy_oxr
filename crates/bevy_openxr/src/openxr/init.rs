@@ -1,3 +1,4 @@
+use bevy::ecs::system::RunSystemOnce;
 use bevy::prelude::*;
 use bevy::render::extract_resource::ExtractResourcePlugin;
 use bevy::render::renderer::RenderAdapter;
@@ -22,6 +23,7 @@ use bevy_xr::session::BeginXrSession;
 use bevy_xr::session::CreateXrSession;
 use bevy_xr::session::DestroyXrSession;
 use bevy_xr::session::EndXrSession;
+use bevy_xr::session::XrRenderSessionEnding;
 use bevy_xr::session::XrSharedStatus;
 use bevy_xr::session::XrStatus;
 use bevy_xr::session::XrStatusChanged;
@@ -30,6 +32,8 @@ use crate::error::OxrError;
 use crate::graphics::*;
 use crate::reference_space::OxrPrimaryReferenceSpace;
 use crate::resources::*;
+use crate::session::OxrSession;
+use crate::session::OxrSessionStatusEvent;
 use crate::types::*;
 
 pub fn session_started(started: Option<Res<OxrSessionStarted>>) -> bool {
@@ -513,6 +517,7 @@ pub fn poll_events(
     instance: Res<OxrInstance>,
     status: Res<XrSharedStatus>,
     mut changed_event: EventWriter<XrStatusChanged>,
+    mut session_status_events: EventWriter<OxrSessionStatusEvent>,
 ) {
     let _span = info_span!("xr_poll_events");
     let mut buffer = Default::default();
@@ -530,13 +535,21 @@ pub fn poll_events(
                 info!("entered XR state {:?}", state);
 
                 let new_status = match state {
-                    SessionState::IDLE => XrStatus::Idle,
+                    SessionState::IDLE => {
+                        if status.get() == XrStatus::Available {
+                            session_status_events.send(OxrSessionStatusEvent::Created);
+                        }
+                        XrStatus::Idle
+                    }
                     SessionState::READY => XrStatus::Ready,
                     SessionState::SYNCHRONIZED | SessionState::VISIBLE | SessionState::FOCUSED => {
                         XrStatus::Running
                     }
                     SessionState::STOPPING => XrStatus::Stopping,
-                    SessionState::EXITING | SessionState::LOSS_PENDING => XrStatus::Exiting,
+                    SessionState::EXITING | SessionState::LOSS_PENDING => {
+                        session_status_events.send(OxrSessionStatusEvent::AboutToBeDestroyed);
+                        XrStatus::Exiting
+                    }
                     _ => unreachable!(),
                 };
                 changed_event.send(XrStatusChanged(new_status));
@@ -554,19 +567,16 @@ pub fn reset_per_frame_resources(mut cleanup: ResMut<OxrCleanupSession>) {
 }
 
 pub fn destroy_xr_session(mut commands: Commands) {
-    commands.remove_resource::<OxrSession>();
     commands.remove_resource::<OxrFrameWaiter>();
     commands.remove_resource::<OxrSwapchainImages>();
     commands.remove_resource::<OxrGraphicsInfo>();
-    commands.remove_resource::<OxrPrimaryReferenceSpace>();
-    commands.insert_resource(OxrCleanupSession(true));
 }
 
 pub fn destroy_xr_session_render(world: &mut World) {
     world.remove_resource::<OxrSwapchain>();
     world.remove_resource::<OxrFrameStream>();
-    world.remove_resource::<OxrPrimaryReferenceSpace>();
     world.remove_resource::<OxrSwapchainImages>();
     world.remove_resource::<OxrGraphicsInfo>();
-    world.remove_resource::<OxrSession>();
+    world.run_schedule(XrRenderSessionEnding);
+    world.run_system_once(apply_deferred);
 }
