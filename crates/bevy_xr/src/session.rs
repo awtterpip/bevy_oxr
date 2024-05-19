@@ -1,11 +1,13 @@
 use std::sync::{Arc, RwLock};
 
-use bevy::prelude::*;
+use bevy::{ecs::schedule::ScheduleLabel, prelude::*};
 
 pub struct XrSessionPlugin;
 
 impl Plugin for XrSessionPlugin {
     fn build(&self, app: &mut App) {
+        app.init_schedule(XrSessionCreated);
+        app.init_schedule(XrSessionEnding);
         app.add_event::<CreateXrSession>()
             .add_event::<DestroyXrSession>()
             .add_event::<BeginXrSession>()
@@ -16,7 +18,20 @@ impl Plugin for XrSessionPlugin {
                 handle_session.run_if(resource_exists::<XrSharedStatus>),
             );
     }
+    fn finish(&self, app: &mut App) {
+        // This is in finnish because we need the RenderPlugin to already be added.
+        app.init_schedule(XrRenderSessionEnding);
+    }
 }
+
+#[derive(ScheduleLabel, Clone, Copy, PartialEq, Eq, Debug, Hash)]
+pub struct XrSessionCreated;
+
+#[derive(ScheduleLabel, Clone, Copy, PartialEq, Eq, Debug, Hash)]
+pub struct XrSessionEnding;
+
+#[derive(ScheduleLabel, Clone, Copy, PartialEq, Eq, Debug, Hash)]
+pub struct XrRenderSessionEnding;
 
 #[derive(Event, Clone, Copy, Deref)]
 pub struct XrStatusChanged(pub XrStatus);

@@ -2,14 +2,15 @@ use bevy::prelude::*;
 use bevy_xr::hands::{LeftHand, RightHand};
 use bevy_xr::{
     hands::{HandBone, HandBoneRadius},
-    session::{session_running, status_changed_to, XrStatus},
+    session::{session_running, XrSessionCreated, XrSessionEnding},
 };
 use openxr::SpaceLocationFlags;
 
 use crate::{
     init::OxrTrackingRoot,
     reference_space::{OxrPrimaryReferenceSpace, OxrReferenceSpace},
-    resources::{OxrSession, OxrTime},
+    resources::OxrTime,
+    session::OxrSession,
 };
 
 pub struct HandTrackingPlugin {
@@ -27,14 +28,8 @@ impl Plugin for HandTrackingPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(PreUpdate, locate_hands.run_if(session_running));
         if self.default_hands {
-            app.add_systems(
-                PreUpdate,
-                clean_up_default_hands.run_if(status_changed_to(XrStatus::Exiting)),
-            );
-            app.add_systems(
-                PostUpdate,
-                spawn_default_hands.run_if(status_changed_to(XrStatus::Ready)),
-            );
+            app.add_systems(XrSessionEnding, clean_up_default_hands);
+            app.add_systems(XrSessionCreated, spawn_default_hands);
         }
     }
 }

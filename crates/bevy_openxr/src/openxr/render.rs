@@ -16,9 +16,10 @@ use bevy_xr::{
 };
 use openxr::ViewStateFlags;
 
+
 use crate::{
     init::{session_started, OxrPreUpdateSet, OxrTrackingRoot},
-    layer_builder::ProjectionLayer,
+    layer_builder::ProjectionLayer, session::OxrSession,
 };
 use crate::{reference_space::OxrPrimaryReferenceSpace, resources::*};
 
