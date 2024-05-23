@@ -80,14 +80,14 @@ fn setup_scene(
 }
 
 #[derive(Component)]
-struct CreateActionSet {
+struct XRUtilsActionSet {
     name: Cow<'static, str>,
     pretty_name: Cow<'static, str>,
     priority: u32,
 }
 
 #[derive(Component, Clone)]
-struct OXRActionSet(openxr::ActionSet);
+struct XRUtilsActionSetReference(openxr::ActionSet);
 
 //I want to use this to indicate when an action set is attached
 // #[derive(Component)]
@@ -97,14 +97,14 @@ struct OXRActionSet(openxr::ActionSet);
 struct ActiveSet;
 
 #[derive(Component)]
-struct CreateAction {
+struct XRUtilsAction {
     action_name: Cow<'static, str>,
     localized_name: Cow<'static, str>,
     action_type: bevy_xr::actions::ActionType,
 }
 
 #[derive(Component)]
-struct CreateBinding {
+struct XRUtilsBinding {
     profile: Cow<'static, str>,
     binding: Cow<'static, str>,
 }
@@ -131,7 +131,7 @@ fn create_action_entities(mut commands: Commands) {
     //create a set
     let set = commands
         .spawn((
-            CreateActionSet {
+            XRUtilsActionSet {
                 name: "flight".into(),
                 pretty_name: "pretty flight set".into(),
                 priority: u32::MIN,
@@ -142,7 +142,7 @@ fn create_action_entities(mut commands: Commands) {
     //create an action
     let action = commands
         .spawn((
-            CreateAction {
+            XRUtilsAction {
                 action_name: "flight_input".into(),
                 localized_name: "flight_input_localized".into(),
                 action_type: bevy_xr::actions::ActionType::Vector,
@@ -153,7 +153,7 @@ fn create_action_entities(mut commands: Commands) {
 
     //create a binding
     let binding = commands
-        .spawn(CreateBinding {
+        .spawn(XRUtilsBinding {
             profile: "/interaction_profiles/valve/index_controller".into(),
             binding: "/user/hand/right/input/thumbstick".into(),
         })
@@ -166,9 +166,9 @@ fn create_action_entities(mut commands: Commands) {
 }
 
 fn create_openxr_events(
-    action_sets_query: Query<(&CreateActionSet, &Children, Entity)>,
-    actions_query: Query<(&CreateAction, &Children)>,
-    bindings_query: Query<&CreateBinding>,
+    action_sets_query: Query<(&XRUtilsActionSet, &Children, Entity)>,
+    actions_query: Query<(&XRUtilsAction, &Children)>,
+    bindings_query: Query<&XRUtilsBinding>,
     instance: ResMut<OxrInstance>,
     mut binding_writer: EventWriter<OxrSuggestActionBinding>,
     mut attach_writer: EventWriter<OxrAttachActionSet>,
@@ -184,7 +184,7 @@ fn create_openxr_events(
             .create_action_set(&set.name, &set.pretty_name, set.priority)
             .unwrap();
         //now that we have the action set we need to put it back onto the entity for later
-        let oxr_action_set = OXRActionSet(action_set.clone());
+        let oxr_action_set = XRUtilsActionSetReference(action_set.clone());
         commands.entity(id).insert(oxr_action_set);
 
         //since the actions are made from the sets lets go
@@ -207,7 +207,7 @@ fn create_openxr_events(
                         ActionBooleference {
                             action: action.clone(),
                         },
-                        MyActionState::Bool(ActionStateBool {
+                        XRUtilsActionState::Bool(ActionStateBool {
                             current_state: false,
                             changed_since_last_sync: false,
                             last_change_time: i64::MIN,
@@ -246,7 +246,7 @@ fn create_openxr_events(
                         Actionf32Reference {
                             action: action.clone(),
                         },
-                        MyActionState::Float(ActionStateFloat {
+                        XRUtilsActionState::Float(ActionStateFloat {
                             current_state: 0.0,
                             changed_since_last_sync: false,
                             last_change_time: i64::MIN,
@@ -285,7 +285,7 @@ fn create_openxr_events(
                         ActionVector2fReference {
                             action: action.clone(),
                         },
-                        MyActionState::Vector(ActionStateVector {
+                        XRUtilsActionState::Vector(ActionStateVector {
                             current_state: [0.0, 0.0],
                             changed_since_last_sync: false,
                             last_change_time: i64::MIN,
@@ -318,7 +318,7 @@ fn create_openxr_events(
 
 fn sync_active_action_sets(
     session: Res<OxrSession>,
-    active_action_set_query: Query<&OXRActionSet, With<ActiveSet>>,
+    active_action_set_query: Query<&XRUtilsActionSetReference, With<ActiveSet>>,
 ) {
     let active_sets = active_action_set_query
         .iter()
@@ -333,7 +333,7 @@ fn sync_active_action_sets(
 
 fn sync_and_update_action_states_f32(
     session: Res<OxrSession>,
-    mut f32_query: Query<(&Actionf32Reference, &mut MyActionState)>,
+    mut f32_query: Query<(&Actionf32Reference, &mut XRUtilsActionState)>,
 ) {
     //now we do the action state for f32
     for (reference, mut silly_state) in f32_query.iter_mut() {
@@ -341,7 +341,7 @@ fn sync_and_update_action_states_f32(
         match state {
             Ok(s) => {
                 info!("we found a state");
-                let new_state = MyActionState::Float(ActionStateFloat {
+                let new_state = XRUtilsActionState::Float(ActionStateFloat {
                     current_state: s.current_state,
                     changed_since_last_sync: s.changed_since_last_sync,
                     last_change_time: s.last_change_time.as_nanos(),
@@ -359,7 +359,7 @@ fn sync_and_update_action_states_f32(
 
 fn sync_and_update_action_states_bool(
     session: Res<OxrSession>,
-    mut f32_query: Query<(&ActionBooleference, &mut MyActionState)>,
+    mut f32_query: Query<(&ActionBooleference, &mut XRUtilsActionState)>,
 ) {
     //now we do the action state for f32
     for (reference, mut silly_state) in f32_query.iter_mut() {
@@ -367,7 +367,7 @@ fn sync_and_update_action_states_bool(
         match state {
             Ok(s) => {
                 info!("we found a state");
-                let new_state = MyActionState::Bool(ActionStateBool {
+                let new_state = XRUtilsActionState::Bool(ActionStateBool {
                     current_state: s.current_state,
                     changed_since_last_sync: s.changed_since_last_sync,
                     last_change_time: s.last_change_time.as_nanos(),
@@ -385,7 +385,7 @@ fn sync_and_update_action_states_bool(
 
 fn sync_and_update_action_states_vector(
     session: Res<OxrSession>,
-    mut vector_query: Query<(&ActionVector2fReference, &mut MyActionState)>,
+    mut vector_query: Query<(&ActionVector2fReference, &mut XRUtilsActionState)>,
 ) {
     //now we do the action state for f32
     for (reference, mut silly_state) in vector_query.iter_mut() {
@@ -393,7 +393,7 @@ fn sync_and_update_action_states_vector(
         match state {
             Ok(s) => {
                 info!("we found a state");
-                let new_state = MyActionState::Vector(ActionStateVector {
+                let new_state = XRUtilsActionState::Vector(ActionStateVector {
                     current_state: [s.current_state.x, s.current_state.y],
                     changed_since_last_sync: s.changed_since_last_sync,
                     last_change_time: s.last_change_time.as_nanos(),
@@ -410,7 +410,7 @@ fn sync_and_update_action_states_vector(
 }
 
 fn read_action_with_marker_component(
-    mut action_query: Query<&MyActionState, With<FlightActionMarker>>,
+    mut action_query: Query<&XRUtilsActionState, With<FlightActionMarker>>,
 ) {
     //now for the actual checking
     for state in action_query.iter_mut() {
@@ -420,7 +420,7 @@ fn read_action_with_marker_component(
 
 //lets add some flycam stuff
 fn handle_flight_input(
-    action_query: Query<&MyActionState, With<FlightActionMarker>>,
+    action_query: Query<&XRUtilsActionState, With<FlightActionMarker>>,
     mut oxr_root: Query<&mut Transform, With<OxrTrackingRoot>>,
     time: Res<Time>,
     //use the views for hmd orientation
@@ -430,9 +430,9 @@ fn handle_flight_input(
     for state in action_query.iter() {
         // info!("action state is: {:?}", state);
         match state {
-            MyActionState::Bool(_) => (),
-            MyActionState::Float(_) => (),
-            MyActionState::Vector(vector_state) => {
+            XRUtilsActionState::Bool(_) => (),
+            XRUtilsActionState::Float(_) => (),
+            XRUtilsActionState::Vector(vector_state) => {
                 //assuming we are mapped to a vector lets fly
                 let input_vector = vec3(
                     vector_state.current_state[0],
@@ -469,7 +469,7 @@ fn handle_flight_input(
 
 //the things i do for bad prototyping and lack of understanding
 #[derive(Component, Debug)]
-pub enum MyActionState {
+pub enum XRUtilsActionState {
     Bool(ActionStateBool),
     Float(ActionStateFloat),
     Vector(ActionStateVector),
