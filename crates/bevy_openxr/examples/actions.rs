@@ -5,7 +5,7 @@ use std::borrow::Cow;
 use bevy::prelude::*;
 use bevy_openxr::{
     action_binding::OxrSuggestActionBinding,
-    action_set_attaching::{AttachedActionSets, OxrAttachActionSet},
+    action_set_attaching::OxrAttachActionSet,
     add_xr_plugins,
     resources::{OxrInstance, OxrSession},
 };
@@ -18,16 +18,24 @@ fn main() {
         .add_systems(Startup, setup_scene)
         .add_systems(Startup, create_action_entities)
         .add_systems(Startup, create_openxr_events.after(create_action_entities))
-        .add_systems(Update, sync_actions)
+        .add_systems(Update, sync_active_action_sets)
         .add_systems(
             Update,
-            sync_and_update_action_states_f32.after(sync_actions),
+            sync_and_update_action_states_f32.after(sync_active_action_sets),
         )
         .add_systems(
             Update,
-            sync_and_update_action_states_bool.after(sync_actions),
+            sync_and_update_action_states_bool.after(sync_active_action_sets),
         )
-        .add_systems(Update, read_action_with_marker_component.after(sync_and_update_action_states_f32))
+        .add_systems(
+            Update,
+            sync_and_update_action_states_vector.after(sync_active_action_sets),
+        )
+        .add_systems(
+            Update,
+            read_action_with_marker_component.after(sync_and_update_action_states_f32),
+        )
+        
         .run();
 }
 
@@ -73,6 +81,15 @@ struct CreateActionSet {
     priority: u32,
 }
 
+#[derive(Component, Clone)]
+struct OXRActionSet(openxr::ActionSet);
+
+#[derive(Component)]
+struct AttachedActionSet;
+
+#[derive(Component)]
+struct ActiveSet;
+
 #[derive(Component)]
 struct CreateAction {
     action_name: Cow<'static, str>,
@@ -107,11 +124,14 @@ struct CustomActionMarker;
 fn create_action_entities(mut commands: Commands) {
     //create a set
     let set = commands
-        .spawn(CreateActionSet {
-            name: "test".into(),
-            pretty_name: "pretty test".into(),
-            priority: u32::MIN,
-        })
+        .spawn((
+            CreateActionSet {
+                name: "test".into(),
+                pretty_name: "pretty test".into(),
+                priority: u32::MIN,
+            },
+            ActiveSet, //marker to indicate we want this synced
+        ))
         .id();
     //create an action
     let action = commands
@@ -119,7 +139,7 @@ fn create_action_entities(mut commands: Commands) {
             CreateAction {
                 action_name: "action_name".into(),
                 localized_name: "localized_name".into(),
-                action_type: bevy_xr::actions::ActionType::Float,
+                action_type: bevy_xr::actions::ActionType::Vector,
             },
             CustomActionMarker, //lets try a marker component
         ))
@@ -129,7 +149,7 @@ fn create_action_entities(mut commands: Commands) {
     let binding = commands
         .spawn(CreateBinding {
             profile: "/interaction_profiles/valve/index_controller".into(),
-            binding: "/user/hand/right/input/thumbstick/y".into(),
+            binding: "/user/hand/right/input/thumbstick".into(),
         })
         .id();
 
@@ -138,34 +158,34 @@ fn create_action_entities(mut commands: Commands) {
     commands.entity(action).add_child(binding);
     commands.entity(set).add_child(action);
 
-    //create an action
-    let action = commands
-        .spawn((
-            CreateAction {
-                action_name: "action_name_bool".into(),
-                localized_name: "localized_name_bool".into(),
-                action_type: bevy_xr::actions::ActionType::Bool,
-            },
-            CustomActionMarker, //lets try a marker component
-        ))
-        .id();
+    // //create an action
+    // let action = commands
+    //     .spawn((
+    //         CreateAction {
+    //             action_name: "action_name_bool".into(),
+    //             localized_name: "localized_name_bool".into(),
+    //             action_type: bevy_xr::actions::ActionType::Bool,
+    //         },
+    //         CustomActionMarker, //lets try a marker component
+    //     ))
+    //     .id();
 
-    //create a binding
-    let binding = commands
-        .spawn(CreateBinding {
-            profile: "/interaction_profiles/valve/index_controller".into(),
-            binding: "/user/hand/right/input/a/click".into(),
-        })
-        .id();
+    // //create a binding
+    // let binding = commands
+    //     .spawn(CreateBinding {
+    //         profile: "/interaction_profiles/valve/index_controller".into(),
+    //         binding: "/user/hand/right/input/a/click".into(),
+    //     })
+    //     .id();
 
-    //add action to set, this isnt the best
-    //TODO look into a better system
-    commands.entity(action).add_child(binding);
-    commands.entity(set).add_child(action);
+    // //add action to set, this isnt the best
+    // //TODO look into a better system
+    // commands.entity(action).add_child(binding);
+    // commands.entity(set).add_child(action);
 }
 
 fn create_openxr_events(
-    action_sets_query: Query<(&CreateActionSet, &Children)>,
+    action_sets_query: Query<(&CreateActionSet, &Children, Entity)>,
     actions_query: Query<(&CreateAction, &Children)>,
     bindings_query: Query<&CreateBinding>,
     instance: ResMut<OxrInstance>,
@@ -177,11 +197,14 @@ fn create_openxr_events(
     //lets create some sets!
     //we gonna need a collection of these sets for later
     // let mut ActionSets = HashMap::new();
-    for (set, children) in action_sets_query.iter() {
+    for (set, children, id) in action_sets_query.iter() {
         //create action set
         let action_set: openxr::ActionSet = instance
             .create_action_set(&set.name, &set.pretty_name, set.priority)
             .unwrap();
+        //now that we have the action set we need to put it back onto the entity for later
+        let oxr_action_set = OXRActionSet(action_set.clone());
+        commands.entity(id).insert(oxr_action_set);
 
         //since the actions are made from the sets lets go
         for &child in children.iter() {
@@ -312,14 +335,15 @@ fn create_openxr_events(
     }
 }
 
-fn sync_actions(session: Res<OxrSession>, attached: Res<AttachedActionSets>) {
-    //first we need to sync our actions
-    let why = &attached
-        .sets
+fn sync_active_action_sets(
+    session: Res<OxrSession>,
+    active_action_set_query: Query<&OXRActionSet, With<ActiveSet>>,
+) {
+    let active_sets = active_action_set_query
         .iter()
-        .map(|v| ActiveActionSet::from(v))
+        .map(|v| ActiveActionSet::from(&v.0))
         .collect::<Vec<_>>();
-    let sync = session.sync_actions(&why[..]);
+    let sync = session.sync_actions(&active_sets[..]);
     match sync {
         Ok(_) => info!("sync ok"),
         Err(_) => error!("sync error"),
@@ -364,6 +388,32 @@ fn sync_and_update_action_states_bool(
                 info!("we found a state");
                 let new_state = MyActionState::Bool(ActionStateBool {
                     current_state: s.current_state,
+                    changed_since_last_sync: s.changed_since_last_sync,
+                    last_change_time: s.last_change_time.as_nanos(),
+                    is_active: s.is_active,
+                });
+
+                *silly_state = new_state;
+            }
+            Err(_) => {
+                info!("error getting action state");
+            }
+        }
+    }
+}
+
+fn sync_and_update_action_states_vector(
+    session: Res<OxrSession>,
+    mut vector_query: Query<(&ActionVector2fReference, &mut MyActionState)>,
+) {
+    //now we do the action state for f32
+    for (reference, mut silly_state) in vector_query.iter_mut() {
+        let state = reference.action.state(&session, Path::NULL);
+        match state {
+            Ok(s) => {
+                info!("we found a state");
+                let new_state = MyActionState::Vector(ActionStateVector {
+                    current_state: [s.current_state.x, s.current_state.y],
                     changed_since_last_sync: s.changed_since_last_sync,
                     last_change_time: s.last_change_time.as_nanos(),
                     is_active: s.is_active,
