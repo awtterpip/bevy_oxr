@@ -16,9 +16,18 @@ fn main() {
         .add_plugins(add_xr_plugins(DefaultPlugins))
         .add_plugins(bevy_xr_utils::hand_gizmos::HandGizmosPlugin)
         .add_systems(Startup, setup_scene)
-        .add_systems(Update, read_action_with_marker_component)
         .add_systems(Startup, create_action_entities)
         .add_systems(Startup, create_openxr_events.after(create_action_entities))
+        .add_systems(Update, sync_actions)
+        .add_systems(
+            Update,
+            sync_and_update_action_states_f32.after(sync_actions),
+        )
+        .add_systems(
+            Update,
+            sync_and_update_action_states_bool.after(sync_actions),
+        )
+        .add_systems(Update, read_action_with_marker_component.after(sync_and_update_action_states_f32))
         .run();
 }
 
@@ -78,8 +87,18 @@ struct CreateBinding {
 }
 
 #[derive(Component)]
-struct ActionReference {
+struct Actionf32Reference {
     action: openxr::Action<f32>,
+}
+
+#[derive(Component)]
+struct ActionBooleference {
+    action: openxr::Action<bool>,
+}
+
+#[derive(Component)]
+struct ActionVector2fReference {
+    action: openxr::Action<Vector2f>,
 }
 
 #[derive(Component)]
@@ -111,6 +130,31 @@ fn create_action_entities(mut commands: Commands) {
         .spawn(CreateBinding {
             profile: "/interaction_profiles/valve/index_controller".into(),
             binding: "/user/hand/right/input/thumbstick/y".into(),
+        })
+        .id();
+
+    //add action to set, this isnt the best
+    //TODO look into a better system
+    commands.entity(action).add_child(binding);
+    commands.entity(set).add_child(action);
+
+    //create an action
+    let action = commands
+        .spawn((
+            CreateAction {
+                action_name: "action_name_bool".into(),
+                localized_name: "localized_name_bool".into(),
+                action_type: bevy_xr::actions::ActionType::Bool,
+            },
+            CustomActionMarker, //lets try a marker component
+        ))
+        .id();
+
+    //create a binding
+    let binding = commands
+        .spawn(CreateBinding {
+            profile: "/interaction_profiles/valve/index_controller".into(),
+            binding: "/user/hand/right/input/a/click".into(),
         })
         .id();
 
@@ -154,8 +198,18 @@ fn create_openxr_events(
                         )
                         .unwrap();
                     //please put this in a function so I dont go crazy
-                    //TODO remove this crap
-                    // test.action = Some(action.clone());
+                    //insert a reference for later
+                    commands.entity(child).insert((
+                        ActionBooleference {
+                            action: action.clone(),
+                        },
+                        MyActionState::Bool(ActionStateBool {
+                            current_state: false,
+                            changed_since_last_sync: false,
+                            last_change_time: i64::MIN,
+                            is_active: false,
+                        }),
+                    ));
                     //since we need actions for bindings lets go!!
                     for &bind in bindings.iter() {
                         //interaction profile
@@ -184,9 +238,17 @@ fn create_openxr_events(
 
                     //please put this in a function so I dont go crazy
                     //insert a reference for later
-                    commands.entity(child).insert(ActionReference {
-                        action: action.clone(),
-                    });
+                    commands.entity(child).insert((
+                        Actionf32Reference {
+                            action: action.clone(),
+                        },
+                        MyActionState::Float(ActionStateFloat {
+                            current_state: 0.0,
+                            changed_since_last_sync: false,
+                            last_change_time: i64::MIN,
+                            is_active: false,
+                        }),
+                    ));
                     //since we need actions for bindings lets go!!
                     for &bind in bindings.iter() {
                         //interaction profile
@@ -214,8 +276,18 @@ fn create_openxr_events(
                         .unwrap();
 
                     //please put this in a function so I dont go crazy
-                    //TODO remove this crap
-                    // test.action = Some(action.clone());
+                    //insert a reference for later
+                    commands.entity(child).insert((
+                        ActionVector2fReference {
+                            action: action.clone(),
+                        },
+                        MyActionState::Vector(ActionStateVector {
+                            current_state: [0.0, 0.0],
+                            changed_since_last_sync: false,
+                            last_change_time: i64::MIN,
+                            is_active: false,
+                        }),
+                    ));
                     //since we need actions for bindings lets go!!
                     for &bind in bindings.iter() {
                         //interaction profile
@@ -240,11 +312,7 @@ fn create_openxr_events(
     }
 }
 
-fn read_action_with_marker_component(
-    action_query: Query<&ActionReference, With<CustomActionMarker>>,
-    session: ResMut<OxrSession>,
-    attached: ResMut<AttachedActionSets>,
-) {
+fn sync_actions(session: Res<OxrSession>, attached: Res<AttachedActionSets>) {
     //first we need to sync our actions
     let why = &attached
         .sets
@@ -256,21 +324,95 @@ fn read_action_with_marker_component(
         Ok(_) => info!("sync ok"),
         Err(_) => error!("sync error"),
     }
-    
-    //now for the actual checking
-    let action = action_query.get_single();
-    match action {
-        Ok(reference) => {
-            let state = reference.action.state(&session, Path::NULL);
-            match state {
-                Ok(a) => {
-                    info!("action state: {:?}", a);
-                }
-                Err(_) => info!("error getting state"),
+}
+
+fn sync_and_update_action_states_f32(
+    session: Res<OxrSession>,
+    mut f32_query: Query<(&Actionf32Reference, &mut MyActionState)>,
+) {
+    //now we do the action state for f32
+    for (reference, mut silly_state) in f32_query.iter_mut() {
+        let state = reference.action.state(&session, Path::NULL);
+        match state {
+            Ok(s) => {
+                info!("we found a state");
+                let new_state = MyActionState::Float(ActionStateFloat {
+                    current_state: s.current_state,
+                    changed_since_last_sync: s.changed_since_last_sync,
+                    last_change_time: s.last_change_time.as_nanos(),
+                    is_active: s.is_active,
+                });
+
+                *silly_state = new_state;
+            }
+            Err(_) => {
+                info!("error getting action state");
             }
         }
-        Err(_) => {
-            info!("no action")
+    }
+}
+
+fn sync_and_update_action_states_bool(
+    session: Res<OxrSession>,
+    mut f32_query: Query<(&ActionBooleference, &mut MyActionState)>,
+) {
+    //now we do the action state for f32
+    for (reference, mut silly_state) in f32_query.iter_mut() {
+        let state = reference.action.state(&session, Path::NULL);
+        match state {
+            Ok(s) => {
+                info!("we found a state");
+                let new_state = MyActionState::Bool(ActionStateBool {
+                    current_state: s.current_state,
+                    changed_since_last_sync: s.changed_since_last_sync,
+                    last_change_time: s.last_change_time.as_nanos(),
+                    is_active: s.is_active,
+                });
+
+                *silly_state = new_state;
+            }
+            Err(_) => {
+                info!("error getting action state");
+            }
         }
     }
+}
+
+fn read_action_with_marker_component(
+    mut action_query: Query<&MyActionState, With<CustomActionMarker>>,
+) {
+    //now for the actual checking
+    for state in action_query.iter_mut() {
+        info!("action state is: {:?}", state);
+    }
+}
+
+//the things i do for bad prototyping and lack of understanding
+#[derive(Component, Debug)]
+pub enum MyActionState {
+    Bool(ActionStateBool),
+    Float(ActionStateFloat),
+    Vector(ActionStateVector),
+}
+
+#[derive(Debug)]
+pub struct ActionStateBool {
+    pub current_state: bool,
+    pub changed_since_last_sync: bool,
+    pub last_change_time: i64,
+    pub is_active: bool,
+}
+#[derive(Debug)]
+pub struct ActionStateFloat {
+    pub current_state: f32,
+    pub changed_since_last_sync: bool,
+    pub last_change_time: i64,
+    pub is_active: bool,
+}
+#[derive(Debug)]
+pub struct ActionStateVector {
+    pub current_state: [f32; 2],
+    pub changed_since_last_sync: bool,
+    pub last_change_time: i64,
+    pub is_active: bool,
 }

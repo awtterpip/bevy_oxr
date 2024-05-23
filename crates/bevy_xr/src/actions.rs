@@ -21,6 +21,7 @@ impl<A: Action> Plugin for ActionPlugin<A> {
     }
 }
 
+#[derive(Debug)]
 pub enum ActionType {
     Bool,
     Float,
