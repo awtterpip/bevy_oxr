@@ -42,6 +42,7 @@ pub enum OxrPreUpdateSet {
     HandleEvents,
     UpdateCriticalComponents,
     UpdateNonCriticalComponents,
+    SyncActions,
 }
 
 pub struct OxrInitPlugin {
