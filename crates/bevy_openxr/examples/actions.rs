@@ -2,11 +2,12 @@
 
 use std::borrow::Cow;
 
-use bevy::prelude::*;
+use bevy::{math::vec3, prelude::*};
 use bevy_openxr::{
     action_binding::OxrSuggestActionBinding,
     action_set_attaching::OxrAttachActionSet,
     add_xr_plugins,
+    init::OxrTrackingRoot,
     resources::{OxrInstance, OxrSession},
 };
 use openxr::{ActiveActionSet, Path, Vector2f};
@@ -35,7 +36,10 @@ fn main() {
             Update,
             read_action_with_marker_component.after(sync_and_update_action_states_f32),
         )
-        
+        .add_systems(
+            Update,
+            handle_flight_input.after(sync_and_update_action_states_f32),
+        )
         .run();
 }
 
@@ -84,8 +88,9 @@ struct CreateActionSet {
 #[derive(Component, Clone)]
 struct OXRActionSet(openxr::ActionSet);
 
-#[derive(Component)]
-struct AttachedActionSet;
+//I want to use this to indicate when an action set is attached
+// #[derive(Component)]
+// struct AttachedActionSet;
 
 #[derive(Component)]
 struct ActiveSet;
@@ -119,15 +124,15 @@ struct ActionVector2fReference {
 }
 
 #[derive(Component)]
-struct CustomActionMarker;
+struct FlightActionMarker;
 
 fn create_action_entities(mut commands: Commands) {
     //create a set
     let set = commands
         .spawn((
             CreateActionSet {
-                name: "test".into(),
-                pretty_name: "pretty test".into(),
+                name: "flight".into(),
+                pretty_name: "pretty flight set".into(),
                 priority: u32::MIN,
             },
             ActiveSet, //marker to indicate we want this synced
@@ -137,11 +142,11 @@ fn create_action_entities(mut commands: Commands) {
     let action = commands
         .spawn((
             CreateAction {
-                action_name: "action_name".into(),
-                localized_name: "localized_name".into(),
+                action_name: "flight_input".into(),
+                localized_name: "flight_input_localized".into(),
                 action_type: bevy_xr::actions::ActionType::Vector,
             },
-            CustomActionMarker, //lets try a marker component
+            FlightActionMarker, //lets try a marker component
         ))
         .id();
 
@@ -157,31 +162,6 @@ fn create_action_entities(mut commands: Commands) {
     //TODO look into a better system
     commands.entity(action).add_child(binding);
     commands.entity(set).add_child(action);
-
-    // //create an action
-    // let action = commands
-    //     .spawn((
-    //         CreateAction {
-    //             action_name: "action_name_bool".into(),
-    //             localized_name: "localized_name_bool".into(),
-    //             action_type: bevy_xr::actions::ActionType::Bool,
-    //         },
-    //         CustomActionMarker, //lets try a marker component
-    //     ))
-    //     .id();
-
-    // //create a binding
-    // let binding = commands
-    //     .spawn(CreateBinding {
-    //         profile: "/interaction_profiles/valve/index_controller".into(),
-    //         binding: "/user/hand/right/input/a/click".into(),
-    //     })
-    //     .id();
-
-    // //add action to set, this isnt the best
-    // //TODO look into a better system
-    // commands.entity(action).add_child(binding);
-    // commands.entity(set).add_child(action);
 }
 
 fn create_openxr_events(
@@ -429,11 +409,47 @@ fn sync_and_update_action_states_vector(
 }
 
 fn read_action_with_marker_component(
-    mut action_query: Query<&MyActionState, With<CustomActionMarker>>,
+    mut action_query: Query<&MyActionState, With<FlightActionMarker>>,
 ) {
     //now for the actual checking
     for state in action_query.iter_mut() {
         info!("action state is: {:?}", state);
+    }
+}
+
+//lets add some flycam stuff
+fn handle_flight_input(
+    action_query: Query<&MyActionState, With<FlightActionMarker>>,
+    mut oxr_root: Query<&mut Transform, With<OxrTrackingRoot>>,
+    time: Res<Time>,
+) {
+    //now for the actual checking
+    for state in action_query.iter() {
+        // info!("action state is: {:?}", state);
+        match state {
+            MyActionState::Bool(_) => (),
+            MyActionState::Float(_) => (),
+            MyActionState::Vector(vector_state) => {
+                //assuming we are mapped to a vector lets fly
+                let input_vector = vec3(
+                    vector_state.current_state[0],
+                    0.0,
+                    vector_state.current_state[1],
+                );
+                //hard code speed for now
+                let speed = 5.0;
+
+                let root = oxr_root.get_single_mut();
+                match root {
+                    Ok(mut root_position) => {
+                        root_position.translation += input_vector * speed * time.delta_seconds();
+                    }
+                    Err(_) => {
+                        info!("handle_flight_input: error getting root position for flight actions")
+                    }
+                }
+            }
+        }
     }
 }
 
