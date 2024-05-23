@@ -20,15 +20,19 @@ fn handle_input(
     mut create: EventWriter<bevy_xr::session::CreateXrSession>,
 ) {
     if keys.just_pressed(KeyCode::KeyE) {
+        info!("sending end");
         end.send_default();
     }
     if keys.just_pressed(KeyCode::KeyD) {
+        info!("sending destroy");
         destroy.send_default();
     }
     if keys.just_pressed(KeyCode::KeyB) {
+        info!("sending begin");
         begin.send_default();
     }
     if keys.just_pressed(KeyCode::KeyC) {
+        info!("sending create");
         create.send_default();
     }
 }

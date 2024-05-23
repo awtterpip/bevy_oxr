@@ -218,6 +218,11 @@ pub struct OxrFrameWaiter(pub openxr::FrameWaiter);
 /// Graphics agnostic wrapper around [openxr::Swapchain]
 #[derive(Resource)]
 pub struct OxrSwapchain(pub GraphicsWrap<Self>);
+impl Drop for OxrSwapchain {
+    fn drop(&mut self) {
+        info!("Dropping Swapchain");
+    }
+}
 
 impl GraphicsType for OxrSwapchain {
     type Inner<G: GraphicsExt> = openxr::Swapchain<G>;
@@ -287,6 +292,11 @@ impl OxrSwapchain {
 /// Stores the generated swapchain images.
 #[derive(Debug, Deref, Resource, Clone)]
 pub struct OxrSwapchainImages(pub Arc<Vec<wgpu::Texture>>);
+impl Drop for OxrSwapchainImages {
+    fn drop(&mut self) {
+        info!("Dropping Swapchain Images");
+    }
+}
 
 /// Thread safe wrapper around [openxr::Space] representing the stage.
 // #[derive(Deref, Clone, Resource)]

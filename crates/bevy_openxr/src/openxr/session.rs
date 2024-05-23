@@ -1,9 +1,13 @@
 use crate::init::OxrPreUpdateSet;
-use crate::resources::{OxrCleanupSession, OxrPassthrough, OxrPassthroughLayer, OxrSwapchain};
+use crate::resources::{
+    OxrCleanupSession, OxrPassthrough, OxrPassthroughLayer, OxrSessionStarted, OxrSwapchain,
+};
 use crate::types::{Result, SwapchainCreateInfo};
 use bevy::ecs::system::{RunSystemOnce, SystemState};
 use bevy::prelude::*;
-use bevy_xr::session::{XrRenderSessionEnding, XrSessionCreated, XrSessionEnding};
+use bevy_xr::session::{
+    status_changed_to, XrRenderSessionEnding, XrSessionCreated, XrSessionExiting, XrStatus,
+};
 use openxr::AnyGraphics;
 
 use crate::graphics::{graphics_match, GraphicsExt, GraphicsType, GraphicsWrap};
@@ -23,11 +27,21 @@ impl Plugin for OxrSessionPlugin {
             PreUpdate,
             run_session_status_schedules.in_set(OxrPreUpdateSet::HandleEvents),
         );
-        app.add_systems(XrSessionEnding, clean_session);
+        app.add_systems(XrSessionExiting, clean_session);
         app.add_systems(XrRenderSessionEnding, |mut cmds: Commands| {
-            cmds.remove_resource::<OxrSession>()
+            cmds.remove_resource::<OxrSession>();
+            cmds.remove_resource::<OxrCleanupSession>();
         });
+        app.add_systems(
+            PreUpdate,
+            handle_stopping_state.run_if(status_changed_to(XrStatus::Stopping)),
+        );
     }
+}
+
+fn handle_stopping_state(session: Res<OxrSession>, session_started: Res<OxrSessionStarted>) {
+    session.end().expect("Failed to end session");
+    session_started.set(false);
 }
 
 fn clean_session(mut cmds: Commands) {
@@ -46,7 +60,7 @@ fn run_session_status_schedules(world: &mut World) {
                 world.run_system_once(apply_deferred);
             }
             OxrSessionStatusEvent::AboutToBeDestroyed => {
-                world.run_schedule(XrSessionEnding);
+                world.run_schedule(XrSessionExiting);
                 world.run_system_once(apply_deferred);
             }
         }
