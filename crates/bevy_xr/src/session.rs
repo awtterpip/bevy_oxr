@@ -1,13 +1,13 @@
 use std::sync::{Arc, RwLock};
 
-use bevy::{ecs::schedule::ScheduleLabel, prelude::*};
+use bevy::{ecs::schedule::ScheduleLabel, prelude::*, render::RenderApp};
 
 pub struct XrSessionPlugin;
 
 impl Plugin for XrSessionPlugin {
     fn build(&self, app: &mut App) {
         app.init_schedule(XrSessionCreated);
-        app.init_schedule(XrSessionEnding);
+        app.init_schedule(XrSessionExiting);
         app.add_event::<CreateXrSession>()
             .add_event::<DestroyXrSession>()
             .add_event::<BeginXrSession>()
@@ -20,7 +20,9 @@ impl Plugin for XrSessionPlugin {
     }
     fn finish(&self, app: &mut App) {
         // This is in finnish because we need the RenderPlugin to already be added.
-        app.init_schedule(XrRenderSessionEnding);
+        app.get_sub_app_mut(RenderApp)
+            .unwrap()
+            .init_schedule(XrRenderSessionEnding);
     }
 }
 
@@ -28,7 +30,7 @@ impl Plugin for XrSessionPlugin {
 pub struct XrSessionCreated;
 
 #[derive(ScheduleLabel, Clone, Copy, PartialEq, Eq, Debug, Hash)]
-pub struct XrSessionEnding;
+pub struct XrSessionExiting;
 
 #[derive(ScheduleLabel, Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub struct XrRenderSessionEnding;
@@ -93,7 +95,7 @@ pub fn handle_session(
             }
             XrStatus::Running => {}
             XrStatus::Stopping => {
-                end_session.send_default();
+                // end_session.send_default();
             }
             XrStatus::Exiting => {
                 destroy_session.send_default();

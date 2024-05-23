@@ -130,7 +130,7 @@ impl Plugin for OxrInitPlugin {
                                 .run_if(status_equals(XrStatus::Ready)),
                             end_xr_session
                                 .run_if(on_event::<EndXrSession>())
-                                .run_if(status_equals(XrStatus::Stopping)),
+                                .run_if(status_equals(XrStatus::Running)),
                             destroy_xr_session
                                 .run_if(on_event::<DestroyXrSession>())
                                 .run_if(status_equals(XrStatus::Exiting)),
@@ -488,8 +488,11 @@ pub fn begin_xr_session(session: Res<OxrSession>, session_started: Res<OxrSessio
 
 pub fn end_xr_session(session: Res<OxrSession>, session_started: Res<OxrSessionStarted>) {
     let _span = info_span!("xr_end_session");
-    session.end().expect("Failed to end session");
-    session_started.set(false);
+    session
+        .request_exit()
+        .expect("Failed to request session exit");
+    // session.end().expect("Failed to end session");
+    // session_started.set(false);
 }
 
 /// This system transfers important render resources from the main world to the render world when a session is created.

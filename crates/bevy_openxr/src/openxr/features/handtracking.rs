@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_xr::{
     hands::{HandBone, HandBoneRadius},
-    session::{session_running, XrSessionCreated, XrSessionEnding},
+    session::{session_running, XrSessionCreated, XrSessionExiting},
 };
 use openxr::SpaceLocationFlags;
 
@@ -27,7 +27,7 @@ impl Plugin for HandTrackingPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(PreUpdate, locate_hands.run_if(session_running));
         if self.default_hands {
-            app.add_systems(XrSessionEnding, clean_up_default_hands);
+            app.add_systems(XrSessionExiting, clean_up_default_hands);
             app.add_systems(XrSessionCreated, spawn_default_hands);
         }
     }

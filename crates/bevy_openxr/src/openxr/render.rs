@@ -9,14 +9,17 @@ use bevy::{
     },
     transform::TransformSystem,
 };
-use bevy_xr::{camera::{XrCamera, XrCameraBundle, XrProjection}, session::session_running};
+use bevy_xr::{
+    camera::{XrCamera, XrCameraBundle, XrProjection},
+    session::{session_running, XrSessionExiting},
+};
 use openxr::ViewStateFlags;
 
-use crate::{reference_space::OxrPrimaryReferenceSpace, resources::*, session::OxrSession};
 use crate::{
     init::{session_started, OxrPreUpdateSet},
     layer_builder::ProjectionLayer,
 };
+use crate::{reference_space::OxrPrimaryReferenceSpace, resources::*, session::OxrSession};
 
 pub struct OxrRenderPlugin;
 
@@ -40,7 +43,8 @@ impl Plugin for OxrRenderPlugin {
                     .chain()
                     .run_if(session_running)
                     .before(TransformSystem::TransformPropagate),
-            );
+            )
+            .add_systems(XrSessionExiting, clean_views);
         app.sub_app_mut(RenderApp)
             .add_systems(
                 Render,
@@ -67,6 +71,17 @@ impl Plugin for OxrRenderPlugin {
 }
 
 pub const XR_TEXTURE_INDEX: u32 = 3383858418;
+
+pub fn clean_views(
+    mut manual_texture_views: ResMut<ManualTextureViews>,
+    mut commands: Commands,
+    cam_query: Query<(Entity, &XrCamera)>,
+) {
+    for (e, cam) in &cam_query {
+        manual_texture_views.remove(&ManualTextureViewHandle(XR_TEXTURE_INDEX + cam.0));
+        commands.entity(e).despawn_recursive();
+    }
+}
 
 // TODO: have cameras initialized externally and then recieved by this function.
 /// This is needed to properly initialize the texture views so that bevy will set them to the correct resolution despite them being updated in the render world.

@@ -5,7 +5,7 @@ use bevy::{
     render::extract_resource::{ExtractResource, ExtractResourcePlugin},
 };
 use bevy_xr::session::{
-    status_changed_to, XrRenderSessionEnding, XrSessionCreated, XrSessionEnding, XrStatus,
+    status_changed_to, XrRenderSessionEnding, XrSessionCreated, XrSessionExiting, XrStatus,
 };
 
 use crate::{init::OxrPreUpdateSet, session::OxrSession};
@@ -36,7 +36,7 @@ impl Plugin for OxrReferenceSpacePlugin {
         app.insert_resource(OxrDefaultPrimaryReferenceSpaceType(self.default_primary_ref_space));
         app.add_plugins(ExtractResourcePlugin::<OxrPrimaryReferenceSpace>::default());
         app.add_systems(XrSessionCreated, set_primary_ref_space);
-        app.add_systems(XrSessionEnding, cleanup);
+        app.add_systems(XrSessionExiting, cleanup);
         app.add_systems(XrRenderSessionEnding, cleanup);
     }
 }
