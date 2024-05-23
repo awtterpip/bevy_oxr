@@ -28,6 +28,7 @@ pub mod reference_space;
 pub mod render;
 pub mod resources;
 pub mod types;
+pub mod action_set_syncing;
 
 pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
     plugins
@@ -43,6 +44,7 @@ pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
         .add(XrCameraPlugin)
         .add(action_set_attaching::OxrActionAttachingPlugin)
         .add(action_binding::OxrActionBindingPlugin)
+        .add(action_set_syncing::OxrActionSyncingPlugin)
         // .add(XrActionPlugin)
         .set(WindowPlugin {
             primary_window: Some(Window {
