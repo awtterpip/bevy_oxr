@@ -7,8 +7,9 @@ use bevy_openxr::{
     action_binding::OxrSuggestActionBinding,
     action_set_attaching::OxrAttachActionSet,
     add_xr_plugins,
+    helper_traits::ToQuat,
     init::OxrTrackingRoot,
-    resources::{OxrInstance, OxrSession},
+    resources::{OxrInstance, OxrSession, OxrViews},
 };
 use openxr::{ActiveActionSet, Path, Vector2f};
 
@@ -422,6 +423,8 @@ fn handle_flight_input(
     action_query: Query<&MyActionState, With<FlightActionMarker>>,
     mut oxr_root: Query<&mut Transform, With<OxrTrackingRoot>>,
     time: Res<Time>,
+    //use the views for hmd orientation
+    views: ResMut<OxrViews>,
 ) {
     //now for the actual checking
     for state in action_query.iter() {
@@ -434,7 +437,7 @@ fn handle_flight_input(
                 let input_vector = vec3(
                     vector_state.current_state[0],
                     0.0,
-                    vector_state.current_state[1],
+                    -vector_state.current_state[1],
                 );
                 //hard code speed for now
                 let speed = 5.0;
@@ -442,7 +445,18 @@ fn handle_flight_input(
                 let root = oxr_root.get_single_mut();
                 match root {
                     Ok(mut root_position) => {
-                        root_position.translation += input_vector * speed * time.delta_seconds();
+                        //lets assume HMD based direction for now
+                        let view = views.first();
+                        match view {
+                            Some(v) => {
+                                let reference_quat = v.pose.orientation.to_quat();
+                                let locomotion_vector = reference_quat.mul_vec3(input_vector);
+
+                                root_position.translation +=
+                                    locomotion_vector * speed * time.delta_seconds();
+                            }
+                            None => return,
+                        }
                     }
                     Err(_) => {
                         info!("handle_flight_input: error getting root position for flight actions")
