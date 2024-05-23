@@ -17,7 +17,7 @@ fn attach_sets(session: Res<OxrSession>, mut events: EventReader<OxrAttachAction
     if sets.is_empty() {return;}
     info!("attaching {} sessions", sets.len());
     match session.attach_action_sets(&sets) {
-        Ok(_) => {info!("attached sessions!");}
+        Ok(_) => {info!("attached sessions!")}
         Err(openxr::sys::Result::ERROR_ACTIONSETS_ALREADY_ATTACHED) => {
             error!("Action Sets Already attached!");
         }
