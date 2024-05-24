@@ -24,6 +24,7 @@ use bevy_xr::session::CreateXrSession;
 use bevy_xr::session::DestroyXrSession;
 use bevy_xr::session::EndXrSession;
 use bevy_xr::session::XrRenderSessionEnding;
+use bevy_xr::session::XrSessionExiting;
 use bevy_xr::session::XrSharedStatus;
 use bevy_xr::session::XrStatus;
 use bevy_xr::session::XrStatusChanged;
@@ -132,13 +133,11 @@ impl Plugin for OxrInitPlugin {
                             end_xr_session
                                 .run_if(on_event::<EndXrSession>())
                                 .run_if(status_equals(XrStatus::Running)),
-                            destroy_xr_session
-                                .run_if(on_event::<DestroyXrSession>())
-                                .run_if(status_equals(XrStatus::Exiting)),
                         )
                             .in_set(OxrPreUpdateSet::HandleEvents),
                     ),
                 )
+                .add_systems(XrSessionExiting, destroy_xr_session)
                 .add_systems(
                     PostUpdate,
                     update_root_transform.after(TransformSystem::TransformPropagate),
@@ -456,6 +455,7 @@ pub fn create_xr_session(
     system_id: Res<OxrSystemId>,
     mut commands: Commands,
 ) {
+    info!("creating session!");
     match init_xr_session(
         device.wgpu_device(),
         &instance,
@@ -481,6 +481,7 @@ pub fn create_xr_session(
 
 pub fn begin_xr_session(session: Res<OxrSession>, session_started: Res<OxrSessionStarted>) {
     let _span = info_span!("xr_begin_session");
+    info!("begining session!");
     session
         .begin(openxr::ViewConfigurationType::PRIMARY_STEREO)
         .expect("Failed to begin session");
@@ -489,6 +490,7 @@ pub fn begin_xr_session(session: Res<OxrSession>, session_started: Res<OxrSessio
 
 pub fn end_xr_session(session: Res<OxrSession>, session_started: Res<OxrSessionStarted>) {
     let _span = info_span!("xr_end_session");
+    info!("ending session!");
     session
         .request_exit()
         .expect("Failed to request session exit");
@@ -542,6 +544,7 @@ pub fn poll_events(
                     SessionState::IDLE => {
                         if status.get() == XrStatus::Available {
                             session_status_events.send(OxrSessionStatusEvent::Created);
+                            info!("sending create info");
                         }
                         XrStatus::Idle
                     }
@@ -552,6 +555,7 @@ pub fn poll_events(
                     SessionState::STOPPING => XrStatus::Stopping,
                     SessionState::EXITING | SessionState::LOSS_PENDING => {
                         session_status_events.send(OxrSessionStatusEvent::AboutToBeDestroyed);
+                            info!("sending destroy info");
                         XrStatus::Exiting
                     }
                     _ => unreachable!(),
@@ -583,4 +587,10 @@ pub fn destroy_xr_session_render(world: &mut World) {
     world.remove_resource::<OxrGraphicsInfo>();
     world.run_schedule(XrRenderSessionEnding);
     world.run_system_once(apply_deferred);
+    if let Some(sess) = world.remove_resource::<OxrSession>() {
+        unsafe {
+            (sess.instance().fp().destroy_session)(sess.as_raw());
+        }
+        Box::leak(Box::new(sess));
+    }
 }

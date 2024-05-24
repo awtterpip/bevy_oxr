@@ -148,7 +148,6 @@ impl OxrInstance {
     }
 }
 
-
 /// Graphics agnostic wrapper around [openxr::FrameStream]
 #[derive(Resource)]
 pub struct OxrFrameStream(pub GraphicsWrap<Self>);
@@ -283,20 +282,15 @@ impl OxrSwapchain {
                         images.push(Api::to_wgpu_img(image, device, format, resolution)?);
                     }
                 }
-                Ok(OxrSwapchainImages(images.into()))
+                Ok(OxrSwapchainImages(images.leak()))
             }
         )
     }
 }
 
 /// Stores the generated swapchain images.
-#[derive(Debug, Deref, Resource, Clone)]
-pub struct OxrSwapchainImages(pub Arc<Vec<wgpu::Texture>>);
-impl Drop for OxrSwapchainImages {
-    fn drop(&mut self) {
-        info!("Dropping Swapchain Images");
-    }
-}
+#[derive(Debug, Deref, Resource, Clone, Copy)]
+pub struct OxrSwapchainImages(pub &'static [wgpu::Texture]);
 
 /// Thread safe wrapper around [openxr::Space] representing the stage.
 // #[derive(Deref, Clone, Resource)]

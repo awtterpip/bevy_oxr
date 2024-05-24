@@ -2,6 +2,7 @@
 
 use bevy::prelude::*;
 use bevy_openxr::add_xr_plugins;
+use bevy_xr::session::{XrSharedStatus, XrStatus};
 
 fn main() {
     App::new()
@@ -18,6 +19,7 @@ fn handle_input(
     mut destroy: EventWriter<bevy_xr::session::DestroyXrSession>,
     mut begin: EventWriter<bevy_xr::session::BeginXrSession>,
     mut create: EventWriter<bevy_xr::session::CreateXrSession>,
+    state: Res<XrSharedStatus>,
 ) {
     if keys.just_pressed(KeyCode::KeyE) {
         info!("sending end");
@@ -34,6 +36,9 @@ fn handle_input(
     if keys.just_pressed(KeyCode::KeyC) {
         info!("sending create");
         create.send_default();
+    }
+    if keys.just_pressed(KeyCode::KeyI) {
+        info!("current state: {:?}", state.get());
     }
 }
 

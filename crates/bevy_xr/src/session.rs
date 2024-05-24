@@ -13,10 +13,10 @@ impl Plugin for XrSessionPlugin {
             .add_event::<BeginXrSession>()
             .add_event::<EndXrSession>()
             .add_event::<XrStatusChanged>()
-            .add_systems(
-                PreUpdate,
-                handle_session.run_if(resource_exists::<XrSharedStatus>),
-            );
+            // .add_systems(
+            //     PreUpdate,
+            //     handle_session.run_if(resource_exists::<XrSharedStatus>),
+            /* ) */;
     }
     fn finish(&self, app: &mut App) {
         // This is in finnish because we need the RenderPlugin to already be added.

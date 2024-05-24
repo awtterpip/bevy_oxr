@@ -115,7 +115,8 @@ fn clean_up_default_hands(
     query: Query<Entity, Or<(With<DefaultHandTracker>, With<DefaultHandBones>)>>,
 ) {
     for e in &query {
-        cmds.entity(e).despawn();
+        info!("removing_hand_entity");
+        cmds.entity(e).despawn_recursive();
     }
 }
 
