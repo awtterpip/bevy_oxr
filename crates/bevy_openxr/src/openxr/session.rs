@@ -5,8 +5,11 @@ use crate::resources::{
 use crate::types::{Result, SwapchainCreateInfo};
 use bevy::ecs::system::{RunSystemOnce, SystemState};
 use bevy::prelude::*;
+use bevy::render::extract_resource::ExtractResourcePlugin;
+use bevy::render::RenderApp;
 use bevy_xr::session::{
-    status_changed_to, XrRenderSessionEnding, XrSessionCreated, XrSessionExiting, XrStatus,
+    status_changed_to, XrRenderSessionEnding, XrSessionCreated, XrSessionExiting, XrSharedStatus,
+    XrStatus,
 };
 use openxr::AnyGraphics;
 
@@ -28,10 +31,11 @@ impl Plugin for OxrSessionPlugin {
             run_session_status_schedules.in_set(OxrPreUpdateSet::HandleEvents),
         );
         app.add_systems(XrSessionExiting, clean_session);
-        app.add_systems(XrRenderSessionEnding, |mut cmds: Commands| {
-            cmds.remove_resource::<OxrSession>();
-            cmds.remove_resource::<OxrCleanupSession>();
-        });
+        app.sub_app_mut(RenderApp)
+            .add_systems(XrRenderSessionEnding, |mut cmds: Commands| {
+                // cmds.remove_resource::<OxrSession>();
+                cmds.remove_resource::<OxrCleanupSession>();
+            });
         app.add_systems(
             PreUpdate,
             handle_stopping_state.run_if(status_changed_to(XrStatus::Stopping)),
@@ -44,9 +48,13 @@ fn handle_stopping_state(session: Res<OxrSession>, session_started: Res<OxrSessi
     session_started.set(false);
 }
 
-fn clean_session(mut cmds: Commands) {
-    cmds.remove_resource::<OxrSession>();
-    cmds.insert_resource(OxrCleanupSession(true));
+fn clean_session(world: &mut World) {
+    world.insert_resource(OxrCleanupSession(true));
+    // It should be impossible to call this if the session is Unavailable
+    world
+        .get_resource::<XrSharedStatus>()
+        .unwrap()
+        .set(XrStatus::Available);
 }
 
 fn run_session_status_schedules(world: &mut World) {
@@ -62,6 +70,11 @@ fn run_session_status_schedules(world: &mut World) {
             OxrSessionStatusEvent::AboutToBeDestroyed => {
                 world.run_schedule(XrSessionExiting);
                 world.run_system_once(apply_deferred);
+                if let Some(sess) = world.remove_resource::<OxrSession>() {
+                    // unsafe {
+                    //     (sess.instance().fp().destroy_session)(sess.as_raw());
+                    // }
+                }
             }
         }
     }
@@ -80,6 +93,11 @@ pub struct OxrSession(
     /// This is so that we can still operate on functions that don't take [`AnyGraphics`] as the generic.
     pub(crate) GraphicsWrap<Self>,
 );
+impl Drop for OxrSession {
+    fn drop(&mut self) {
+        info!("dropping session");
+    }
+}
 
 impl GraphicsType for OxrSession {
     type Inner<G: GraphicsExt> = openxr::Session<G>;
