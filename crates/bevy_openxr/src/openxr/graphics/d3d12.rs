@@ -155,6 +155,41 @@ unsafe impl GraphicsExt for openxr::D3D12 {
             },
         ))
     }
+
+    unsafe fn create_session(
+        instance: &openxr::Instance,
+        system_id: openxr::SystemId,
+        info: &Self::SessionCreateInfo,
+        session_create_info_chain: &mut OxrSessionCreateInfoChain,
+    ) -> openxr::Result<(
+        openxr::Session<Self>,
+        openxr::FrameWaiter,
+        openxr::FrameStream<Self>,
+    )> {
+        let binding = sys::GraphicsBindingD3D12KHR {
+            ty: sys::GraphicsBindingD3D12KHR::TYPE,
+            next: session_create_info_chain.chain_pointer(),
+            device: info.device,
+            queue: info.queue,
+        };
+        let info = sys::SessionCreateInfo {
+            ty: sys::SessionCreateInfo::TYPE,
+            next: &binding as *const _ as *const _,
+            create_flags: Default::default(),
+            system_id: system,
+        };
+        let mut out = sys::Session::NULL;
+        cvt((instance.fp().create_session)(
+            instance.as_raw(),
+            &info,
+            &mut out,
+        ))?;
+        Ok(openxr::Session::from_raw(
+            instance.clone(),
+            out,
+            Box::new(()),
+        ))
+    }
 }
 
 // Extracted from https://github.com/gfx-rs/wgpu/blob/1161a22f4fbb4fc204eb06f2ac4243f83e0e980d/wgpu-hal/src/dx12/adapter.rs#L73-L94

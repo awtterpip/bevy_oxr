@@ -1,5 +1,11 @@
-use bevy::prelude::{Deref, DerefMut};
+use bevy::{
+    ecs::system::Resource,
+    prelude::{Deref, DerefMut},
+};
 use openxr::ExtensionSet;
+
+#[derive(Clone, Debug, Eq, PartialEq, Deref, Resource)]
+pub struct OxrEnabledExtensions(pub(crate) OxrExtensions);
 
 #[derive(Clone, Debug, Eq, PartialEq, Deref, DerefMut)]
 pub struct OxrExtensions(ExtensionSet);

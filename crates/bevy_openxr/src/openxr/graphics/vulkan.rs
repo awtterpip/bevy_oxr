@@ -1,14 +1,16 @@
 use std::ffi::{c_void, CString};
+use std::ptr;
 
 use ash::vk::Handle;
 use bevy::log::error;
 use bevy::math::UVec2;
-use openxr::Version;
+use openxr::{sys, Version};
 use wgpu_hal::api::Vulkan;
 use wgpu_hal::Api;
 
 use super::{GraphicsExt, GraphicsType, GraphicsWrap};
 use crate::error::OxrError;
+use crate::session_create_info_builder::OxrSessionCreateInfoChain;
 use crate::types::{AppInfo, OxrExtensions, Result, WgpuGraphics};
 
 #[cfg(not(target_os = "android"))]
@@ -291,6 +293,52 @@ unsafe impl GraphicsExt for openxr::Vulkan {
                 queue_index: 0,
             },
         ))
+    }
+
+    unsafe fn create_session(
+        instance: &openxr::Instance,
+        system_id: openxr::SystemId,
+        info: &Self::SessionCreateInfo,
+        session_create_info_chain: &mut OxrSessionCreateInfoChain,
+    ) -> openxr::Result<(
+        openxr::Session<Self>,
+        openxr::FrameWaiter,
+        openxr::FrameStream<Self>,
+    )> {
+        let binding = sys::GraphicsBindingVulkanKHR {
+            ty: sys::GraphicsBindingVulkanKHR::TYPE,
+            next: session_create_info_chain.chain_pointer(),
+            instance: info.instance,
+            physical_device: info.physical_device,
+            device: info.device,
+            queue_family_index: info.queue_family_index,
+            queue_index: info.queue_index,
+        };
+        let info = sys::SessionCreateInfo {
+            ty: sys::SessionCreateInfo::TYPE,
+            next: &binding as *const _ as *const _,
+            create_flags: Default::default(),
+            system_id: system_id,
+        };
+        let mut out = sys::Session::NULL;
+        cvt((instance.fp().create_session)(
+            instance.as_raw(),
+            &info,
+            &mut out,
+        ))?;
+        Ok(openxr::Session::from_raw(
+            instance.clone(),
+            out,
+            Box::new(()),
+        ))
+    }
+}
+
+fn cvt(x: sys::Result) -> openxr::Result<sys::Result> {
+    if x.into_raw() >= 0 {
+        Ok(x)
+    } else {
+        Err(x)
     }
 }
 

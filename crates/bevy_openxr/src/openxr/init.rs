@@ -35,7 +35,10 @@ use crate::reference_space::OxrPrimaryReferenceSpace;
 use crate::resources::*;
 use crate::session::OxrSession;
 use crate::session::OxrSessionStatusEvent;
+use crate::session_create_info_builder::OxrSessionCreateInfoChain;
 use crate::types::*;
+
+use super::exts::OxrEnabledExtensions;
 
 pub fn session_started(started: Option<Res<OxrSessionStarted>>) -> bool {
     started.is_some_and(|started| started.get())
@@ -96,9 +99,12 @@ impl Plugin for OxrInitPlugin {
                 system_id,
                 WgpuGraphics(device, queue, adapter_info, adapter, wgpu_instance),
                 session_create_info,
+                enabled_extensions,
             )) => {
                 let status = XrSharedStatus::new(XrStatus::Available);
 
+                app.init_non_send_resource::<OxrSessionCreateInfoChain>();
+                app.insert_resource(OxrEnabledExtensions(enabled_extensions));
                 app.add_plugins((
                     RenderPlugin {
                         render_creation: RenderCreation::manual(
@@ -225,7 +231,15 @@ fn xr_entry() -> Result<OxrEntry> {
 }
 
 impl OxrInitPlugin {
-    fn init_xr(&self) -> Result<(OxrInstance, OxrSystemId, WgpuGraphics, SessionConfigInfo)> {
+    fn init_xr(
+        &self,
+    ) -> Result<(
+        OxrInstance,
+        OxrSystemId,
+        WgpuGraphics,
+        SessionConfigInfo,
+        OxrExtensions,
+    )> {
         let entry = xr_entry()?;
 
         #[cfg(target_os = "android")]
@@ -256,12 +270,13 @@ impl OxrInitPlugin {
             available_backends.first().copied()
         }
         .ok_or(OxrError::NoAvailableBackend)?;
+        info!("{:#?}", available_exts);
 
         let exts = self.exts.clone() & available_exts;
 
         let instance = entry.create_instance(
             self.app_info.clone(),
-            exts,
+            exts.clone(),
             // &["XR_APILAYER_LUNARG_api_dump"],
             &[],
             backend,
@@ -299,6 +314,7 @@ impl OxrInitPlugin {
             OxrSystemId(system_id),
             graphics,
             session_create_info,
+            exts,
         ))
     }
 }
@@ -307,6 +323,7 @@ fn init_xr_session(
     device: &wgpu::Device,
     instance: &OxrInstance,
     system_id: openxr::SystemId,
+    chain: &mut OxrSessionCreateInfoChain,
     SessionConfigInfo {
         blend_modes,
         formats,
@@ -322,7 +339,7 @@ fn init_xr_session(
     OxrGraphicsInfo,
 )> {
     let (session, frame_waiter, frame_stream) =
-        unsafe { instance.create_session(system_id, graphics_info)? };
+        unsafe { instance.create_session(system_id, graphics_info, chain)? };
 
     // TODO!() support other view configurations
     let available_view_configurations = instance.enumerate_view_configurations(system_id)?;
@@ -387,6 +404,7 @@ fn init_xr_session(
         available_formats.first().copied()
     }
     .ok_or(OxrError::NoAvailableFormat)?;
+    info!("format: {:?}", format);
 
     let swapchain = session.create_swapchain(SwapchainCreateInfo {
         create_flags: SwapchainCreateFlags::EMPTY,
@@ -405,6 +423,7 @@ fn init_xr_session(
 
     let available_blend_modes =
         instance.enumerate_environment_blend_modes(system_id, view_configuration_type)?;
+    info!("blend_modes: {:#?}", available_blend_modes);
 
     // blend mode selection
     let blend_mode = if let Some(wanted_blend_modes) = &blend_modes {
@@ -451,6 +470,7 @@ pub fn create_xr_session(
     device: Res<RenderDevice>,
     instance: Res<OxrInstance>,
     create_info: NonSend<SessionConfigInfo>,
+    mut create_info_chain: NonSendMut<OxrSessionCreateInfoChain>,
     system_id: Res<OxrSystemId>,
     mut commands: Commands,
 ) {
@@ -459,6 +479,7 @@ pub fn create_xr_session(
         device.wgpu_device(),
         &instance,
         **system_id,
+        &mut create_info_chain,
         create_info.clone(),
     ) {
         Ok((session, frame_waiter, frame_stream, swapchain, images, graphics_info)) => {
@@ -554,7 +575,7 @@ pub fn poll_events(
                     SessionState::STOPPING => XrStatus::Stopping,
                     SessionState::EXITING | SessionState::LOSS_PENDING => {
                         session_status_events.send(OxrSessionStatusEvent::AboutToBeDestroyed);
-                            info!("sending destroy info");
+                        info!("sending destroy info");
                         XrStatus::Exiting
                     }
                     _ => unreachable!(),

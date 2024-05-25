@@ -30,6 +30,7 @@ pub mod render;
 pub mod resources;
 pub mod session;
 pub mod types;
+pub mod session_create_info_builder;
 
 pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
     plugins
