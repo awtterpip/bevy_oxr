@@ -1,3 +1,58 @@
+//! This plugin and module are here to ease the creation of actions withing openxr
+//! The general idea is any plugin can create entities in startup before XRUtilsActionSystemSet::CreateEvents
+//! this plugin will then create the neccessary actions sets, actions, and bindings and get them ready for use.
+//! 
+//! example creating actions
+//! 
+//!          //create a set
+//!     let set = commands
+//!     .spawn((
+//!         XRUtilsActionSet {
+//!             name: "flight".into(),
+//!             pretty_name: "pretty flight set".into(),
+//!             priority: u32::MIN,
+//!         },
+//!         ActiveSet, //marker to indicate we want this synced
+//!     ))
+//!     .id();
+//!     //create an action
+//!     let action = commands
+//!     .spawn((
+//!         XRUtilsAction {
+//!             action_name: "flight_input".into(),
+//!             localized_name: "flight_input_localized".into(),
+//!             action_type: bevy_xr::actions::ActionType::Vector,
+//!         },
+//!         FlightActionMarker, //lets try a marker component
+//!     ))
+//!     .id();
+//!     
+//!     //create a binding
+//!     let binding = commands
+//!     .spawn(XRUtilsBinding {
+//!         profile: "/interaction_profiles/valve/index_controller".into(),
+//!         binding: "/user/hand/right/input/thumbstick".into(),
+//!     })
+//!     .id();
+//!     
+//!     //add action to set, this isnt the best
+//!     //TODO look into a better system
+//!     commands.entity(action).add_child(binding);
+//!     commands.entity(set).add_child(action);
+//! 
+//! then you can read the action states after XRUtilsActionSystemSet::SyncActionStates
+//! for example
+//! 
+//! fn read_action_with_marker_component(
+//!     mut action_query: Query<&XRUtilsActionState, With<FlightActionMarker>>,
+//!     ) {
+//!         //now for the actual checking
+//!         for state in action_query.iter_mut() {
+//!             info!("action state is: {:?}", state);
+//!         }
+//!     }
+//! 
+//! 
 use bevy::prelude::*;
 use bevy_openxr::{
     action_binding::OxrSuggestActionBinding,
