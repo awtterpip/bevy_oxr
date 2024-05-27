@@ -79,6 +79,7 @@ fn spawn_default_hands(
         let bone_right = cmds
             .spawn((SpatialBundle::default(), bone, HandBoneRadius(0.0)))
             .id();
+        cmds.entity(root).push_children(&[bone_left]);
         cmds.entity(root).push_children(&[bone_right]);
         left_bones[bone as usize] = bone_left;
         right_bones[bone as usize] = bone_right;
