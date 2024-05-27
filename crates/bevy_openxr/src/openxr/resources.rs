@@ -9,7 +9,7 @@ use crate::error::OxrError;
 use crate::graphics::*;
 use crate::layer_builder::{CompositionLayer, LayerProvider};
 use crate::session::OxrSession;
-use crate::session_create_info_builder::OxrSessionCreateInfoChain;
+use crate::session_create_info_chain::OxrSessionCreateInfoChain;
 use crate::types::*;
 
 /// Wrapper around an [`Entry`](openxr::Entry) with some methods overridden to use bevy types.

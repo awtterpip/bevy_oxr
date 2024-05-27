@@ -35,7 +35,7 @@ use crate::reference_space::OxrPrimaryReferenceSpace;
 use crate::resources::*;
 use crate::session::OxrSession;
 use crate::session::OxrSessionStatusEvent;
-use crate::session_create_info_builder::OxrSessionCreateInfoChain;
+use crate::session_create_info_chain::OxrSessionCreateInfoChain;
 use crate::types::*;
 
 use super::exts::OxrEnabledExtensions;

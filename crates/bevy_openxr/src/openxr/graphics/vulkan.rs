@@ -10,7 +10,7 @@ use wgpu_hal::Api;
 
 use super::{GraphicsExt, GraphicsType, GraphicsWrap};
 use crate::error::OxrError;
-use crate::session_create_info_builder::OxrSessionCreateInfoChain;
+use crate::session_create_info_chain::OxrSessionCreateInfoChain;
 use crate::types::{AppInfo, OxrExtensions, Result, WgpuGraphics};
 
 #[cfg(not(target_os = "android"))]
@@ -305,9 +305,10 @@ unsafe impl GraphicsExt for openxr::Vulkan {
         openxr::FrameWaiter,
         openxr::FrameStream<Self>,
     )> {
+        let next_ptr = session_create_info_chain.chain_pointer();
         let binding = sys::GraphicsBindingVulkanKHR {
             ty: sys::GraphicsBindingVulkanKHR::TYPE,
-            next: session_create_info_chain.chain_pointer(),
+            next: next_ptr,
             instance: info.instance,
             physical_device: info.physical_device,
             device: info.device,

@@ -9,7 +9,7 @@ use bevy::math::UVec2;
 use openxr::{FrameStream, FrameWaiter, Session};
 
 use crate::{
-    session_create_info_builder::OxrSessionCreateInfoChain,
+    session_create_info_chain::OxrSessionCreateInfoChain,
     types::{AppInfo, OxrExtensions, Result, WgpuGraphics},
 };
 
