@@ -10,14 +10,17 @@ use bevy::{
     },
     transform::TransformSystem,
 };
-use bevy_xr::{camera::{XrCamera, XrCameraBundle, XrProjection}, session::session_running};
+use bevy_xr::{
+    camera::{XrCamera, XrCameraBundle, XrProjection},
+    session::session_running,
+};
 use openxr::ViewStateFlags;
 
-use crate::{reference_space::OxrPrimaryReferenceSpace, resources::*};
 use crate::{
     init::{session_started, OxrPreUpdateSet, OxrTrackingRoot},
     layer_builder::ProjectionLayer,
 };
+use crate::{reference_space::OxrPrimaryReferenceSpace, resources::*};
 
 pub struct OxrRenderPlugin;
 
@@ -28,7 +31,6 @@ impl Plugin for OxrRenderPlugin {
                 PreUpdate,
                 (
                     init_views.run_if(resource_added::<OxrGraphicsInfo>),
-                    wait_frame.run_if(session_started),
                     locate_views.run_if(session_running),
                     update_views.run_if(session_running),
                 )
@@ -41,7 +43,8 @@ impl Plugin for OxrRenderPlugin {
                     .chain()
                     .run_if(session_running)
                     .before(TransformSystem::TransformPropagate),
-            );
+            )
+            .add_systems(Last, wait_frame.run_if(session_started));
         app.sub_app_mut(RenderApp)
             .add_systems(
                 Render,
@@ -61,7 +64,7 @@ impl Plugin for OxrRenderPlugin {
                         .chain()
                         .in_set(RenderSet::Cleanup),
                 )
-                    .run_if(session_started),
+                    .run_if(resource_exists::<OxrFrameStream>),
             )
             .insert_resource(OxrRenderLayers(vec![Box::new(ProjectionLayer)]));
     }

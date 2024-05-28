@@ -166,10 +166,7 @@ impl Plugin for OxrInitPlugin {
                             .run_if(resource_equals(OxrCleanupSession(true)))
                             .after(RenderSet::ExtractCommands),
                     )
-                    .add_systems(
-                        ExtractSchedule,
-                        transfer_xr_resources.run_if(not(session_running)),
-                    );
+                    .add_systems(ExtractSchedule, transfer_xr_resources);
             }
             Err(e) => {
                 error!("Failed to initialize openxr: {e}");

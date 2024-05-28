@@ -17,6 +17,7 @@ use self::{
 
 pub mod action_binding;
 pub mod action_set_attaching;
+pub mod action_set_syncing;
 pub mod error;
 mod exts;
 pub mod features;
@@ -28,13 +29,12 @@ pub mod reference_space;
 pub mod render;
 pub mod resources;
 pub mod types;
-pub mod action_set_syncing;
 
 pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
     plugins
         .build()
         .disable::<RenderPlugin>()
-        .disable::<PipelinedRenderingPlugin>()
+        // .disable::<PipelinedRenderingPlugin>()
         .add_before::<RenderPlugin, _>(XrSessionPlugin)
         .add_before::<RenderPlugin, _>(OxrInitPlugin::default())
         .add(OxrReferenceSpacePlugin::default())
