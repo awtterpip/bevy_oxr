@@ -6,6 +6,7 @@ pub struct XrSessionPlugin;
 
 impl Plugin for XrSessionPlugin {
     fn build(&self, app: &mut App) {
+        app.init_resource::<XrCreateSessionWhenAvailabe>();
         app.init_schedule(XrSessionCreated);
         app.init_schedule(XrSessionExiting);
         app.add_event::<CreateXrSession>()
@@ -13,16 +14,27 @@ impl Plugin for XrSessionPlugin {
             .add_event::<BeginXrSession>()
             .add_event::<EndXrSession>()
             .add_event::<XrStatusChanged>()
-            // .add_systems(
-            //     PreUpdate,
-            //     handle_session.run_if(resource_exists::<XrSharedStatus>),
-            /* ) */;
+            .add_systems(
+                PreUpdate,
+                handle_session.run_if(resource_exists::<XrSharedStatus>),
+            );
     }
     fn finish(&self, app: &mut App) {
         // This is in finnish because we need the RenderPlugin to already be added.
         app.get_sub_app_mut(RenderApp)
             .unwrap()
             .init_schedule(XrRenderSessionEnding);
+    }
+}
+
+/// Automatically starts session when it's available, gets set to false after the start event was
+/// sent
+#[derive(Clone, Copy, Resource, Deref, DerefMut)]
+pub struct XrCreateSessionWhenAvailabe(pub bool);
+
+impl Default for XrCreateSessionWhenAvailabe {
+    fn default() -> Self {
+        XrCreateSessionWhenAvailabe(true)
     }
 }
 
@@ -79,15 +91,19 @@ pub fn handle_session(
     mut previous_status: Local<Option<XrStatus>>,
     mut create_session: EventWriter<CreateXrSession>,
     mut begin_session: EventWriter<BeginXrSession>,
-    mut end_session: EventWriter<EndXrSession>,
+    // mut end_session: EventWriter<EndXrSession>,
     mut destroy_session: EventWriter<DestroyXrSession>,
+    mut should_start_session: ResMut<XrCreateSessionWhenAvailabe>,
 ) {
     let current_status = status.get();
     if *previous_status != Some(current_status) {
         match current_status {
             XrStatus::Unavailable => {}
             XrStatus::Available => {
-                create_session.send_default();
+                if **should_start_session {
+                    create_session.send_default();
+                    **should_start_session = false;
+                }
             }
             XrStatus::Idle => {}
             XrStatus::Ready => {
