@@ -1,7 +1,11 @@
-use bevy::{ecs::component::Component, math::bool, prelude::{Deref, DerefMut}};
+use bevy::{
+    ecs::component::Component,
+    math::bool,
+    prelude::{Deref, DerefMut},
+};
 
 #[repr(transparent)]
-#[derive(Clone, Copy, Component, Debug,DerefMut,Deref)]
+#[derive(Clone, Copy, Component, Debug, DerefMut, Deref)]
 pub struct HandBoneRadius(pub f32);
 
 #[repr(u8)]

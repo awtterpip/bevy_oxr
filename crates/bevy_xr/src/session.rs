@@ -89,7 +89,9 @@ pub fn handle_session(
 }
 
 /// A [`Condition`](bevy::ecs::schedule::Condition) that allows the system to run when the xr status changed to a specific [`XrStatus`].
-pub fn status_changed_to(status: XrStatus) -> impl FnMut(EventReader<XrStatusChanged>) -> bool + Clone {
+pub fn status_changed_to(
+    status: XrStatus,
+) -> impl FnMut(EventReader<XrStatusChanged>) -> bool + Clone {
     move |mut reader: EventReader<XrStatusChanged>| {
         reader.read().any(|new_status| new_status.0 == status)
     }
