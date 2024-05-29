@@ -12,6 +12,10 @@ passthrough = []
 [dev-dependencies]
 bevy_xr_utils.path = "../bevy_xr_utils"
 
+[target.'cfg(target_os = "android")'.dependencies]
+ndk-context = "0.1"
+jni = "0.20"
+
 # bevy can't be placed behind target or proc macros won't work properly
 [dependencies]
 bevy.workspace = true
