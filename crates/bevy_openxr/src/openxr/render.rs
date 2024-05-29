@@ -10,14 +10,17 @@ use bevy::{
     },
     transform::TransformSystem,
 };
-use bevy_xr::{camera::{XrCamera, XrCameraBundle, XrProjection}, session::session_running};
+use bevy_xr::{
+    camera::{XrCamera, XrCameraBundle, XrProjection},
+    session::session_running,
+};
 use openxr::ViewStateFlags;
 
-use crate::{reference_space::OxrPrimaryReferenceSpace, resources::*};
 use crate::{
     init::{session_started, OxrPreUpdateSet, OxrTrackingRoot},
     layer_builder::ProjectionLayer,
 };
+use crate::{reference_space::OxrPrimaryReferenceSpace, resources::*};
 
 pub struct OxrRenderPlugin;
 
