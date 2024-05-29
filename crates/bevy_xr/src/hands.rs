@@ -4,6 +4,12 @@ use bevy::{
     prelude::{Deref, DerefMut},
 };
 
+#[derive(Clone, Copy, Component, Debug)]
+pub struct LeftHand;
+
+#[derive(Clone, Copy, Component, Debug)]
+pub struct RightHand;
+
 #[repr(transparent)]
 #[derive(Clone, Copy, Component, Debug, DerefMut, Deref)]
 pub struct HandBoneRadius(pub f32);
