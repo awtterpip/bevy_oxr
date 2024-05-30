@@ -401,10 +401,10 @@ pub fn create_xr_session_resources(world: &mut World) {
     let resource_creators = world.resource::<OxrSessionResourceCreators>().clone();
     let mut resource_creators_mut = resource_creators.0.lock().unwrap();
 
-    for (resource_creator, initialized) in &mut resource_creators_mut.0 {
+    for (resource_creator, initialization_succeeded) in &mut resource_creators_mut.0 {
         match resource_creator.initialize(world) {
             Ok(_) => {
-                *initialized = true;
+                *initialization_succeeded = true;
                 resource_creator.insert_to_world(world);
             }
             Err(e) => error!(
@@ -414,6 +414,7 @@ pub fn create_xr_session_resources(world: &mut World) {
             ),
         }
     }
+    // This signifies to the render world that a new session has been created and that it should attempt to insert any render resources
     resource_creators_mut.1 = true;
 }
 
