@@ -1,5 +1,3 @@
-use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
-
 use bevy::{
     ecs::{query::QuerySingleError, schedule::SystemConfigs},
     prelude::*,
@@ -9,7 +7,6 @@ use bevy::{
         view::ExtractedView,
         Render, RenderApp, RenderSet,
     },
-    utils::synccell::SyncCell,
 };
 use bevy_xr::camera::{XrCamera, XrCameraBundle, XrProjection};
 use openxr::ViewStateFlags;
@@ -17,7 +14,7 @@ use openxr::ViewStateFlags;
 use crate::{
     error::OxrError,
     init::{
-        session_started, OxrPreUpdateSet, OxrSessionResourceCreator, OxrSessionResourceCreators,
+        session_started, OxrPreUpdateSet, OxrSessionResourceCreator, OxrSessionResourceCreatorsApp,
         OxrTrackingRoot,
     },
     layer_builder::ProjectionLayer,
@@ -37,9 +34,7 @@ pub struct OxrRenderPlugin;
 
 impl Plugin for OxrRenderPlugin {
     fn build(&self, app: &mut App) {
-        app.world
-            .resource::<OxrSessionResourceCreators>()
-            .init_resource_creator::<OxrSwapchainCreator>();
+        app.init_xr_resource_creator::<OxrSwapchainCreator>();
         app.add_systems(
             PreUpdate,
             wait_frame
@@ -88,7 +83,7 @@ struct OxrSwapchainCreator {
 }
 
 impl OxrSessionResourceCreator for OxrSwapchainCreator {
-    fn update(&mut self, world: &mut World) -> Result<()> {
+    fn initialize(&mut self, world: &mut World) -> Result<()> {
         let instance = world.resource::<OxrInstance>();
         let system_id = **world.resource::<OxrSystemId>();
         let session_config_info = world.non_send_resource::<OxrSessionConfigInfo>();

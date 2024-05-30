@@ -3,7 +3,7 @@ use std::sync::Arc;
 use bevy::prelude::*;
 
 use crate::{
-    init::{OxrSessionResourceCreator, OxrSessionResourceCreators},
+    init::{OxrSessionResourceCreator, OxrSessionResourceCreatorsApp},
     resources::OxrSession,
     types::Result,
 };
@@ -23,7 +23,7 @@ impl Default for OxrReferenceSpacePlugin {
 struct OxrPrimaryReferenceSpaceCreator(openxr::ReferenceSpaceType, Option<Arc<openxr::Space>>);
 
 impl OxrSessionResourceCreator for OxrPrimaryReferenceSpaceCreator {
-    fn update(&mut self, world: &mut World) -> Result<()> {
+    fn initialize(&mut self, world: &mut World) -> Result<()> {
         let session = world.resource::<OxrSession>();
         let space = session.create_reference_space(self.0, openxr::Posef::IDENTITY)?;
         self.1 = Some(Arc::new(space));
@@ -57,11 +57,9 @@ pub struct OxrReferenceSpace(pub openxr::Space);
 
 impl Plugin for OxrReferenceSpacePlugin {
     fn build(&self, app: &mut App) {
-        app.world
-            .resource::<OxrSessionResourceCreators>()
-            .add_resource_creator(OxrPrimaryReferenceSpaceCreator(
-                self.default_primary_ref_space,
-                None,
-            ));
+        app.add_xr_resource_creator(OxrPrimaryReferenceSpaceCreator(
+            self.default_primary_ref_space,
+            None,
+        ));
     }
 }

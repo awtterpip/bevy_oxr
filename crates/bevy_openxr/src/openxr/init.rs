@@ -98,10 +98,15 @@ pub struct PollSender(SyncSender<()>);
 pub struct PollReciever(SyncCell<Receiver<()>>);
 
 pub trait OxrSessionResourceCreator {
-    fn update(&mut self, world: &mut World) -> Result<()>;
+    /// Initialize the resource and store it here
+    fn initialize(&mut self, world: &mut World) -> Result<()>;
+    /// Insert any resources into the main world here. Ran after `initialize`.
     fn insert_to_world(&mut self, world: &mut World);
+    /// Insert any resources into the render world here. Ran after `insert_to_world`
     fn insert_to_render_world(&mut self, world: &mut World);
+    /// This methods is automatically ran whenever [destroy_xr_session_resources] is ran, triggered by a [DestroyXrSession] event.
     fn remove_from_world(&mut self, world: &mut World);
+    /// This method is automatically ran whenever [destroy_xr_session_resources] is ran, triggered by a [DestroyXrSession] event.
     fn remove_from_render_world(&mut self, world: &mut World);
 }
 
@@ -110,20 +115,28 @@ pub struct OxrSessionResourceCreators(
     Arc<Mutex<(Vec<(Box<dyn OxrSessionResourceCreator + Send>, bool)>, bool)>>,
 );
 
-impl OxrSessionResourceCreators {
-    pub fn add_resource_creator<R: OxrSessionResourceCreator + Send + 'static>(&self, resource: R) {
-        let mut resources = self.0.lock().unwrap();
-        resources.0.push((Box::new(resource), false));
-    }
+pub trait OxrSessionResourceCreatorsApp {
+    fn add_xr_resource_creator<R: OxrSessionResourceCreator + Send + 'static>(&self, resource: R);
 
-    pub fn init_resource_creator<R: OxrSessionResourceCreator + Send + Default + 'static>(&self) {
-        self.add_resource_creator(R::default())
+    fn init_xr_resource_creator<R: OxrSessionResourceCreator + Send + Default + 'static>(&self) {
+        self.add_xr_resource_creator(R::default())
     }
 }
 
-// /// This is used solely to transport resources from the main world to the render world.
-// #[derive(Clone, Default, Resource)]
-// pub struct OxrRenderResources(Arc<Mutex<Option<OxrRenderResourcesInner>>>);
+impl OxrSessionResourceCreatorsApp for OxrSessionResourceCreators {
+    fn add_xr_resource_creator<R: OxrSessionResourceCreator + Send + 'static>(&self, resource: R) {
+        let mut resources = self.0.lock().unwrap();
+        resources.0.push((Box::new(resource), false));
+    }
+}
+
+impl OxrSessionResourceCreatorsApp for App {
+    fn add_xr_resource_creator<R: OxrSessionResourceCreator + Send + 'static>(&self, resource: R) {
+        self.world
+            .resource::<OxrSessionResourceCreators>()
+            .add_xr_resource_creator(resource);
+    }
+}
 
 impl Plugin for OxrInitPlugin {
     fn build(&self, app: &mut App) {
@@ -137,7 +150,7 @@ impl Plugin for OxrInitPlugin {
                 let status = XrSharedStatus::new(XrStatus::Available);
                 let (tx, rx) = sync_channel::<()>(1);
                 let render_resources = OxrSessionResourceCreators::default();
-                render_resources.init_resource_creator::<OxrSessionResources>();
+                render_resources.init_xr_resource_creator::<OxrSessionResources>();
                 let cleanup_session = OxrCleanupSession::default();
 
                 app.add_plugins((
@@ -344,7 +357,8 @@ struct OxrSessionResources {
 }
 
 impl OxrSessionResourceCreator for OxrSessionResources {
-    fn update(&mut self, world: &mut World) -> Result<()> {
+    /// This is where we create the session and initialize the session resources
+    fn initialize(&mut self, world: &mut World) -> Result<()> {
         let session_config_info = world.non_send_resource::<OxrSessionConfigInfo>();
         let system_id = world.resource::<OxrSystemId>();
         let instance = world.resource::<OxrInstance>();
@@ -358,11 +372,13 @@ impl OxrSessionResourceCreator for OxrSessionResources {
         Ok(())
     }
 
+    /// We can selectively choose to add frame waiter to the main world only
     fn insert_to_world(&mut self, world: &mut World) {
         world.insert_resource(self.session.clone().unwrap());
         world.insert_resource(self.frame_waiter.take().unwrap());
     }
 
+    /// And add frame stream to the render world only
     fn insert_to_render_world(&mut self, world: &mut World) {
         world.insert_resource(self.session.take().unwrap());
         world.insert_resource(self.frame_stream.take().unwrap());
@@ -384,7 +400,7 @@ pub fn create_xr_session_resources(world: &mut World) {
     let mut resource_creators_mut = resource_creators.0.lock().unwrap();
 
     for (resource_creator, initialized) in &mut resource_creators_mut.0 {
-        match resource_creator.update(world) {
+        match resource_creator.initialize(world) {
             Ok(_) => {
                 *initialized = true;
                 resource_creator.insert_to_world(world);
