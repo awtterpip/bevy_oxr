@@ -1,4 +1,4 @@
-use crate::{init::OxrPreUpdateSet, resources::OxrSession};
+use crate::{init::OxrPreUpdateSet, session::OxrSession};
 use bevy::prelude::*;
 use bevy_xr::session::session_running;
 

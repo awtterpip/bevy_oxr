@@ -33,7 +33,6 @@ impl Plugin for OxrSessionPlugin {
         app.add_systems(XrSessionExiting, clean_session);
         app.sub_app_mut(RenderApp)
             .add_systems(XrRenderSessionEnding, |mut cmds: Commands| {
-                // cmds.remove_resource::<OxrSession>();
                 cmds.remove_resource::<OxrCleanupSession>();
             });
         app.add_systems(
@@ -70,11 +69,7 @@ fn run_session_status_schedules(world: &mut World) {
             OxrSessionStatusEvent::AboutToBeDestroyed => {
                 world.run_schedule(XrSessionExiting);
                 world.run_system_once(apply_deferred);
-                if let Some(sess) = world.remove_resource::<OxrSession>() {
-                    // unsafe {
-                    //     (sess.instance().fp().destroy_session)(sess.as_raw());
-                    // }
-                }
+                world.remove_resource::<OxrSession>();
             }
         }
     }

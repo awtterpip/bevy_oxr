@@ -494,8 +494,6 @@ pub fn end_xr_session(session: Res<OxrSession>, session_started: Res<OxrSessionS
     session
         .request_exit()
         .expect("Failed to request session exit");
-    // session.end().expect("Failed to end session");
-    // session_started.set(false);
 }
 
 /// This system transfers important render resources from the main world to the render world when a session is created.
@@ -588,9 +586,14 @@ pub fn destroy_xr_session_render(world: &mut World) {
     world.run_schedule(XrRenderSessionEnding);
     world.run_system_once(apply_deferred);
     if let Some(sess) = world.remove_resource::<OxrSession>() {
+        // This is needed because there is one space that survives the session exit schedule and
+        // holds on to the session. this causes an error message but does not seem to cause any
+        // actuall issues.
         unsafe {
             (sess.instance().fp().destroy_session)(sess.as_raw());
         }
+        // leaking the session so that it does not call destroy_session at a later point. might not
+        // actually be needed.
         Box::leak(Box::new(sess));
     }
 }
