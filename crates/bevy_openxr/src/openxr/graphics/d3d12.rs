@@ -1,10 +1,12 @@
 use bevy::log::error;
+use openxr::sys;
 use wgpu_hal::{Adapter, Instance};
 use winapi::shared::dxgiformat::DXGI_FORMAT;
 use winapi::um::d3d12 as winapi_d3d12;
 
 use super::{GraphicsExt, GraphicsType, GraphicsWrap};
 use crate::error::OxrError;
+use crate::session_create_info_chain::OxrSessionCreateInfoChain;
 use crate::types::{AppInfo, OxrExtensions, Result, WgpuGraphics};
 
 unsafe impl GraphicsExt for openxr::D3D12 {
@@ -176,7 +178,7 @@ unsafe impl GraphicsExt for openxr::D3D12 {
             ty: sys::SessionCreateInfo::TYPE,
             next: &binding as *const _ as *const _,
             create_flags: Default::default(),
-            system_id: system,
+            system_id: system_id,
         };
         let mut out = sys::Session::NULL;
         cvt((instance.fp().create_session)(
@@ -189,6 +191,14 @@ unsafe impl GraphicsExt for openxr::D3D12 {
             out,
             Box::new(()),
         ))
+    }
+}
+
+fn cvt(x: sys::Result) -> openxr::Result<sys::Result> {
+    if x.into_raw() >= 0 {
+        Ok(x)
+    } else {
+        Err(x)
     }
 }
 
