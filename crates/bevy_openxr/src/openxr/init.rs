@@ -1,22 +1,25 @@
+use std::sync::mpsc::sync_channel;
+use std::sync::mpsc::Receiver;
+use std::sync::mpsc::SyncSender;
+use std::sync::Arc;
+use std::sync::Mutex;
+
 use bevy::prelude::*;
 use bevy::render::extract_resource::ExtractResourcePlugin;
 use bevy::render::renderer::RenderAdapter;
 use bevy::render::renderer::RenderAdapterInfo;
-use bevy::render::renderer::RenderDevice;
 use bevy::render::renderer::RenderInstance;
 use bevy::render::renderer::RenderQueue;
 use bevy::render::settings::RenderCreation;
-use bevy::render::MainWorld;
 use bevy::render::Render;
 use bevy::render::RenderApp;
 use bevy::render::RenderPlugin;
 use bevy::render::RenderSet;
 use bevy::transform::TransformSystem;
+use bevy::utils::synccell::SyncCell;
 use bevy::winit::UpdateMode;
 use bevy::winit::WinitSettings;
-use bevy_xr::session::handle_session;
 use bevy_xr::session::session_available;
-use bevy_xr::session::session_running;
 use bevy_xr::session::status_equals;
 use bevy_xr::session::BeginXrSession;
 use bevy_xr::session::CreateXrSession;
@@ -28,7 +31,6 @@ use bevy_xr::session::XrStatusChanged;
 
 use crate::error::OxrError;
 use crate::graphics::*;
-use crate::reference_space::OxrPrimaryReferenceSpace;
 use crate::resources::*;
 use crate::types::*;
 
@@ -36,15 +38,19 @@ pub fn session_started(started: Option<Res<OxrSessionStarted>>) -> bool {
     started.is_some_and(|started| started.get())
 }
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, SystemSet)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, SystemSet)]
 pub enum OxrPreUpdateSet {
-    PollEvents,
-    HandleEvents,
+    WaitFrame,
     UpdateCriticalComponents,
     UpdateNonCriticalComponents,
     SyncActions,
 }
 
+/// This system set runs in the [Render] schedule before [RenderSet::ExtractCommands]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, SystemSet)]
+pub struct OxrPollMain;
+
+/// Plugin that handles the initialization of OpenXR resources
 pub struct OxrInitPlugin {
     /// Information about the app this is being used to build.
     pub app_info: AppInfo,
@@ -62,6 +68,7 @@ pub struct OxrInitPlugin {
     /// Passed into the render plugin when added to the app.
     pub synchronous_pipeline_compilation: bool,
 }
+
 impl Default for OxrInitPlugin {
     fn default() -> Self {
         Self {
@@ -84,6 +91,40 @@ impl Default for OxrInitPlugin {
 #[derive(Component)]
 pub struct OxrTrackingRoot;
 
+#[derive(Resource)]
+pub struct PollSender(SyncSender<()>);
+
+#[derive(Resource)]
+pub struct PollReciever(SyncCell<Receiver<()>>);
+
+pub trait OxrSessionResourceCreator {
+    fn update(&mut self, world: &mut World) -> Result<()>;
+    fn insert_to_world(&mut self, world: &mut World);
+    fn insert_to_render_world(&mut self, world: &mut World);
+    fn remove_from_world(&mut self, world: &mut World);
+    fn remove_from_render_world(&mut self, world: &mut World);
+}
+
+#[derive(Clone, Default, Resource)]
+pub struct OxrSessionResourceCreators(
+    Arc<Mutex<(Vec<(Box<dyn OxrSessionResourceCreator + Send>, bool)>, bool)>>,
+);
+
+impl OxrSessionResourceCreators {
+    pub fn add_resource_creator<R: OxrSessionResourceCreator + Send + 'static>(&self, resource: R) {
+        let mut resources = self.0.lock().unwrap();
+        resources.0.push((Box::new(resource), false));
+    }
+
+    pub fn init_resource_creator<R: OxrSessionResourceCreator + Send + Default + 'static>(&self) {
+        self.add_resource_creator(R::default())
+    }
+}
+
+// /// This is used solely to transport resources from the main world to the render world.
+// #[derive(Clone, Default, Resource)]
+// pub struct OxrRenderResources(Arc<Mutex<Option<OxrRenderResourcesInner>>>);
+
 impl Plugin for OxrInitPlugin {
     fn build(&self, app: &mut App) {
         match self.init_xr() {
@@ -94,6 +135,10 @@ impl Plugin for OxrInitPlugin {
                 session_create_info,
             )) => {
                 let status = XrSharedStatus::new(XrStatus::Available);
+                let (tx, rx) = sync_channel::<()>(1);
+                let render_resources = OxrSessionResourceCreators::default();
+                render_resources.init_resource_creator::<OxrSessionResources>();
+                let cleanup_session = OxrCleanupSession::default();
 
                 app.add_plugins((
                     RenderPlugin {
@@ -106,39 +151,37 @@ impl Plugin for OxrInitPlugin {
                         ),
                         synchronous_pipeline_compilation: self.synchronous_pipeline_compilation,
                     },
-                    ExtractResourcePlugin::<OxrCleanupSession>::default(),
                     ExtractResourcePlugin::<OxrTime>::default(),
                     ExtractResourcePlugin::<OxrRootTransform>::default(),
                 ))
-                .add_systems(First, reset_per_frame_resources)
                 .add_systems(
-                    PreUpdate,
+                    First,
                     (
-                        poll_events
-                            .run_if(session_available)
-                            .in_set(OxrPreUpdateSet::PollEvents),
-                        (
-                            (create_xr_session, apply_deferred)
-                                .chain()
-                                .run_if(on_event::<CreateXrSession>())
-                                .run_if(status_equals(XrStatus::Available)),
-                            begin_xr_session
-                                .run_if(on_event::<BeginXrSession>())
-                                .run_if(status_equals(XrStatus::Ready)),
-                            end_xr_session
-                                .run_if(on_event::<EndXrSession>())
-                                .run_if(status_equals(XrStatus::Stopping)),
-                            destroy_xr_session
-                                .run_if(on_event::<DestroyXrSession>())
-                                .run_if(status_equals(XrStatus::Exiting)),
-                        )
-                            .in_set(OxrPreUpdateSet::HandleEvents),
-                    ),
+                        reset_per_frame_resources,
+                        poll_events.run_if(session_available),
+                        create_xr_session_resources
+                            .run_if(on_event::<CreateXrSession>())
+                            .run_if(status_equals(XrStatus::Available)),
+                        begin_xr_session
+                            .run_if(on_event::<BeginXrSession>())
+                            .run_if(status_equals(XrStatus::Ready)),
+                        end_xr_session
+                            .run_if(on_event::<EndXrSession>())
+                            .run_if(status_equals(XrStatus::Stopping)),
+                        destroy_xr_session_resources
+                            .run_if(on_event::<DestroyXrSession>())
+                            .run_if(status_equals(XrStatus::Exiting)),
+                        finish_poll,
+                    )
+                        .chain(),
                 )
                 .add_systems(
                     PostUpdate,
                     update_root_transform.after(TransformSystem::TransformPropagate),
                 )
+                .insert_resource(PollSender(tx))
+                .insert_resource(render_resources.clone())
+                .insert_resource(cleanup_session.clone())
                 .insert_resource(instance.clone())
                 .insert_resource(system_id)
                 .insert_resource(status.clone())
@@ -146,7 +189,6 @@ impl Plugin for OxrInitPlugin {
                     focused_mode: UpdateMode::Continuous,
                     unfocused_mode: UpdateMode::Continuous,
                 })
-                .init_resource::<OxrCleanupSession>()
                 .init_resource::<OxrRootTransform>()
                 .insert_non_send_resource(session_create_info);
 
@@ -155,21 +197,15 @@ impl Plugin for OxrInitPlugin {
 
                 let render_app = app.sub_app_mut(RenderApp);
                 render_app
+                    .insert_resource(PollReciever(SyncCell::new(rx)))
+                    .insert_resource(render_resources.clone())
                     .insert_resource(instance)
                     .insert_resource(system_id)
                     .insert_resource(status)
+                    .insert_resource(cleanup_session)
                     .init_resource::<OxrRootTransform>()
                     .init_resource::<OxrCleanupSession>()
-                    .add_systems(
-                        Render,
-                        destroy_xr_session_render
-                            .run_if(resource_equals(OxrCleanupSession(true)))
-                            .after(RenderSet::ExtractCommands),
-                    )
-                    .add_systems(
-                        ExtractSchedule,
-                        transfer_xr_resources.run_if(not(session_running)),
-                    );
+                    .add_systems(Render, handle_xr_events_render.in_set(OxrPollMain));
             }
             Err(e) => {
                 error!("Failed to initialize openxr: {e}");
@@ -187,8 +223,7 @@ impl Plugin for OxrInitPlugin {
         app.configure_sets(
             PreUpdate,
             (
-                OxrPreUpdateSet::PollEvents.before(handle_session),
-                OxrPreUpdateSet::HandleEvents.after(handle_session),
+                OxrPreUpdateSet::WaitFrame,
                 OxrPreUpdateSet::UpdateCriticalComponents,
                 OxrPreUpdateSet::UpdateNonCriticalComponents,
             )
@@ -201,17 +236,17 @@ impl Plugin for OxrInitPlugin {
 
         let render_app = app.sub_app_mut(RenderApp);
 
-        render_app.insert_resource(session_started);
+        render_app
+            // .configure_sets(
+            //     Render,
+            //     OxrPollMain
+            //         .after(RenderSet::ExtractCommands)
+            //         .before(RenderSet::PrepareAssets)
+            //         .before(RenderSet::ManageViews),
+            // )
+            .configure_sets(Render, OxrPollMain.before(RenderSet::ExtractCommands))
+            .insert_resource(session_started);
     }
-}
-
-pub fn update_root_transform(
-    mut root_transform: ResMut<OxrRootTransform>,
-    root: Query<&GlobalTransform, With<OxrTrackingRoot>>,
-) {
-    let transform = root.single();
-
-    root_transform.0 = *transform;
 }
 
 fn xr_entry() -> Result<OxrEntry> {
@@ -223,7 +258,7 @@ fn xr_entry() -> Result<OxrEntry> {
 }
 
 impl OxrInitPlugin {
-    fn init_xr(&self) -> Result<(OxrInstance, OxrSystemId, WgpuGraphics, SessionConfigInfo)> {
+    fn init_xr(&self) -> Result<(OxrInstance, OxrSystemId, WgpuGraphics, OxrSessionConfigInfo)> {
         let entry = xr_entry()?;
 
         #[cfg(target_os = "android")]
@@ -285,7 +320,7 @@ impl OxrInitPlugin {
 
         let (graphics, graphics_info) = instance.init_graphics(system_id)?;
 
-        let session_create_info = SessionConfigInfo {
+        let session_create_info = OxrSessionConfigInfo {
             blend_modes: self.blend_modes.clone(),
             formats: self.formats.clone(),
             resolutions: self.resolutions.clone(),
@@ -301,178 +336,67 @@ impl OxrInitPlugin {
     }
 }
 
-fn init_xr_session(
-    device: &wgpu::Device,
-    instance: &OxrInstance,
-    system_id: openxr::SystemId,
-    SessionConfigInfo {
-        blend_modes,
-        formats,
-        resolutions,
-        graphics_info,
-    }: SessionConfigInfo,
-) -> Result<(
-    OxrSession,
-    OxrFrameWaiter,
-    OxrFrameStream,
-    OxrSwapchain,
-    OxrSwapchainImages,
-    OxrGraphicsInfo,
-)> {
-    let (session, frame_waiter, frame_stream) =
-        unsafe { instance.create_session(system_id, graphics_info)? };
-
-    // TODO!() support other view configurations
-    let available_view_configurations = instance.enumerate_view_configurations(system_id)?;
-    if !available_view_configurations.contains(&openxr::ViewConfigurationType::PRIMARY_STEREO) {
-        return Err(OxrError::NoAvailableViewConfiguration);
-    }
-
-    let view_configuration_type = openxr::ViewConfigurationType::PRIMARY_STEREO;
-
-    let view_configuration_views =
-        instance.enumerate_view_configuration_views(system_id, view_configuration_type)?;
-
-    let (resolution, _view) = if let Some(resolutions) = &resolutions {
-        let mut preferred = None;
-        for resolution in resolutions {
-            for view_config in view_configuration_views.iter() {
-                if view_config.recommended_image_rect_height == resolution.y
-                    && view_config.recommended_image_rect_width == resolution.x
-                {
-                    preferred = Some((*resolution, *view_config));
-                }
-            }
-        }
-
-        if preferred.is_none() {
-            for resolution in resolutions {
-                for view_config in view_configuration_views.iter() {
-                    if view_config.max_image_rect_height >= resolution.y
-                        && view_config.max_image_rect_width >= resolution.x
-                    {
-                        preferred = Some((*resolution, *view_config));
-                    }
-                }
-            }
-        }
-
-        preferred
-    } else {
-        view_configuration_views.first().map(|config| {
-            (
-                UVec2::new(
-                    config.recommended_image_rect_width,
-                    config.recommended_image_rect_height,
-                ),
-                *config,
-            )
-        })
-    }
-    .ok_or(OxrError::NoAvailableViewConfiguration)?;
-
-    let available_formats = session.enumerate_swapchain_formats()?;
-
-    let format = if let Some(formats) = &formats {
-        let mut format = None;
-        for wanted_format in formats {
-            if available_formats.contains(wanted_format) {
-                format = Some(*wanted_format);
-            }
-        }
-        format
-    } else {
-        available_formats.first().copied()
-    }
-    .ok_or(OxrError::NoAvailableFormat)?;
-
-    let swapchain = session.create_swapchain(SwapchainCreateInfo {
-        create_flags: SwapchainCreateFlags::EMPTY,
-        usage_flags: SwapchainUsageFlags::COLOR_ATTACHMENT | SwapchainUsageFlags::SAMPLED,
-        format,
-        // TODO() add support for multisampling
-        sample_count: 1,
-        width: resolution.x,
-        height: resolution.y,
-        face_count: 1,
-        array_size: 2,
-        mip_count: 1,
-    })?;
-
-    let images = swapchain.enumerate_images(device, format, resolution)?;
-
-    let available_blend_modes =
-        instance.enumerate_environment_blend_modes(system_id, view_configuration_type)?;
-
-    // blend mode selection
-    let blend_mode = if let Some(wanted_blend_modes) = &blend_modes {
-        let mut blend_mode = None;
-        for wanted_blend_mode in wanted_blend_modes {
-            if available_blend_modes.contains(wanted_blend_mode) {
-                blend_mode = Some(*wanted_blend_mode);
-                break;
-            }
-        }
-        blend_mode
-    } else {
-        available_blend_modes.first().copied()
-    }
-    .ok_or(OxrError::NoAvailableBackend)?;
-
-    let graphics_info = OxrGraphicsInfo {
-        blend_mode,
-        resolution,
-        format,
-    };
-
-    Ok((
-        session,
-        frame_waiter,
-        frame_stream,
-        swapchain,
-        images,
-        graphics_info,
-    ))
+#[derive(Resource, Default)]
+struct OxrSessionResources {
+    session: Option<OxrSession>,
+    frame_stream: Option<OxrFrameStream>,
+    frame_waiter: Option<OxrFrameWaiter>,
 }
 
-/// This is used solely to transport resources from the main world to the render world.
-#[derive(Resource)]
-struct OxrRenderResources {
-    session: OxrSession,
-    frame_stream: OxrFrameStream,
-    swapchain: OxrSwapchain,
-    images: OxrSwapchainImages,
-    graphics_info: OxrGraphicsInfo,
+impl OxrSessionResourceCreator for OxrSessionResources {
+    fn update(&mut self, world: &mut World) -> Result<()> {
+        let session_config_info = world.non_send_resource::<OxrSessionConfigInfo>();
+        let system_id = world.resource::<OxrSystemId>();
+        let instance = world.resource::<OxrInstance>();
+
+        let (session, frame_waiter, frame_stream) = unsafe {
+            instance.create_session(**system_id, session_config_info.graphics_info.clone())?
+        };
+        self.session = Some(session);
+        self.frame_waiter = Some(frame_waiter);
+        self.frame_stream = Some(frame_stream);
+        Ok(())
+    }
+
+    fn insert_to_world(&mut self, world: &mut World) {
+        world.insert_resource(self.session.clone().unwrap());
+        world.insert_resource(self.frame_waiter.take().unwrap());
+    }
+
+    fn insert_to_render_world(&mut self, world: &mut World) {
+        world.insert_resource(self.session.take().unwrap());
+        world.insert_resource(self.frame_stream.take().unwrap());
+    }
+
+    fn remove_from_world(&mut self, world: &mut World) {
+        world.remove_resource::<OxrSession>();
+        world.remove_resource::<OxrFrameWaiter>();
+    }
+
+    fn remove_from_render_world(&mut self, world: &mut World) {
+        world.remove_resource::<OxrSession>();
+        world.remove_resource::<OxrFrameStream>();
+    }
 }
 
-pub fn create_xr_session(
-    device: Res<RenderDevice>,
-    instance: Res<OxrInstance>,
-    create_info: NonSend<SessionConfigInfo>,
-    system_id: Res<OxrSystemId>,
-    mut commands: Commands,
-) {
-    match init_xr_session(
-        device.wgpu_device(),
-        &instance,
-        **system_id,
-        create_info.clone(),
-    ) {
-        Ok((session, frame_waiter, frame_stream, swapchain, images, graphics_info)) => {
-            commands.insert_resource(session.clone());
-            commands.insert_resource(frame_waiter);
-            commands.insert_resource(images.clone());
-            commands.insert_resource(graphics_info.clone());
-            commands.insert_resource(OxrRenderResources {
-                session,
-                frame_stream,
-                swapchain,
-                images,
-                graphics_info,
-            });
+pub fn create_xr_session_resources(world: &mut World) {
+    let resource_creators = world.resource::<OxrSessionResourceCreators>().clone();
+    let mut resource_creators_mut = resource_creators.0.lock().unwrap();
+
+    for (resource_creator, initialized) in &mut resource_creators_mut.0 {
+        match resource_creator.update(world) {
+            Ok(_) => {
+                *initialized = true;
+                resource_creator.insert_to_world(world);
+            }
+            Err(e) => error!(
+                "Failed to initialize a resource using resource creator '{}': {}",
+                std::any::type_name_of_val(resource_creator),
+                e
+            ),
         }
-        Err(e) => error!("Failed to initialize XrSession: {e}"),
     }
+    resource_creators_mut.1 = true;
 }
 
 pub fn begin_xr_session(session: Res<OxrSession>, session_started: Res<OxrSessionStarted>) {
@@ -489,24 +413,30 @@ pub fn end_xr_session(session: Res<OxrSession>, session_started: Res<OxrSessionS
     session_started.set(false);
 }
 
-/// This system transfers important render resources from the main world to the render world when a session is created.
-pub fn transfer_xr_resources(mut commands: Commands, mut world: ResMut<MainWorld>) {
-    let Some(OxrRenderResources {
-        session,
-        frame_stream,
-        swapchain,
-        images,
-        graphics_info,
-    }) = world.remove_resource()
-    else {
-        return;
-    };
+pub fn handle_xr_events_render(world: &mut World) {
+    let _span = info_span!("xr_handle_events_render");
+    world.resource_mut::<PollReciever>().0.get().recv().unwrap();
 
-    commands.insert_resource(session);
-    commands.insert_resource(frame_stream);
-    commands.insert_resource(swapchain);
-    commands.insert_resource(images);
-    commands.insert_resource(graphics_info);
+    let resource_creators = world.resource::<OxrSessionResourceCreators>().clone();
+    let mut resource_creators_mut = resource_creators.0.lock().unwrap();
+    if resource_creators_mut.1 {
+        for (resource_creator, initialized) in &mut resource_creators_mut.0 {
+            if *initialized {
+                resource_creator.insert_to_render_world(world);
+            }
+        }
+        resource_creators_mut.1 = false;
+    }
+    if world.resource::<OxrCleanupSession>().get() {
+        for (resource_creator, _) in &mut resource_creators_mut.0 {
+            resource_creator.remove_from_render_world(world);
+        }
+    }
+}
+
+pub fn finish_poll(sender: Res<PollSender>) {
+    let _span = info_span!("xr_finish_poll");
+    sender.0.send(()).unwrap();
 }
 
 /// Polls any OpenXR events and handles them accordingly
@@ -550,24 +480,26 @@ pub fn poll_events(
     }
 }
 
-pub fn reset_per_frame_resources(mut cleanup: ResMut<OxrCleanupSession>) {
-    **cleanup = false;
+pub fn reset_per_frame_resources(cleanup: ResMut<OxrCleanupSession>) {
+    cleanup.set(false);
 }
 
-pub fn destroy_xr_session(mut commands: Commands) {
-    commands.remove_resource::<OxrSession>();
-    commands.remove_resource::<OxrFrameWaiter>();
-    commands.remove_resource::<OxrSwapchainImages>();
-    commands.remove_resource::<OxrGraphicsInfo>();
-    commands.remove_resource::<OxrPrimaryReferenceSpace>();
-    commands.insert_resource(OxrCleanupSession(true));
+pub fn destroy_xr_session_resources(world: &mut World) {
+    let resource_creators = world.resource::<OxrSessionResourceCreators>().clone();
+    let mut resource_creators_mut = resource_creators.0.lock().unwrap();
+
+    for (resource_creator, initialized) in &mut resource_creators_mut.0 {
+        *initialized = false;
+        resource_creator.remove_from_world(world);
+    }
+    world.resource::<OxrCleanupSession>().set(true);
 }
 
-pub fn destroy_xr_session_render(world: &mut World) {
-    world.remove_resource::<OxrSwapchain>();
-    world.remove_resource::<OxrFrameStream>();
-    world.remove_resource::<OxrPrimaryReferenceSpace>();
-    world.remove_resource::<OxrSwapchainImages>();
-    world.remove_resource::<OxrGraphicsInfo>();
-    world.remove_resource::<OxrSession>();
+pub fn update_root_transform(
+    mut root_transform: ResMut<OxrRootTransform>,
+    root: Query<&GlobalTransform, With<OxrTrackingRoot>>,
+) {
+    let transform = root.single();
+
+    root_transform.0 = *transform;
 }

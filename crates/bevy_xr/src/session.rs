@@ -118,6 +118,14 @@ pub fn session_running(status: Option<Res<XrSharedStatus>>) -> bool {
     )
 }
 
+/// A [`Condition`](bevy::ecs::schedule::Condition) system that says if the XR session is running
+pub fn session_ready_or_running(status: Option<Res<XrSharedStatus>>) -> bool {
+    matches!(
+        status.as_deref().map(XrSharedStatus::get),
+        Some(XrStatus::Running | XrStatus::Ready)
+    )
+}
+
 /// A function that returns a [`Condition`](bevy::ecs::schedule::Condition) system that says if an the [`XrStatus`] is in a specific state
 pub fn status_equals(status: XrStatus) -> impl FnMut(Option<Res<XrSharedStatus>>) -> bool {
     move |state: Option<Res<XrSharedStatus>>| state.is_some_and(|s| s.get() == status)
