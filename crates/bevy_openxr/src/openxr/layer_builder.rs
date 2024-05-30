@@ -8,7 +8,7 @@ use crate::reference_space::OxrPrimaryReferenceSpace;
 use crate::resources::*;
 
 pub trait LayerProvider {
-    fn get<'a>(&'a self, world: &'a World) -> Box<dyn CompositionLayer + '_>;
+    fn get<'a>(&'a self, world: &'a World) -> Option<Box<dyn CompositionLayer + '_>>;
 }
 
 pub struct ProjectionLayer;
@@ -16,7 +16,7 @@ pub struct ProjectionLayer;
 pub struct PassthroughLayer;
 
 impl LayerProvider for ProjectionLayer {
-    fn get<'a>(&self, world: &'a World) -> Box<dyn CompositionLayer<'a> + 'a> {
+    fn get<'a>(&self, world: &'a World) -> Option<Box<dyn CompositionLayer<'a> + 'a>> {
         let stage = world.resource::<OxrPrimaryReferenceSpace>();
         let openxr_views = world.resource::<OxrViews>();
         let swapchain = world.resource::<OxrSwapchain>();
@@ -29,7 +29,11 @@ impl LayerProvider for ProjectionLayer {
             },
         };
 
-        Box::new(
+        if openxr_views.len() < 2 {
+            return None;
+        }
+
+        Some(Box::new(
             CompositionLayerProjection::new()
                 .layer_flags(CompositionLayerFlags::BLEND_TEXTURE_SOURCE_ALPHA)
                 .space(&stage)
@@ -53,17 +57,17 @@ impl LayerProvider for ProjectionLayer {
                                 .image_rect(rect),
                         ),
                 ]),
-        )
+        ))
     }
 }
 
 impl LayerProvider for PassthroughLayer {
-    fn get<'a>(&'a self, world: &'a World) -> Box<dyn CompositionLayer + '_> {
-        Box::new(
+    fn get<'a>(&'a self, world: &'a World) -> Option<Box<dyn CompositionLayer + '_>> {
+        Some(Box::new(
             CompositionLayerPassthrough::new()
                 .layer_handle(world.resource::<OxrPassthroughLayer>())
                 .layer_flags(CompositionLayerFlags::BLEND_TEXTURE_SOURCE_ALPHA),
-        )
+        ))
     }
 }
 

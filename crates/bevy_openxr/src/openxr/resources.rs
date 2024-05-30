@@ -381,7 +381,7 @@ pub struct OxrSwapchainImages(pub Arc<Vec<wgpu::Texture>>);
 // pub struct OxrStage(pub Arc<openxr::Space>);
 
 /// Stores the latest generated [OxrViews]
-#[derive(Clone, Resource, ExtractResource, Deref, DerefMut)]
+#[derive(Clone, Resource, Deref, DerefMut)]
 pub struct OxrViews(pub Vec<openxr::View>);
 
 /// Wrapper around [openxr::SystemId] to allow it to be stored as a resource.
@@ -429,7 +429,7 @@ pub struct OxrGraphicsInfo {
 
 #[derive(Clone)]
 /// This is used to store information from startup that is needed to create the session after the instance has been created.
-pub struct SessionConfigInfo {
+pub struct OxrSessionConfigInfo {
     /// List of blend modes the openxr session can use. If [None], pick the first available blend mode.
     pub blend_modes: Option<Vec<EnvironmentBlendMode>>,
     /// List of formats the openxr session can use. If [None], pick the first available format
@@ -454,13 +454,23 @@ impl OxrSessionStarted {
 }
 
 /// The calculated display time for the app. Passed through the pipeline.
-#[derive(Copy, Clone, Eq, PartialEq, Deref, DerefMut, Resource, ExtractResource)]
+#[derive(Copy, Clone, Eq, PartialEq, Deref, DerefMut, Resource)]
 pub struct OxrTime(pub openxr::Time);
 
 /// The root transform's global position for late latching in the render world.
 #[derive(ExtractResource, Resource, Clone, Copy, Default)]
 pub struct OxrRootTransform(pub GlobalTransform);
 
-#[derive(ExtractResource, Resource, Clone, Copy, Default, Deref, DerefMut, PartialEq)]
+#[derive(ExtractResource, Resource, Clone, Default)]
 /// This is inserted into the world to signify if the session should be cleaned up.
-pub struct OxrCleanupSession(pub bool);
+pub struct OxrCleanupSession(Arc<AtomicBool>);
+
+impl OxrCleanupSession {
+    pub fn set(&self, val: bool) {
+        self.0.store(val, Ordering::SeqCst);
+    }
+
+    pub fn get(&self) -> bool {
+        self.0.load(Ordering::SeqCst)
+    }
+}

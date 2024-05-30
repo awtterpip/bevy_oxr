@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use bevy::{
-    prelude::*,
-    render::extract_resource::{ExtractResource, ExtractResourcePlugin},
-};
-use bevy_xr::session::{status_changed_to, XrStatus};
+use bevy::prelude::*;
 
-use crate::{init::OxrPreUpdateSet, resources::OxrSession};
+use crate::{
+    init::{OxrSessionResourceCreator, OxrSessionResourceCreators},
+    resources::OxrSession,
+    types::Result,
+};
 
 pub struct OxrReferenceSpacePlugin {
     pub default_primary_ref_space: openxr::ReferenceSpaceType,
@@ -20,10 +20,35 @@ impl Default for OxrReferenceSpacePlugin {
 }
 
 #[derive(Resource)]
-struct OxrPrimaryReferenceSpaceType(openxr::ReferenceSpaceType);
-// TODO: this will keep the session alive so we need to remove this in the render world too
+struct OxrPrimaryReferenceSpaceCreator(openxr::ReferenceSpaceType, Option<Arc<openxr::Space>>);
+
+impl OxrSessionResourceCreator for OxrPrimaryReferenceSpaceCreator {
+    fn update(&mut self, world: &mut World) -> Result<()> {
+        let session = world.resource::<OxrSession>();
+        let space = session.create_reference_space(self.0, openxr::Posef::IDENTITY)?;
+        self.1 = Some(Arc::new(space));
+        Ok(())
+    }
+
+    fn insert_to_world(&mut self, world: &mut World) {
+        world.insert_resource(OxrPrimaryReferenceSpace(self.1.clone().unwrap()));
+    }
+
+    fn insert_to_render_world(&mut self, world: &mut World) {
+        self.insert_to_world(world)
+    }
+
+    fn remove_from_world(&mut self, world: &mut World) {
+        world.remove_resource::<OxrPrimaryReferenceSpace>();
+    }
+
+    fn remove_from_render_world(&mut self, world: &mut World) {
+        self.remove_from_world(world);
+    }
+}
+
 /// The Default Reference space used for locating things
-#[derive(Resource, Deref, ExtractResource, Clone)]
+#[derive(Resource, Deref, Clone)]
 pub struct OxrPrimaryReferenceSpace(pub Arc<openxr::Space>);
 
 /// The Reference space used for locating spaces on this entity
@@ -32,29 +57,11 @@ pub struct OxrReferenceSpace(pub openxr::Space);
 
 impl Plugin for OxrReferenceSpacePlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(OxrPrimaryReferenceSpaceType(self.default_primary_ref_space));
-        app.add_plugins(ExtractResourcePlugin::<OxrPrimaryReferenceSpace>::default());
-        app.add_systems(
-            PreUpdate,
-            set_primary_ref_space
-                .run_if(status_changed_to(XrStatus::Ready))
-                .in_set(OxrPreUpdateSet::UpdateCriticalComponents),
-        );
+        app.world
+            .resource::<OxrSessionResourceCreators>()
+            .add_resource_creator(OxrPrimaryReferenceSpaceCreator(
+                self.default_primary_ref_space,
+                None,
+            ));
     }
-}
-
-fn set_primary_ref_space(
-    session: Res<OxrSession>,
-    space_type: Res<OxrPrimaryReferenceSpaceType>,
-    mut cmds: Commands,
-) {
-    match session.create_reference_space(space_type.0, openxr::Posef::IDENTITY) {
-        Ok(space) => {
-            cmds.insert_resource(OxrPrimaryReferenceSpace(Arc::new(space)));
-        }
-        Err(openxr::sys::Result::ERROR_EXTENSION_NOT_PRESENT) => {
-            error!("Required Extension for Reference Space not loaded");
-        }
-        Err(err) => error!("Error while creating reference space: {}", err.to_string()),
-    };
 }
