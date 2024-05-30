@@ -461,7 +461,7 @@ pub struct OxrTime(pub openxr::Time);
 #[derive(ExtractResource, Resource, Clone, Copy, Default)]
 pub struct OxrRootTransform(pub GlobalTransform);
 
-#[derive(ExtractResource, Resource, Clone, Default)]
+#[derive(Resource, Clone, Default)]
 /// This is inserted into the world to signify if the session should be cleaned up.
 pub struct OxrCleanupSession(Arc<AtomicBool>);
 
