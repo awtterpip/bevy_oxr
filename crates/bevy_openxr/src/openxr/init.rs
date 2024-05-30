@@ -218,6 +218,7 @@ impl Plugin for OxrInitPlugin {
                     .insert_resource(cleanup_session)
                     .init_resource::<OxrRootTransform>()
                     .init_resource::<OxrCleanupSession>()
+                    .init_resource::<OxrRenderLayers>()
                     .add_systems(Render, handle_xr_events_render.in_set(OxrPollMain));
             }
             Err(e) => {
@@ -392,6 +393,7 @@ impl OxrSessionResourceCreator for OxrSessionResources {
     fn remove_from_render_world(&mut self, world: &mut World) {
         world.remove_resource::<OxrSession>();
         world.remove_resource::<OxrFrameStream>();
+        world.resource_mut::<OxrRenderLayers>().clear();
     }
 }
 

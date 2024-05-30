@@ -70,8 +70,7 @@ impl Plugin for OxrRenderPlugin {
                 )
                     .run_if(session_started),
             )
-            .insert_resource(OxrViews(vec![]))
-            .insert_resource(OxrRenderLayers(vec![Box::new(ProjectionLayer)]));
+            .insert_resource(OxrViews(vec![]));
     }
 }
 
@@ -209,6 +208,9 @@ impl OxrSessionResourceCreator for OxrSwapchainCreator {
         world.insert_resource(self.graphics_info.take().unwrap());
         world.insert_resource(self.images.take().unwrap());
         world.insert_resource(self.swapchain.take().unwrap());
+        world
+            .resource_mut::<OxrRenderLayers>()
+            .push(Box::new(ProjectionLayer));
     }
 
     fn remove_from_world(&mut self, world: &mut World) {
