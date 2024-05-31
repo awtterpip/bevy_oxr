@@ -23,7 +23,7 @@ impl Plugin for XrSessionPlugin {
         // This is in finnish because we need the RenderPlugin to already be added.
         app.get_sub_app_mut(RenderApp)
             .unwrap()
-            .init_schedule(XrRenderSessionEnding);
+            .init_schedule(XrSessionExiting);
     }
 }
 
@@ -43,9 +43,6 @@ pub struct XrSessionCreated;
 
 #[derive(ScheduleLabel, Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub struct XrSessionExiting;
-
-#[derive(ScheduleLabel, Clone, Copy, PartialEq, Eq, Debug, Hash)]
-pub struct XrRenderSessionEnding;
 
 #[derive(Event, Clone, Copy, Deref)]
 pub struct XrStatusChanged(pub XrStatus);

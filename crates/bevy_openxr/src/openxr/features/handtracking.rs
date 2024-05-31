@@ -39,7 +39,7 @@ fn spawn_default_hands(
     session: Res<OxrSession>,
     root: Query<Entity, With<OxrTrackingRoot>>,
 ) {
-    info!("spawning hands");
+    dbg!("spawning default hands");
     let Ok(root) = root.get_single() else {
         error!("unable to get tracking root, skipping hand creation");
         return;
@@ -71,6 +71,7 @@ fn spawn_default_hands(
     for bone in HandBone::get_all_bones() {
         let bone_left = cmds
             .spawn((
+                DefaultHandBone,
                 SpatialBundle::default(),
                 bone,
                 HandBoneRadius(0.0),
@@ -79,6 +80,7 @@ fn spawn_default_hands(
             .id();
         let bone_right = cmds
             .spawn((
+                DefaultHandBone,
                 SpatialBundle::default(),
                 bone,
                 HandBoneRadius(0.0),
@@ -107,15 +109,15 @@ fn spawn_default_hands(
 #[derive(Component)]
 struct DefaultHandTracker;
 #[derive(Component)]
-struct DefaultHandBones;
+struct DefaultHandBone;
 
 #[allow(clippy::type_complexity)]
 fn clean_up_default_hands(
     mut cmds: Commands,
-    query: Query<Entity, Or<(With<DefaultHandTracker>, With<DefaultHandBones>)>>,
+    query: Query<Entity, Or<(With<DefaultHandTracker>, With<DefaultHandBone>)>>,
 ) {
     for e in &query {
-        info!("removing_hand_entity");
+        dbg!("removing default hand entity");
         cmds.entity(e).despawn_recursive();
     }
 }

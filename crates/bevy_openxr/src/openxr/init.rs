@@ -23,7 +23,6 @@ use bevy_xr::session::BeginXrSession;
 use bevy_xr::session::CreateXrSession;
 use bevy_xr::session::DestroyXrSession;
 use bevy_xr::session::EndXrSession;
-use bevy_xr::session::XrRenderSessionEnding;
 use bevy_xr::session::XrSessionExiting;
 use bevy_xr::session::XrSharedStatus;
 use bevy_xr::session::XrStatus;
@@ -167,7 +166,7 @@ impl Plugin for OxrInitPlugin {
                         Render,
                         destroy_xr_session_render
                             .run_if(resource_equals(OxrCleanupSession(true)))
-                            .after(RenderSet::ExtractCommands),
+                            .after(RenderSet::Cleanup),
                     )
                     .add_systems(
                         ExtractSchedule,
@@ -455,7 +454,6 @@ pub fn create_xr_session(
     system_id: Res<OxrSystemId>,
     mut commands: Commands,
 ) {
-    info!("creating session!");
     match init_xr_session(
         device.wgpu_device(),
         &instance,
@@ -481,7 +479,6 @@ pub fn create_xr_session(
 
 pub fn begin_xr_session(session: Res<OxrSession>, session_started: Res<OxrSessionStarted>) {
     let _span = info_span!("xr_begin_session");
-    info!("begining session!");
     session
         .begin(openxr::ViewConfigurationType::PRIMARY_STEREO)
         .expect("Failed to begin session");
@@ -490,7 +487,6 @@ pub fn begin_xr_session(session: Res<OxrSession>, session_started: Res<OxrSessio
 
 pub fn end_xr_session(session: Res<OxrSession>, session_started: Res<OxrSessionStarted>) {
     let _span = info_span!("xr_end_session");
-    info!("ending session!");
     session
         .request_exit()
         .expect("Failed to request session exit");
@@ -553,7 +549,7 @@ pub fn poll_events(
                     SessionState::STOPPING => XrStatus::Stopping,
                     SessionState::EXITING | SessionState::LOSS_PENDING => {
                         session_status_events.send(OxrSessionStatusEvent::AboutToBeDestroyed);
-                            info!("sending destroy info");
+                        info!("sending destroy info");
                         XrStatus::Exiting
                     }
                     _ => unreachable!(),
@@ -583,17 +579,7 @@ pub fn destroy_xr_session_render(world: &mut World) {
     world.remove_resource::<OxrFrameStream>();
     world.remove_resource::<OxrSwapchainImages>();
     world.remove_resource::<OxrGraphicsInfo>();
-    world.run_schedule(XrRenderSessionEnding);
+    world.run_schedule(XrSessionExiting);
     world.run_system_once(apply_deferred);
-    if let Some(sess) = world.remove_resource::<OxrSession>() {
-        // This is needed because there is one space that survives the session exit schedule and
-        // holds on to the session. this causes an error message but does not seem to cause any
-        // actuall issues.
-        unsafe {
-            (sess.instance().fp().destroy_session)(sess.as_raw());
-        }
-        // leaking the session so that it does not call destroy_session at a later point. might not
-        // actually be needed.
-        Box::leak(Box::new(sess));
-    }
+    world.remove_resource::<OxrSession>();
 }

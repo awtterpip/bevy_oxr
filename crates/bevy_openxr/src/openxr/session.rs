@@ -3,13 +3,12 @@ use crate::resources::{
     OxrCleanupSession, OxrPassthrough, OxrPassthroughLayer, OxrSessionStarted, OxrSwapchain,
 };
 use crate::types::{Result, SwapchainCreateInfo};
-use bevy::ecs::system::{RunSystemOnce, SystemState};
+use bevy::ecs::event::ManualEventReader;
+use bevy::ecs::system::RunSystemOnce;
 use bevy::prelude::*;
-use bevy::render::extract_resource::ExtractResourcePlugin;
 use bevy::render::RenderApp;
 use bevy_xr::session::{
-    status_changed_to, XrRenderSessionEnding, XrSessionCreated, XrSessionExiting, XrSharedStatus,
-    XrStatus,
+    status_changed_to, XrSessionCreated, XrSessionExiting, XrSharedStatus, XrStatus,
 };
 use openxr::AnyGraphics;
 
@@ -32,7 +31,7 @@ impl Plugin for OxrSessionPlugin {
         );
         app.add_systems(XrSessionExiting, clean_session);
         app.sub_app_mut(RenderApp)
-            .add_systems(XrRenderSessionEnding, |mut cmds: Commands| {
+            .add_systems(XrSessionExiting, |mut cmds: Commands| {
                 cmds.remove_resource::<OxrCleanupSession>();
             });
         app.add_systems(
@@ -56,10 +55,23 @@ fn clean_session(world: &mut World) {
         .set(XrStatus::Available);
 }
 
+#[derive(Resource, Default)]
+struct SessionStatusReader(ManualEventReader<OxrSessionStatusEvent>);
+
 fn run_session_status_schedules(world: &mut World) {
-    let mut state = SystemState::<EventReader<OxrSessionStatusEvent>>::new(world);
-    let mut e = state.get_mut(world);
-    let events = e.read().copied().collect::<Vec<_>>();
+    let mut reader = world
+        .remove_resource::<SessionStatusReader>()
+        .unwrap_or_default();
+
+    let events = reader
+        .0
+        .read(
+            world
+                .get_resource::<Events<OxrSessionStatusEvent>>()
+                .unwrap(),
+        )
+        .copied()
+        .collect::<Vec<_>>();
     for e in events.iter() {
         match e {
             OxrSessionStatusEvent::Created => {
@@ -73,6 +85,7 @@ fn run_session_status_schedules(world: &mut World) {
             }
         }
     }
+    world.insert_resource(reader);
 }
 
 /// Graphics agnostic wrapper around [openxr::Session].
@@ -88,11 +101,6 @@ pub struct OxrSession(
     /// This is so that we can still operate on functions that don't take [`AnyGraphics`] as the generic.
     pub(crate) GraphicsWrap<Self>,
 );
-impl Drop for OxrSession {
-    fn drop(&mut self) {
-        info!("dropping session");
-    }
-}
 
 impl GraphicsType for OxrSession {
     type Inner<G: GraphicsExt> = openxr::Session<G>;

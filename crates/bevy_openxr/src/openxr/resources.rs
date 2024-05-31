@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use bevy::prelude::*;
 use bevy::render::extract_resource::ExtractResource;
-use openxr::AnyGraphics;
 
 use crate::error::OxrError;
 use crate::graphics::*;
@@ -217,11 +216,6 @@ pub struct OxrFrameWaiter(pub openxr::FrameWaiter);
 /// Graphics agnostic wrapper around [openxr::Swapchain]
 #[derive(Resource)]
 pub struct OxrSwapchain(pub GraphicsWrap<Self>);
-impl Drop for OxrSwapchain {
-    fn drop(&mut self) {
-        info!("Dropping Swapchain");
-    }
-}
 
 impl GraphicsType for OxrSwapchain {
     type Inner<G: GraphicsExt> = openxr::Swapchain<G>;
