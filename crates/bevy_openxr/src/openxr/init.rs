@@ -50,6 +50,8 @@ pub enum OxrPreUpdateSet {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, SystemSet)]
 pub struct OxrPollMain;
 
+pub struct PrePoll;
+
 /// Plugin that handles the initialization of OpenXR resources
 pub struct OxrInitPlugin {
     /// Information about the app this is being used to build.
@@ -148,7 +150,7 @@ impl Plugin for OxrInitPlugin {
                 session_create_info,
             )) => {
                 let status = XrSharedStatus::new(XrStatus::Available);
-                let (tx, rx) = sync_channel::<()>(1);
+                let (tx, rx) = sync_channel::<()>(0);
                 let render_resources = OxrSessionResourceCreators::default();
                 render_resources.init_xr_resource_creator::<OxrSessionResources>();
                 let cleanup_session = OxrCleanupSession::default();
@@ -164,7 +166,6 @@ impl Plugin for OxrInitPlugin {
                         ),
                         synchronous_pipeline_compilation: self.synchronous_pipeline_compilation,
                     },
-                    ExtractResourcePlugin::<OxrTime>::default(),
                     ExtractResourcePlugin::<OxrRootTransform>::default(),
                 ))
                 .add_systems(
@@ -186,7 +187,8 @@ impl Plugin for OxrInitPlugin {
                             .run_if(status_equals(XrStatus::Exiting)),
                         finish_poll,
                     )
-                        .chain(),
+                        .chain()
+                        .run_if(not(resource_added::<XrSharedStatus>)),
                 )
                 .add_systems(
                     PostUpdate,
@@ -450,6 +452,9 @@ pub fn handle_xr_events_render(world: &mut World) {
         for (resource_creator, _) in &mut resource_creators_mut.0 {
             resource_creator.remove_from_render_world(world);
         }
+    }
+    if let Some(frame_state) = *world.resource::<OxrFrameState>().clone().0.lock().unwrap() {
+        world.insert_resource(OxrTime(frame_state.predicted_display_time));
     }
 }
 

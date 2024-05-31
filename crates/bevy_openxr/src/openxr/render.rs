@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use bevy::{
     ecs::{query::QuerySingleError, schedule::SystemConfigs},
     prelude::*,
@@ -14,8 +16,8 @@ use openxr::ViewStateFlags;
 use crate::{
     error::OxrError,
     init::{
-        session_started, OxrPreUpdateSet, OxrSessionResourceCreator, OxrSessionResourceCreatorsApp,
-        OxrTrackingRoot,
+        destroy_xr_session_resources, finish_poll, session_started, OxrPreUpdateSet,
+        OxrSessionResourceCreator, OxrSessionResourceCreatorsApp, OxrTrackingRoot,
     },
     layer_builder::ProjectionLayer,
 };
@@ -34,12 +36,14 @@ pub struct OxrRenderPlugin;
 
 impl Plugin for OxrRenderPlugin {
     fn build(&self, app: &mut App) {
+        let frame_state = OxrFrameState(default());
         app.init_xr_resource_creator::<OxrSwapchainCreator>();
         app.add_systems(
-            PreUpdate,
+            First,
             wait_frame
                 .run_if(session_started)
-                .in_set(OxrPreUpdateSet::WaitFrame),
+                .before(finish_poll)
+                .after(destroy_xr_session_resources),
         )
         .add_systems(
             PreUpdate,
@@ -49,16 +53,18 @@ impl Plugin for OxrRenderPlugin {
             )
                 .chain()
                 .after(OxrPreUpdateSet::UpdateNonCriticalComponents),
-        );
+        )
+        .insert_resource(frame_state.clone());
 
         app.sub_app_mut(RenderApp)
             .add_systems(
                 Render,
                 (
                     (
+                        // insert_time,
                         begin_frame,
                         insert_texture_views,
-                        locate_views.run_if(resource_exists::<OxrPrimaryReferenceSpace>),
+                        locate_views,
                         update_views_render_world,
                     )
                         .chain()
@@ -70,7 +76,9 @@ impl Plugin for OxrRenderPlugin {
                 )
                     .run_if(session_started),
             )
-            .insert_resource(OxrViews(vec![]));
+            .insert_resource(OxrViews(vec![]))
+            .insert_resource(OxrTime(openxr::Time::from_nanos(0)))
+            .insert_resource(frame_state);
     }
 }
 
@@ -276,12 +284,24 @@ pub fn init_views(
     commands.insert_resource(OxrViews(views));
 }
 
-pub fn wait_frame(mut frame_waiter: ResMut<OxrFrameWaiter>, mut commands: Commands) {
+pub fn wait_frame(
+    mut frame_waiter: ResMut<OxrFrameWaiter>,
+    oxr_frame_state: Res<OxrFrameState>,
+    mut commands: Commands,
+) {
     let _span = info_span!("xr_wait_frame");
     let state = frame_waiter.wait().expect("Failed to wait frame");
+    *oxr_frame_state.0.lock().unwrap() = Some(state);
     // Here we insert the predicted display time for when this frame will be displayed.
     // TODO: don't add predicted_display_period if pipelined rendering plugin not enabled
-    commands.insert_resource(OxrTime(state.predicted_display_time));
+    commands.insert_resource(OxrTime(openxr::Time::from_nanos(
+        state.predicted_display_time.as_nanos() + state.predicted_display_period.as_nanos(),
+    )));
+}
+
+pub fn insert_time(oxr_frame_state: Res<OxrFrameState>, mut time: ResMut<OxrTime>) {
+    let state = oxr_frame_state.0.lock().unwrap().unwrap();
+    *time = OxrTime(state.predicted_display_time);
 }
 
 pub fn locate_views(

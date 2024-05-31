@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use bevy::prelude::*;
 use bevy::render::extract_resource::ExtractResource;
@@ -456,6 +456,9 @@ impl OxrSessionStarted {
 /// The calculated display time for the app. Passed through the pipeline.
 #[derive(Copy, Clone, Eq, PartialEq, Deref, DerefMut, Resource, ExtractResource)]
 pub struct OxrTime(pub openxr::Time);
+
+#[derive(Clone, Resource)]
+pub struct OxrFrameState(pub Arc<Mutex<Option<openxr::FrameState>>>);
 
 /// The root transform's global position for late latching in the render world.
 #[derive(ExtractResource, Resource, Clone, Copy, Default)]
