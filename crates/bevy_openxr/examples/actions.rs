@@ -1,14 +1,11 @@
 // a simple example showing basic actions using the xr utils actions
 use bevy::{math::vec3, prelude::*};
 use bevy_openxr::{
-    add_xr_plugins,
-    helper_traits::ToQuat,
-    init::OxrTrackingRoot,
-    resources::OxrViews,
+    add_xr_plugins, helper_traits::ToQuat, init::OxrTrackingRoot, resources::OxrViews,
 };
 use bevy_xr_utils::xr_utils_actions::{
-    ActiveSet, XRUtilsAction, XRUtilsActionSet,
-    XRUtilsActionState, XRUtilsActionSystemSet, XRUtilsActionsPlugin, XRUtilsBinding,
+    ActiveSet, XRUtilsAction, XRUtilsActionSet, XRUtilsActionState, XRUtilsActionSystemSet,
+    XRUtilsActionsPlugin, XRUtilsBinding,
 };
 
 fn main() {
@@ -16,7 +13,10 @@ fn main() {
         .add_plugins(add_xr_plugins(DefaultPlugins))
         .add_plugins(bevy_xr_utils::hand_gizmos::HandGizmosPlugin)
         .add_systems(Startup, setup_scene)
-        .add_systems(Startup, create_action_entities.before(XRUtilsActionSystemSet::CreateEvents))
+        .add_systems(
+            Startup,
+            create_action_entities.before(XRUtilsActionSystemSet::CreateEvents),
+        )
         .add_plugins(XRUtilsActionsPlugin)
         .add_systems(
             Update,
@@ -26,6 +26,11 @@ fn main() {
             Update,
             handle_flight_input.after(XRUtilsActionSystemSet::SyncActionStates),
         )
+        // Realtime lighting is expensive, use ambient light instead
+        .insert_resource(AmbientLight {
+            color: Default::default(),
+            brightness: 500.0,
+        })
         .run();
 }
 
@@ -49,15 +54,7 @@ fn setup_scene(
         transform: Transform::from_xyz(0.0, 0.5, 0.0),
         ..default()
     });
-    // light
-    commands.spawn(PointLightBundle {
-        point_light: PointLight {
-            shadows_enabled: true,
-            ..default()
-        },
-        transform: Transform::from_xyz(4.0, 8.0, 4.0),
-        ..default()
-    });
+
     commands.spawn(Camera3dBundle {
         transform: Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
         ..default()
