@@ -10,14 +10,17 @@ use bevy::{
     },
     transform::TransformSystem,
 };
-use bevy_xr::{camera::{XrCamera, XrCameraBundle, XrProjection}, session::session_running};
+use bevy_xr::{
+    camera::{XrCamera, XrCameraBundle, XrProjection},
+    session::session_running,
+};
 use openxr::ViewStateFlags;
 
-use crate::{reference_space::OxrPrimaryReferenceSpace, resources::*};
 use crate::{
     init::{session_started, OxrPreUpdateSet, OxrTrackingRoot},
     layer_builder::ProjectionLayer,
 };
+use crate::{reference_space::OxrPrimaryReferenceSpace, resources::*};
 
 pub struct OxrRenderPlugin;
 
@@ -28,7 +31,6 @@ impl Plugin for OxrRenderPlugin {
                 PreUpdate,
                 (
                     init_views.run_if(resource_added::<OxrGraphicsInfo>),
-                    wait_frame.run_if(session_started),
                     locate_views.run_if(session_running),
                     update_views.run_if(session_running),
                 )
@@ -41,7 +43,8 @@ impl Plugin for OxrRenderPlugin {
                     .chain()
                     .run_if(session_running)
                     .before(TransformSystem::TransformPropagate),
-            );
+            )
+            .add_systems(Last, wait_frame.run_if(session_started));
         app.sub_app_mut(RenderApp)
             .add_systems(
                 Render,
@@ -350,11 +353,23 @@ pub fn begin_frame(mut frame_stream: ResMut<OxrFrameStream>) {
 
 pub fn release_image(mut swapchain: ResMut<OxrSwapchain>) {
     let _span = info_span!("xr_release_image");
+    #[cfg(target_os = "android")]
+    {
+        let ctx = ndk_context::android_context();
+        let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }.unwrap();
+        let env = vm.attach_current_thread_as_daemon();
+    }
     swapchain.release_image().unwrap();
 }
 
 pub fn end_frame(world: &mut World) {
     let _span = info_span!("xr_end_frame");
+    #[cfg(target_os = "android")]
+    {
+        let ctx = ndk_context::android_context();
+        let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }.unwrap();
+        let env = vm.attach_current_thread_as_daemon();
+    }
     world.resource_scope::<OxrFrameStream, ()>(|world, mut frame_stream| {
         let mut layers = vec![];
         for layer in world.resource::<OxrRenderLayers>().iter() {

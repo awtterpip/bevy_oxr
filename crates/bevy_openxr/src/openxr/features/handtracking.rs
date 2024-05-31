@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_xr::hands::{LeftHand, RightHand};
 use bevy_xr::{
     hands::{HandBone, HandBoneRadius},
     session::{session_running, status_changed_to, XrStatus},
@@ -74,11 +75,22 @@ fn spawn_default_hands(
     let mut right_bones = [Entity::PLACEHOLDER; 26];
     for bone in HandBone::get_all_bones() {
         let bone_left = cmds
-            .spawn((SpatialBundle::default(), bone, HandBoneRadius(0.0)))
+            .spawn((
+                SpatialBundle::default(),
+                bone,
+                HandBoneRadius(0.0),
+                LeftHand,
+            ))
             .id();
         let bone_right = cmds
-            .spawn((SpatialBundle::default(), bone, HandBoneRadius(0.0)))
+            .spawn((
+                SpatialBundle::default(),
+                bone,
+                HandBoneRadius(0.0),
+                RightHand,
+            ))
             .id();
+        cmds.entity(root).push_children(&[bone_left]);
         cmds.entity(root).push_children(&[bone_right]);
         left_bones[bone as usize] = bone_left;
         right_bones[bone as usize] = bone_right;
@@ -87,11 +99,13 @@ fn spawn_default_hands(
         DefaultHandTracker,
         OxrHandTracker(tracker_left),
         OxrHandBoneEntities(left_bones),
+        LeftHand,
     ));
     cmds.spawn((
         DefaultHandTracker,
         OxrHandTracker(tracker_right),
         OxrHandBoneEntities(right_bones),
+        RightHand,
     ));
 }
 
