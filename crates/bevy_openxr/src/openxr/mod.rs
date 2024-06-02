@@ -34,7 +34,7 @@ pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
     plugins
         .build()
         .disable::<RenderPlugin>()
-        .disable::<PipelinedRenderingPlugin>()
+        // .disable::<PipelinedRenderingPlugin>()
         .add_before::<RenderPlugin, _>(XrSessionPlugin)
         .add_before::<RenderPlugin, _>(OxrInitPlugin::default())
         .add(OxrReferenceSpacePlugin::default())
