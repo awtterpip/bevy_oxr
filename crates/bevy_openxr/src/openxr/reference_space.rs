@@ -4,9 +4,8 @@ use bevy::{
     prelude::*,
     render::extract_resource::{ExtractResource, ExtractResourcePlugin},
 };
-use bevy_xr::session::{status_changed_to, XrStatus};
 
-use crate::{init::OxrPreUpdateSet, resources::OxrSession};
+use crate::{init::OxrSessionCreated, resources::OxrSession};
 
 pub struct OxrReferenceSpacePlugin {
     pub default_primary_ref_space: openxr::ReferenceSpaceType,
@@ -35,10 +34,8 @@ impl Plugin for OxrReferenceSpacePlugin {
         app.insert_resource(OxrPrimaryReferenceSpaceType(self.default_primary_ref_space));
         app.add_plugins(ExtractResourcePlugin::<OxrPrimaryReferenceSpace>::default());
         app.add_systems(
-            PreUpdate,
-            set_primary_ref_space
-                .run_if(status_changed_to(XrStatus::Ready))
-                .in_set(OxrPreUpdateSet::UpdateCriticalComponents),
+            OxrSessionCreated,
+            set_primary_ref_space, // .in_set(OxrPreUpdateSet::UpdateCriticalComponents),
         );
     }
 }

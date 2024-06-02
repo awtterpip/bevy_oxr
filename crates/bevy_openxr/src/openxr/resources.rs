@@ -373,7 +373,7 @@ impl OxrSwapchain {
 }
 
 /// Stores the generated swapchain images.
-#[derive(Debug, Deref, Resource, Clone)]
+#[derive(Debug, Deref, Resource, ExtractResource, Clone)]
 pub struct OxrSwapchainImages(pub Arc<Vec<wgpu::Texture>>);
 
 /// Thread safe wrapper around [openxr::Space] representing the stage.
@@ -381,7 +381,7 @@ pub struct OxrSwapchainImages(pub Arc<Vec<wgpu::Texture>>);
 // pub struct OxrStage(pub Arc<openxr::Space>);
 
 /// Stores the latest generated [OxrViews]
-#[derive(Clone, Resource, ExtractResource, Deref, DerefMut)]
+#[derive(Clone, Resource, ExtractResource, Deref, DerefMut, Default)]
 pub struct OxrViews(pub Vec<openxr::View>);
 
 /// Wrapper around [openxr::SystemId] to allow it to be stored as a resource.
@@ -420,7 +420,7 @@ pub struct OxrPassthroughLayer(pub openxr::PassthroughLayer);
 pub struct OxrRenderLayers(pub Vec<Box<dyn LayerProvider + Send + Sync>>);
 
 /// Resource storing graphics info for the currently running session.
-#[derive(Clone, Copy, Resource)]
+#[derive(Clone, Copy, Resource, ExtractResource)]
 pub struct OxrGraphicsInfo {
     pub blend_mode: EnvironmentBlendMode,
     pub resolution: UVec2,
@@ -453,9 +453,9 @@ impl OxrSessionStarted {
     }
 }
 
-/// The calculated display time for the app. Passed through the pipeline.
-#[derive(Copy, Clone, Eq, PartialEq, Deref, DerefMut, Resource, ExtractResource)]
-pub struct OxrTime(pub openxr::Time);
+/// The frame state returned from [FrameWaiter::wait_frame](openxr::FrameWaiter::wait)
+#[derive(Clone, Deref, DerefMut, Resource, ExtractResource)]
+pub struct OxrFrameState(pub openxr::FrameState);
 
 /// The root transform's global position for late latching in the render world.
 #[derive(ExtractResource, Resource, Clone, Copy, Default)]
@@ -464,3 +464,7 @@ pub struct OxrRootTransform(pub GlobalTransform);
 #[derive(ExtractResource, Resource, Clone, Copy, Default, Deref, DerefMut, PartialEq)]
 /// This is inserted into the world to signify if the session should be cleaned up.
 pub struct OxrCleanupSession(pub bool);
+
+/// Instructs systems to add display period
+#[derive(Clone, Copy, Default, Resource)]
+pub struct Pipelined;

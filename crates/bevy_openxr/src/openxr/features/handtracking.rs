@@ -9,7 +9,7 @@ use openxr::SpaceLocationFlags;
 use crate::{
     init::OxrTrackingRoot,
     reference_space::{OxrPrimaryReferenceSpace, OxrReferenceSpace},
-    resources::{OxrSession, OxrTime},
+    resources::{OxrFrameState, OxrSession},
 };
 
 pub struct HandTrackingPlugin {
@@ -132,7 +132,7 @@ pub struct OxrHandTracker(pub openxr::HandTracker);
 
 fn locate_hands(
     default_ref_space: Res<OxrPrimaryReferenceSpace>,
-    time: Res<OxrTime>,
+    frame_state: Res<OxrFrameState>,
     tracker_query: Query<(
         &OxrHandTracker,
         Option<&OxrReferenceSpace>,
@@ -143,7 +143,8 @@ fn locate_hands(
     for (tracker, ref_space, hand_entities) in &tracker_query {
         let ref_space = ref_space.map(|v| &v.0).unwrap_or(&default_ref_space.0);
         // relate_hand_joints also provides velocities
-        let joints = match ref_space.locate_hand_joints(tracker, **time) {
+        let joints = match ref_space.locate_hand_joints(tracker, frame_state.predicted_display_time)
+        {
             Ok(Some(v)) => v,
             Ok(None) => continue,
             Err(openxr::sys::Result::ERROR_EXTENSION_NOT_PRESENT) => {
