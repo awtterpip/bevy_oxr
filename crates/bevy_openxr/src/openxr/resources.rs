@@ -1,4 +1,3 @@
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use bevy::prelude::*;
@@ -440,18 +439,8 @@ pub struct SessionConfigInfo {
     pub graphics_info: SessionCreateInfo,
 }
 
-#[derive(Resource, Clone, Default)]
-pub struct OxrSessionStarted(Arc<AtomicBool>);
-
-impl OxrSessionStarted {
-    pub fn set(&self, val: bool) {
-        self.0.store(val, Ordering::SeqCst);
-    }
-
-    pub fn get(&self) -> bool {
-        self.0.load(Ordering::SeqCst)
-    }
-}
+#[derive(ExtractResource, Resource, Clone, Default)]
+pub struct OxrSessionStarted(pub bool);
 
 /// The frame state returned from [FrameWaiter::wait_frame](openxr::FrameWaiter::wait)
 #[derive(Clone, Deref, DerefMut, Resource, ExtractResource)]

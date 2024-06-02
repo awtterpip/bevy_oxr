@@ -31,7 +31,7 @@ use crate::resources::*;
 use crate::types::*;
 
 pub fn session_started(started: Option<Res<OxrSessionStarted>>) -> bool {
-    started.is_some_and(|started| started.get())
+    started.is_some_and(|started| started.0)
 }
 
 pub fn should_render(frame_state: Option<Res<OxrFrameState>>) -> bool {
@@ -109,6 +109,7 @@ impl Plugin for OxrInitPlugin {
                     },
                     ExtractResourcePlugin::<OxrCleanupSession>::default(),
                     ExtractResourcePlugin::<XrStatus>::default(),
+                    ExtractResourcePlugin::<OxrSessionStarted>::default(),
                 ))
                 .init_schedule(OxrLast)
                 .init_schedule(OxrSessionCreated)
@@ -180,13 +181,7 @@ impl Plugin for OxrInitPlugin {
             }
         };
 
-        let session_started = OxrSessionStarted::default();
-
-        app.insert_resource(session_started.clone());
-
-        let render_app = app.sub_app_mut(RenderApp);
-
-        render_app.insert_resource(session_started);
+        app.insert_resource(OxrSessionStarted(false));
     }
 }
 
@@ -489,18 +484,18 @@ pub fn create_xr_session(world: &mut World) {
     }
 }
 
-pub fn begin_xr_session(session: Res<OxrSession>, session_started: Res<OxrSessionStarted>) {
+pub fn begin_xr_session(session: Res<OxrSession>, mut session_started: ResMut<OxrSessionStarted>) {
     let _span = info_span!("xr_begin_session");
     session
         .begin(openxr::ViewConfigurationType::PRIMARY_STEREO)
         .expect("Failed to begin session");
-    session_started.set(true);
+    session_started.0 = true;
 }
 
-pub fn end_xr_session(session: Res<OxrSession>, session_started: Res<OxrSessionStarted>) {
+pub fn end_xr_session(session: Res<OxrSession>, mut session_started: ResMut<OxrSessionStarted>) {
     let _span = info_span!("xr_end_session");
     session.end().expect("Failed to end session");
-    session_started.set(false);
+    session_started.0 = false;
 }
 
 /// This is used solely to transport resources from the main world to the render world.
