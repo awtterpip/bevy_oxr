@@ -1,5 +1,5 @@
 use bevy::{
-    app::SubApp,
+    app::{MainScheduleOrder, SubApp},
     ecs::{query::QuerySingleError, schedule::MainThreadExecutor},
     prelude::*,
     render::{
@@ -32,6 +32,16 @@ impl Plugin for OxrRenderPlugin {
     fn build(&self, app: &mut App) {
         if app.is_plugin_added::<PipelinedRenderingPlugin>() {
             app.init_resource::<Pipelined>();
+
+            let mut schedule_order = app.world.resource_mut::<MainScheduleOrder>();
+
+            if let Some(pos) = schedule_order
+                .labels
+                .iter()
+                .position(|label| (**label).eq(&OxrLast))
+            {
+                schedule_order.labels.remove(pos);
+            }
 
             if let Some(sub_app) = app.remove_sub_app(RenderExtractApp) {
                 app.insert_sub_app(RenderExtractApp, SubApp::new(sub_app.app, update_rendering));

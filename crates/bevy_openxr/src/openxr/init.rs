@@ -150,9 +150,9 @@ impl Plugin for OxrInitPlugin {
                 .insert_non_send_resource(session_create_info)
                 .configure_sets(OxrLast, OxrHandleEvents);
 
-                // app.world
-                //     .resource_mut::<MainScheduleOrder>()
-                //     .insert_after(Last, OxrLast);
+                app.world
+                    .resource_mut::<MainScheduleOrder>()
+                    .insert_after(Last, OxrLast);
 
                 app.world
                     .spawn((TransformBundle::default(), OxrTrackingRoot));
