@@ -1,4 +1,4 @@
-use crate::resources::OxrSession;
+use crate::session::OxrSession;
 use bevy::prelude::*;
 use bevy_xr::session::session_running;
 

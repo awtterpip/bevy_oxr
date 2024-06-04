@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_xr::hands::{LeftHand, RightHand};
 use bevy_xr::{
     hands::{HandBone, HandBoneRadius},
-    session::{session_running, status_changed_to, XrStatus},
+    session::{session_running, XrSessionCreated, XrSessionExiting},
 };
 use openxr::SpaceLocationFlags;
 
@@ -10,7 +10,8 @@ use crate::resources::Pipelined;
 use crate::{
     init::OxrTrackingRoot,
     reference_space::{OxrPrimaryReferenceSpace, OxrReferenceSpace},
-    resources::{OxrFrameState, OxrSession},
+    resources::OxrFrameState,
+    session::OxrSession,
 };
 
 pub struct HandTrackingPlugin {
@@ -28,14 +29,8 @@ impl Plugin for HandTrackingPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(PreUpdate, locate_hands.run_if(session_running));
         if self.default_hands {
-            app.add_systems(
-                PreUpdate,
-                clean_up_default_hands.run_if(status_changed_to(XrStatus::Exiting)),
-            );
-            app.add_systems(
-                PostUpdate,
-                spawn_default_hands.run_if(status_changed_to(XrStatus::Ready)),
-            );
+            app.add_systems(XrSessionExiting, clean_up_default_hands);
+            app.add_systems(XrSessionCreated, spawn_default_hands);
         }
     }
 }
@@ -45,7 +40,7 @@ fn spawn_default_hands(
     session: Res<OxrSession>,
     root: Query<Entity, With<OxrTrackingRoot>>,
 ) {
-    info!("spawning hands");
+    debug!("spawning default hands");
     let Ok(root) = root.get_single() else {
         error!("unable to get tracking root, skipping hand creation");
         return;
@@ -77,6 +72,7 @@ fn spawn_default_hands(
     for bone in HandBone::get_all_bones() {
         let bone_left = cmds
             .spawn((
+                DefaultHandBone,
                 SpatialBundle::default(),
                 bone,
                 HandBoneRadius(0.0),
@@ -85,6 +81,7 @@ fn spawn_default_hands(
             .id();
         let bone_right = cmds
             .spawn((
+                DefaultHandBone,
                 SpatialBundle::default(),
                 bone,
                 HandBoneRadius(0.0),
@@ -113,15 +110,16 @@ fn spawn_default_hands(
 #[derive(Component)]
 struct DefaultHandTracker;
 #[derive(Component)]
-struct DefaultHandBones;
+struct DefaultHandBone;
 
 #[allow(clippy::type_complexity)]
 fn clean_up_default_hands(
     mut cmds: Commands,
-    query: Query<Entity, Or<(With<DefaultHandTracker>, With<DefaultHandBones>)>>,
+    query: Query<Entity, Or<(With<DefaultHandTracker>, With<DefaultHandBone>)>>,
 ) {
     for e in &query {
-        cmds.entity(e).despawn();
+        debug!("removing default hand entity");
+        cmds.entity(e).despawn_recursive();
     }
 }
 

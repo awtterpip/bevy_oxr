@@ -1,9 +1,9 @@
 //! This plugin and module are here to ease the creation of actions withing openxr
 //! The general idea is any plugin can create entities in startup before XRUtilsActionSystemSet::CreateEvents
 //! this plugin will then create the neccessary actions sets, actions, and bindings and get them ready for use.
-//! 
+//!
 //! example creating actions
-//! 
+//!
 //!          //create a set
 //!     let set = commands
 //!     .spawn((
@@ -39,10 +39,10 @@
 //!     //TODO look into a better system
 //!     commands.entity(action).add_child(binding);
 //!     commands.entity(set).add_child(action);
-//! 
+//!
 //! then you can read the action states after XRUtilsActionSystemSet::SyncActionStates
 //! for example
-//! 
+//!
 //! fn read_action_with_marker_component(
 //!     mut action_query: Query<&XRUtilsActionState, With<FlightActionMarker>>,
 //!     ) {
@@ -51,13 +51,12 @@
 //!             info!("action state is: {:?}", state);
 //!         }
 //!     }
-//! 
-//! 
+//!
+//!
 use bevy::prelude::*;
 use bevy_openxr::{
-    action_binding::OxrSuggestActionBinding,
-    action_set_attaching::OxrAttachActionSet,
-    resources::{OxrInstance, OxrSession},
+    action_binding::OxrSuggestActionBinding, action_set_attaching::OxrAttachActionSet,
+    resources::OxrInstance, session::OxrSession,
 };
 use openxr::{ActiveActionSet, Path, Vector2f};
 use std::borrow::Cow;
@@ -65,7 +64,10 @@ use std::borrow::Cow;
 pub struct XRUtilsActionsPlugin;
 impl Plugin for XRUtilsActionsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, create_openxr_events.in_set(XRUtilsActionSystemSet::CreateEvents));
+        app.add_systems(
+            Startup,
+            create_openxr_events.in_set(XRUtilsActionSystemSet::CreateEvents),
+        );
         app.add_systems(Update, sync_active_action_sets);
         app.add_systems(
             Update,

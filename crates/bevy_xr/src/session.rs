@@ -1,9 +1,15 @@
-use bevy::{prelude::*, render::extract_resource::ExtractResource};
+use bevy::{
+    ecs::schedule::ScheduleLabel, prelude::*, render::extract_resource::ExtractResource,
+    render::RenderApp,
+};
 
 pub struct XrSessionPlugin;
 
 impl Plugin for XrSessionPlugin {
     fn build(&self, app: &mut App) {
+        app.init_resource::<XrCreateSessionWhenAvailabe>();
+        app.init_schedule(XrSessionCreated);
+        app.init_schedule(XrSessionExiting);
         app.add_event::<CreateXrSession>()
             .add_event::<DestroyXrSession>()
             .add_event::<BeginXrSession>()
@@ -14,7 +20,30 @@ impl Plugin for XrSessionPlugin {
                 handle_session.run_if(resource_exists::<XrStatus>),
             );
     }
+    fn finish(&self, app: &mut App) {
+        // This is in finnish because we need the RenderPlugin to already be added.
+        app.get_sub_app_mut(RenderApp)
+            .unwrap()
+            .init_schedule(XrSessionExiting);
+    }
 }
+
+/// Automatically starts session when it's available, gets set to false after the start event was
+/// sent
+#[derive(Clone, Copy, Resource, Deref, DerefMut)]
+pub struct XrCreateSessionWhenAvailabe(pub bool);
+
+impl Default for XrCreateSessionWhenAvailabe {
+    fn default() -> Self {
+        XrCreateSessionWhenAvailabe(true)
+    }
+}
+
+#[derive(ScheduleLabel, Clone, Copy, PartialEq, Eq, Debug, Hash)]
+pub struct XrSessionCreated;
+
+#[derive(ScheduleLabel, Clone, Copy, PartialEq, Eq, Debug, Hash)]
+pub struct XrSessionExiting;
 
 #[derive(Event, Clone, Copy, Deref)]
 pub struct XrStatusChanged(pub XrStatus);
@@ -43,14 +72,18 @@ pub fn handle_session(
     mut previous_status: Local<Option<XrStatus>>,
     mut create_session: EventWriter<CreateXrSession>,
     mut begin_session: EventWriter<BeginXrSession>,
-    mut end_session: EventWriter<EndXrSession>,
+    // mut end_session: EventWriter<EndXrSession>,
     mut destroy_session: EventWriter<DestroyXrSession>,
+    mut should_start_session: ResMut<XrCreateSessionWhenAvailabe>,
 ) {
     if *previous_status != Some(*current_status) {
         match *current_status {
             XrStatus::Unavailable => {}
             XrStatus::Available => {
-                create_session.send_default();
+                if **should_start_session {
+                    create_session.send_default();
+                    **should_start_session = false;
+                }
             }
             XrStatus::Idle => {}
             XrStatus::Ready => {
@@ -58,7 +91,7 @@ pub fn handle_session(
             }
             XrStatus::Running => {}
             XrStatus::Stopping => {
-                end_session.send_default();
+                // end_session.send_default();
             }
             XrStatus::Exiting => {
                 destroy_session.send_default();

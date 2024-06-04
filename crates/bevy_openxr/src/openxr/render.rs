@@ -10,13 +10,18 @@ use bevy::{
         Render, RenderApp, RenderSet,
     },
     tasks::ComputeTaskPool,
+    transform::TransformSystem,
 };
-use bevy_xr::camera::{XrCamera, XrCameraBundle, XrProjection};
+use bevy_xr::{
+    camera::{XrCamera, XrCameraBundle, XrProjection},
+    session::{session_running, XrSessionExiting},
+};
 use openxr::ViewStateFlags;
 
 use crate::{
     init::{session_started, OxrHandleEvents, OxrLast, OxrTrackingRoot},
     layer_builder::ProjectionLayer,
+    session::OxrSession,
 };
 use crate::{reference_space::OxrPrimaryReferenceSpace, resources::*};
 
@@ -73,6 +78,7 @@ impl Plugin for OxrRenderPlugin {
                 .chain()
                 .after(OxrHandleEvents),
         )
+        .add_systems(XrSessionExiting, clean_views)
         .init_resource::<OxrViews>();
 
         let render_app = app.sub_app_mut(RenderApp);
@@ -90,6 +96,8 @@ impl Plugin for OxrRenderPlugin {
                     .after(RenderSet::Render)
                     .before(RenderSet::Cleanup),
             )
+            .add_systems(Last, wait_frame.run_if(session_started));
+        app.sub_app_mut(RenderApp)
             .add_systems(
                 Render,
                 (
@@ -111,6 +119,13 @@ impl Plugin for OxrRenderPlugin {
                     .in_set(OxrRenderEnd),
             )
             .insert_resource(OxrRenderLayers(vec![Box::new(ProjectionLayer)]));
+        // .add_systems(
+        //     XrSessionExiting,
+        //     (
+        //         |mut cmds: Commands| cmds.remove_resource::<OxrRenderLayers>(),
+        //         clean_views,
+        //     ),
+        // );
 
         // app.add_systems(
         //     PreUpdate,
@@ -181,6 +196,19 @@ fn update_rendering(app_world: &mut World, _sub_app: &mut App) {
 
 pub const XR_TEXTURE_INDEX: u32 = 3383858418;
 
+pub fn clean_views(
+    mut manual_texture_views: ResMut<ManualTextureViews>,
+    mut commands: Commands,
+    cam_query: Query<(Entity, &XrCamera)>,
+) {
+    for (e, cam) in &cam_query {
+        manual_texture_views.remove(&ManualTextureViewHandle(XR_TEXTURE_INDEX + cam.0));
+        commands.entity(e).despawn_recursive();
+    }
+}
+
+// TODO: have cameras initialized externally and then recieved by this function.
+/// This is needed to properly initialize the texture views so that bevy will set them to the correct resolution despite them being updated in the render world.
 pub fn init_views(
     graphics_info: Res<OxrGraphicsInfo>,
     mut manual_texture_views: ResMut<ManualTextureViews>,
