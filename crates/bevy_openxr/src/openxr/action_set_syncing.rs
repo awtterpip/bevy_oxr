@@ -1,4 +1,4 @@
-use crate::{init::OxrPreUpdateSet, session::OxrSession};
+use crate::session::OxrSession;
 use bevy::prelude::*;
 use bevy_xr::session::session_running;
 
@@ -7,9 +7,7 @@ impl Plugin for OxrActionSyncingPlugin {
         app.add_event::<OxrSyncActionSet>();
         app.add_systems(
             PreUpdate,
-            sync_sets
-                .run_if(session_running)
-                .in_set(OxrPreUpdateSet::SyncActions),
+            sync_sets.run_if(session_running), // .in_set(OxrPreUpdateSet::SyncActions),
         );
     }
 }

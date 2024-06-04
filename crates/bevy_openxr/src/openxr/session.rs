@@ -1,4 +1,4 @@
-use crate::init::OxrPreUpdateSet;
+use crate::init::{OxrHandleEvents, OxrLast};
 use crate::resources::{
     OxrCleanupSession, OxrPassthrough, OxrPassthroughLayer, OxrSessionStarted, OxrSwapchain,
 };
@@ -7,9 +7,7 @@ use bevy::ecs::event::ManualEventReader;
 use bevy::ecs::system::RunSystemOnce;
 use bevy::prelude::*;
 use bevy::render::RenderApp;
-use bevy_xr::session::{
-    status_changed_to, XrSessionCreated, XrSessionExiting, XrSharedStatus, XrStatus,
-};
+use bevy_xr::session::{status_changed_to, XrSessionCreated, XrSessionExiting, XrStatus};
 use openxr::AnyGraphics;
 
 use crate::graphics::{graphics_match, GraphicsExt, GraphicsType, GraphicsWrap};
@@ -25,10 +23,7 @@ pub struct OxrSessionPlugin;
 impl Plugin for OxrSessionPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<OxrSessionStatusEvent>();
-        app.add_systems(
-            PreUpdate,
-            run_session_status_schedules.in_set(OxrPreUpdateSet::HandleEvents),
-        );
+        app.add_systems(OxrLast, run_session_status_schedules.after(OxrHandleEvents));
         app.add_systems(XrSessionExiting, clean_session);
         app.sub_app_mut(RenderApp)
             .add_systems(XrSessionExiting, |mut cmds: Commands| {
@@ -41,18 +36,15 @@ impl Plugin for OxrSessionPlugin {
     }
 }
 
-fn handle_stopping_state(session: Res<OxrSession>, session_started: Res<OxrSessionStarted>) {
+fn handle_stopping_state(session: Res<OxrSession>, mut session_started: ResMut<OxrSessionStarted>) {
     session.end().expect("Failed to end session");
-    session_started.set(false);
+    session_started.0 = false;
 }
 
 fn clean_session(world: &mut World) {
     world.insert_resource(OxrCleanupSession(true));
     // It should be impossible to call this if the session is Unavailable
-    world
-        .get_resource::<XrSharedStatus>()
-        .unwrap()
-        .set(XrStatus::Available);
+    *world.get_resource_mut::<XrStatus>().unwrap() = XrStatus::Available;
 }
 
 #[derive(Resource, Default)]
@@ -82,6 +74,7 @@ fn run_session_status_schedules(world: &mut World) {
                 world.run_schedule(XrSessionExiting);
                 world.run_system_once(apply_deferred);
                 world.remove_resource::<OxrSession>();
+                info!("Main App destroy");
             }
         }
     }

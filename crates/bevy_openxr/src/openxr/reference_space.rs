@@ -7,9 +7,9 @@ use bevy::{
         RenderApp,
     },
 };
-use bevy_xr::session::{status_changed_to, XrSessionCreated, XrSessionExiting, XrStatus};
+use bevy_xr::session::{XrSessionCreated, XrSessionExiting};
 
-use crate::{init::OxrPreUpdateSet, session::OxrSession};
+use crate::session::OxrSession;
 
 pub struct OxrReferenceSpacePlugin {
     pub default_primary_ref_space: openxr::ReferenceSpaceType,

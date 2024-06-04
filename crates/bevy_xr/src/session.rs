@@ -1,6 +1,7 @@
-use std::sync::{Arc, RwLock};
-
-use bevy::{ecs::schedule::ScheduleLabel, prelude::*, render::RenderApp};
+use bevy::{
+    ecs::schedule::ScheduleLabel, prelude::*, render::extract_resource::ExtractResource,
+    render::RenderApp,
+};
 
 pub struct XrSessionPlugin;
 
@@ -16,7 +17,7 @@ impl Plugin for XrSessionPlugin {
             .add_event::<XrStatusChanged>()
             .add_systems(
                 PreUpdate,
-                handle_session.run_if(resource_exists::<XrSharedStatus>),
+                handle_session.run_if(resource_exists::<XrStatus>),
             );
     }
     fn finish(&self, app: &mut App) {
@@ -47,24 +48,7 @@ pub struct XrSessionExiting;
 #[derive(Event, Clone, Copy, Deref)]
 pub struct XrStatusChanged(pub XrStatus);
 
-#[derive(Resource, Clone)]
-pub struct XrSharedStatus(Arc<RwLock<XrStatus>>);
-
-impl XrSharedStatus {
-    pub fn new(status: XrStatus) -> Self {
-        Self(Arc::new(RwLock::new(status)))
-    }
-
-    pub fn get(&self) -> XrStatus {
-        *self.0.read().unwrap()
-    }
-
-    pub fn set(&self, status: XrStatus) {
-        *self.0.write().unwrap() = status;
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, ExtractResource, Resource, PartialEq, Eq)]
 #[repr(u8)]
 pub enum XrStatus {
     /// An XR session is not available here
@@ -84,7 +68,7 @@ pub enum XrStatus {
 }
 
 pub fn handle_session(
-    status: Res<XrSharedStatus>,
+    current_status: Res<XrStatus>,
     mut previous_status: Local<Option<XrStatus>>,
     mut create_session: EventWriter<CreateXrSession>,
     mut begin_session: EventWriter<BeginXrSession>,
@@ -92,9 +76,8 @@ pub fn handle_session(
     mut destroy_session: EventWriter<DestroyXrSession>,
     mut should_start_session: ResMut<XrCreateSessionWhenAvailabe>,
 ) {
-    let current_status = status.get();
-    if *previous_status != Some(current_status) {
-        match current_status {
+    if *previous_status != Some(*current_status) {
+        match *current_status {
             XrStatus::Unavailable => {}
             XrStatus::Available => {
                 if **should_start_session {
@@ -115,7 +98,7 @@ pub fn handle_session(
             }
         }
     }
-    *previous_status = Some(current_status);
+    *previous_status = Some(*current_status);
 }
 
 /// A [`Condition`](bevy::ecs::schedule::Condition) that allows the system to run when the xr status changed to a specific [`XrStatus`].
@@ -128,29 +111,23 @@ pub fn status_changed_to(
 }
 
 /// A [`Condition`](bevy::ecs::schedule::Condition) system that says if the XR session is available. Returns true as long as [`XrStatus`] exists and isn't [`Unavailable`](XrStatus::Unavailable).
-pub fn session_available(status: Option<Res<XrSharedStatus>>) -> bool {
-    status.is_some_and(|s| s.get() != XrStatus::Unavailable)
+pub fn session_available(status: Option<Res<XrStatus>>) -> bool {
+    status.is_some_and(|s| *s != XrStatus::Unavailable)
 }
 
 /// A [`Condition`](bevy::ecs::schedule::Condition) system that says if the XR session is ready or running
-pub fn session_created(status: Option<Res<XrSharedStatus>>) -> bool {
-    matches!(
-        status.as_deref().map(XrSharedStatus::get),
-        Some(XrStatus::Ready | XrStatus::Running)
-    )
+pub fn session_ready_or_running(status: Option<Res<XrStatus>>) -> bool {
+    matches!(status.as_deref(), Some(XrStatus::Ready | XrStatus::Running))
 }
 
 /// A [`Condition`](bevy::ecs::schedule::Condition) system that says if the XR session is running
-pub fn session_running(status: Option<Res<XrSharedStatus>>) -> bool {
-    matches!(
-        status.as_deref().map(XrSharedStatus::get),
-        Some(XrStatus::Running)
-    )
+pub fn session_running(status: Option<Res<XrStatus>>) -> bool {
+    matches!(status.as_deref(), Some(XrStatus::Running))
 }
 
 /// A function that returns a [`Condition`](bevy::ecs::schedule::Condition) system that says if an the [`XrStatus`] is in a specific state
-pub fn status_equals(status: XrStatus) -> impl FnMut(Option<Res<XrSharedStatus>>) -> bool {
-    move |state: Option<Res<XrSharedStatus>>| state.is_some_and(|s| s.get() == status)
+pub fn status_equals(status: XrStatus) -> impl FnMut(Option<Res<XrStatus>>) -> bool {
+    move |state: Option<Res<XrStatus>>| state.is_some_and(|s| *s == status)
 }
 
 /// Event sent to backends to create an XR session. Should only be called in the [`XrStatus::Available`] state.
