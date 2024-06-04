@@ -17,22 +17,14 @@ fn main() {
 fn handle_input(
     keys: Res<ButtonInput<KeyCode>>,
     mut end: EventWriter<bevy_xr::session::EndXrSession>,
-    mut destroy: EventWriter<bevy_xr::session::DestroyXrSession>,
-    mut begin: EventWriter<bevy_xr::session::BeginXrSession>,
+    mut _destroy: EventWriter<bevy_xr::session::DestroyXrSession>,
+    mut _begin: EventWriter<bevy_xr::session::BeginXrSession>,
     mut create: EventWriter<bevy_xr::session::CreateXrSession>,
     state: Res<XrStatus>,
 ) {
     if keys.just_pressed(KeyCode::KeyE) {
         info!("sending end");
         end.send_default();
-    }
-    if keys.just_pressed(KeyCode::KeyD) {
-        info!("sending destroy");
-        destroy.send_default();
-    }
-    if keys.just_pressed(KeyCode::KeyB) {
-        info!("sending begin");
-        begin.send_default();
     }
     if keys.just_pressed(KeyCode::KeyC) {
         info!("sending create");

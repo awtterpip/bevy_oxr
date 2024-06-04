@@ -40,7 +40,7 @@ fn spawn_default_hands(
     session: Res<OxrSession>,
     root: Query<Entity, With<OxrTrackingRoot>>,
 ) {
-    dbg!("spawning default hands");
+    debug!("spawning default hands");
     let Ok(root) = root.get_single() else {
         error!("unable to get tracking root, skipping hand creation");
         return;
@@ -118,7 +118,7 @@ fn clean_up_default_hands(
     query: Query<Entity, Or<(With<DefaultHandTracker>, With<DefaultHandBone>)>>,
 ) {
     for e in &query {
-        dbg!("removing default hand entity");
+        debug!("removing default hand entity");
         cmds.entity(e).despawn_recursive();
     }
 }

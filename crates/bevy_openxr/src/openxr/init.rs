@@ -511,7 +511,6 @@ pub fn poll_events(
                     SessionState::IDLE => {
                         if *status == XrStatus::Available {
                             session_status_events.send(OxrSessionStatusEvent::Created);
-                            info!("sending create info");
                         }
                         XrStatus::Idle
                     }
@@ -522,7 +521,6 @@ pub fn poll_events(
                     SessionState::STOPPING => XrStatus::Stopping,
                     SessionState::EXITING | SessionState::LOSS_PENDING => {
                         session_status_events.send(OxrSessionStatusEvent::AboutToBeDestroyed);
-                        info!("sending destroy info");
                         XrStatus::Exiting
                     }
                     _ => unreachable!(),
@@ -557,5 +555,4 @@ pub fn destroy_xr_session_render(world: &mut World) {
     world.run_system_once(apply_deferred);
     world.remove_resource::<OxrSession>();
     world.insert_resource(OxrSessionStarted(false));
-    info!("Render App destroy");
 }

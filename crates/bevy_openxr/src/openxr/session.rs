@@ -74,7 +74,6 @@ fn run_session_status_schedules(world: &mut World) {
                 world.run_schedule(XrSessionExiting);
                 world.run_system_once(apply_deferred);
                 world.remove_resource::<OxrSession>();
-                info!("Main App destroy");
             }
         }
     }
