@@ -1,13 +1,15 @@
 use bevy::{
-    ecs::query::QuerySingleError,
+    app::{MainScheduleOrder, SubApp},
+    ecs::{query::QuerySingleError, schedule::MainThreadExecutor},
     prelude::*,
     render::{
         camera::{ManualTextureView, ManualTextureViewHandle, ManualTextureViews, RenderTarget},
         extract_resource::ExtractResourcePlugin,
-        pipelined_rendering::PipelinedRenderingPlugin,
+        pipelined_rendering::{PipelinedRenderingPlugin, RenderAppChannels, RenderExtractApp},
         view::ExtractedView,
         Render, RenderApp, RenderSet,
     },
+    tasks::ComputeTaskPool,
 };
 use bevy_xr::camera::{XrCamera, XrCameraBundle, XrProjection};
 use openxr::ViewStateFlags;
@@ -30,6 +32,20 @@ impl Plugin for OxrRenderPlugin {
     fn build(&self, app: &mut App) {
         if app.is_plugin_added::<PipelinedRenderingPlugin>() {
             app.init_resource::<Pipelined>();
+
+            let mut schedule_order = app.world.resource_mut::<MainScheduleOrder>();
+
+            if let Some(pos) = schedule_order
+                .labels
+                .iter()
+                .position(|label| (**label).eq(&OxrLast))
+            {
+                schedule_order.labels.remove(pos);
+            }
+
+            if let Some(sub_app) = app.remove_sub_app(RenderExtractApp) {
+                app.insert_sub_app(RenderExtractApp, SubApp::new(sub_app.app, update_rendering));
+            }
         }
 
         app.add_plugins((
@@ -136,6 +152,31 @@ impl Plugin for OxrRenderPlugin {
         //     )
         //     .insert_resource(OxrRenderLayers(vec![Box::new(ProjectionLayer)]));
     }
+}
+
+// This function waits for the rendering world to be received,
+// runs extract, and then sends the rendering world back to the render thread.
+//
+// modified pipelined rendering extract function
+fn update_rendering(app_world: &mut World, _sub_app: &mut App) {
+    app_world.resource_scope(|world, main_thread_executor: Mut<MainThreadExecutor>| {
+        world.resource_scope(|world, mut render_channels: Mut<RenderAppChannels>| {
+            // we use a scope here to run any main thread tasks that the render world still needs to run
+            // while we wait for the render world to be received.
+            let mut render_app = ComputeTaskPool::get()
+                .scope_with_executor(true, Some(&*main_thread_executor.0), |s| {
+                    s.spawn(async { render_channels.recv().await });
+                })
+                .pop()
+                .unwrap();
+
+            world.run_schedule(OxrLast);
+
+            render_app.extract(world);
+
+            render_channels.send_blocking(render_app);
+        });
+    });
 }
 
 pub const XR_TEXTURE_INDEX: u32 = 3383858418;
