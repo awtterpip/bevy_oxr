@@ -1,16 +1,13 @@
-use crate::init::OxrPreUpdateSet;
+use crate::init::{OxrHandleEvents, OxrLast};
 use crate::resources::{
     OxrCleanupSession, OxrPassthrough, OxrPassthroughLayer, OxrSessionStarted, OxrSwapchain,
 };
 use crate::types::{Result, SwapchainCreateInfo};
-use bevy::ecs::system::{RunSystemOnce, SystemState};
+use bevy::ecs::event::ManualEventReader;
+use bevy::ecs::system::RunSystemOnce;
 use bevy::prelude::*;
-use bevy::render::extract_resource::ExtractResourcePlugin;
 use bevy::render::RenderApp;
-use bevy_xr::session::{
-    status_changed_to, XrRenderSessionEnding, XrSessionCreated, XrSessionExiting, XrSharedStatus,
-    XrStatus,
-};
+use bevy_xr::session::{status_changed_to, XrSessionCreated, XrSessionExiting, XrStatus};
 use openxr::AnyGraphics;
 
 use crate::graphics::{graphics_match, GraphicsExt, GraphicsType, GraphicsWrap};
@@ -26,14 +23,10 @@ pub struct OxrSessionPlugin;
 impl Plugin for OxrSessionPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<OxrSessionStatusEvent>();
-        app.add_systems(
-            PreUpdate,
-            run_session_status_schedules.in_set(OxrPreUpdateSet::HandleEvents),
-        );
+        app.add_systems(OxrLast, run_session_status_schedules.after(OxrHandleEvents));
         app.add_systems(XrSessionExiting, clean_session);
         app.sub_app_mut(RenderApp)
-            .add_systems(XrRenderSessionEnding, |mut cmds: Commands| {
-                // cmds.remove_resource::<OxrSession>();
+            .add_systems(XrSessionExiting, |mut cmds: Commands| {
                 cmds.remove_resource::<OxrCleanupSession>();
             });
         app.add_systems(
@@ -43,24 +36,34 @@ impl Plugin for OxrSessionPlugin {
     }
 }
 
-fn handle_stopping_state(session: Res<OxrSession>, session_started: Res<OxrSessionStarted>) {
+fn handle_stopping_state(session: Res<OxrSession>, mut session_started: ResMut<OxrSessionStarted>) {
     session.end().expect("Failed to end session");
-    session_started.set(false);
+    session_started.0 = false;
 }
 
 fn clean_session(world: &mut World) {
     world.insert_resource(OxrCleanupSession(true));
     // It should be impossible to call this if the session is Unavailable
-    world
-        .get_resource::<XrSharedStatus>()
-        .unwrap()
-        .set(XrStatus::Available);
+    *world.get_resource_mut::<XrStatus>().unwrap() = XrStatus::Available;
 }
 
+#[derive(Resource, Default)]
+struct SessionStatusReader(ManualEventReader<OxrSessionStatusEvent>);
+
 fn run_session_status_schedules(world: &mut World) {
-    let mut state = SystemState::<EventReader<OxrSessionStatusEvent>>::new(world);
-    let mut e = state.get_mut(world);
-    let events = e.read().copied().collect::<Vec<_>>();
+    let mut reader = world
+        .remove_resource::<SessionStatusReader>()
+        .unwrap_or_default();
+
+    let events = reader
+        .0
+        .read(
+            world
+                .get_resource::<Events<OxrSessionStatusEvent>>()
+                .unwrap(),
+        )
+        .copied()
+        .collect::<Vec<_>>();
     for e in events.iter() {
         match e {
             OxrSessionStatusEvent::Created => {
@@ -70,14 +73,11 @@ fn run_session_status_schedules(world: &mut World) {
             OxrSessionStatusEvent::AboutToBeDestroyed => {
                 world.run_schedule(XrSessionExiting);
                 world.run_system_once(apply_deferred);
-                if let Some(sess) = world.remove_resource::<OxrSession>() {
-                    // unsafe {
-                    //     (sess.instance().fp().destroy_session)(sess.as_raw());
-                    // }
-                }
+                world.remove_resource::<OxrSession>();
             }
         }
     }
+    world.insert_resource(reader);
 }
 
 /// Graphics agnostic wrapper around [openxr::Session].
@@ -93,11 +93,6 @@ pub struct OxrSession(
     /// This is so that we can still operate on functions that don't take [`AnyGraphics`] as the generic.
     pub(crate) GraphicsWrap<Self>,
 );
-impl Drop for OxrSession {
-    fn drop(&mut self) {
-        info!("dropping session");
-    }
-}
 
 impl GraphicsType for OxrSession {
     type Inner<G: GraphicsExt> = openxr::Session<G>;

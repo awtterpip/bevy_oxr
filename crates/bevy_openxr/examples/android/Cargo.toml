@@ -43,15 +43,30 @@ orientation = "landscape"
 resizeable_activity = false
 
 [[package.metadata.android.uses_feature]]
+name = "android.hardware.vr.headtracking"
+required = true
+
+[[package.metadata.android.uses_feature]]
+name = "oculus.software.handtracking"
+required = true
+
+[[package.metadata.android.uses_feature]]
 name = "com.oculus.feature.PASSTHROUGH"
 required = true
-version = 1
+
+[[package.metadata.android.uses_feature]]
+name = "com.oculus.experimental.enabled"
+required = true
+
+[[package.metadata.android.uses_permission]]
+name = "com.oculus.permission.HAND_TRACKING"
 
 [[package.metadata.android.application.activity.intent_filter]]
 actions = ["android.intent.action.MAIN"]
 categories = [
     "com.oculus.intent.category.VR",
     "android.intent.category.LAUNCHER",
+    "org.khronos.openxr.intent.category.IMMERSIVE_HMD",
 ]
 
 # !! IMPORTANT !!

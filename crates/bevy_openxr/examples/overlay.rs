@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 use bevy_openxr::{add_xr_plugins, init::OxrInitPlugin, types::OxrExtensions};
-use bevy_xr::session::{XrSharedStatus, XrStatus};
+use bevy_xr::session::XrStatus;
 use openxr::EnvironmentBlendMode;
 use wgpu::TextureFormat;
 
@@ -42,29 +42,21 @@ fn main() {
 fn handle_input(
     keys: Res<ButtonInput<KeyCode>>,
     mut end: EventWriter<bevy_xr::session::EndXrSession>,
-    mut destroy: EventWriter<bevy_xr::session::DestroyXrSession>,
-    mut begin: EventWriter<bevy_xr::session::BeginXrSession>,
+    mut _destroy: EventWriter<bevy_xr::session::DestroyXrSession>,
+    mut _begin: EventWriter<bevy_xr::session::BeginXrSession>,
     mut create: EventWriter<bevy_xr::session::CreateXrSession>,
-    state: Res<XrSharedStatus>,
+    state: Res<XrStatus>,
 ) {
     if keys.just_pressed(KeyCode::KeyE) {
         info!("sending end");
         end.send_default();
-    }
-    if keys.just_pressed(KeyCode::KeyD) {
-        info!("sending destroy");
-        destroy.send_default();
-    }
-    if keys.just_pressed(KeyCode::KeyB) {
-        info!("sending begin");
-        begin.send_default();
     }
     if keys.just_pressed(KeyCode::KeyC) {
         info!("sending create");
         create.send_default();
     }
     if keys.just_pressed(KeyCode::KeyI) {
-        info!("current state: {:?}", state.get());
+        info!("current state: {:?}", *state);
     }
 }
 

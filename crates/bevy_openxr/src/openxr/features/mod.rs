@@ -1,4 +1,4 @@
-#[cfg(feature = "passthrough")]
-pub mod passthrough;
 pub mod handtracking;
 pub mod overlay;
+#[cfg(feature = "passthrough")]
+pub mod passthrough;

@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 use bevy_openxr::add_xr_plugins;
-use bevy_xr::session::{XrSharedStatus, XrStatus};
+use bevy_xr::session::XrStatus;
 
 fn main() {
     App::new()
@@ -10,35 +10,28 @@ fn main() {
         .add_plugins(bevy_xr_utils::hand_gizmos::HandGizmosPlugin)
         .add_systems(Startup, setup)
         .add_systems(Update, handle_input)
+        .insert_resource(AmbientLight::default())
         .run();
 }
 
 fn handle_input(
     keys: Res<ButtonInput<KeyCode>>,
     mut end: EventWriter<bevy_xr::session::EndXrSession>,
-    mut destroy: EventWriter<bevy_xr::session::DestroyXrSession>,
-    mut begin: EventWriter<bevy_xr::session::BeginXrSession>,
+    mut _destroy: EventWriter<bevy_xr::session::DestroyXrSession>,
+    mut _begin: EventWriter<bevy_xr::session::BeginXrSession>,
     mut create: EventWriter<bevy_xr::session::CreateXrSession>,
-    state: Res<XrSharedStatus>,
+    state: Res<XrStatus>,
 ) {
     if keys.just_pressed(KeyCode::KeyE) {
         info!("sending end");
         end.send_default();
-    }
-    if keys.just_pressed(KeyCode::KeyD) {
-        info!("sending destroy");
-        destroy.send_default();
-    }
-    if keys.just_pressed(KeyCode::KeyB) {
-        info!("sending begin");
-        begin.send_default();
     }
     if keys.just_pressed(KeyCode::KeyC) {
         info!("sending create");
         create.send_default();
     }
     if keys.just_pressed(KeyCode::KeyI) {
-        info!("current state: {:?}", state.get());
+        info!("current state: {:?}", *state);
     }
 }
 
@@ -60,15 +53,6 @@ fn setup(
         mesh: meshes.add(Cuboid::new(1.0, 1.0, 1.0)),
         material: materials.add(Color::rgb_u8(124, 144, 255)),
         transform: Transform::from_xyz(0.0, 0.5, 0.0),
-        ..default()
-    });
-    // light
-    commands.spawn(PointLightBundle {
-        point_light: PointLight {
-            shadows_enabled: true,
-            ..default()
-        },
-        transform: Transform::from_xyz(4.0, 8.0, 4.0),
         ..default()
     });
     commands.spawn(Camera3dBundle {

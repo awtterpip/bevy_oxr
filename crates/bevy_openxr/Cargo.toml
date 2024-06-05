@@ -12,6 +12,10 @@ passthrough = []
 [dev-dependencies]
 bevy_xr_utils.path = "../bevy_xr_utils"
 
+[target.'cfg(target_os = "android")'.dependencies]
+ndk-context = "0.1"
+jni = "0.20"
+
 # bevy can't be placed behind target or proc macros won't work properly
 [dependencies]
 bevy.workspace = true
@@ -28,6 +32,7 @@ ash = { version = "0.37.3", optional = true }
 
 [target.'cfg(target_family = "unix")'.dependencies]
 openxr = { version = "0.18.0", features = ["mint"] }
+wgpu = { version = "0.19.3", features = ["vulkan-portability"] }
 
 [target.'cfg(target_family = "windows")'.dependencies]
 openxr = { version = "0.18.0", features = ["mint", "static"] }

@@ -21,7 +21,12 @@ fn main() {
             synchronous_pipeline_compilation: default(),
         }))
         .add_plugins(bevy_xr_utils::hand_gizmos::HandGizmosPlugin)
+        .insert_resource(Msaa::Off)
         .add_systems(Startup, setup)
+        .insert_resource(AmbientLight {
+            color: Default::default(),
+            brightness: 500.0,
+        })
         .insert_resource(ClearColor(Color::NONE))
         .run();
 }
@@ -32,27 +37,22 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    let mut white: StandardMaterial = Color::WHITE.into();
+    white.unlit = true;
     // circular base
     commands.spawn(PbrBundle {
         mesh: meshes.add(Circle::new(4.0)),
-        material: materials.add(Color::WHITE),
+        material: materials.add(white),
         transform: Transform::from_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
         ..default()
     });
+    let mut cube_mat: StandardMaterial = Color::rgb_u8(124, 144, 255).into();
+    cube_mat.unlit = true;
     // cube
     commands.spawn(PbrBundle {
         mesh: meshes.add(Cuboid::new(1.0, 1.0, 1.0)),
-        material: materials.add(Color::rgb_u8(124, 144, 255)),
+        material: materials.add(cube_mat),
         transform: Transform::from_xyz(0.0, 0.5, 0.0),
-        ..default()
-    });
-    // light
-    commands.spawn(PointLightBundle {
-        point_light: PointLight {
-            shadows_enabled: true,
-            ..default()
-        },
-        transform: Transform::from_xyz(4.0, 8.0, 4.0),
         ..default()
     });
 }

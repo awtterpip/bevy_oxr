@@ -1,14 +1,16 @@
 use bevy::prelude::*;
+use bevy_xr::hands::{LeftHand, RightHand};
 use bevy_xr::{
     hands::{HandBone, HandBoneRadius},
     session::{session_running, XrSessionCreated, XrSessionExiting},
 };
 use openxr::SpaceLocationFlags;
 
+use crate::resources::Pipelined;
 use crate::{
     init::OxrTrackingRoot,
     reference_space::{OxrPrimaryReferenceSpace, OxrReferenceSpace},
-    resources::OxrTime,
+    resources::OxrFrameState,
     session::OxrSession,
 };
 
@@ -38,7 +40,7 @@ fn spawn_default_hands(
     session: Res<OxrSession>,
     root: Query<Entity, With<OxrTrackingRoot>>,
 ) {
-    info!("spawning hands");
+    debug!("spawning default hands");
     let Ok(root) = root.get_single() else {
         error!("unable to get tracking root, skipping hand creation");
         return;
@@ -69,11 +71,24 @@ fn spawn_default_hands(
     let mut right_bones = [Entity::PLACEHOLDER; 26];
     for bone in HandBone::get_all_bones() {
         let bone_left = cmds
-            .spawn((SpatialBundle::default(), bone, HandBoneRadius(0.0)))
+            .spawn((
+                DefaultHandBone,
+                SpatialBundle::default(),
+                bone,
+                HandBoneRadius(0.0),
+                LeftHand,
+            ))
             .id();
         let bone_right = cmds
-            .spawn((SpatialBundle::default(), bone, HandBoneRadius(0.0)))
+            .spawn((
+                DefaultHandBone,
+                SpatialBundle::default(),
+                bone,
+                HandBoneRadius(0.0),
+                RightHand,
+            ))
             .id();
+        cmds.entity(root).push_children(&[bone_left]);
         cmds.entity(root).push_children(&[bone_right]);
         left_bones[bone as usize] = bone_left;
         right_bones[bone as usize] = bone_right;
@@ -82,26 +97,28 @@ fn spawn_default_hands(
         DefaultHandTracker,
         OxrHandTracker(tracker_left),
         OxrHandBoneEntities(left_bones),
+        LeftHand,
     ));
     cmds.spawn((
         DefaultHandTracker,
         OxrHandTracker(tracker_right),
         OxrHandBoneEntities(right_bones),
+        RightHand,
     ));
 }
 
 #[derive(Component)]
 struct DefaultHandTracker;
 #[derive(Component)]
-struct DefaultHandBones;
+struct DefaultHandBone;
 
 #[allow(clippy::type_complexity)]
 fn clean_up_default_hands(
     mut cmds: Commands,
-    query: Query<Entity, Or<(With<DefaultHandTracker>, With<DefaultHandBones>)>>,
+    query: Query<Entity, Or<(With<DefaultHandTracker>, With<DefaultHandBone>)>>,
 ) {
     for e in &query {
-        info!("removing_hand_entity");
+        debug!("removing default hand entity");
         cmds.entity(e).despawn_recursive();
     }
 }
@@ -114,18 +131,29 @@ pub struct OxrHandTracker(pub openxr::HandTracker);
 
 fn locate_hands(
     default_ref_space: Res<OxrPrimaryReferenceSpace>,
-    time: Res<OxrTime>,
+    frame_state: Res<OxrFrameState>,
     tracker_query: Query<(
         &OxrHandTracker,
         Option<&OxrReferenceSpace>,
         &OxrHandBoneEntities,
     )>,
     mut bone_query: Query<(&HandBone, &mut HandBoneRadius, &mut Transform)>,
+    pipelined: Option<Res<Pipelined>>,
 ) {
     for (tracker, ref_space, hand_entities) in &tracker_query {
         let ref_space = ref_space.map(|v| &v.0).unwrap_or(&default_ref_space.0);
         // relate_hand_joints also provides velocities
-        let joints = match ref_space.locate_hand_joints(tracker, **time) {
+        let joints = match ref_space.locate_hand_joints(
+            tracker,
+            if pipelined.is_some() {
+                openxr::Time::from_nanos(
+                    frame_state.predicted_display_time.as_nanos()
+                        + frame_state.predicted_display_period.as_nanos(),
+                )
+            } else {
+                frame_state.predicted_display_time
+            },
+        ) {
             Ok(Some(v)) => v,
             Ok(None) => continue,
             Err(openxr::sys::Result::ERROR_EXTENSION_NOT_PRESENT) => {

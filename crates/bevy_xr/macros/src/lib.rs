@@ -1,11 +1,11 @@
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::quote;
+use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::{Comma, Eq};
 use syn::{parse_macro_input, parse_quote, AttrStyle, DeriveInput, Expr, Type};
-use syn::parse::{Parse, ParseStream};
 
 mod kw {
     syn::custom_keyword!(action_type);
@@ -36,7 +36,6 @@ impl Parse for AttributeInput {
     }
 }
 
-
 #[proc_macro_derive(Action, attributes(action))]
 pub fn derive_action(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -44,9 +43,17 @@ pub fn derive_action(input: TokenStream) -> TokenStream {
     let mut attributes = vec![];
     for attribute in input.attrs {
         if let AttrStyle::Inner(token) = attribute.style {
-            return TokenStream::from(syn::Error::new(token.span, "This derive macro does not accept inner attributes").to_compile_error());
+            return TokenStream::from(
+                syn::Error::new(
+                    token.span,
+                    "This derive macro does not accept inner attributes",
+                )
+                .to_compile_error(),
+            );
         };
-        let parsed_attributes = match attribute.parse_args_with(Punctuated::<AttributeInput, Comma>::parse_terminated) {
+        let parsed_attributes = match attribute
+            .parse_args_with(Punctuated::<AttributeInput, Comma>::parse_terminated)
+        {
             Ok(inner) => inner,
             Err(e) => return TokenStream::from(e.to_compile_error()),
         };
@@ -61,27 +68,39 @@ pub fn derive_action(input: TokenStream) -> TokenStream {
         match attribute {
             AttributeInput::Kind(ty, span) => {
                 if kind.is_some() {
-                    return syn::Error::new(span, "attribute 'action_type' is defined more than once").to_compile_error().into();
+                    return syn::Error::new(
+                        span,
+                        "attribute 'action_type' is defined more than once",
+                    )
+                    .to_compile_error()
+                    .into();
                 }
 
                 kind = Some(ty);
-            },
+            }
             AttributeInput::Name(expr, span) => {
                 if name.is_some() {
-                    return syn::Error::new(span, "attribute 'name' is defined more than once").to_compile_error().into();
+                    return syn::Error::new(span, "attribute 'name' is defined more than once")
+                        .to_compile_error()
+                        .into();
                 }
 
                 name = Some(expr);
-            },
+            }
             AttributeInput::PrettyName(expr, span) => {
                 if pretty_name.is_some() {
-                    return syn::Error::new(span, "attribute 'pretty_name' is defined more than once").to_compile_error().into();
+                    return syn::Error::new(
+                        span,
+                        "attribute 'pretty_name' is defined more than once",
+                    )
+                    .to_compile_error()
+                    .into();
                 }
 
                 pretty_name = Some(expr);
-            },
+            }
         }
-    };
+    }
 
     if kind.is_none() {
         panic!("action_type isn't specified")

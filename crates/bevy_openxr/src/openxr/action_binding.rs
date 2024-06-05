@@ -7,7 +7,7 @@ use bevy::prelude::*;
 use bevy::utils::HashMap;
 use openxr::sys::ActionSuggestedBinding;
 
-use crate::{init::OxrPreUpdateSet, resources::OxrInstance, session::OxrSessionStatusEvent};
+use crate::{resources::OxrInstance, session::OxrSessionStatusEvent};
 
 impl Plugin for OxrActionBindingPlugin {
     fn build(&self, app: &mut App) {
@@ -15,13 +15,13 @@ impl Plugin for OxrActionBindingPlugin {
         app.add_event::<OxrSuggestActionBinding>();
         app.add_systems(
             PostUpdate,
-            run_action_binding_sugestion
-                .run_if(|mut session_state: EventReader<OxrSessionStatusEvent>| {
+            run_action_binding_sugestion.run_if(
+                |mut session_state: EventReader<OxrSessionStatusEvent>| {
                     session_state
                         .read()
                         .any(|s| *s == OxrSessionStatusEvent::Created)
-                })
-                .after(OxrPreUpdateSet::HandleEvents),
+                },
+            ),
         );
     }
 }
