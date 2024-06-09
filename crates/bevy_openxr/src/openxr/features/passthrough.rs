@@ -7,7 +7,6 @@ use openxr::PassthroughCapabilityFlagsFB;
 
 use crate::layer_builder::PassthroughLayer;
 use crate::resources::*;
-use crate::session::OxrSession;
 use crate::types::*;
 
 pub struct OxrPassthroughPlugin;

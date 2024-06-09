@@ -1,23 +1,24 @@
 use bevy::prelude::*;
 use bevy_xr::hands::{LeftHand, RightHand};
+use bevy_xr::session::{XrCreateSession, XrDestroySession, XrTrackingRoot};
 use bevy_xr::{
     hands::{HandBone, HandBoneRadius},
-    session::{session_running, XrSessionCreated, XrSessionExiting},
+    session::session_running,
 };
 use openxr::SpaceLocationFlags;
 
+use crate::init::create_xr_session;
 use crate::resources::Pipelined;
 use crate::{
-    init::OxrTrackingRoot,
     reference_space::{OxrPrimaryReferenceSpace, OxrReferenceSpace},
-    resources::OxrFrameState,
-    session::OxrSession,
+    resources::{OxrFrameState, OxrSession},
 };
 
-pub struct HandTrackingPlugin {
-    default_hands: bool,
+pub struct OxrHandTrackingPlugin {
+    pub default_hands: bool,
 }
-impl Default for HandTrackingPlugin {
+
+impl Default for OxrHandTrackingPlugin {
     fn default() -> Self {
         Self {
             default_hands: true,
@@ -25,22 +26,27 @@ impl Default for HandTrackingPlugin {
     }
 }
 
-impl Plugin for HandTrackingPlugin {
+impl Plugin for OxrHandTrackingPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(PreUpdate, locate_hands.run_if(session_running));
         if self.default_hands {
-            app.add_systems(XrSessionExiting, clean_up_default_hands);
-            app.add_systems(XrSessionCreated, spawn_default_hands);
+            app.add_systems(XrDestroySession, clean_up_default_hands)
+                .add_systems(
+                    XrCreateSession,
+                    (spawn_default_hands, apply_deferred)
+                        .chain()
+                        .after(create_xr_session),
+                );
         }
     }
 }
 
-fn spawn_default_hands(
+pub fn spawn_default_hands(
     mut cmds: Commands,
     session: Res<OxrSession>,
-    root: Query<Entity, With<OxrTrackingRoot>>,
+    root: Query<Entity, With<XrTrackingRoot>>,
 ) {
-    debug!("spawning default hands");
+    info!("spawning hands");
     let Ok(root) = root.get_single() else {
         error!("unable to get tracking root, skipping hand creation");
         return;
@@ -72,7 +78,6 @@ fn spawn_default_hands(
     for bone in HandBone::get_all_bones() {
         let bone_left = cmds
             .spawn((
-                DefaultHandBone,
                 SpatialBundle::default(),
                 bone,
                 HandBoneRadius(0.0),
@@ -81,7 +86,6 @@ fn spawn_default_hands(
             .id();
         let bone_right = cmds
             .spawn((
-                DefaultHandBone,
                 SpatialBundle::default(),
                 bone,
                 HandBoneRadius(0.0),
@@ -108,18 +112,17 @@ fn spawn_default_hands(
 }
 
 #[derive(Component)]
-struct DefaultHandTracker;
+pub struct DefaultHandTracker;
 #[derive(Component)]
-struct DefaultHandBone;
+pub struct DefaultHandBones;
 
 #[allow(clippy::type_complexity)]
-fn clean_up_default_hands(
+pub fn clean_up_default_hands(
     mut cmds: Commands,
-    query: Query<Entity, Or<(With<DefaultHandTracker>, With<DefaultHandBone>)>>,
+    query: Query<Entity, Or<(With<DefaultHandTracker>, With<DefaultHandBones>)>>,
 ) {
     for e in &query {
-        debug!("removing default hand entity");
-        cmds.entity(e).despawn_recursive();
+        cmds.entity(e).despawn();
     }
 }
 

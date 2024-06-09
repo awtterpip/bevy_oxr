@@ -1,8 +1,7 @@
 // a simple example showing basic actions using the xr utils actions
 use bevy::{math::vec3, prelude::*};
-use bevy_openxr::{
-    add_xr_plugins, helper_traits::ToQuat, init::OxrTrackingRoot, resources::OxrViews,
-};
+use bevy_openxr::{add_xr_plugins, helper_traits::ToQuat, resources::OxrViews};
+use bevy_xr::session::XrTrackingRoot;
 use bevy_xr_utils::xr_utils_actions::{
     ActiveSet, XRUtilsAction, XRUtilsActionSet, XRUtilsActionState, XRUtilsActionSystemSet,
     XRUtilsActionsPlugin, XRUtilsBinding,
@@ -114,7 +113,7 @@ fn read_action_with_marker_component(
 //lets add some flycam stuff
 fn handle_flight_input(
     action_query: Query<&XRUtilsActionState, With<FlightActionMarker>>,
-    mut oxr_root: Query<&mut Transform, With<OxrTrackingRoot>>,
+    mut oxr_root: Query<&mut Transform, With<XrTrackingRoot>>,
     time: Res<Time>,
     //use the views for hmd orientation
     views: ResMut<OxrViews>,

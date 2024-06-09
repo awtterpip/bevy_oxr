@@ -55,8 +55,9 @@
 //!
 use bevy::prelude::*;
 use bevy_openxr::{
-    action_binding::OxrSuggestActionBinding, action_set_attaching::OxrAttachActionSet,
-    resources::OxrInstance, session::OxrSession,
+    action_binding::OxrSuggestActionBinding,
+    action_set_attaching::OxrAttachActionSet,
+    resources::{OxrInstance, OxrSession},
 };
 use openxr::{ActiveActionSet, Path, Vector2f};
 use std::borrow::Cow;

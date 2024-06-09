@@ -1,4 +1,4 @@
-use crate::session::{OxrSession, OxrSessionStatusEvent};
+use crate::resources::OxrSession;
 use bevy::prelude::*;
 use bevy_xr::session::status_changed_to;
 
@@ -7,11 +7,7 @@ impl Plugin for OxrActionAttachingPlugin {
         app.add_event::<OxrAttachActionSet>();
         app.add_systems(
             PostUpdate,
-            attach_sets.run_if(|mut session_status_event: EventReader<OxrSessionStatusEvent>| {
-                session_status_event
-                    .read()
-                    .any(|s| *s == OxrSessionStatusEvent::Created)
-            }),
+            attach_sets.run_if(status_changed_to(bevy_xr::session::XrState::Ready)),
         );
     }
 }

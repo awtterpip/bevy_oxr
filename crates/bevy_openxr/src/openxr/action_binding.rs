@@ -5,23 +5,19 @@ use bevy::ecs::schedule::ScheduleLabel;
 use bevy::ecs::system::RunSystemOnce;
 use bevy::prelude::*;
 use bevy::utils::HashMap;
+use bevy_xr::session::{status_changed_to, XrState};
 use openxr::sys::ActionSuggestedBinding;
 
-use crate::{resources::OxrInstance, session::OxrSessionStatusEvent};
+use crate::resources::OxrInstance;
 
 impl Plugin for OxrActionBindingPlugin {
     fn build(&self, app: &mut App) {
         app.add_schedule(Schedule::new(OxrSendActionBindings));
         app.add_event::<OxrSuggestActionBinding>();
         app.add_systems(
-            PostUpdate,
-            run_action_binding_sugestion.run_if(
-                |mut session_state: EventReader<OxrSessionStatusEvent>| {
-                    session_state
-                        .read()
-                        .any(|s| *s == OxrSessionStatusEvent::Created)
-                },
-            ),
+            Update,
+            run_action_binding_sugestion
+                .run_if(status_changed_to(XrState::Ready).and_then(run_once())),
         );
     }
 }

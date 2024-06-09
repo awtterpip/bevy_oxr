@@ -9,6 +9,7 @@ impl Plugin for HandGizmosPlugin {
         );
     }
 }
+
 fn draw_hand_gizmos(
     mut gizmos: Gizmos,
     query: Query<(&GlobalTransform, &HandBone, &HandBoneRadius)>,
