@@ -3,14 +3,14 @@ use bevy::prelude::*;
 use bevy_xr::session::session_running;
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone, Copy)]
-pub struct ActionSetSyncSet;
+pub struct OxrActionSetSyncSet;
 
 impl Plugin for OxrActionSyncingPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<OxrSyncActionSet>();
         app.add_systems(
             PreUpdate,
-            sync_sets.in_set(ActionSetSyncSet).run_if(session_running), // .in_set(OxrPreUpdateSet::SyncActions),
+            sync_sets.in_set(OxrActionSetSyncSet).run_if(session_running), // .in_set(OxrPreUpdateSet::SyncActions),
         );
     }
 }
