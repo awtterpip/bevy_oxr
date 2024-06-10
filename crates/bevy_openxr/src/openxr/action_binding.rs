@@ -28,7 +28,7 @@ impl Plugin for OxrActionBindingPlugin {
 
 // This could for now be handled better with a SystemSet, but in the future we might want to add an
 // Event to allow requesting binding suggestion for new actions
-fn run_action_binding_sugestion(world: &mut World) {
+pub(crate) fn run_action_binding_sugestion(world: &mut World) {
     world.run_schedule(OxrSendActionBindings);
     world.run_system_once(bind_actions);
 }
