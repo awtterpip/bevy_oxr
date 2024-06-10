@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use bevy::prelude::*;
 use bevy::render::extract_resource::ExtractResource;
 use openxr::AnyGraphics;
@@ -365,15 +363,14 @@ impl OxrSwapchain {
                         images.push(Api::to_wgpu_img(image, device, format, resolution)?);
                     }
                 }
-                Ok(OxrSwapchainImages(images.into()))
+                Ok(OxrSwapchainImages(images.leak()))
             }
         )
     }
 }
 
-/// Stores the generated swapchain images.
-#[derive(Debug, Deref, Resource, ExtractResource, Clone)]
-pub struct OxrSwapchainImages(pub Arc<Vec<wgpu::Texture>>);
+#[derive(Debug, Deref, Resource, Clone, Copy, ExtractResource)]
+pub struct OxrSwapchainImages(pub &'static [wgpu::Texture]);
 
 /// Thread safe wrapper around [openxr::Space] representing the stage.
 // #[derive(Deref, Clone, Resource)]

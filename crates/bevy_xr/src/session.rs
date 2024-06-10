@@ -103,13 +103,15 @@ impl Plugin for XrSessionPlugin {
                     run_xr_create_session
                         .run_if(state_equals(XrState::Available))
                         .run_if(on_event::<XrCreateSessionEvent>()),
-                    run_xr_destroy_session.run_if(state_matches!(XrState::Exiting { .. })),
-                    // .run_if(on_event::<XrDestroySessionEvent>()),
+                    run_xr_destroy_session
+                        .run_if(state_matches!(XrState::Exiting { .. }))
+                        .run_if(on_event::<XrDestroySessionEvent>()),
                     run_xr_begin_session
                         .run_if(state_equals(XrState::Ready))
                         .run_if(on_event::<XrBeginSessionEvent>()),
-                    run_xr_end_session.run_if(state_equals(XrState::Stopping)),
-                    // .run_if(on_event::<XrEndSessionEvent>()),
+                    run_xr_end_session
+                        .run_if(state_equals(XrState::Stopping))
+                        .run_if(on_event::<XrEndSessionEvent>()),
                     run_request_exit
                         .run_if(session_created)
                         .run_if(on_event::<XrRequestExitEvent>()),
