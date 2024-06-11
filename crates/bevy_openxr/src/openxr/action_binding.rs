@@ -14,7 +14,7 @@ impl Plugin for OxrActionBindingPlugin {
         app.add_schedule(Schedule::new(OxrSendActionBindings));
         app.add_event::<OxrSuggestActionBinding>();
         app.add_systems(
-            PostUpdate,
+            Update,
             run_action_binding_sugestion.run_if(
                 |mut session_state: EventReader<OxrSessionStatusEvent>| {
                     session_state

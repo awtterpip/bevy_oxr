@@ -68,22 +68,28 @@ impl Plugin for XRUtilsActionsPlugin {
             Startup,
             create_openxr_events.in_set(XRUtilsActionSystemSet::CreateEvents),
         );
-        app.add_systems(Update, sync_active_action_sets);
+        app.add_systems(
+            Update,
+            sync_active_action_sets.run_if(resource_exists::<OxrSession>),
+        );
         app.add_systems(
             Update,
             sync_and_update_action_states_f32
+                .run_if(resource_exists::<OxrSession>)
                 .in_set(XRUtilsActionSystemSet::SyncActionStates)
                 .after(sync_active_action_sets),
         );
         app.add_systems(
             Update,
             sync_and_update_action_states_bool
+                .run_if(resource_exists::<OxrSession>)
                 .in_set(XRUtilsActionSystemSet::SyncActionStates)
                 .after(sync_active_action_sets),
         );
         app.add_systems(
             Update,
             sync_and_update_action_states_vector
+                .run_if(resource_exists::<OxrSession>)
                 .in_set(XRUtilsActionSystemSet::SyncActionStates)
                 .after(sync_active_action_sets),
         );
@@ -248,7 +254,7 @@ fn sync_active_action_sets(
         .collect::<Vec<_>>();
     let sync = session.sync_actions(&active_sets[..]);
     match sync {
-        Ok(_) => info!("sync ok"),
+        Ok(_) => (),
         Err(_) => error!("sync error"),
     }
 }
@@ -262,7 +268,6 @@ fn sync_and_update_action_states_f32(
         let state = reference.action.state(&session, Path::NULL);
         match state {
             Ok(s) => {
-                info!("we found a state");
                 let new_state = XRUtilsActionState::Float(ActionStateFloat {
                     current_state: s.current_state,
                     changed_since_last_sync: s.changed_since_last_sync,
@@ -288,7 +293,6 @@ fn sync_and_update_action_states_bool(
         let state = reference.action.state(&session, Path::NULL);
         match state {
             Ok(s) => {
-                info!("we found a state");
                 let new_state = XRUtilsActionState::Bool(ActionStateBool {
                     current_state: s.current_state,
                     changed_since_last_sync: s.changed_since_last_sync,
@@ -314,7 +318,6 @@ fn sync_and_update_action_states_vector(
         let state = reference.action.state(&session, Path::NULL);
         match state {
             Ok(s) => {
-                info!("we found a state");
                 let new_state = XRUtilsActionState::Vector(ActionStateVector {
                     current_state: [s.current_state.x, s.current_state.y],
                     changed_since_last_sync: s.changed_since_last_sync,

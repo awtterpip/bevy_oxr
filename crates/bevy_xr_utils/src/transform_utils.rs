@@ -1,5 +1,10 @@
+
 use bevy::prelude::*;
-use bevy_openxr::{helper_traits::{ToQuat, ToVec3}, init::OxrTrackingRoot, resources::OxrViews};
+use bevy_openxr::{
+    helper_traits::{ToQuat, ToVec3},
+    init::OxrTrackingRoot,
+    resources::OxrViews,
+};
 
 pub struct TransformUtilitiesPlugin;
 
@@ -27,30 +32,37 @@ pub fn handle_transform_events(
     let result = root_query.get_single_mut();
     match result {
         Ok(mut root_transform) => {
-            //rotation first
             let view = views.first();
             match view {
                 Some(view) => {
-                    //get our parameters together
+                    //we want the view translation with a height of zero for a few calculations
                     let mut view_translation = view.pose.position.to_vec3();
-                    let view_quat = view.pose.orientation.to_quat();
-                    let view_yaw = view_quat.to_euler(EulerRot::XYZ).1;
-                    let science = Quat::from_axis_angle(*root_transform.up(), view_yaw);
-                    let invert_science = science.inverse();
-                    view_translation.y = 0.0; //we want to do rotations around the same height as the root
-                    let root_local = root_transform.translation;
-                    let view_global = root_transform.rotation.mul_vec3(view_translation) + root_local;
-                    //now set our rotation for every event, this does mean only the last event matters
-                    for snap in rotation_reader.read() {
-                        let rotation_quaternion = snap.0.mul_quat(invert_science);
-                        root_transform.rotate_around(view_global, rotation_quaternion);
-                    }
-                    //position second
-                    for position in position_reader.read() {
-                        root_transform.translation = position.0;
-                    }
+                    view_translation.y = 0.0;
                     
-                },
+                    //position
+                    for position in position_reader.read() {
+                        root_transform.translation = position.0 - root_transform.rotation.mul_vec3(view_translation);
+                    }
+
+                    //rotation
+                    let root_local = root_transform.translation.clone();
+                    let hmd_global = root_transform.rotation.mul_vec3(view_translation) + root_local;
+                    let view_rot = view.pose.orientation.to_quat();
+                    let root_rot = root_transform.rotation;
+                    let view_global_rotation = root_rot.mul_quat(view_rot).normalize();
+                    let (global_view_yaw, _pitch, _roll) = view_global_rotation.to_euler(bevy::math::EulerRot::YXZ);
+                    let up = Vec3::Y;
+                    for rotation in rotation_reader.read() {
+                        let (target_yaw, _pitch, _roll) =
+                            rotation.0.normalize().to_euler(bevy::math::EulerRot::YXZ);
+                        let diff_yaw = target_yaw - global_view_yaw;
+
+                        //build a rotation quat?
+                        let rotation_quat = Quat::from_axis_angle(up, diff_yaw);
+                        //apply rotation this works
+                        root_transform.rotate_around(hmd_global, rotation_quat);
+                    }
+                }
                 None => debug!("error getting first view"),
             }
         }
