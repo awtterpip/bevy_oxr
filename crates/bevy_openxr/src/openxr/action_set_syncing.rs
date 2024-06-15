@@ -2,12 +2,17 @@ use crate::session::OxrSession;
 use bevy::prelude::*;
 use bevy_xr::session::session_running;
 
+/// This is run in PreUpdate
+#[derive(SystemSet, PartialEq, Eq, Clone, Copy, Hash, Debug)]
+pub struct OxrActionSetSyncSet;
 impl Plugin for OxrActionSyncingPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<OxrSyncActionSet>();
         app.add_systems(
             PreUpdate,
-            sync_sets.run_if(session_running), // .in_set(OxrPreUpdateSet::SyncActions),
+            sync_sets
+                .run_if(session_running)
+                .in_set(OxrActionSetSyncSet), // .in_set(OxrPreUpdateSet::SyncActions),
         );
     }
 }

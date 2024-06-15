@@ -1,4 +1,4 @@
-use crate::session::{OxrSession, OxrSessionStatusEvent};
+use crate::{action_binding::run_action_binding_sugestion, session::{OxrSession, OxrSessionStatusEvent}};
 use bevy::prelude::*;
 use bevy_xr::session::status_changed_to;
 
@@ -11,7 +11,7 @@ impl Plugin for OxrActionAttachingPlugin {
                 session_status_event
                     .read()
                     .any(|s| *s == OxrSessionStatusEvent::Created)
-            }),
+            }).after(run_action_binding_sugestion),
         );
     }
 }

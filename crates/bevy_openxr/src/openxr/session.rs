@@ -3,11 +3,14 @@ use crate::resources::{
     OxrCleanupSession, OxrPassthrough, OxrPassthroughLayer, OxrSessionStarted, OxrSwapchain,
 };
 use crate::types::{Result, SwapchainCreateInfo};
+use bevy::app::AppExit;
 use bevy::ecs::event::ManualEventReader;
 use bevy::ecs::system::RunSystemOnce;
 use bevy::prelude::*;
 use bevy::render::RenderApp;
-use bevy_xr::session::{status_changed_to, XrSessionCreated, XrSessionExiting, XrStatus};
+use bevy_xr::session::{
+    session_running, status_changed_to, XrSessionCreated, XrSessionExiting, XrStatus,
+};
 use openxr::AnyGraphics;
 
 use crate::graphics::{graphics_match, GraphicsExt, GraphicsType, GraphicsWrap};
@@ -24,6 +27,12 @@ impl Plugin for OxrSessionPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<OxrSessionStatusEvent>();
         app.add_systems(OxrLast, run_session_status_schedules.after(OxrHandleEvents));
+        app.add_systems(
+            OxrLast,
+            exits_session_on_app_exit
+                .before(OxrHandleEvents)
+                .run_if(on_event::<AppExit>().and_then(session_running)),
+        );
         app.add_systems(XrSessionExiting, clean_session);
         app.sub_app_mut(RenderApp)
             .add_systems(XrSessionExiting, |mut cmds: Commands| {
@@ -34,6 +43,9 @@ impl Plugin for OxrSessionPlugin {
             handle_stopping_state.run_if(status_changed_to(XrStatus::Stopping)),
         );
     }
+}
+fn exits_session_on_app_exit(session: Res<OxrSession>) {
+    session.request_exit().unwrap()
 }
 
 fn handle_stopping_state(session: Res<OxrSession>, mut session_started: ResMut<OxrSessionStarted>) {
