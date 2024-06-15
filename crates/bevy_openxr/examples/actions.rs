@@ -18,14 +18,8 @@ fn main() {
             create_action_entities.before(XRUtilsActionSystemSet::CreateEvents),
         )
         .add_plugins(XRUtilsActionsPlugin)
-        .add_systems(
-            Update,
-            read_action_with_marker_component.after(XRUtilsActionSystemSet::SyncActionStates),
-        )
-        .add_systems(
-            Update,
-            handle_flight_input.after(XRUtilsActionSystemSet::SyncActionStates),
-        )
+        .add_systems(Update, read_action_with_marker_component)
+        .add_systems(Update, handle_flight_input)
         // Realtime lighting is expensive, use ambient light instead
         .insert_resource(AmbientLight {
             color: Default::default(),
@@ -89,16 +83,22 @@ fn create_action_entities(mut commands: Commands) {
         .id();
 
     //create a binding
-    let binding = commands
+    let binding_index = commands
         .spawn(XRUtilsBinding {
             profile: "/interaction_profiles/valve/index_controller".into(),
             binding: "/user/hand/right/input/thumbstick".into(),
         })
         .id();
-
+    let binding_touch = commands
+        .spawn(XRUtilsBinding {
+            profile: "/interaction_profiles/oculus/touch_controller".into(),
+            binding: "/user/hand/right/input/thumbstick".into(),
+        })
+        .id();
     //add action to set, this isnt the best
     //TODO look into a better system
-    commands.entity(action).add_child(binding);
+    commands.entity(action).add_child(binding_index);
+    commands.entity(action).add_child(binding_touch);
     commands.entity(set).add_child(action);
 }
 

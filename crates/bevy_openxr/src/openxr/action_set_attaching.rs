@@ -1,4 +1,7 @@
-use crate::{action_binding::run_action_binding_sugestion, session::{OxrSession, OxrSessionStatusEvent}};
+use crate::{
+    action_binding::run_action_binding_sugestion,
+    session::{OxrSession, OxrSessionStatusEvent},
+};
 use bevy::prelude::*;
 
 impl Plugin for OxrActionAttachingPlugin {

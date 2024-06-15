@@ -1,11 +1,12 @@
 use std::mem;
 
 use bevy::ecs::world::World;
-use openxr::{sys, CompositionLayerFlags, Fovf, Posef, Rect2Di, Space};
+use bevy_xr::spaces::{XrPrimaryReferenceSpace, XrSpace};
+use openxr::{sys, CompositionLayerFlags, Fovf, Posef, Rect2Di};
 
 use crate::graphics::graphics_match;
-use crate::reference_space::OxrPrimaryReferenceSpace;
 use crate::resources::*;
+use crate::spaces::OxrSpaceExt as _;
 
 pub trait LayerProvider {
     fn get<'a>(&'a self, world: &'a World) -> Option<Box<dyn CompositionLayer + '_>>;
@@ -17,7 +18,7 @@ pub struct PassthroughLayer;
 
 impl LayerProvider for ProjectionLayer {
     fn get<'a>(&self, world: &'a World) -> Option<Box<dyn CompositionLayer<'a> + 'a>> {
-        let stage = world.get_resource::<OxrPrimaryReferenceSpace>()?;
+        let stage = world.get_resource::<XrPrimaryReferenceSpace>()?;
         let openxr_views = world.get_resource::<OxrViews>()?;
         let swapchain = world.get_resource::<OxrSwapchain>()?;
         let graphics_info = world.get_resource::<OxrGraphicsInfo>()?;
@@ -205,8 +206,8 @@ impl<'a> CompositionLayerProjection<'a> {
         self
     }
     #[inline]
-    pub fn space(mut self, value: &'a Space) -> Self {
-        self.inner.space = value.as_raw();
+    pub fn space(mut self, value: &XrSpace) -> Self {
+        self.inner.space = value.as_raw_openxr_space();
         self
     }
     #[inline]
