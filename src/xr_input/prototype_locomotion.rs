@@ -80,13 +80,11 @@ pub fn proto_locomotion(
     let reference_quat;
     match config.locomotion_type {
         LocomotionType::Head => {
-            let views = views.first();
-            match views {
-                Some(view) => {
-                    reference_quat = view.pose.orientation.to_quat();
-                }
-                None => return,
-            }
+            let Some(view) = views.first() else {
+                info!("locomotion found no head to use for relative movement");
+                return;
+            };
+            reference_quat = view.pose.orientation.to_quat();
         }
         LocomotionType::Hand => {
             let grip = controller.grip_space(Hand::Left);
