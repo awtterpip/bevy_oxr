@@ -78,7 +78,7 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut images: ResMut<Assets<Image>>,
 ) {
-    // plane
+    // globe
     let radius = 5.0;
     commands.spawn((
         PbrBundle {
