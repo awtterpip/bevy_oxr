@@ -66,16 +66,9 @@ pub fn proto_locomotion(
     session: Res<XrSession>,
     views: ResMut<XrViews>,
     mut gizmos: Gizmos,
-    config_option: Option<ResMut<PrototypeLocomotionConfig>>,
+    mut config: ResMut<PrototypeLocomotionConfig>,
     action_sets: Res<XrActionSets>,
 ) {
-    let mut config = match config_option {
-        Some(c) => c,
-        None => {
-            info!("no locomotion config");
-            return;
-        }
-    };
     //get controller
     let controller = oculus_controller.get_ref(&session, &frame_state, &xr_input, &action_sets);
     let root = tracking_root_query.get_single_mut();
