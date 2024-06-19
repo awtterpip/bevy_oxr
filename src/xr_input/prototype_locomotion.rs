@@ -77,20 +77,21 @@ pub fn proto_locomotion(
     //get the stick input and do some maths
     let stick = controller.thumbstick(Hand::Left);
     let input = stick.x * *position.right() + stick.y * *position.forward();
-    let reference_quat;
-    match config.locomotion_type {
+    let reference_quat = match config.locomotion_type {
         LocomotionType::Head => {
             let Some(view) = views.first() else {
                 info!("locomotion found no head to use for relative movement");
                 return;
             };
-            reference_quat = view.pose.orientation.to_quat();
+            view.pose
         }
         LocomotionType::Hand => {
-            let grip = controller.grip_space(Hand::Left);
-            reference_quat = grip.0.pose.orientation.to_quat();
+            let (loc, _vel) = controller.grip_space(Hand::Left);
+            loc.pose
         }
     }
+    .orientation
+    .to_quat();
     let (yaw, _pitch, _roll) = reference_quat.to_euler(EulerRot::YXZ);
     let reference_quat = Quat::from_axis_angle(*position.up(), yaw);
     let locomotion_vec = reference_quat.mul_vec3(input);
