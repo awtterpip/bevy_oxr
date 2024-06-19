@@ -71,97 +71,93 @@ pub fn proto_locomotion(
 ) {
     //get controller
     let controller = oculus_controller.get_ref(&session, &frame_state, &xr_input, &action_sets);
-    let root = tracking_root_query.get_single_mut();
-    match root {
-        Ok(mut position) => {
-            //get the stick input and do some maths
-            let stick = controller.thumbstick(Hand::Left);
-            let input = stick.x * *position.right() + stick.y * *position.forward();
-            let reference_quat;
-            match config.locomotion_type {
-                LocomotionType::Head => {
-                    let views = views.first();
-                    match views {
-                        Some(view) => {
-                            reference_quat = view.pose.orientation.to_quat();
-                        }
-                        None => return,
-                    }
+    let mut position = tracking_root_query
+        .get_single_mut()
+        .expect("too many tracking roots");
+    //get the stick input and do some maths
+    let stick = controller.thumbstick(Hand::Left);
+    let input = stick.x * *position.right() + stick.y * *position.forward();
+    let reference_quat;
+    match config.locomotion_type {
+        LocomotionType::Head => {
+            let views = views.first();
+            match views {
+                Some(view) => {
+                    reference_quat = view.pose.orientation.to_quat();
                 }
-                LocomotionType::Hand => {
-                    let grip = controller.grip_space(Hand::Left);
-                    reference_quat = grip.0.pose.orientation.to_quat();
-                }
-            }
-            let (yaw, _pitch, _roll) = reference_quat.to_euler(EulerRot::YXZ);
-            let reference_quat = Quat::from_axis_angle(*position.up(), yaw);
-            let locomotion_vec = reference_quat.mul_vec3(input);
-            position.translation += locomotion_vec * config.locomotion_speed * time.delta_seconds();
-
-            //now time for rotation
-
-            match config.rotation_type {
-                RotationType::Smooth => {
-                    //once again with the math
-                    let control_stick = controller.thumbstick(Hand::Right);
-                    let rot_input = -control_stick.x; //why is this negative i dont know
-                    if rot_input.abs() <= config.rotation_stick_deadzone {
-                        return;
-                    }
-                    let smoth_rot = Quat::from_axis_angle(
-                        *position.up(),
-                        rot_input * config.smooth_rotation_speed * time.delta_seconds(),
-                    );
-                    //apply rotation
-                    let views = views.first();
-                    match views {
-                        Some(view) => {
-                            let mut hmd_translation = view.pose.position.to_vec3();
-                            hmd_translation.y = 0.0;
-                            let local = position.translation;
-                            let global = position.rotation.mul_vec3(hmd_translation) + local;
-                            gizmos.circle(global, position.up(), 0.1, Color::GREEN);
-                            position.rotate_around(global, smoth_rot);
-                        }
-                        None => return,
-                    }
-                }
-                RotationType::Snap => {
-                    //tick the timer
-                    config.rotation_timer.timer.tick(time.delta());
-                    if config.rotation_timer.timer.finished() {
-                        //now we can snap turn?
-                        //once again with the math
-                        let control_stick = controller.thumbstick(Hand::Right);
-                        let rot_input = -control_stick.x;
-                        if rot_input.abs() <= config.rotation_stick_deadzone {
-                            return;
-                        }
-                        let dir: f32 = match rot_input > 0.0 {
-                            true => 1.0,
-                            false => -1.0,
-                        };
-                        let smoth_rot =
-                            Quat::from_axis_angle(*position.up(), config.snap_angle * dir);
-                        //apply rotation
-                        let v = views;
-                        let views = v.first();
-                        match views {
-                            Some(view) => {
-                                let mut hmd_translation = view.pose.position.to_vec3();
-                                hmd_translation.y = 0.0;
-                                let local = position.translation;
-                                let global = position.rotation.mul_vec3(hmd_translation) + local;
-                                gizmos.circle(global, position.up(), 0.1, Color::GREEN);
-                                position.rotate_around(global, smoth_rot);
-                            }
-                            None => return,
-                        }
-                        config.rotation_timer.timer.reset();
-                    }
-                }
+                None => return,
             }
         }
-        Err(_) => info!("too many tracking roots"),
+        LocomotionType::Hand => {
+            let grip = controller.grip_space(Hand::Left);
+            reference_quat = grip.0.pose.orientation.to_quat();
+        }
+    }
+    let (yaw, _pitch, _roll) = reference_quat.to_euler(EulerRot::YXZ);
+    let reference_quat = Quat::from_axis_angle(*position.up(), yaw);
+    let locomotion_vec = reference_quat.mul_vec3(input);
+    position.translation += locomotion_vec * config.locomotion_speed * time.delta_seconds();
+
+    //now time for rotation
+
+    match config.rotation_type {
+        RotationType::Smooth => {
+            //once again with the math
+            let control_stick = controller.thumbstick(Hand::Right);
+            let rot_input = -control_stick.x; //why is this negative i dont know
+            if rot_input.abs() <= config.rotation_stick_deadzone {
+                return;
+            }
+            let smoth_rot = Quat::from_axis_angle(
+                *position.up(),
+                rot_input * config.smooth_rotation_speed * time.delta_seconds(),
+            );
+            //apply rotation
+            let views = views.first();
+            match views {
+                Some(view) => {
+                    let mut hmd_translation = view.pose.position.to_vec3();
+                    hmd_translation.y = 0.0;
+                    let local = position.translation;
+                    let global = position.rotation.mul_vec3(hmd_translation) + local;
+                    gizmos.circle(global, position.up(), 0.1, Color::GREEN);
+                    position.rotate_around(global, smoth_rot);
+                }
+                None => return,
+            }
+        }
+        RotationType::Snap => {
+            //tick the timer
+            config.rotation_timer.timer.tick(time.delta());
+            if config.rotation_timer.timer.finished() {
+                //now we can snap turn?
+                //once again with the math
+                let control_stick = controller.thumbstick(Hand::Right);
+                let rot_input = -control_stick.x;
+                if rot_input.abs() <= config.rotation_stick_deadzone {
+                    return;
+                }
+                let dir: f32 = match rot_input > 0.0 {
+                    true => 1.0,
+                    false => -1.0,
+                };
+                let smoth_rot = Quat::from_axis_angle(*position.up(), config.snap_angle * dir);
+                //apply rotation
+                let v = views;
+                let views = v.first();
+                match views {
+                    Some(view) => {
+                        let mut hmd_translation = view.pose.position.to_vec3();
+                        hmd_translation.y = 0.0;
+                        let local = position.translation;
+                        let global = position.rotation.mul_vec3(hmd_translation) + local;
+                        gizmos.circle(global, position.up(), 0.1, Color::GREEN);
+                        position.rotate_around(global, smoth_rot);
+                    }
+                    None => return,
+                }
+                config.rotation_timer.timer.reset();
+            }
+        }
     }
 }
