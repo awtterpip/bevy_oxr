@@ -3,9 +3,7 @@ use std::{mem::MaybeUninit, ptr, sync::Mutex};
 use bevy::{prelude::*, utils::hashbrown::HashSet};
 use bevy_xr::{
     session::{session_available, session_running},
-    spaces::{
-        XrDestroySpace, XrPrimaryReferenceSpace, XrReferenceSpace, XrSpace, XrSpatialTransform,
-    },
+    spaces::{XrDestroySpace, XrPrimaryReferenceSpace, XrReferenceSpace, XrSpace, XrSpatialOffset},
     types::XrPose,
 };
 use openxr::{
@@ -38,12 +36,12 @@ fn destroy_space_event(instance: Res<OxrInstance>, mut events: EventReader<XrDes
     }
 }
 
-pub static OXR_DO_NOT_CALL_DESTOY_SPACE_FOR: Mutex<Option<HashSet<u64>>> = Mutex::new(None);
+pub static OXR_DO_NOT_CALL_DESTOY_SPACE_FOR_SPACES: Mutex<Option<HashSet<u64>>> = Mutex::new(None);
 pub static OXR_ORIGINAL_DESTOY_SPACE: Mutex<Option<openxr::sys::pfn::DestroySpace>> =
     Mutex::new(None);
 
 fn patch_destroy_space(instance: ResMut<OxrInstance>) {
-    OXR_DO_NOT_CALL_DESTOY_SPACE_FOR
+    OXR_DO_NOT_CALL_DESTOY_SPACE_FOR_SPACES
         .lock()
         .unwrap()
         .replace(HashSet::new());
@@ -58,7 +56,7 @@ fn patch_destroy_space(instance: ResMut<OxrInstance>) {
     }
 }
 unsafe extern "system" fn patched_destroy_space(space: openxr::sys::Space) -> openxr::sys::Result {
-    if !OXR_DO_NOT_CALL_DESTOY_SPACE_FOR
+    if !OXR_DO_NOT_CALL_DESTOY_SPACE_FOR_SPACES
         .lock()
         .unwrap()
         .as_ref()
@@ -82,14 +80,16 @@ fn update_spatial_transforms(
     frame_state: Res<OxrFrameState>,
     mut query: Query<(
         &mut Transform,
-        &XrSpatialTransform,
+        &XrSpace,
+        Option<&XrSpatialOffset>,
         Option<&XrReferenceSpace>,
     )>,
 ) {
-    for (mut transform, spatial, ref_space) in &mut query {
+    for (mut transform, space, offset, ref_space) in &mut query {
+        let offset = offset.copied().unwrap_or_default();
         let ref_space = ref_space.unwrap_or(&default_ref_space);
         if let Ok(space_location) = session.locate_space(
-            &spatial.space,
+            &space,
             ref_space,
             if pipelined.is_some() {
                 openxr::Time::from_nanos(
@@ -104,16 +104,15 @@ fn update_spatial_transforms(
                 .location_flags
                 .contains(SpaceLocationFlags::POSITION_VALID)
             {
-                transform.translation = spatial
-                    .offset
+                transform.translation = offset
+                    .to_transform()
                     .transform_point(space_location.pose.position.to_vec3())
             }
             if space_location
                 .location_flags
                 .contains(SpaceLocationFlags::ORIENTATION_VALID)
             {
-                transform.rotation =
-                    spatial.offset.rotation * space_location.pose.orientation.to_quat();
+                transform.rotation = offset.rotation * space_location.pose.orientation.to_quat();
             }
         }
     }
@@ -287,7 +286,10 @@ pub fn locate_hand_joints_with_velocities(
         })
     }
 }
-pub fn destroy_space(instance: &openxr::Instance, space: sys::Space) -> openxr::Result<sys::Result> {
+pub fn destroy_space(
+    instance: &openxr::Instance,
+    space: sys::Space,
+) -> openxr::Result<sys::Result> {
     let result = unsafe { (instance.fp().destroy_space)(space) };
     cvt(result)
 }
@@ -418,7 +420,7 @@ unsafe impl OxrSpaceExt for XrSpace {
 
     fn from_raw_openxr_space(space: sys::Space) -> Self {
         let raw = space.into_raw();
-        OXR_DO_NOT_CALL_DESTOY_SPACE_FOR
+        OXR_DO_NOT_CALL_DESTOY_SPACE_FOR_SPACES
             .lock()
             .unwrap()
             .as_mut()

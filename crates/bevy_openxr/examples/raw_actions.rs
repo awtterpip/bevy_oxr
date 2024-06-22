@@ -13,7 +13,7 @@ use bevy_openxr::{
 };
 use bevy_xr::{
     session::{session_available, XrSessionCreated},
-    spaces::{XrSpace, XrSpatialTransform},
+    spaces::XrSpace,
     types::XrPose,
 };
 use openxr::Posef;
@@ -136,7 +136,7 @@ fn spawn_hands(
                 transform: Transform::from_xyz(0.0, 0.5, 0.0),
                 ..default()
             },
-            XrSpatialTransform::from_space(left_space),
+            left_space,
             Controller,
         ))
         .id();
@@ -148,7 +148,7 @@ fn spawn_hands(
                 transform: Transform::from_xyz(0.0, 0.5, 0.0),
                 ..default()
             },
-            XrSpatialTransform::from_space(right_space),
+            right_space,
             Controller,
         ))
         .id();

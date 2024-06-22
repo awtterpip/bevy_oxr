@@ -45,7 +45,7 @@ impl ToTransform for openxr::Posef {
 impl ToXrPose for openxr::Posef {
     fn to_xr_pose(&self) -> XrPose {
         XrPose {
-            position: self.position.to_vec3(),
+            translation: self.position.to_vec3(),
             rotation: self.orientation.to_quat(),
         }
     }
@@ -54,7 +54,7 @@ impl ToPosef for XrPose {
     fn to_posef(&self) -> openxr::Posef {
         openxr::Posef {
             orientation: self.rotation.to_quaternionf(),
-            position: self.position.to_vector3f(),
+            position: self.translation.to_vector3f(),
         }
     }
 }

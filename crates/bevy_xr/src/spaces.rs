@@ -3,21 +3,19 @@ use bevy::{
     render::{extract_component::ExtractComponent, extract_resource::ExtractResource},
 };
 
+use crate::types::XrPose;
+
 /// Any Spaces will be invalid after the owning session exits
 #[repr(transparent)]
-#[derive(Clone, Copy, Hash, PartialEq, Eq, Reflect, Debug)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Reflect, Debug, Component, ExtractComponent)]
 pub struct XrSpace(u64);
 
-#[derive(Clone, Copy, PartialEq, Reflect, Debug, Component, ExtractComponent)]
-pub struct XrSpatialTransform {
-    pub space: XrSpace,
-    pub offset: Transform,
-}
-impl XrSpatialTransform {
-    pub const fn from_space(space: XrSpace) -> Self {
-        Self { space, offset: Transform::IDENTITY }
-    }
-}
+// Does repr(transparent) even make sense here?
+#[repr(transparent)]
+#[derive(
+    Clone, Copy, PartialEq, Reflect, Debug, Component, ExtractComponent, Default, Deref, DerefMut,
+)]
+pub struct XrSpatialOffset(pub XrPose);
 
 #[derive(Event, Clone, Copy, Deref, DerefMut)]
 pub struct XrDestroySpace(pub XrSpace);
