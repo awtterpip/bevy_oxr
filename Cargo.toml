@@ -12,7 +12,7 @@ repository = "https://github.com/awtterpip/bevy_oxr"
 
 [workspace.dependencies]
 eyre = "0.6.2"
-bevy = "0.13"
+bevy = "0.14.0-rc.3"
 openxr = "0.18"
 color-eyre = "0.6.2"
 
@@ -36,9 +36,9 @@ bevy.workspace = true
 eyre.workspace = true
 futures-lite = "2.0.1"
 mint = "0.5.9"
-wgpu = "0.19"
-wgpu-core = { version = "0.19" }
-wgpu-hal = "0.19"
+wgpu = "0.20"
+wgpu-core = "0.21" 
+wgpu-hal = "0.21"
 
 [target.'cfg(windows)'.dependencies]
 openxr = { workspace = true, features = [ "linked", "static", "mint" ] }

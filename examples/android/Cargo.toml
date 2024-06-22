@@ -12,7 +12,7 @@ crate-type = ["rlib", "cdylib"]
 
 
 [dependencies]
-bevy = "0.13"
+bevy.workspace = true
 bevy_oxr.path = "../.."
 openxr = { workspace = true, features = ["mint"] }
 

@@ -5,11 +5,13 @@ mod d3d12;
 #[cfg(feature = "vulkan")]
 mod vulkan;
 
+use std::sync::Arc;
+
 use bevy::ecs::query::With;
 use bevy::ecs::system::{Query, SystemState};
 use bevy::ecs::world::World;
 use bevy::render::renderer::{
-    RenderAdapter, RenderAdapterInfo, RenderDevice, RenderInstance, RenderQueue,
+    RenderAdapter, RenderAdapterInfo, RenderDevice, RenderInstance, RenderQueue, WgpuWrapper,
 };
 use bevy::window::{PrimaryWindow, RawHandleWrapper};
 use wgpu::Instance;
@@ -228,7 +230,7 @@ pub fn try_full_init(
         render_queue,
         render_adapter_info,
         render_adapter,
-        RenderInstance(wgpu_instance.into()),
+        RenderInstance(Arc::new(WgpuWrapper::new(wgpu_instance))),
     ))
 }
 

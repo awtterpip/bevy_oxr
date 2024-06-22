@@ -1,10 +1,8 @@
 use bevy::{
-    core::Name,
-    prelude::{
+    color::{palettes, Srgba}, core::Name, prelude::{
         default, Color, Commands, Component, Deref, DerefMut, Entity, Gizmos, Plugin, PostUpdate,
         Query, Resource, SpatialBundle, Startup, Transform,
-    },
-    transform::components::GlobalTransform,
+    }, transform::components::GlobalTransform
 };
 
 use crate::xr_input::{trackers::OpenXRTracker, Hand};
@@ -225,33 +223,33 @@ pub fn draw_hand_entities(
     }
 }
 
-pub(crate) fn get_bone_gizmo_style(hand_bone: &HandBone) -> (f32, Color) {
+pub(crate) fn get_bone_gizmo_style(hand_bone: &HandBone) -> (f32, Srgba) {
     match hand_bone {
-        HandBone::Palm => (0.01, Color::WHITE),
-        HandBone::Wrist => (0.01, Color::GRAY),
-        HandBone::ThumbMetacarpal => (0.01, Color::RED),
-        HandBone::ThumbProximal => (0.008, Color::RED),
-        HandBone::ThumbDistal => (0.006, Color::RED),
-        HandBone::ThumbTip => (0.004, Color::RED),
-        HandBone::IndexMetacarpal => (0.01, Color::ORANGE),
-        HandBone::IndexProximal => (0.008, Color::ORANGE),
-        HandBone::IndexIntermediate => (0.006, Color::ORANGE),
-        HandBone::IndexDistal => (0.004, Color::ORANGE),
-        HandBone::IndexTip => (0.002, Color::ORANGE),
-        HandBone::MiddleMetacarpal => (0.01, Color::YELLOW),
-        HandBone::MiddleProximal => (0.008, Color::YELLOW),
-        HandBone::MiddleIntermediate => (0.006, Color::YELLOW),
-        HandBone::MiddleDistal => (0.004, Color::YELLOW),
-        HandBone::MiddleTip => (0.002, Color::YELLOW),
-        HandBone::RingMetacarpal => (0.01, Color::GREEN),
-        HandBone::RingProximal => (0.008, Color::GREEN),
-        HandBone::RingIntermediate => (0.006, Color::GREEN),
-        HandBone::RingDistal => (0.004, Color::GREEN),
-        HandBone::RingTip => (0.002, Color::GREEN),
-        HandBone::LittleMetacarpal => (0.01, Color::BLUE),
-        HandBone::LittleProximal => (0.008, Color::BLUE),
-        HandBone::LittleIntermediate => (0.006, Color::BLUE),
-        HandBone::LittleDistal => (0.004, Color::BLUE),
-        HandBone::LittleTip => (0.002, Color::BLUE),
+        HandBone::Palm => (0.01, palettes::css::WHITE),
+        HandBone::Wrist => (0.01, palettes::css::GRAY),
+        HandBone::ThumbMetacarpal => (0.01, palettes::css::RED),
+        HandBone::ThumbProximal => (0.008, palettes::css::RED),
+        HandBone::ThumbDistal => (0.006, palettes::css::RED),
+        HandBone::ThumbTip => (0.004, palettes::css::RED),
+        HandBone::IndexMetacarpal => (0.01, palettes::css::ORANGE),
+        HandBone::IndexProximal => (0.008, palettes::css::ORANGE),
+        HandBone::IndexIntermediate => (0.006, palettes::css::ORANGE),
+        HandBone::IndexDistal => (0.004, palettes::css::ORANGE),
+        HandBone::IndexTip => (0.002, palettes::css::ORANGE),
+        HandBone::MiddleMetacarpal => (0.01, palettes::css::YELLOW),
+        HandBone::MiddleProximal => (0.008, palettes::css::YELLOW),
+        HandBone::MiddleIntermediate => (0.006, palettes::css::YELLOW),
+        HandBone::MiddleDistal => (0.004, palettes::css::YELLOW),
+        HandBone::MiddleTip => (0.002, palettes::css::YELLOW),
+        HandBone::RingMetacarpal => (0.01, palettes::css::GREEN),
+        HandBone::RingProximal => (0.008, palettes::css::GREEN),
+        HandBone::RingIntermediate => (0.006, palettes::css::GREEN),
+        HandBone::RingDistal => (0.004, palettes::css::GREEN),
+        HandBone::RingTip => (0.002, palettes::css::GREEN),
+        HandBone::LittleMetacarpal => (0.01, palettes::css::BLUE),
+        HandBone::LittleProximal => (0.008, palettes::css::BLUE),
+        HandBone::LittleIntermediate => (0.006, palettes::css::BLUE),
+        HandBone::LittleDistal => (0.004, palettes::css::BLUE),
+        HandBone::LittleTip => (0.002, palettes::css::BLUE),
     }
 }

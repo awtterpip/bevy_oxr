@@ -8,6 +8,7 @@ pub mod xr_init;
 pub mod xr_input;
 
 use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 
 use crate::xr_init::{StartXrSession, XrInitPlugin};
 use crate::xr_input::oculus_touch::ActionSets;
@@ -18,7 +19,7 @@ use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
 use bevy::render::camera::{ManualTextureView, ManualTextureViewHandle, ManualTextureViews};
 use bevy::render::pipelined_rendering::PipelinedRenderingPlugin;
-use bevy::render::renderer::{render_system, RenderInstance};
+use bevy::render::renderer::{render_system, RenderInstance, WgpuWrapper};
 use bevy::render::settings::RenderCreation;
 use bevy::render::{Render, RenderApp, RenderPlugin, RenderSet};
 use bevy::window::{PresentMode, PrimaryWindow, RawHandleWrapper};
@@ -61,8 +62,8 @@ impl Plugin for OpenXrPlugin {
         #[cfg(not(target_arch = "wasm32"))]
         match graphics::initialize_xr_instance(
             &self.backend_preference,
-            SystemState::<Query<&RawHandleWrapper, With<PrimaryWindow>>>::new(&mut app.world)
-                .get(&app.world)
+            SystemState::<Query<&RawHandleWrapper, With<PrimaryWindow>>>::new(app.world_mut())
+                .get(&app.world())
                 .get_single()
                 .ok()
                 .cloned(),
@@ -89,7 +90,7 @@ impl Plugin for OpenXrPlugin {
                 app.insert_resource(xr_instance);
                 app.insert_resource(blend_mode);
                 app.insert_non_send_resource(oxr_session_setup_info);
-                let render_instance = RenderInstance(instance.into());
+                let render_instance = RenderInstance(Arc::new(WgpuWrapper::new(instance)));
                 app.insert_resource(render_instance.clone());
                 app.add_plugins(RenderPlugin {
                     render_creation: RenderCreation::Manual(

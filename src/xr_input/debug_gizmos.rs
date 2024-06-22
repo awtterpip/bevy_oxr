@@ -1,9 +1,9 @@
+use bevy::color::palettes;
 use bevy::ecs::schedule::IntoSystemConfigs;
 use bevy::log::{debug, info};
-use bevy::math::primitives::Direction3d;
+use bevy::math::Dir3;
 use bevy::prelude::{
-    Color, Gizmos, GlobalTransform, Plugin, Quat, Query, Res, Transform, Update, Vec2, Vec3, With,
-    Without,
+    Gizmos, GlobalTransform, Plugin, Quat, Query, Res, Transform, Update, Vec2, Vec3, With, Without,
 };
 
 use crate::xr_init::xr_only;
@@ -74,7 +74,7 @@ pub fn draw_gizmos(
     //                 joint.position,
     //                 trans.forward(),
     //                 joint.radius,
-    //                 Color::ORANGE_RED,
+    //                 palettes::css::ORANGE_RED,
     //             );
     //         }
     //     }
@@ -85,7 +85,7 @@ pub fn draw_gizmos(
     //                 joint.position,
     //                 trans.forward(),
     //                 joint.radius,
-    //                 Color::LIME_GREEN,
+    //                 palettes::css::LIME_GREEN,
     //             );
     //         }
     //         return;
@@ -105,9 +105,9 @@ pub fn draw_gizmos(
                         y: 0.01,
                         z: 0.0,
                     },
-                Direction3d::Y,
+                Dir3::Y,
                 0.2,
-                Color::RED,
+                palettes::css::RED,
             );
         }
         Err(_) => info!("too many tracking roots"),
@@ -139,10 +139,10 @@ fn draw_hand_gizmo(
 ) {
     match hand {
         Hand::Left => {
-            let left_color = Color::YELLOW_GREEN;
-            let off_color = Color::BLUE;
-            let touch_color = Color::GREEN;
-            let pressed_color = Color::RED;
+            let left_color = palettes::css::YELLOW_GREEN;
+            let off_color = palettes::css::BLUE;
+            let touch_color = palettes::css::GREEN;
+            let pressed_color = palettes::css::RED;
 
             let grip_quat_offset = Quat::from_rotation_x(-1.4);
             let face_quat_offset = Quat::from_rotation_x(1.05);
@@ -169,9 +169,9 @@ fn draw_hand_gizmo(
             //draw face
             gizmos.circle(
                 face_translation_vec3,
-                Direction3d::new_unchecked(face_quat_normal),
+                Dir3::new_unchecked(face_quat_normal),
                 0.04,
-                Color::YELLOW_GREEN,
+                palettes::css::YELLOW_GREEN,
             );
 
             //button b
@@ -188,7 +188,7 @@ fn draw_hand_gizmo(
                 face_translation_vec3 + b_offset_quat.mul_vec3(Vec3::new(0.025, -0.01, 0.0));
             gizmos.circle(
                 b_translation_vec3,
-                Direction3d::new_unchecked(face_quat_normal),
+                Dir3::new_unchecked(face_quat_normal),
                 0.0075,
                 b_color,
             );
@@ -207,7 +207,7 @@ fn draw_hand_gizmo(
                 face_translation_vec3 + a_offset_quat.mul_vec3(Vec3::new(0.025, 0.01, 0.0));
             gizmos.circle(
                 a_translation_vec3,
-                Direction3d::new_unchecked(face_quat_normal),
+                Dir3::new_unchecked(face_quat_normal),
                 0.0075,
                 a_color,
             );
@@ -224,7 +224,7 @@ fn draw_hand_gizmo(
             //base
             gizmos.circle(
                 joystick_base_vec,
-                Direction3d::new_unchecked(face_quat_normal),
+                Dir3::new_unchecked(face_quat_normal),
                 0.014,
                 joystick_color,
             );
@@ -237,7 +237,7 @@ fn draw_hand_gizmo(
             //top
             gizmos.circle(
                 joystick_top_vec,
-                Direction3d::new_unchecked(face_quat_normal),
+                Dir3::new_unchecked(face_quat_normal),
                 0.005,
                 joystick_color,
             );
@@ -265,10 +265,10 @@ fn draw_hand_gizmo(
         }
         Hand::Right => {
             //get right controller
-            let right_color = Color::YELLOW_GREEN;
-            let off_color = Color::BLUE;
-            let touch_color = Color::GREEN;
-            let pressed_color = Color::RED;
+            let right_color = palettes::css::YELLOW_GREEN;
+            let off_color = palettes::css::BLUE;
+            let touch_color = palettes::css::GREEN;
+            let pressed_color = palettes::css::RED;
 
             let grip_quat_offset = Quat::from_rotation_x(-1.4);
             let face_quat_offset = Quat::from_rotation_x(1.05);
@@ -298,9 +298,9 @@ fn draw_hand_gizmo(
             //draw face
             gizmos.circle(
                 face_translation_vec3,
-                Direction3d::new_unchecked(face_quat_normal),
+                Dir3::new_unchecked(face_quat_normal),
                 0.04,
-                Color::YELLOW_GREEN,
+                palettes::css::YELLOW_GREEN,
             );
 
             //button b
@@ -317,7 +317,7 @@ fn draw_hand_gizmo(
                 face_translation_vec3 + b_offset_quat.mul_vec3(Vec3::new(-0.025, -0.01, 0.0));
             gizmos.circle(
                 b_translation_vec3,
-                Direction3d::new_unchecked(face_quat_normal),
+                Dir3::new_unchecked(face_quat_normal),
                 0.0075,
                 b_color,
             );
@@ -336,7 +336,7 @@ fn draw_hand_gizmo(
                 face_translation_vec3 + a_offset_quat.mul_vec3(Vec3::new(-0.025, 0.01, 0.0));
             gizmos.circle(
                 a_translation_vec3,
-                Direction3d::new_unchecked(face_quat_normal),
+                Dir3::new_unchecked(face_quat_normal),
                 0.0075,
                 a_color,
             );
@@ -353,7 +353,7 @@ fn draw_hand_gizmo(
             //base
             gizmos.circle(
                 joystick_base_vec,
-                Direction3d::new_unchecked(face_quat_normal),
+                Dir3::new_unchecked(face_quat_normal),
                 0.014,
                 joystick_color,
             );
@@ -366,7 +366,7 @@ fn draw_hand_gizmo(
             //top
             gizmos.circle(
                 joystick_top_vec,
-                Direction3d::new_unchecked(face_quat_normal),
+                Dir3::new_unchecked(face_quat_normal),
                 0.005,
                 joystick_color,
             );

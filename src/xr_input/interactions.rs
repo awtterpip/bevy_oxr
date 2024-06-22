@@ -1,5 +1,6 @@
 use std::f32::consts::PI;
 
+use bevy::color::palettes;
 use bevy::log::{info, warn};
 use bevy::prelude::{
     Color, Component, Entity, Event, EventReader, EventWriter, Gizmos, GlobalTransform, Quat,
@@ -70,8 +71,8 @@ pub fn draw_socket_gizmos(
         let mut transform = global.compute_transform().clone();
         transform.scale = Vec3::splat(0.1);
         let color = match state {
-            XRInteractorState::Idle => Color::BLUE,
-            XRInteractorState::Selecting => Color::PURPLE,
+            XRInteractorState::Idle => palettes::css::BLUE,
+            XRInteractorState::Selecting => palettes::css::PURPLE,
         };
         gizmos.cuboid(transform, color)
     }
@@ -102,9 +103,9 @@ pub fn draw_interaction_gizmos(
     for (global_transform, interactable_state) in interactable_query.iter() {
         let transform = global_transform.compute_transform();
         let color = match interactable_state {
-            XRInteractableState::Idle => Color::RED,
-            XRInteractableState::Hover => Color::YELLOW,
-            XRInteractableState::Select => Color::GREEN,
+            XRInteractableState::Idle => palettes::css::RED,
+            XRInteractableState::Hover => palettes::css::YELLOW,
+            XRInteractableState::Select => palettes::css::GREEN,
         };
         gizmos.sphere(transform.translation, transform.rotation, 0.1, color);
     }
@@ -124,8 +125,8 @@ pub fn draw_interaction_gizmos(
                 );
                 local.rotation = quat;
                 let color = match interactor_state {
-                    XRInteractorState::Idle => Color::BLUE,
-                    XRInteractorState::Selecting => Color::PURPLE,
+                    XRInteractorState::Idle => palettes::css::BLUE,
+                    XRInteractorState::Selecting => palettes::css::PURPLE,
                 };
                 gizmos.cuboid(local, color);
             }
@@ -135,8 +136,8 @@ pub fn draw_interaction_gizmos(
             Some(_) => match aim {
                 Some(aim) => {
                     let color = match interactor_state {
-                        XRInteractorState::Idle => Color::BLUE,
-                        XRInteractorState::Selecting => Color::PURPLE,
+                        XRInteractorState::Idle => palettes::css::BLUE,
+                        XRInteractorState::Selecting => palettes::css::PURPLE,
                     };
                     gizmos.ray(
                         root.translation + root.rotation.mul_vec3(aim.0.translation),
