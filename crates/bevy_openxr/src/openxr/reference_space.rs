@@ -5,14 +5,14 @@ use bevy::{
     render::{
         extract_resource::{ExtractResource, ExtractResourcePlugin},
         RenderApp,
-    },
+    }, utils::HashSet,
 };
 use bevy_xr::{
     session::{XrSessionCreated, XrSessionExiting},
-    spaces::{XrPrimaryReferenceSpace, XrReferenceSpace},
+    spaces::{XrDestroySpace, XrPrimaryReferenceSpace, XrReferenceSpace, XrSpace},
 };
 
-use crate::session::OxrSession;
+use crate::{resources::OxrInstance, session::OxrSession};
 
 pub struct OxrReferenceSpacePlugin {
     pub default_primary_ref_space: openxr::ReferenceSpaceType,
@@ -48,10 +48,23 @@ impl Plugin for OxrReferenceSpacePlugin {
     }
 }
 
-fn cleanup(mut cmds: Commands, query: Query<Entity, With<XrReferenceSpace>>) {
+fn cleanup(
+    query: Query<(Entity, &XrReferenceSpace)>,
+    mut cmds: Commands,
+    instance: Res<OxrInstance>,
+    ref_space: Option<Res<XrPrimaryReferenceSpace>>,
+) {
+    let mut to_destroy = HashSet::<XrSpace>::new();
+    if let Some(space) = ref_space {
+        to_destroy.insert(***space);
+    }
     cmds.remove_resource::<XrPrimaryReferenceSpace>();
-    for e in &query {
+    for (e, space) in &query {
         cmds.entity(e).remove::<XrReferenceSpace>();
+        to_destroy.insert(**space);
+    }
+    for space in to_destroy.into_iter() {
+        let _ = instance.destroy_space(space);
     }
 }
 

@@ -2,7 +2,7 @@ use std::{mem::MaybeUninit, ptr, sync::Mutex};
 
 use bevy::{prelude::*, utils::hashbrown::HashSet};
 use bevy_xr::{
-    session::{session_available, session_running},
+    session::{session_available, session_running, XrSessionExiting},
     spaces::{XrDestroySpace, XrPrimaryReferenceSpace, XrReferenceSpace, XrSpace, XrSpatialOffset},
     types::XrPose,
 };
@@ -18,20 +18,43 @@ use crate::{
     session::OxrSession,
 };
 
+/// VERY IMPORTENT!! only disable when you know what you are doing
+pub struct OxrSpacePatchingPlugin;
+impl Plugin for OxrSpacePatchingPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Startup, patch_destroy_space.run_if(session_available));
+    }
+}
 pub struct OxrSpatialPlugin;
 impl Plugin for OxrSpatialPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<XrDestroySpace>();
-        app.add_systems(PreUpdate, update_spatial_transforms.run_if(session_running));
         app.add_systems(Startup, patch_destroy_space.run_if(session_available));
         app.add_systems(OxrLast, destroy_space_event.before(OxrHandleEvents));
+        app.add_systems(XrSessionExiting, destroy_space_components);
+    }
+}
+
+fn destroy_space_components(
+    query: Query<(Entity, &XrSpace)>,
+    mut cmds: Commands,
+    mut sender: EventWriter<XrDestroySpace>,
+) {
+    let mut to_destroy = HashSet::<XrSpace>::new();
+    for (e, space) in &query {
+        to_destroy.insert(*space);
+        cmds.entity(e).remove::<XrSpace>();
+    }
+    for space in to_destroy.into_iter() {
+        sender.send(XrDestroySpace(space));
     }
 }
 
 fn destroy_space_event(instance: Res<OxrInstance>, mut events: EventReader<XrDestroySpace>) {
     for space in events.read() {
-        unsafe {
-            (instance.fp().destroy_space)(space.as_raw_openxr_space());
+        match instance.destroy_space(space.0) {
+            Ok(_) => (),
+            Err(err) => warn!("error while destroying space: {}", err),
         }
     }
 }
@@ -89,7 +112,7 @@ fn update_spatial_transforms(
         let offset = offset.copied().unwrap_or_default();
         let ref_space = ref_space.unwrap_or(&default_ref_space);
         if let Ok(space_location) = session.locate_space(
-            &space,
+            space,
             ref_space,
             if pipelined.is_some() {
                 openxr::Time::from_nanos(
@@ -290,15 +313,29 @@ pub fn destroy_space(
     instance: &openxr::Instance,
     space: sys::Space,
 ) -> openxr::Result<sys::Result> {
+    OXR_DO_NOT_CALL_DESTOY_SPACE_FOR_SPACES
+        .lock()
+        .unwrap()
+        .as_mut()
+        .unwrap()
+        .remove(&space.into_raw());
     let result = unsafe { (instance.fp().destroy_space)(space) };
     cvt(result)
 }
 impl OxrSession {
-    pub fn destroy_space(&self, space: XrSpace) {
-        let _ = destroy_space(self.instance(), space.as_raw_openxr_space());
+    pub fn allow_auto_destruct_of_openxr_space(&self, space: &openxr::Space) {
+        OXR_DO_NOT_CALL_DESTOY_SPACE_FOR_SPACES
+            .lock()
+            .unwrap()
+            .as_mut()
+            .unwrap()
+            .remove(&space.as_raw().into_raw());
     }
-    pub fn destroy_openxr_space(&self, space: openxr::Space) {
-        let _ = destroy_space(self.instance(), space.as_raw());
+    pub fn destroy_space(&self, space: XrSpace) -> openxr::Result<sys::Result> {
+        destroy_space(self.instance(), space.as_raw_openxr_space())
+    }
+    pub fn destroy_openxr_space(&self, space: openxr::Space) -> openxr::Result<sys::Result> {
+        destroy_space(self.instance(), space.as_raw())
     }
     pub fn locate_views(
         &self,
@@ -368,6 +405,20 @@ impl OxrSession {
     }
 }
 impl OxrInstance {
+    pub fn allow_auto_destruct_of_openxr_space(&self, space: &openxr::Space) {
+        OXR_DO_NOT_CALL_DESTOY_SPACE_FOR_SPACES
+            .lock()
+            .unwrap()
+            .as_mut()
+            .unwrap()
+            .remove(&space.as_raw().into_raw());
+    }
+    pub fn destroy_space(&self, space: XrSpace) -> openxr::Result<sys::Result> {
+        destroy_space(self, space.as_raw_openxr_space())
+    }
+    pub fn destroy_openxr_space(&self, space: openxr::Space) -> openxr::Result<sys::Result> {
+        destroy_space(self, space.as_raw())
+    }
     pub fn locate_space(
         &self,
         space: &XrSpace,
