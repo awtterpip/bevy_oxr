@@ -6,7 +6,7 @@ use bevy::render::extract_resource::ExtractResource;
 use crate::error::OxrError;
 use crate::graphics::*;
 use crate::layer_builder::{CompositionLayer, LayerProvider};
-use crate::session::OxrSession;
+use crate::session::{OxrSession, OxrSessionCreateNextChain};
 use crate::types::*;
 
 /// Wrapper around an [`Entry`](openxr::Entry) with some methods overridden to use bevy types.
@@ -128,6 +128,7 @@ impl OxrInstance {
         &self,
         system_id: openxr::SystemId,
         info: SessionCreateInfo,
+        chain: &mut OxrSessionCreateNextChain,
     ) -> Result<(OxrSession, OxrFrameWaiter, OxrFrameStream)> {
         if !info.0.using_graphics_of_val(&self.1) {
             return Err(OxrError::GraphicsBackendMismatch {
@@ -139,7 +140,7 @@ impl OxrInstance {
         graphics_match!(
             info.0;
             info => {
-                let (session, frame_waiter, frame_stream) = self.0.create_session::<Api>(system_id, &info)?;
+                let (session, frame_waiter, frame_stream) = Api::create_session(self,system_id, &info,chain)?;
                 Ok((session.into(), OxrFrameWaiter(frame_waiter), OxrFrameStream(Api::wrap(frame_stream))))
             }
         )

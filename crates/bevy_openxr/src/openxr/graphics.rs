@@ -6,8 +6,9 @@ pub mod vulkan;
 use std::any::TypeId;
 
 use bevy::math::UVec2;
+use openxr::{FrameStream, FrameWaiter, Session};
 
-use crate::types::{AppInfo, OxrExtensions, Result, WgpuGraphics};
+use crate::{session::OxrSessionCreateNextChain, types::{AppInfo, OxrExtensions, Result, WgpuGraphics}};
 
 /// This is an extension trait to the [`Graphics`](openxr::Graphics) trait and is how the graphics API should be interacted with.
 pub unsafe trait GraphicsExt: openxr::Graphics {
@@ -36,6 +37,12 @@ pub unsafe trait GraphicsExt: openxr::Graphics {
         instance: &openxr::Instance,
         system_id: openxr::SystemId,
     ) -> Result<(WgpuGraphics, Self::SessionCreateInfo)>;
+        unsafe fn create_session(
+        instance: &openxr::Instance,
+        system_id: openxr::SystemId,
+        info: &Self::SessionCreateInfo,
+        session_create_info_chain: &mut OxrSessionCreateNextChain,
+    ) -> openxr::Result<(Session<Self>, FrameWaiter, FrameStream<Self>)>;
 }
 
 /// A type that can be used in [`GraphicsWrap`].

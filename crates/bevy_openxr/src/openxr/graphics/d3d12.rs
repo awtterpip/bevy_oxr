@@ -1,10 +1,12 @@
 use bevy::log::error;
+use openxr::sys;
 use wgpu_hal::{Adapter, Instance};
 use winapi::shared::dxgiformat::DXGI_FORMAT;
 use winapi::um::d3d12 as winapi_d3d12;
 
 use super::{GraphicsExt, GraphicsType, GraphicsWrap};
 use crate::error::OxrError;
+use crate::session::OxrSessionCreateNextChain;
 use crate::types::{AppInfo, OxrExtensions, Result, WgpuGraphics};
 
 unsafe impl GraphicsExt for openxr::D3D12 {
@@ -154,6 +156,49 @@ unsafe impl GraphicsExt for openxr::D3D12 {
                 queue: raw_queue.cast(),
             },
         ))
+    }
+
+    unsafe fn create_session(
+        instance: &openxr::Instance,
+        system_id: openxr::SystemId,
+        info: &Self::SessionCreateInfo,
+        session_create_info_chain: &mut OxrSessionCreateNextChain,
+    ) -> openxr::Result<(
+        openxr::Session<Self>,
+        openxr::FrameWaiter,
+        openxr::FrameStream<Self>,
+    )> {
+        let binding = sys::GraphicsBindingD3D12KHR {
+            ty: sys::GraphicsBindingD3D12KHR::TYPE,
+            next: session_create_info_chain.chain_pointer(),
+            device: info.device,
+            queue: info.queue,
+        };
+        let info = sys::SessionCreateInfo {
+            ty: sys::SessionCreateInfo::TYPE,
+            next: &binding as *const _ as *const _,
+            create_flags: Default::default(),
+            system_id: system_id,
+        };
+        let mut out = sys::Session::NULL;
+        cvt((instance.fp().create_session)(
+            instance.as_raw(),
+            &info,
+            &mut out,
+        ))?;
+        Ok(openxr::Session::from_raw(
+            instance.clone(),
+            out,
+            Box::new(()),
+        ))
+    }
+}
+
+fn cvt(x: sys::Result) -> openxr::Result<sys::Result> {
+    if x.into_raw() >= 0 {
+        Ok(x)
+    } else {
+        Err(x)
     }
 }
 
@@ -345,3 +390,4 @@ fn wgpu_to_d3d12(format: wgpu::TextureFormat) -> Option<DXGI_FORMAT> {
         } => return None,
     })
 }
+

@@ -31,6 +31,7 @@ use crate::error::OxrError;
 use crate::graphics::*;
 use crate::resources::*;
 use crate::session::OxrSession;
+use crate::session::OxrSessionCreateNextChain;
 use crate::session::OxrSessionStatusEvent;
 use crate::types::*;
 
@@ -281,6 +282,7 @@ fn init_xr_session(
     device: &wgpu::Device,
     instance: &OxrInstance,
     system_id: openxr::SystemId,
+    chain: &mut OxrSessionCreateNextChain,
     SessionConfigInfo {
         blend_modes,
         formats,
@@ -296,7 +298,7 @@ fn init_xr_session(
     OxrGraphicsInfo,
 )> {
     let (session, frame_waiter, frame_stream) =
-        unsafe { instance.create_session(system_id, graphics_info)? };
+        unsafe { instance.create_session(system_id, graphics_info, chain)? };
 
     // TODO!() support other view configurations
     let available_view_configurations = instance.enumerate_view_configurations(system_id)?;
@@ -440,12 +442,14 @@ pub fn create_xr_session(
     instance: Res<OxrInstance>,
     create_info: NonSend<SessionConfigInfo>,
     system_id: Res<OxrSystemId>,
+    mut chain: NonSendMut<OxrSessionCreateNextChain>,
     mut commands: Commands,
 ) {
     match init_xr_session(
         device.wgpu_device(),
         &instance,
         **system_id,
+        &mut chain,
         create_info.clone(),
     ) {
         Ok((session, frame_waiter, frame_stream, swapchain, images, graphics_info)) => {

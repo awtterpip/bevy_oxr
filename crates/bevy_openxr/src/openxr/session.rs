@@ -1,4 +1,7 @@
+use std::ffi::c_void;
+
 use crate::init::{OxrHandleEvents, OxrLast};
+use crate::next_chain::{OxrNextChain, OxrNextChainStructBase, OxrNextChainStructProvider};
 use crate::resources::{
     OxrCleanupSession, OxrPassthrough, OxrPassthroughLayer, OxrSessionStarted, OxrSwapchain,
 };
@@ -22,6 +25,7 @@ pub struct OxrSessionPlugin;
 
 impl Plugin for OxrSessionPlugin {
     fn build(&self, app: &mut App) {
+        app.init_non_send_resource::<OxrSessionCreateNextChain>();
         app.add_event::<OxrSessionStatusEvent>();
         app.add_systems(OxrLast, run_session_status_schedules.after(OxrHandleEvents));
         app.add_systems(XrSessionExiting, clean_session);
@@ -167,5 +171,23 @@ impl OxrSession {
             &self.1;
             session => session.create_passthrough_layer(&passthrough.0, passthrough.1, purpose)?
         }))
+    }
+}
+
+pub trait OxrSessionCreateNextProvider: OxrNextChainStructProvider {}
+
+/// NonSend Resource
+#[derive(Default)]
+pub struct OxrSessionCreateNextChain(OxrNextChain);
+
+impl OxrSessionCreateNextChain {
+    pub fn push<T: OxrSessionCreateNextProvider>(&mut self, info_struct: T) {
+        self.0.push(info_struct)
+    }
+    pub fn chain(&self) -> Option<&OxrNextChainStructBase> {
+        self.0.chain()
+    }
+    pub fn chain_pointer(&self) -> *const c_void {
+        self.0.chain_pointer()
     }
 }
