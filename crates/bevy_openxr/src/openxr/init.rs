@@ -28,7 +28,9 @@ use bevy_xr::session::XrStatus;
 use bevy_xr::session::XrStatusChanged;
 
 use crate::error::OxrError;
+use crate::features::overlay::OxrOverlaySessionEvent;
 use crate::graphics::*;
+use crate::openxr::exts::OxrEnabledExtensions;
 use crate::resources::*;
 use crate::session::OxrSession;
 use crate::session::OxrSessionCreateNextChain;
@@ -97,7 +99,9 @@ impl Plugin for OxrInitPlugin {
                 system_id,
                 WgpuGraphics(device, queue, adapter_info, adapter, wgpu_instance),
                 session_create_info,
+                enabled_exts,
             )) => {
+                app.insert_resource(enabled_exts);
                 app.add_plugins((
                     RenderPlugin {
                         render_creation: RenderCreation::manual(
@@ -197,7 +201,15 @@ pub fn update_root_transform(
 }
 
 impl OxrInitPlugin {
-    fn init_xr(&self) -> Result<(OxrInstance, OxrSystemId, WgpuGraphics, SessionConfigInfo)> {
+    fn init_xr(
+        &self,
+    ) -> Result<(
+        OxrInstance,
+        OxrSystemId,
+        WgpuGraphics,
+        SessionConfigInfo,
+        OxrEnabledExtensions,
+    )> {
         #[cfg(windows)]
         let entry = OxrEntry(openxr::Entry::linked());
         #[cfg(not(windows))]
@@ -236,7 +248,7 @@ impl OxrInitPlugin {
 
         let instance = entry.create_instance(
             self.app_info.clone(),
-            exts,
+            exts.clone(),
             // &["XR_APILAYER_LUNARG_api_dump"],
             &[],
             backend,
@@ -274,6 +286,7 @@ impl OxrInitPlugin {
             OxrSystemId(system_id),
             graphics,
             session_create_info,
+            OxrEnabledExtensions(exts),
         ))
     }
 }
@@ -495,6 +508,7 @@ pub fn poll_events(
     mut status: ResMut<XrStatus>,
     mut changed_event: EventWriter<XrStatusChanged>,
     mut session_status_events: EventWriter<OxrSessionStatusEvent>,
+    mut overlay_writer: Option<ResMut<Events<OxrOverlaySessionEvent>>>,
 ) {
     let _span = info_span!("xr_poll_events");
     let mut buffer = Default::default();
@@ -534,6 +548,16 @@ pub fn poll_events(
             }
             InstanceLossPending(_) => {}
             EventsLost(e) => warn!("lost {} XR events", e.lost_event_count()),
+            MainSessionVisibilityChangedEXTX(d) => {
+                if let Some(writer) = overlay_writer.as_mut() {
+                    writer.send(OxrOverlaySessionEvent::MainSessionVisibilityChanged {
+                        visible: d.visible(),
+                        flags: d.flags(),
+                    });
+                } else {
+                    warn!("Overlay Event Recieved without the OverlayPlugin being added!");
+                }
+            }
             _ => {}
         }
     }

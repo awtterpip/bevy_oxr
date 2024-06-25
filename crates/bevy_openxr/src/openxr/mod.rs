@@ -26,12 +26,12 @@ pub mod graphics;
 pub mod helper_traits;
 pub mod init;
 pub mod layer_builder;
+pub mod next_chain;
 pub mod reference_space;
 pub mod render;
 pub mod resources;
 pub mod session;
 pub mod types;
-pub mod next_chain;
 
 pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
     plugins
@@ -49,6 +49,7 @@ pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
         .add(action_set_attaching::OxrActionAttachingPlugin)
         .add(action_binding::OxrActionBindingPlugin)
         .add(action_set_syncing::OxrActionSyncingPlugin)
+        .add(features::overlay::OxrOverlayPlugin)
         // .add(XrActionPlugin)
         // we should probably handle the exiting ourselfs so that we can correctly end the
         // session and instance
