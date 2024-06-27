@@ -78,13 +78,6 @@ impl Plugin for XRUtilsActionsPlugin {
             Startup,
             create_openxr_events.in_set(XRUtilsActionSystemSet::CreateEvents),
         );
-<<<<<<< HEAD
-        app.add_systems(
-            Update,
-            sync_active_action_sets.run_if(resource_exists::<OxrSession>),
-        );
-=======
->>>>>>> 47b64a4 (add new XrSpace and impl that)
         app.add_systems(
             PreUpdate,
             sync_active_action_sets.before(OxrActionSetSyncSet),
@@ -265,19 +258,8 @@ fn sync_active_action_sets(
     mut sync_set: EventWriter<OxrSyncActionSet>,
     active_action_set_query: Query<&XRUtilsActionSetReference, With<ActiveSet>>,
 ) {
-<<<<<<< HEAD
-    let active_sets = active_action_set_query
-        .iter()
-        .map(|v| ActiveActionSet::from(&v.0))
-        .collect::<Vec<_>>();
-    let sync = session.sync_actions(&active_sets[..]);
-    match sync {
-        Ok(_) => (),
-        Err(_) => error!("sync error"),
-=======
     for set in &active_action_set_query {
         sync_set.send(OxrSyncActionSet(set.0.clone()));
->>>>>>> 47b64a4 (add new XrSpace and impl that)
     }
 }
 
