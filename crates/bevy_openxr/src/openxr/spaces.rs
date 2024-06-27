@@ -2,7 +2,7 @@ use std::{mem::MaybeUninit, ptr, sync::Mutex};
 
 use bevy::{prelude::*, utils::hashbrown::HashSet};
 use bevy_xr::{
-    session::{session_available, XrSessionExiting},
+    session::{session_available, session_running, XrSessionExiting},
     spaces::{XrDestroySpace, XrPrimaryReferenceSpace, XrReferenceSpace, XrSpace, XrSpatialOffset},
     types::XrPose,
 };
@@ -34,7 +34,12 @@ impl Plugin for OxrSpatialPlugin {
         app.add_event::<XrDestroySpace>();
         app.add_systems(OxrLast, destroy_space_event.before(OxrHandleEvents));
         app.add_systems(XrSessionExiting, destroy_space_components);
-        app.add_systems(PreUpdate, update_space_transforms.in_set(OxrSpaceSyncSet));
+        app.add_systems(
+            PreUpdate,
+            update_space_transforms
+                .in_set(OxrSpaceSyncSet)
+                .run_if(session_running),
+        );
     }
 }
 
