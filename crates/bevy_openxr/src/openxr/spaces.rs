@@ -2,7 +2,7 @@ use std::{mem::MaybeUninit, ptr, sync::Mutex};
 
 use bevy::{prelude::*, utils::hashbrown::HashSet};
 use bevy_xr::{
-    session::{session_available, session_running, XrSessionExiting},
+    session::{session_available, XrSessionExiting},
     spaces::{XrDestroySpace, XrPrimaryReferenceSpace, XrReferenceSpace, XrSpace, XrSpatialOffset},
     types::XrPose,
 };
@@ -18,6 +18,9 @@ use crate::{
     session::OxrSession,
 };
 
+#[derive(SystemSet, Hash, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct OxrSpaceSyncSet;
+
 /// VERY IMPORTENT!! only disable when you know what you are doing
 pub struct OxrSpacePatchingPlugin;
 impl Plugin for OxrSpacePatchingPlugin {
@@ -29,9 +32,9 @@ pub struct OxrSpatialPlugin;
 impl Plugin for OxrSpatialPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<XrDestroySpace>();
-        app.add_systems(Startup, patch_destroy_space.run_if(session_available));
         app.add_systems(OxrLast, destroy_space_event.before(OxrHandleEvents));
         app.add_systems(XrSessionExiting, destroy_space_components);
+        app.add_systems(PreUpdate, update_space_transforms.in_set(OxrSpaceSyncSet));
     }
 }
 
@@ -96,7 +99,7 @@ unsafe extern "system" fn patched_destroy_space(space: openxr::sys::Space) -> op
     }
 }
 
-fn update_spatial_transforms(
+fn update_space_transforms(
     session: Res<OxrSession>,
     default_ref_space: Res<XrPrimaryReferenceSpace>,
     pipelined: Option<Res<Pipelined>>,
@@ -456,12 +459,23 @@ impl OxrInstance {
 /// # Safety
 /// This is an Extension trait. DO NOT IMPLEMENT IT!
 pub unsafe trait OxrSpaceExt {
+    /// get an openxr::sys::Space as a reference to the XrSpace
+    /// does not remove the space from the space managment system!
     fn as_raw_openxr_space(&self) -> sys::Space;
+    /// Adds the openxr::sys::Space into the the space managment system
     fn from_raw_openxr_space(space: sys::Space) -> Self;
+    /// Adds the openxr::Space into the the space manegment system
     fn from_openxr_space(space: openxr::Space) -> Self;
+    /// get an openxr::Space as a reference to the XrSpace
+    /// does not remove the space from the space managment system!
     /// # Safety
     /// Session has to be the session from which the space is from
-    unsafe fn to_openxr_space<T>(self, session: &openxr::Session<T>) -> openxr::Space;
+    unsafe fn as_openxr_space<T>(&self, session: &openxr::Session<T>) -> openxr::Space;
+    /// get an openxr::Space as an onwned version of the XrSpace
+    /// removes the space from the space managment system!
+    /// # Safety
+    /// Session has to be the session from which the space is from
+    unsafe fn into_openxr_space<T>(self, session: &openxr::Session<T>) -> openxr::Space;
 }
 
 unsafe impl OxrSpaceExt for XrSpace {
@@ -484,7 +498,16 @@ unsafe impl OxrSpaceExt for XrSpace {
         Self::from_raw_openxr_space(space.as_raw())
     }
 
-    unsafe fn to_openxr_space<T>(self, session: &openxr::Session<T>) -> openxr::Space {
+    unsafe fn as_openxr_space<T>(&self, session: &openxr::Session<T>) -> openxr::Space {
+        unsafe { openxr::Space::reference_from_raw(session.clone(), self.as_raw_openxr_space()) }
+    }
+    unsafe fn into_openxr_space<T>(self, session: &openxr::Session<T>) -> openxr::Space {
+        OXR_DO_NOT_CALL_DESTOY_SPACE_FOR_SPACES
+            .lock()
+            .unwrap()
+            .as_mut()
+            .unwrap()
+            .remove(&self.as_raw());
         unsafe { openxr::Space::reference_from_raw(session.clone(), self.as_raw_openxr_space()) }
     }
 }

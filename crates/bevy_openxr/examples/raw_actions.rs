@@ -113,18 +113,18 @@ fn spawn_hands(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let l = actions
-        .left
-        .create_space(
-            session.deref().deref().clone(),
-            openxr::Path::NULL,
-            Posef::IDENTITY,
-        )
-        .unwrap();
-    let left_space = XrSpace::from_openxr_space(l);
-    // let left_space = session
-    //     .create_action_space(&actions.left, openxr::Path::NULL, XrPose::IDENTITY)
-    //     .unwrap();
+    // This is a demonstation of how to integrate with the openxr crate, the right space is the
+    // recommended way
+    let left_space = XrSpace::from_openxr_space(
+        actions
+            .left
+            .create_space(
+                session.deref().deref().clone(),
+                openxr::Path::NULL,
+                Posef::IDENTITY,
+            )
+            .unwrap(),
+    );
     let right_space = session
         .create_action_space(&actions.right, openxr::Path::NULL, XrPose::IDENTITY)
         .unwrap();
