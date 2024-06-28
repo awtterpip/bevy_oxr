@@ -5,11 +5,14 @@ use bevy::{
     render::{
         extract_resource::{ExtractResource, ExtractResourcePlugin},
         RenderApp,
-    },
+    }, utils::HashSet,
 };
-use bevy_xr::session::{XrSessionCreated, XrSessionExiting};
+use bevy_xr::{
+    session::{XrSessionCreated, XrSessionExiting},
+    spaces::{XrDestroySpace, XrPrimaryReferenceSpace, XrReferenceSpace, XrSpace},
+};
 
-use crate::session::OxrSession;
+use crate::{resources::OxrInstance, session::OxrSession};
 
 pub struct OxrReferenceSpacePlugin {
     pub default_primary_ref_space: openxr::ReferenceSpaceType,
@@ -25,19 +28,19 @@ impl Default for OxrReferenceSpacePlugin {
 #[derive(Resource)]
 struct OxrDefaultPrimaryReferenceSpaceType(openxr::ReferenceSpaceType);
 /// The Default Reference space used for locating things
-#[derive(Resource, Deref, ExtractResource, Clone)]
-pub struct OxrPrimaryReferenceSpace(pub Arc<openxr::Space>);
+// #[derive(Resource, Deref, ExtrctResource, Clone)]
+// pub struct OxrPrimaryReferenceSpace(pub Arc<openxr::Space>);
 
 /// The Reference space used for locating spaces on this entity
-#[derive(Component)]
-pub struct OxrReferenceSpace(pub openxr::Space);
+// #[derive(Component)]
+// pub struct OxrReferenceSpace(pub openxr::Space);
 
 impl Plugin for OxrReferenceSpacePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(OxrDefaultPrimaryReferenceSpaceType(
             self.default_primary_ref_space,
         ));
-        app.add_plugins(ExtractResourcePlugin::<OxrPrimaryReferenceSpace>::default());
+        app.add_plugins(ExtractResourcePlugin::<XrPrimaryReferenceSpace>::default());
         app.add_systems(XrSessionCreated, set_primary_ref_space);
         app.add_systems(XrSessionExiting, cleanup);
         app.sub_app_mut(RenderApp)
@@ -45,10 +48,23 @@ impl Plugin for OxrReferenceSpacePlugin {
     }
 }
 
-fn cleanup(mut cmds: Commands, query: Query<Entity, With<OxrReferenceSpace>>) {
-    cmds.remove_resource::<OxrPrimaryReferenceSpace>();
-    for e in &query {
-        cmds.entity(e).remove::<OxrReferenceSpace>();
+fn cleanup(
+    query: Query<(Entity, &XrReferenceSpace)>,
+    mut cmds: Commands,
+    instance: Res<OxrInstance>,
+    ref_space: Option<Res<XrPrimaryReferenceSpace>>,
+) {
+    let mut to_destroy = HashSet::<XrSpace>::new();
+    if let Some(space) = ref_space {
+        to_destroy.insert(***space);
+    }
+    cmds.remove_resource::<XrPrimaryReferenceSpace>();
+    for (e, space) in &query {
+        cmds.entity(e).remove::<XrReferenceSpace>();
+        to_destroy.insert(**space);
+    }
+    for space in to_destroy.into_iter() {
+        let _ = instance.destroy_space(space);
     }
 }
 
@@ -57,9 +73,9 @@ fn set_primary_ref_space(
     space_type: Res<OxrDefaultPrimaryReferenceSpaceType>,
     mut cmds: Commands,
 ) {
-    match session.create_reference_space(space_type.0, openxr::Posef::IDENTITY) {
+    match session.create_reference_space(space_type.0, Transform::IDENTITY) {
         Ok(space) => {
-            cmds.insert_resource(OxrPrimaryReferenceSpace(Arc::new(space)));
+            cmds.insert_resource(XrPrimaryReferenceSpace(space));
         }
         Err(openxr::sys::Result::ERROR_EXTENSION_NOT_PRESENT) => {
             error!("Required Extension for Reference Space not loaded");

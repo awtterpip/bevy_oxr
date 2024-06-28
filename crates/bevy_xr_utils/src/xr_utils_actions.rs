@@ -56,42 +56,53 @@
 use bevy::prelude::*;
 use bevy_openxr::{
     action_binding::OxrSuggestActionBinding, action_set_attaching::OxrAttachActionSet,
+    action_set_syncing::OxrActionSetSyncSet, action_set_syncing::OxrSyncActionSet,
     resources::OxrInstance, session::OxrSession,
 };
 use bevy_xr::session::{session_available, session_running};
 use openxr::{ActiveActionSet, Path, Vector2f};
+
 use std::borrow::Cow;
 
 pub struct XRUtilsActionsPlugin;
 impl Plugin for XRUtilsActionsPlugin {
     fn build(&self, app: &mut App) {
+        app.configure_sets(
+            Startup,
+            XRUtilsActionSystemSet::CreateEvents.run_if(session_available),
+        );
+        app.configure_sets(
+            PreUpdate,
+            XRUtilsActionSystemSet::SyncActionStates.run_if(session_running),
+        );
         app.add_systems(
             Startup,
+
             create_openxr_events
                 .in_set(XRUtilsActionSystemSet::CreateEvents)
                 .run_if(session_available),
         );
         app.add_systems(Update, sync_active_action_sets.run_if(session_running));
         app.add_systems(
-            Update,
+            PreUpdate,
             sync_and_update_action_states_f32
                 .run_if(session_running)
                 .in_set(XRUtilsActionSystemSet::SyncActionStates)
-                .after(sync_active_action_sets),
+                .after(OxrActionSetSyncSet),
         );
         app.add_systems(
-            Update,
+            PreUpdate,
             sync_and_update_action_states_bool
                 .run_if(session_running)
                 .in_set(XRUtilsActionSystemSet::SyncActionStates)
-                .after(sync_active_action_sets),
+                .after(OxrActionSetSyncSet),
         );
         app.add_systems(
-            Update,
+            PreUpdate,
             sync_and_update_action_states_vector
                 .run_if(session_running)
                 .in_set(XRUtilsActionSystemSet::SyncActionStates)
-                .after(sync_active_action_sets),
+                .after(OxrActionSetSyncSet),
         );
     }
 }
@@ -147,9 +158,9 @@ fn create_openxr_events(
                         //interaction profile
                         //get the binding entity and stuff
                         let create_binding = bindings_query.get(bind).unwrap();
-                        let profile = Cow::from(create_binding.profile.clone());
+                        let profile = create_binding.profile.clone();
                         //bindings
-                        let binding = vec![Cow::from(create_binding.binding.clone())];
+                        let binding = vec![create_binding.binding.clone()];
                         let sugestion = OxrSuggestActionBinding {
                             action: action.as_raw(),
                             interaction_profile: profile,
@@ -186,9 +197,9 @@ fn create_openxr_events(
                         //interaction profile
                         //get the binding entity and stuff
                         let create_binding = bindings_query.get(bind).unwrap();
-                        let profile = Cow::from(create_binding.profile.clone());
+                        let profile = create_binding.profile.clone();
                         //bindings
-                        let binding = vec![Cow::from(create_binding.binding.clone())];
+                        let binding = vec![create_binding.binding.clone()];
                         let sugestion = OxrSuggestActionBinding {
                             action: action.as_raw(),
                             interaction_profile: profile,
@@ -225,9 +236,9 @@ fn create_openxr_events(
                         //interaction profile
                         //get the binding entity and stuff
                         let create_binding = bindings_query.get(bind).unwrap();
-                        let profile = Cow::from(create_binding.profile.clone());
+                        let profile = create_binding.profile.clone();
                         //bindings
-                        let binding = vec![Cow::from(create_binding.binding.clone())];
+                        let binding = vec![create_binding.binding.clone()];
                         let sugestion = OxrSuggestActionBinding {
                             action: action.as_raw(),
                             interaction_profile: profile,
@@ -245,17 +256,11 @@ fn create_openxr_events(
 }
 
 fn sync_active_action_sets(
-    session: Res<OxrSession>,
+    mut sync_set: EventWriter<OxrSyncActionSet>,
     active_action_set_query: Query<&XRUtilsActionSetReference, With<ActiveSet>>,
 ) {
-    let active_sets = active_action_set_query
-        .iter()
-        .map(|v| ActiveActionSet::from(&v.0))
-        .collect::<Vec<_>>();
-    let sync = session.sync_actions(&active_sets[..]);
-    match sync {
-        Ok(_) => (),
-        Err(_) => error!("sync error"),
+    for set in &active_action_set_query {
+        sync_set.send(OxrSyncActionSet(set.0.clone()));
     }
 }
 
@@ -336,7 +341,9 @@ fn sync_and_update_action_states_vector(
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, SystemSet)]
 pub enum XRUtilsActionSystemSet {
+    /// Runs in Startup
     CreateEvents,
+    /// Runs in PreUpdate
     SyncActionStates,
 }
 

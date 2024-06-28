@@ -1,10 +1,14 @@
 use bevy::prelude::*;
+use bevy_xr::types::XrPose;
 
 pub trait ToPosef {
     fn to_posef(&self) -> openxr::Posef;
 }
 pub trait ToTransform {
     fn to_transform(&self) -> Transform;
+}
+pub trait ToXrPose {
+    fn to_xr_pose(&self) -> XrPose;
 }
 pub trait ToQuaternionf {
     fn to_quaternionf(&self) -> openxr::Quaternionf;
@@ -38,6 +42,22 @@ impl ToTransform for openxr::Posef {
             .with_rotation(self.orientation.to_quat())
     }
 }
+impl ToXrPose for openxr::Posef {
+    fn to_xr_pose(&self) -> XrPose {
+        XrPose {
+            translation: self.position.to_vec3(),
+            rotation: self.orientation.to_quat(),
+        }
+    }
+}
+impl ToPosef for XrPose {
+    fn to_posef(&self) -> openxr::Posef {
+        openxr::Posef {
+            orientation: self.rotation.to_quaternionf(),
+            position: self.translation.to_vector3f(),
+        }
+    }
+}
 
 impl ToQuaternionf for Quat {
     fn to_quaternionf(&self) -> openxr::Quaternionf {
@@ -51,7 +71,14 @@ impl ToQuaternionf for Quat {
 }
 impl ToQuat for openxr::Quaternionf {
     fn to_quat(&self) -> Quat {
-        Quat::from_xyzw(self.x, self.y, self.z, self.w)
+        let mut quat = Quat::from_xyzw(self.x, self.y, self.z, self.w);
+        if quat.length() == 0.0 {
+            quat = Quat::IDENTITY;
+        }
+        if !quat.is_normalized() {
+            quat = quat.normalize();
+        }
+        quat
     }
 }
 impl ToVector3f for Vec3 {

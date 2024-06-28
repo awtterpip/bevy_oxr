@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy_xr::hands::{LeftHand, RightHand};
+use bevy_xr::spaces::{XrPrimaryReferenceSpace, XrReferenceSpace};
 use bevy_xr::{
     hands::{HandBone, HandBoneRadius},
     session::{session_running, XrSessionCreated, XrSessionExiting},
@@ -9,7 +10,6 @@ use openxr::SpaceLocationFlags;
 use crate::resources::Pipelined;
 use crate::{
     init::OxrTrackingRoot,
-    reference_space::{OxrPrimaryReferenceSpace, OxrReferenceSpace},
     resources::OxrFrameState,
     session::OxrSession,
 };
@@ -130,21 +130,23 @@ pub struct OxrHandBoneEntities(pub [Entity; 26]);
 pub struct OxrHandTracker(pub openxr::HandTracker);
 
 fn locate_hands(
-    default_ref_space: Res<OxrPrimaryReferenceSpace>,
+    default_ref_space: Res<XrPrimaryReferenceSpace>,
     frame_state: Res<OxrFrameState>,
     tracker_query: Query<(
         &OxrHandTracker,
-        Option<&OxrReferenceSpace>,
+        Option<&XrReferenceSpace>,
         &OxrHandBoneEntities,
     )>,
+    session: Res<OxrSession>,
     mut bone_query: Query<(&HandBone, &mut HandBoneRadius, &mut Transform)>,
     pipelined: Option<Res<Pipelined>>,
 ) {
     for (tracker, ref_space, hand_entities) in &tracker_query {
         let ref_space = ref_space.map(|v| &v.0).unwrap_or(&default_ref_space.0);
         // relate_hand_joints also provides velocities
-        let joints = match ref_space.locate_hand_joints(
+        let joints = match session.locate_hand_joints(
             tracker,
+            ref_space,
             if pipelined.is_some() {
                 openxr::Time::from_nanos(
                     frame_state.predicted_display_time.as_nanos()

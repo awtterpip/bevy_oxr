@@ -15,15 +15,17 @@ use bevy::{
 use bevy_xr::{
     camera::{XrCamera, XrCameraBundle, XrProjection},
     session::{session_running, XrSessionExiting},
+    spaces::XrPrimaryReferenceSpace,
 };
 use openxr::ViewStateFlags;
 
+use crate::resources::*;
+use crate::spaces::OxrSpaceExt as _;
 use crate::{
     init::{session_started, OxrHandleEvents, OxrLast, OxrTrackingRoot},
     layer_builder::ProjectionLayer,
     session::OxrSession,
 };
-use crate::{reference_space::OxrPrimaryReferenceSpace, resources::*};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, SystemSet)]
 pub struct OxrRenderBegin;
@@ -273,7 +275,7 @@ pub fn update_cameras(
 
 pub fn locate_views(
     session: Res<OxrSession>,
-    ref_space: Res<OxrPrimaryReferenceSpace>,
+    ref_space: Res<XrPrimaryReferenceSpace>,
     frame_state: Res<OxrFrameState>,
     mut openxr_views: ResMut<OxrViews>,
     pipelined: Option<Res<Pipelined>>,
