@@ -1,6 +1,7 @@
 use std::{mem, ptr};
 
 use bevy::prelude::*;
+use bevy_xr::session::session_available;
 use openxr::sys;
 
 use crate::{
@@ -15,7 +16,7 @@ impl Plugin for OxrOverlayPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.add_event::<OxrOverlaySessionEvent>();
         app.init_resource::<OxrOverlaySettings>();
-        app.add_systems(First, add_overlay_info_to_chain);
+        app.add_systems(First, add_overlay_info_to_chain.run_if(session_available));
     }
 }
 
