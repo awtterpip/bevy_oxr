@@ -60,7 +60,8 @@ use bevy_openxr::{
     resources::OxrInstance, session::OxrSession,
 };
 use bevy_xr::session::{session_available, session_running};
-use openxr::{Path, Vector2f};
+use openxr::{ActiveActionSet, Path, Vector2f};
+
 use std::borrow::Cow;
 
 pub struct XRUtilsActionsPlugin;
@@ -76,30 +77,30 @@ impl Plugin for XRUtilsActionsPlugin {
         );
         app.add_systems(
             Startup,
-            create_openxr_events.in_set(XRUtilsActionSystemSet::CreateEvents),
+
+            create_openxr_events
+                .in_set(XRUtilsActionSystemSet::CreateEvents)
+                .run_if(session_available),
         );
-        app.add_systems(
-            PreUpdate,
-            sync_active_action_sets.before(OxrActionSetSyncSet),
-        );
+        app.add_systems(Update, sync_active_action_sets.run_if(session_running));
         app.add_systems(
             PreUpdate,
             sync_and_update_action_states_f32
-                .run_if(resource_exists::<OxrSession>)
+                .run_if(session_running)
                 .in_set(XRUtilsActionSystemSet::SyncActionStates)
                 .after(OxrActionSetSyncSet),
         );
         app.add_systems(
             PreUpdate,
             sync_and_update_action_states_bool
-                .run_if(resource_exists::<OxrSession>)
+                .run_if(session_running)
                 .in_set(XRUtilsActionSystemSet::SyncActionStates)
                 .after(OxrActionSetSyncSet),
         );
         app.add_systems(
             PreUpdate,
             sync_and_update_action_states_vector
-                .run_if(resource_exists::<OxrSession>)
+                .run_if(session_running)
                 .in_set(XRUtilsActionSystemSet::SyncActionStates)
                 .after(OxrActionSetSyncSet),
         );
