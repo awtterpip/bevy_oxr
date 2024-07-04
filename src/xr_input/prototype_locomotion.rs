@@ -1,6 +1,7 @@
 use std::f32::consts::PI;
 
 use bevy::{
+    color::palettes,
     prelude::*,
     time::{Time, Timer, TimerMode},
 };
@@ -127,7 +128,7 @@ pub fn proto_locomotion(
                             hmd_translation.y = 0.0;
                             let local = position.translation;
                             let global = position.rotation.mul_vec3(hmd_translation) + local;
-                            gizmos.circle(global, position.up(), 0.1, Color::GREEN);
+                            gizmos.circle(global, position.up(), 0.1, palettes::css::GREEN);
                             position.rotate_around(global, smoth_rot);
                         }
                         None => return,
@@ -159,7 +160,7 @@ pub fn proto_locomotion(
                                 hmd_translation.y = 0.0;
                                 let local = position.translation;
                                 let global = position.rotation.mul_vec3(hmd_translation) + local;
-                                gizmos.circle(global, position.up(), 0.1, Color::GREEN);
+                                gizmos.circle(global, position.up(), 0.1, palettes::css::GREEN);
                                 position.rotate_around(global, smoth_rot);
                             }
                             None => return,

@@ -4,7 +4,6 @@ use crate::xr_input::{QuatConv, Vec3Conv};
 use crate::{locate_views, xr_wait_frame, LEFT_XR_TEXTURE_HANDLE, RIGHT_XR_TEXTURE_HANDLE};
 use bevy::core_pipeline::core_3d::graph::Core3d;
 use bevy::core_pipeline::tonemapping::{DebandDither, Tonemapping};
-use bevy::ecs::system::lifetimeless::Read;
 use bevy::math::Vec3A;
 use bevy::prelude::*;
 use bevy::render::camera::{
@@ -13,13 +12,13 @@ use bevy::render::camera::{
 };
 use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
 use bevy::render::primitives::Frustum;
+use bevy::render::render_resource::TextureUsages;
 use bevy::render::view::{
     update_frusta, ColorGrading, ExtractedView, VisibilitySystems, VisibleEntities,
 };
 use bevy::render::{Render, RenderApp, RenderSet};
 use bevy::transform::TransformSystem;
 use openxr::Fovf;
-use wgpu::TextureUsages;
 
 use super::trackers::{OpenXRLeftEye, OpenXRRightEye, OpenXRTracker, OpenXRTrackingRoot};
 
@@ -46,7 +45,7 @@ impl Plugin for XrCameraPlugin {
             PostUpdate,
             update_frusta::<XRProjection>
                 .after(TransformSystem::TransformPropagate)
-                .before(VisibilitySystems::UpdatePerspectiveFrusta),
+                .before(VisibilitySystems::UpdateFrusta),
         );
         app.add_systems(
             PostUpdate,
@@ -250,7 +249,7 @@ impl CameraProjection for XRProjection {
     // Copyright (c) 2016 Oculus VR, LLC.
     // SPDX-License-Identifier: Apache-2.0
     // =============================================================================
-    fn get_projection_matrix(&self) -> Mat4 {
+    fn get_clip_from_view(&self) -> Mat4 {
         //  symmetric perspective for debugging
         // let x_fov = (self.fov.angle_left.abs() + self.fov.angle_right.abs());
         // let y_fov = (self.fov.angle_up.abs() + self.fov.angle_down.abs());
@@ -405,6 +404,6 @@ pub fn xr_camera_head_sync_render_world(
         let mut transform = Transform::IDENTITY;
         transform.rotation = view.pose.orientation.to_quat();
         transform.translation = view.pose.position.to_vec3();
-        extracted_view.transform = root.mul_transform(transform);
+        extracted_view.world_from_view = root.mul_transform(transform).into();
     }
 }

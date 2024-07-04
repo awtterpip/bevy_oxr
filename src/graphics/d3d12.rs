@@ -4,7 +4,9 @@ use std::sync::{Arc, Mutex};
 // use anyhow::Context;
 use bevy::math::uvec2;
 use bevy::prelude::*;
-use bevy::render::renderer::{RenderAdapter, RenderAdapterInfo, RenderDevice, RenderQueue};
+use bevy::render::renderer::{
+    RenderAdapter, RenderAdapterInfo, RenderDevice, RenderQueue, WgpuWrapper,
+};
 use bevy::window::RawHandleWrapper;
 use eyre::{Context, ContextCompat};
 use openxr as xr;
@@ -203,9 +205,9 @@ pub fn initialize_xr_instance(
         }),
         blend_mode.into(),
         wgpu_device.into(),
-        RenderQueue(wgpu_queue.into()),
-        RenderAdapterInfo(wgpu_adapter.get_info()),
-        RenderAdapter(wgpu_adapter.into()),
+        RenderQueue(Arc::new(WgpuWrapper::new(wgpu_queue))),
+        RenderAdapterInfo(WgpuWrapper::new(wgpu_adapter.get_info())),
+        RenderAdapter(Arc::new(WgpuWrapper::new(wgpu_adapter))),
         wgpu_instance.into(),
     ))
 }

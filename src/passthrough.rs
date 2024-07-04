@@ -1,3 +1,4 @@
+use bevy::color::palettes;
 use bevy::render::extract_resource::ExtractResource;
 use bevy::{prelude::*, render::extract_resource::ExtractResourcePlugin};
 use std::{marker::PhantomData, mem, ptr};
@@ -88,10 +89,7 @@ fn resume_passthrough(
         warn!("Unable to resume Passthrough: {}", e);
         return;
     }
-    clear_color.set_a(0.0);
-    clear_color.set_r(0.0);
-    clear_color.set_g(0.0);
-    clear_color.set_b(0.0);
+    **clear_color = Srgba::NONE.into();
     *state = XrPassthroughState::Running;
 }
 fn pause_passthrough(
@@ -103,7 +101,7 @@ fn pause_passthrough(
         warn!("Unable to resume Passthrough: {}", e);
         return;
     }
-    clear_color.set_a(1.0);
+    clear_color.set_alpha(1.0);
     *state = XrPassthroughState::Paused;
 }
 

@@ -1,3 +1,4 @@
+use bevy::color::palettes;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
 use bevy::transform::components::Transform;
@@ -44,7 +45,12 @@ fn main() {
 
 fn debug_hand_render(query: Query<&GlobalTransform, With<HandBone>>, mut gizmos: Gizmos) {
     for transform in &query {
-        gizmos.sphere(transform.translation(), Quat::IDENTITY, 0.01, Color::RED);
+        gizmos.sphere(
+            transform.translation(),
+            Quat::IDENTITY,
+            0.01,
+            palettes::css::RED,
+        );
     }
 }
 
@@ -56,21 +62,21 @@ fn setup(
 ) {
     // plane
     commands.spawn(PbrBundle {
-        mesh: meshes.add(Plane3d::new(Vec3::Y)),
-        material: materials.add(StandardMaterial::from(Color::rgb(0.3, 0.5, 0.3))),
+        mesh: meshes.add(Plane3d::new(Vec3::Y, Vec2::splat(2.5))),
+        material: materials.add(StandardMaterial::from(Color::srgb(0.3, 0.5, 0.3))),
         ..default()
     });
     // cube
     commands.spawn(PbrBundle {
         mesh: meshes.add(Cuboid::from_size(Vec3::splat(0.1)).mesh()),
-        material: materials.add(StandardMaterial::from(Color::rgb(0.8, 0.7, 0.6))),
+        material: materials.add(StandardMaterial::from(Color::srgb(0.8, 0.7, 0.6))),
         transform: Transform::from_xyz(0.0, 0.5, 0.0),
         ..default()
     });
     // cube
     commands.spawn(PbrBundle {
         mesh: meshes.add(Mesh::from(Cuboid::from_size(Vec3::splat(0.1)))),
-        material: materials.add(StandardMaterial::from(Color::rgb(0.8, 0.0, 0.0))),
+        material: materials.add(StandardMaterial::from(Color::srgb(0.8, 0.0, 0.0))),
         transform: Transform::from_xyz(0.0, 0.5, 1.0),
         ..default()
     });

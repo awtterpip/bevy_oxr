@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use bevy::render::render_asset::RenderAssetUsages;
 use bevy::transform::components::Transform;
 use bevy_oxr::graphics::XrAppInfo;
+use bevy_oxr::prelude::XrSystems;
 use bevy_oxr::resources::XrViews;
 use bevy_oxr::xr_input::hands::common::HandInputDebugRenderer;
 use bevy_oxr::xr_input::interactions::{
@@ -29,7 +30,7 @@ fn main() {
         })
         .add_plugins(LogDiagnosticsPlugin::default())
         .add_systems(Startup, setup)
-        .add_systems(Update, (proto_locomotion, pull_to_ground).chain())
+        .add_systems(Update, (proto_locomotion, pull_to_ground).chain().xr_only())
         .insert_resource(PrototypeLocomotionConfig::default())
         .add_systems(Startup, spawn_controllers_example)
         .add_plugins(HandInputDebugRenderer)
@@ -95,7 +96,7 @@ fn setup(
     // cube
     commands.spawn(PbrBundle {
         mesh: meshes.add(Cuboid::from_size(Vec3::splat(0.1)).mesh()),
-        material: materials.add(StandardMaterial::from(Color::rgb(0.8, 0.7, 0.6))),
+        material: materials.add(StandardMaterial::from(Color::srgb(0.8, 0.7, 0.6))),
         transform: Transform::from_xyz(0.0, 0.5, 0.0),
         ..default()
     });
