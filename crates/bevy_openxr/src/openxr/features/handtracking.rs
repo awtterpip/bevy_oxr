@@ -1,18 +1,17 @@
 use bevy::prelude::*;
 use bevy_xr::hands::{LeftHand, RightHand};
+use bevy_xr::session::{XrCreateSession, XrDestroySession, XrTrackingRoot};
 use bevy_xr::spaces::{XrPrimaryReferenceSpace, XrReferenceSpace};
 use bevy_xr::{
     hands::{HandBone, HandBoneRadius},
-    session::{session_running, XrSessionCreated, XrSessionExiting},
+    session::session_running,
 };
 use openxr::SpaceLocationFlags;
 
+use crate::init::create_xr_session;
+use crate::resources::OxrFrameState;
 use crate::resources::Pipelined;
-use crate::{
-    init::OxrTrackingRoot,
-    resources::OxrFrameState,
-    session::OxrSession,
-};
+use crate::session::OxrSession;
 
 pub struct HandTrackingPlugin {
     default_hands: bool,
@@ -29,8 +28,13 @@ impl Plugin for HandTrackingPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(PreUpdate, locate_hands.run_if(session_running));
         if self.default_hands {
-            app.add_systems(XrSessionExiting, clean_up_default_hands);
-            app.add_systems(XrSessionCreated, spawn_default_hands);
+            app.add_systems(XrDestroySession, clean_up_default_hands)
+                .add_systems(
+                    XrCreateSession,
+                    (spawn_default_hands, apply_deferred)
+                        .chain()
+                        .after(create_xr_session),
+                );
         }
     }
 }
@@ -38,7 +42,7 @@ impl Plugin for HandTrackingPlugin {
 fn spawn_default_hands(
     mut cmds: Commands,
     session: Res<OxrSession>,
-    root: Query<Entity, With<OxrTrackingRoot>>,
+    root: Query<Entity, With<XrTrackingRoot>>,
 ) {
     debug!("spawning default hands");
     let Ok(root) = root.get_single() else {

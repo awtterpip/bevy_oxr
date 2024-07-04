@@ -2,7 +2,7 @@ use std::{mem::MaybeUninit, ptr, sync::Mutex};
 
 use bevy::{prelude::*, utils::hashbrown::HashSet};
 use bevy_xr::{
-    session::{session_available, session_running, XrSessionExiting},
+    session::{session_available, session_running, XrFirst, XrHandleEvents},
     spaces::{XrDestroySpace, XrPrimaryReferenceSpace, XrReferenceSpace, XrSpace, XrSpatialOffset},
     types::XrPose,
 };
@@ -13,7 +13,6 @@ use openxr::{
 
 use crate::{
     helper_traits::{ToPosef, ToQuat, ToVec3},
-    init::{OxrHandleEvents, OxrLast},
     resources::{OxrFrameState, OxrInstance, Pipelined},
     session::OxrSession,
 };
@@ -21,7 +20,7 @@ use crate::{
 #[derive(SystemSet, Hash, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct OxrSpaceSyncSet;
 
-/// VERY IMPORTENT!! only disable when you know what you are doing
+/// VERY IMPORTANT!! only disable when you know what you are doing
 pub struct OxrSpacePatchingPlugin;
 impl Plugin for OxrSpacePatchingPlugin {
     fn build(&self, app: &mut App) {
@@ -31,30 +30,14 @@ impl Plugin for OxrSpacePatchingPlugin {
 pub struct OxrSpatialPlugin;
 impl Plugin for OxrSpatialPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<XrDestroySpace>();
-        app.add_systems(OxrLast, destroy_space_event.before(OxrHandleEvents));
-        app.add_systems(XrSessionExiting, destroy_space_components);
-        app.add_systems(
-            PreUpdate,
-            update_space_transforms
-                .in_set(OxrSpaceSyncSet)
-                .run_if(session_running),
-        );
-    }
-}
-
-fn destroy_space_components(
-    query: Query<(Entity, &XrSpace)>,
-    mut cmds: Commands,
-    mut sender: EventWriter<XrDestroySpace>,
-) {
-    let mut to_destroy = HashSet::<XrSpace>::new();
-    for (e, space) in &query {
-        to_destroy.insert(*space);
-        cmds.entity(e).remove::<XrSpace>();
-    }
-    for space in to_destroy.into_iter() {
-        sender.send(XrDestroySpace(space));
+        app.add_event::<XrDestroySpace>()
+            .add_systems(XrFirst, destroy_space_event.before(XrHandleEvents))
+            .add_systems(
+                PreUpdate,
+                update_space_transforms
+                    .in_set(OxrSpaceSyncSet)
+                    .run_if(session_running),
+            );
     }
 }
 

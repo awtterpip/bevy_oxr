@@ -6,13 +6,13 @@ use bevy_openxr::{
     action_set_attaching::OxrAttachActionSet,
     action_set_syncing::{OxrActionSetSyncSet, OxrSyncActionSet},
     add_xr_plugins,
-    init::OxrTrackingRoot,
+    init::create_xr_session,
     resources::OxrInstance,
     session::OxrSession,
     spaces::OxrSpaceExt,
 };
 use bevy_xr::{
-    session::{session_available, XrSessionCreated},
+    session::{session_available, XrCreateSession, XrTrackingRoot},
     spaces::XrSpace,
     types::XrPose,
 };
@@ -21,8 +21,8 @@ use openxr::Posef;
 fn main() {
     let mut app = App::new();
     app.add_plugins(add_xr_plugins(DefaultPlugins));
-    app.add_systems(XrSessionCreated, spawn_hands);
-    app.add_systems(XrSessionCreated, attach_set);
+    app.add_systems(XrCreateSession, spawn_hands.after(create_xr_session));
+    app.add_systems(XrCreateSession, attach_set.after(create_xr_session));
     app.add_systems(PreUpdate, sync_actions.before(OxrActionSetSyncSet));
     app.add_systems(OxrSendActionBindings, suggest_action_bindings);
     app.add_systems(Startup, create_actions.run_if(session_available));
@@ -108,7 +108,7 @@ fn create_actions(instance: Res<OxrInstance>, mut cmds: Commands) {
 fn spawn_hands(
     actions: Res<ControllerActions>,
     mut cmds: Commands,
-    root: Query<Entity, With<OxrTrackingRoot>>,
+    root: Query<Entity, With<XrTrackingRoot>>,
     session: Res<OxrSession>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,

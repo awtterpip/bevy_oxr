@@ -1,10 +1,9 @@
-
 use bevy::prelude::*;
 use bevy_openxr::{
     helper_traits::{ToQuat, ToVec3},
-    init::OxrTrackingRoot,
     resources::OxrViews,
 };
+use bevy_xr::session::XrTrackingRoot;
 
 pub struct TransformUtilitiesPlugin;
 
@@ -24,7 +23,7 @@ pub struct SnapToRotation(pub Quat);
 pub struct SnapToPosition(pub Vec3);
 
 pub fn handle_transform_events(
-    mut root_query: Query<&mut Transform, With<OxrTrackingRoot>>,
+    mut root_query: Query<&mut Transform, With<XrTrackingRoot>>,
     views: ResMut<OxrViews>,
     mut position_reader: EventReader<SnapToPosition>,
     mut rotation_reader: EventReader<SnapToRotation>,
@@ -38,19 +37,22 @@ pub fn handle_transform_events(
                     //we want the view translation with a height of zero for a few calculations
                     let mut view_translation = view.pose.position.to_vec3();
                     view_translation.y = 0.0;
-                    
+
                     //position
                     for position in position_reader.read() {
-                        root_transform.translation = position.0 - root_transform.rotation.mul_vec3(view_translation);
+                        root_transform.translation =
+                            position.0 - root_transform.rotation.mul_vec3(view_translation);
                     }
 
                     //rotation
                     let root_local = root_transform.translation.clone();
-                    let hmd_global = root_transform.rotation.mul_vec3(view_translation) + root_local;
+                    let hmd_global =
+                        root_transform.rotation.mul_vec3(view_translation) + root_local;
                     let view_rot = view.pose.orientation.to_quat();
                     let root_rot = root_transform.rotation;
                     let view_global_rotation = root_rot.mul_quat(view_rot).normalize();
-                    let (global_view_yaw, _pitch, _roll) = view_global_rotation.to_euler(bevy::math::EulerRot::YXZ);
+                    let (global_view_yaw, _pitch, _roll) =
+                        view_global_rotation.to_euler(bevy::math::EulerRot::YXZ);
                     let up = Vec3::Y;
                     for rotation in rotation_reader.read() {
                         let (target_yaw, _pitch, _roll) =
