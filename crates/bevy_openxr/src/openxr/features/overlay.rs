@@ -1,7 +1,7 @@
 use std::{mem, ptr};
 
 use bevy::prelude::*;
-use bevy_xr::session::session_available;
+use bevy_mod_xr::session::session_available;
 use openxr::sys;
 
 use crate::{

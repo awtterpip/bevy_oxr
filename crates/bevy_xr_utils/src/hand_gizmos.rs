@@ -1,5 +1,5 @@
 use bevy::{prelude::*, transform::TransformSystem};
-use bevy_xr::hands::{HandBone, HandBoneRadius};
+use bevy_mod_xr::hands::{HandBone, HandBoneRadius};
 pub struct HandGizmosPlugin;
 impl Plugin for HandGizmosPlugin {
     fn build(&self, app: &mut App) {

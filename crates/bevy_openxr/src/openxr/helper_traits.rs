@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_xr::types::XrPose;
+use bevy_mod_xr::types::XrPose;
 
 pub trait ToPosef {
     fn to_posef(&self) -> openxr::Posef;

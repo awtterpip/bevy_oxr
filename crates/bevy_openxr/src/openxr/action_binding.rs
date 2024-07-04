@@ -5,7 +5,7 @@ use bevy::ecs::schedule::ScheduleLabel;
 use bevy::ecs::system::RunSystemOnce;
 use bevy::prelude::*;
 use bevy::utils::HashMap;
-use bevy_xr::session::XrSessionCreatedEvent;
+use bevy_mod_xr::session::XrSessionCreatedEvent;
 use openxr::sys::ActionSuggestedBinding;
 
 use crate::resources::OxrInstance;

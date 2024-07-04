@@ -10,7 +10,7 @@ use bevy::{
     },
     transform::TransformSystem,
 };
-use bevy_xr::{
+use bevy_mod_xr::{
     camera::{XrCamera, XrCameraBundle, XrProjection},
     session::{
         XrDestroySession, XrFirst, XrHandleEvents, XrRenderSet, XrRootTransform, XrTrackingRoot,

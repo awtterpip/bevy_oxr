@@ -1,14 +1,18 @@
 use bevy::{
-    ecs::component::Component,
+    ecs::{component::Component, entity::Entity},
     math::bool,
     prelude::{Deref, DerefMut},
 };
+pub const HAND_JOINT_COUNT: usize = 26;
 
 #[derive(Clone, Copy, Component, Debug)]
 pub struct LeftHand;
 
 #[derive(Clone, Copy, Component, Debug)]
 pub struct RightHand;
+
+#[derive(Deref, DerefMut, Component, Clone, Copy)]
+pub struct XrHandBoneEntities(pub [Entity; HAND_JOINT_COUNT]);
 
 #[repr(transparent)]
 #[derive(Clone, Copy, Component, Debug, DerefMut, Deref)]

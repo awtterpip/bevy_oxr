@@ -1,6 +1,6 @@
 use crate::session::OxrSession;
 use bevy::prelude::*;
-use bevy_xr::session::session_running;
+use bevy_mod_xr::session::session_running;
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub struct OxrActionSetSyncSet;

@@ -1,6 +1,6 @@
 use crate::{action_binding::run_action_binding_sugestion, session::OxrSession};
 use bevy::prelude::*;
-use bevy_xr::session::XrSessionCreatedEvent;
+use bevy_mod_xr::session::XrSessionCreatedEvent;
 
 impl Plugin for OxrActionAttachingPlugin {
     fn build(&self, app: &mut App) {

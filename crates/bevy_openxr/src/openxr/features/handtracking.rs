@@ -1,8 +1,8 @@
 use bevy::prelude::*;
-use bevy_xr::hands::{LeftHand, RightHand};
-use bevy_xr::session::{XrCreateSession, XrDestroySession, XrTrackingRoot};
-use bevy_xr::spaces::{XrPrimaryReferenceSpace, XrReferenceSpace};
-use bevy_xr::{
+use bevy_mod_xr::hands::{LeftHand, RightHand, XrHandBoneEntities, HAND_JOINT_COUNT};
+use bevy_mod_xr::session::{XrCreateSession, XrDestroySession, XrTrackingRoot};
+use bevy_mod_xr::spaces::{XrPrimaryReferenceSpace, XrReferenceSpace};
+use bevy_mod_xr::{
     hands::{HandBone, HandBoneRadius},
     session::session_running,
 };
@@ -39,6 +39,22 @@ impl Plugin for HandTrackingPlugin {
     }
 }
 
+pub fn spawn_hand_bones<T: Bundle + Clone>(
+    cmds: &mut Commands,
+    bundle: T,
+) -> [Entity; HAND_JOINT_COUNT] {
+    let mut bones: [Entity; HAND_JOINT_COUNT] = [Entity::PLACEHOLDER; HAND_JOINT_COUNT];
+    // screw you clippy, i don't see a better way to init this array
+    #[allow(clippy::needless_range_loop)]
+    for bone in HandBone::get_all_bones().into_iter() {
+        bones[bone as usize] = cmds
+            .spawn((SpatialBundle::default(), bone, HandBoneRadius(0.0)))
+            .insert(bundle.clone())
+            .id();
+    }
+    bones
+}
+
 fn spawn_default_hands(
     mut cmds: Commands,
     session: Res<OxrSession>,
@@ -71,49 +87,27 @@ fn spawn_default_hands(
             return;
         }
     };
-    let mut left_bones = [Entity::PLACEHOLDER; 26];
-    let mut right_bones = [Entity::PLACEHOLDER; 26];
-    for bone in HandBone::get_all_bones() {
-        let bone_left = cmds
-            .spawn((
-                DefaultHandBone,
-                SpatialBundle::default(),
-                bone,
-                HandBoneRadius(0.0),
-                LeftHand,
-            ))
-            .id();
-        let bone_right = cmds
-            .spawn((
-                DefaultHandBone,
-                SpatialBundle::default(),
-                bone,
-                HandBoneRadius(0.0),
-                RightHand,
-            ))
-            .id();
-        cmds.entity(root).push_children(&[bone_left]);
-        cmds.entity(root).push_children(&[bone_right]);
-        left_bones[bone as usize] = bone_left;
-        right_bones[bone as usize] = bone_right;
-    }
+    let left_bones = spawn_hand_bones(&mut cmds, (DefaultHandBone, LeftHand));
+    let right_bones = spawn_hand_bones(&mut cmds, (DefaultHandBone, RightHand));
+    cmds.entity(root).push_children(&left_bones);
+    cmds.entity(root).push_children(&right_bones);
     cmds.spawn((
         DefaultHandTracker,
         OxrHandTracker(tracker_left),
-        OxrHandBoneEntities(left_bones),
+        XrHandBoneEntities(left_bones),
         LeftHand,
     ));
     cmds.spawn((
         DefaultHandTracker,
         OxrHandTracker(tracker_right),
-        OxrHandBoneEntities(right_bones),
+        XrHandBoneEntities(right_bones),
         RightHand,
     ));
 }
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 struct DefaultHandTracker;
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 struct DefaultHandBone;
 
 #[allow(clippy::type_complexity)]
@@ -127,9 +121,6 @@ fn clean_up_default_hands(
     }
 }
 
-#[derive(Deref, DerefMut, Component, Clone, Copy)]
-pub struct OxrHandBoneEntities(pub [Entity; 26]);
-
 #[derive(Deref, DerefMut, Component)]
 pub struct OxrHandTracker(pub openxr::HandTracker);
 
@@ -139,7 +130,7 @@ fn locate_hands(
     tracker_query: Query<(
         &OxrHandTracker,
         Option<&XrReferenceSpace>,
-        &OxrHandBoneEntities,
+        &XrHandBoneEntities,
     )>,
     session: Res<OxrSession>,
     mut bone_query: Query<(&HandBone, &mut HandBoneRadius, &mut Transform)>,

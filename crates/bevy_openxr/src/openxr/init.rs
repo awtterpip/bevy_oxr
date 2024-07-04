@@ -11,7 +11,7 @@ use bevy::render::RenderApp;
 use bevy::render::RenderPlugin;
 use bevy::winit::UpdateMode;
 use bevy::winit::WinitSettings;
-use bevy_xr::session::*;
+use bevy_mod_xr::session::*;
 
 use crate::error::OxrError;
 use crate::features::overlay::OxrOverlaySessionEvent;
