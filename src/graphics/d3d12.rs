@@ -4,7 +4,9 @@ use std::sync::{Arc, Mutex};
 // use anyhow::Context;
 use bevy::math::uvec2;
 use bevy::prelude::*;
-use bevy::render::renderer::{RenderAdapter, RenderAdapterInfo, RenderDevice, RenderQueue, WgpuWrapper};
+use bevy::render::renderer::{
+    RenderAdapter, RenderAdapterInfo, RenderDevice, RenderQueue, WgpuWrapper,
+};
 use bevy::window::RawHandleWrapper;
 use eyre::{Context, ContextCompat};
 use openxr as xr;

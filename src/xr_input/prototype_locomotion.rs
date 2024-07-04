@@ -1,7 +1,9 @@
 use std::f32::consts::PI;
 
 use bevy::{
-    color::palettes, prelude::*, time::{Time, Timer, TimerMode}
+    color::palettes,
+    prelude::*,
+    time::{Time, Timer, TimerMode},
 };
 
 use crate::{

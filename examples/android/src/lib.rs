@@ -45,7 +45,12 @@ fn main() {
 
 fn debug_hand_render(query: Query<&GlobalTransform, With<HandBone>>, mut gizmos: Gizmos) {
     for transform in &query {
-        gizmos.sphere(transform.translation(), Quat::IDENTITY, 0.01, palettes::css::RED);
+        gizmos.sphere(
+            transform.translation(),
+            Quat::IDENTITY,
+            0.01,
+            palettes::css::RED,
+        );
     }
 }
 
@@ -57,7 +62,7 @@ fn setup(
 ) {
     // plane
     commands.spawn(PbrBundle {
-        mesh: meshes.add(Plane3d::new(Vec3::Y,Vec2::splat(2.5))),
+        mesh: meshes.add(Plane3d::new(Vec3::Y, Vec2::splat(2.5))),
         material: materials.add(StandardMaterial::from(Color::srgb(0.3, 0.5, 0.3))),
         ..default()
     });

@@ -1,8 +1,11 @@
 use bevy::{
-    color::{palettes, Srgba}, core::Name, prelude::{
+    color::{palettes, Srgba},
+    core::Name,
+    prelude::{
         default, Color, Commands, Component, Deref, DerefMut, Entity, Gizmos, Plugin, PostUpdate,
         Query, Resource, SpatialBundle, Startup, Transform,
-    }, transform::components::GlobalTransform
+    },
+    transform::components::GlobalTransform,
 };
 
 use crate::xr_input::{trackers::OpenXRTracker, Hand};
