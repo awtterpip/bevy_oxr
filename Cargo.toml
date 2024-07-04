@@ -12,7 +12,7 @@ repository = "https://github.com/awtterpip/bevy_oxr"
 
 [workspace.dependencies]
 eyre = "0.6.2"
-bevy = "0.14.0-rc.3"
+bevy = "0.14.0"
 openxr = "0.18"
 color-eyre = "0.6.2"
 
