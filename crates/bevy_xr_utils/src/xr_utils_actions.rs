@@ -21,7 +21,7 @@
 //!         XRUtilsAction {
 //!             action_name: "flight_input".into(),
 //!             localized_name: "flight_input_localized".into(),
-//!             action_type: bevy_xr::actions::ActionType::Vector,
+//!             action_type: bevy_mod_xr::actions::ActionType::Vector,
 //!         },
 //!         FlightActionMarker, //lets try a marker component
 //!     ))
@@ -54,12 +54,12 @@
 //!
 //!
 use bevy::prelude::*;
-use bevy_openxr::{
+use bevy_mod_openxr::{
     action_binding::OxrSuggestActionBinding, action_set_attaching::OxrAttachActionSet,
     action_set_syncing::OxrActionSetSyncSet, action_set_syncing::OxrSyncActionSet,
     resources::OxrInstance, session::OxrSession,
 };
-use bevy_xr::session::{session_available, session_running};
+use bevy_mod_xr::session::{session_available, session_running};
 use openxr::{Path, Vector2f};
 
 use std::borrow::Cow;
@@ -131,7 +131,7 @@ fn create_openxr_events(
             let (create_action, bindings) = actions_query.get(child).unwrap();
             //lets create dat action
             match create_action.action_type {
-                bevy_xr::actions::ActionType::Bool => {
+                bevy_mod_xr::actions::ActionType::Bool => {
                     let action: openxr::Action<bool> = action_set
                         .create_action::<bool>(
                             &create_action.action_name,
@@ -169,7 +169,7 @@ fn create_openxr_events(
                         binding_writer.send(sugestion);
                     }
                 }
-                bevy_xr::actions::ActionType::Float => {
+                bevy_mod_xr::actions::ActionType::Float => {
                     let action: openxr::Action<f32> = action_set
                         .create_action::<f32>(
                             &create_action.action_name,
@@ -208,7 +208,7 @@ fn create_openxr_events(
                         binding_writer.send(sugestion);
                     }
                 }
-                bevy_xr::actions::ActionType::Vector => {
+                bevy_mod_xr::actions::ActionType::Vector => {
                     let action: openxr::Action<Vector2f> = action_set
                         .create_action::<Vector2f>(
                             &create_action.action_name,
@@ -368,7 +368,7 @@ pub struct ActiveSet;
 pub struct XRUtilsAction {
     pub action_name: Cow<'static, str>,
     pub localized_name: Cow<'static, str>,
-    pub action_type: bevy_xr::actions::ActionType,
+    pub action_type: bevy_mod_xr::actions::ActionType,
 }
 
 #[derive(Component)]

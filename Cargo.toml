@@ -1,5 +1,5 @@
 [package]
-name = "bevy_oxr"
+name = "bevy_mod_xr_backends"
 version = "0.1.0"
 edition = "2021"
 description = "Community crate for OpenXR in Bevy"
@@ -7,9 +7,9 @@ repository = "https://github.com/awtterpip/bevy_oxr"
 license = "MIT/Apache-2.0"
 
 [dependencies]
-bevy_openxr.path = "./crates/bevy_openxr"
-bevy_xr.path = "./crates/bevy_xr"
-bevy = "0.13.0"
+bevy_mod_openxr.path = "./crates/bevy_openxr"
+bevy_mod_xr.path = "./crates/bevy_xr"
+bevy.workspace = true
 
 [workspace]
 members = ["crates/*", "crates/bevy_openxr/examples/android"]

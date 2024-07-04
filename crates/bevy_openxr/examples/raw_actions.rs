@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
 use bevy::prelude::*;
-use bevy_openxr::{
+use bevy_mod_openxr::{
     action_binding::{OxrSendActionBindings, OxrSuggestActionBinding},
     action_set_attaching::OxrAttachActionSet,
     action_set_syncing::{OxrActionSetSyncSet, OxrSyncActionSet},
@@ -11,7 +11,7 @@ use bevy_openxr::{
     session::OxrSession,
     spaces::OxrSpaceExt,
 };
-use bevy_xr::{
+use bevy_mod_xr::{
     session::{session_available, XrCreateSession, XrTrackingRoot},
     spaces::XrSpace,
     types::XrPose,

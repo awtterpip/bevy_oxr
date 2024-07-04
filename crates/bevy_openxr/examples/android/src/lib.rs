@@ -1,7 +1,7 @@
 //! A simple 3D scene with light shining over a cube sitting on a plane.
 
 use bevy::prelude::*;
-use bevy_openxr::{add_xr_plugins, init::OxrInitPlugin, types::OxrExtensions};
+use bevy_mod_openxr::{add_xr_plugins, init::OxrInitPlugin, types::OxrExtensions};
 
 #[bevy_main]
 fn main() {

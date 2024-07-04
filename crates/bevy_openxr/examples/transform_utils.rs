@@ -1,7 +1,7 @@
 //! A simple example of how to use the transform utils to set the players position and orientation
 
 use bevy::prelude::*;
-use bevy_openxr::add_xr_plugins;
+use bevy_mod_openxr::add_xr_plugins;
 use bevy_xr_utils::transform_utils::{self, SnapToPosition, SnapToRotation};
 use bevy_xr_utils::xr_utils_actions::{
     ActiveSet, XRUtilsAction, XRUtilsActionSet, XRUtilsActionState, XRUtilsActionSystemSet,
@@ -110,7 +110,7 @@ fn create_action_entities(mut commands: Commands) {
             XRUtilsAction {
                 action_name: "face_red".into(),
                 localized_name: "face_red_localized".into(),
-                action_type: bevy_xr::actions::ActionType::Bool,
+                action_type: bevy_mod_xr::actions::ActionType::Bool,
             },
             FaceRedAction, //lets try a marker component
         ))
@@ -134,7 +134,7 @@ fn create_action_entities(mut commands: Commands) {
             XRUtilsAction {
                 action_name: "center".into(),
                 localized_name: "center_localized".into(),
-                action_type: bevy_xr::actions::ActionType::Bool,
+                action_type: bevy_mod_xr::actions::ActionType::Bool,
             },
             Center, //lets try a marker component
         ))

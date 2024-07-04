@@ -1,5 +1,5 @@
 [package]
-name = "bevy_webxr"
+name = "bevy_mod_webxr"
 version = "0.1.0"
 edition = "2021"
 
@@ -13,4 +13,4 @@ thiserror = "1.0.57"
 wgpu = "0.19.3"
 wgpu-hal = "0.19.3"
 
-bevy_xr.path = "../bevy_xr"
+bevy_mod_xr.path = "../bevy_xr"

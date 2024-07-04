@@ -1,8 +1,8 @@
 //! A simple 3D scene with light shining over a cube sitting on a plane.
 
 use bevy::prelude::*;
-use bevy_openxr::add_xr_plugins;
-use bevy_xr::session::{XrSessionPlugin, XrState};
+use bevy_mod_openxr::add_xr_plugins;
+use bevy_mod_xr::session::{XrSessionPlugin, XrState};
 
 fn main() {
     App::new()
@@ -16,11 +16,11 @@ fn main() {
 
 fn handle_input(
     keys: Res<ButtonInput<KeyCode>>,
-    mut end: EventWriter<bevy_xr::session::XrEndSessionEvent>,
-    mut destroy: EventWriter<bevy_xr::session::XrDestroySessionEvent>,
-    mut begin: EventWriter<bevy_xr::session::XrBeginSessionEvent>,
-    mut create: EventWriter<bevy_xr::session::XrCreateSessionEvent>,
-    mut request_exit: EventWriter<bevy_xr::session::XrRequestExitEvent>,
+    mut end: EventWriter<bevy_mod_xr::session::XrEndSessionEvent>,
+    mut destroy: EventWriter<bevy_mod_xr::session::XrDestroySessionEvent>,
+    mut begin: EventWriter<bevy_mod_xr::session::XrBeginSessionEvent>,
+    mut create: EventWriter<bevy_mod_xr::session::XrCreateSessionEvent>,
+    mut request_exit: EventWriter<bevy_mod_xr::session::XrRequestExitEvent>,
     state: Res<XrState>,
 ) {
     if keys.just_pressed(KeyCode::KeyE) {

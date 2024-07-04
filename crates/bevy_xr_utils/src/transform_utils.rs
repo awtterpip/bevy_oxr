@@ -1,9 +1,9 @@
 use bevy::prelude::*;
-use bevy_openxr::{
+use bevy_mod_openxr::{
     helper_traits::{ToQuat, ToVec3},
     resources::OxrViews,
 };
-use bevy_xr::session::XrTrackingRoot;
+use bevy_mod_xr::session::XrTrackingRoot;
 
 pub struct TransformUtilitiesPlugin;
 

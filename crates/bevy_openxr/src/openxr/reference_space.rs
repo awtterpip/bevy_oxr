@@ -2,7 +2,7 @@ use bevy::{
     prelude::*,
     render::{extract_resource::ExtractResourcePlugin, RenderApp},
 };
-use bevy_xr::{
+use bevy_mod_xr::{
     session::{XrCreateSession, XrDestroySession},
     spaces::{XrPrimaryReferenceSpace, XrReferenceSpace},
 };

@@ -1,7 +1,7 @@
 use std::{mem::MaybeUninit, ptr, sync::Mutex};
 
 use bevy::{prelude::*, utils::hashbrown::HashSet};
-use bevy_xr::{
+use bevy_mod_xr::{
     session::{session_available, session_running, XrFirst, XrHandleEvents},
     spaces::{XrDestroySpace, XrPrimaryReferenceSpace, XrReferenceSpace, XrSpace, XrSpatialOffset},
     types::XrPose,

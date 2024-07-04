@@ -1,2 +1,2 @@
-pub use bevy_openxr;
-pub use bevy_xr;
+pub use bevy_mod_openxr;
+pub use bevy_mod_xr;

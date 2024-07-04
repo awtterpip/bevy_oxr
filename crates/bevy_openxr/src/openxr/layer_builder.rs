@@ -1,7 +1,7 @@
 use std::mem;
 
 use bevy::ecs::world::World;
-use bevy_xr::spaces::{XrPrimaryReferenceSpace, XrSpace};
+use bevy_mod_xr::spaces::{XrPrimaryReferenceSpace, XrSpace};
 use openxr::{sys, CompositionLayerFlags, Fovf, Posef, Rect2Di};
 
 use crate::graphics::graphics_match;
