@@ -1,5 +1,5 @@
 [package]
-name = "bevy_xr"
+name = "bevy_mod_xr"
 version = "0.1.0"
 edition = "2021"
 
