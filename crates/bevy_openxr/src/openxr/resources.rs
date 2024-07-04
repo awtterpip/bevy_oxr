@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use bevy::prelude::*;
 use bevy::render::extract_resource::ExtractResource;
 
@@ -356,14 +354,6 @@ pub struct OxrSessionStarted(pub bool);
 /// The frame state returned from [FrameWaiter::wait_frame](openxr::FrameWaiter::wait)
 #[derive(Clone, Deref, DerefMut, Resource, ExtractResource)]
 pub struct OxrFrameState(pub openxr::FrameState);
-
-/// The root transform's global position for late latching in the render world.
-#[derive(ExtractResource, Resource, Clone, Copy, Default)]
-pub struct OxrRootTransform(pub GlobalTransform);
-
-#[derive(ExtractResource, Resource, Clone, Copy, Default, Deref, DerefMut, PartialEq)]
-/// This is inserted into the world to signify if the session should be cleaned up.
-pub struct OxrCleanupSession(pub bool);
 
 /// Instructs systems to add display period
 #[derive(Clone, Copy, Default, Resource)]

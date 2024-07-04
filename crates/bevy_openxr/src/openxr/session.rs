@@ -1,100 +1,12 @@
 use std::ffi::c_void;
 
-use crate::init::{OxrHandleEvents, OxrLast};
 use crate::next_chain::{OxrNextChain, OxrNextChainStructBase, OxrNextChainStructProvider};
-use crate::resources::{
-    OxrCleanupSession, OxrPassthrough, OxrPassthroughLayer, OxrSessionStarted, OxrSwapchain,
-};
+use crate::resources::{OxrPassthrough, OxrPassthroughLayer, OxrSwapchain};
 use crate::types::{Result, SwapchainCreateInfo};
-use bevy::app::AppExit;
-use bevy::ecs::event::ManualEventReader;
-use bevy::ecs::system::RunSystemOnce;
 use bevy::prelude::*;
-use bevy::render::RenderApp;
-use bevy_xr::session::{
-    session_running, status_changed_to, XrSessionCreated, XrSessionExiting, XrStatus,
-};
 use openxr::AnyGraphics;
 
 use crate::graphics::{graphics_match, GraphicsExt, GraphicsType, GraphicsWrap};
-
-#[derive(Event, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum OxrSessionStatusEvent {
-    Created,
-    AboutToBeDestroyed,
-}
-
-pub struct OxrSessionPlugin;
-
-impl Plugin for OxrSessionPlugin {
-    fn build(&self, app: &mut App) {
-        app.init_non_send_resource::<OxrSessionCreateNextChain>();
-        app.add_event::<OxrSessionStatusEvent>();
-        app.add_systems(OxrLast, run_session_status_schedules.after(OxrHandleEvents));
-        app.add_systems(
-            OxrLast,
-            exits_session_on_app_exit
-                .before(OxrHandleEvents)
-                .run_if(on_event::<AppExit>().and_then(session_running)),
-        );
-        app.add_systems(XrSessionExiting, clean_session);
-        app.sub_app_mut(RenderApp)
-            .add_systems(XrSessionExiting, |mut cmds: Commands| {
-                cmds.remove_resource::<OxrCleanupSession>();
-            });
-        app.add_systems(
-            PreUpdate,
-            handle_stopping_state.run_if(status_changed_to(XrStatus::Stopping)),
-        );
-    }
-}
-fn exits_session_on_app_exit(session: Res<OxrSession>) {
-    session.request_exit().unwrap()
-}
-
-fn handle_stopping_state(session: Res<OxrSession>, mut session_started: ResMut<OxrSessionStarted>) {
-    session.end().expect("Failed to end session");
-    session_started.0 = false;
-}
-
-fn clean_session(world: &mut World) {
-    world.insert_resource(OxrCleanupSession(true));
-    // It should be impossible to call this if the session is Unavailable
-    *world.get_resource_mut::<XrStatus>().unwrap() = XrStatus::Available;
-}
-
-#[derive(Resource, Default)]
-struct SessionStatusReader(ManualEventReader<OxrSessionStatusEvent>);
-
-fn run_session_status_schedules(world: &mut World) {
-    let mut reader = world
-        .remove_resource::<SessionStatusReader>()
-        .unwrap_or_default();
-
-    let events = reader
-        .0
-        .read(
-            world
-                .get_resource::<Events<OxrSessionStatusEvent>>()
-                .unwrap(),
-        )
-        .copied()
-        .collect::<Vec<_>>();
-    for e in events.iter() {
-        match e {
-            OxrSessionStatusEvent::Created => {
-                world.run_schedule(XrSessionCreated);
-                world.run_system_once(apply_deferred);
-            }
-            OxrSessionStatusEvent::AboutToBeDestroyed => {
-                world.run_schedule(XrSessionExiting);
-                world.run_system_once(apply_deferred);
-                world.remove_resource::<OxrSession>();
-            }
-        }
-    }
-    world.insert_resource(reader);
-}
 
 /// Graphics agnostic wrapper around [openxr::Session].
 ///
