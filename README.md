@@ -4,11 +4,11 @@ A crate for adding openxr support to Bevy ( planned to be upstreamed ).
 
 To see it in action run the example in `examples` with `cargo run --example xr`
 
-## This crate will not recive any feature or performance updates
-the current implementation will not be updated!
-we will release a version for bevy 0.14 once that releases but no further version will be supported!
-there is a new rewrite that will be upstreamed into bevy in the future.
-you can use that from this git repo if you want, but be warned it has a completly different public api.
+## Deprecation Notice
+
+This crate will not recive any feature or performance updates
+It will also not get any support
+it's recommended to migrate to [bevy_mod_xr](https://crates.io/crates/bevy_mod_xr) and [bevy_mod_openxr](https://crates.io/crates/bevy_mod_openxr), if you want the hand gizmos they are now in [bevy_xr_utils](https://crates.io/crates/bevy_xr_utils)
 
 ## Discord
 
