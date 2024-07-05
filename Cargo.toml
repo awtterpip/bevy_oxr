@@ -18,7 +18,7 @@ color-eyre = "0.6.2"
 
 [package]
 name = "bevy_oxr"
-version = "0.2.0"
+version = "0.3.0"
 description = "Community crate for OpenXR in Bevy"
 edition.workspace = true
 license.workspace = true
