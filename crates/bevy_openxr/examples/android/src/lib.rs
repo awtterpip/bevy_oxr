@@ -46,7 +46,7 @@ fn setup(
         transform: Transform::from_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
         ..default()
     });
-    let mut cube_mat: StandardMaterial = Color::rgb_u8(124, 144, 255).into();
+    let mut cube_mat: StandardMaterial = Color::srgb_u8(124, 144, 255).into();
     cube_mat.unlit = true;
     // cube
     commands.spawn(PbrBundle {

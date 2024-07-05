@@ -128,7 +128,7 @@ impl Plugin for XrSessionPlugin {
                     .in_set(XrHandleEvents),
             );
 
-        app.world
+        app.world_mut()
             .resource_mut::<MainScheduleOrder>()
             .labels
             .insert(0, XrFirst.intern());
@@ -139,7 +139,7 @@ impl Plugin for XrSessionPlugin {
     }
 
     fn finish(&self, app: &mut App) {
-        if app.get_sub_app(RenderApp).is_err() {
+        if app.get_sub_app(RenderApp).is_none() {
             return;
         }
 

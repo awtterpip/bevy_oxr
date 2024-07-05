@@ -16,7 +16,7 @@ impl<A: Action> Plugin for ActionPlugin<A> {
     fn build(&self, app: &mut App) {
         app.init_resource::<ActionList>()
             .init_resource::<ActionState<A>>();
-        app.world.resource_mut::<ActionList>().0.push(A::info());
+        app.world_mut().resource_mut::<ActionList>().0.push(A::info());
     }
 }
 

@@ -1,7 +1,7 @@
 [package]
 name = "bevy_mod_webxr"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 
 # bevy can't be placed behind target or proc macros won't work properly
 [dependencies]
@@ -13,4 +13,4 @@ thiserror = "1.0.57"
 wgpu = "0.19.3"
 wgpu-hal = "0.19.3"
 
-bevy_mod_xr.path = "../bevy_xr"
+bevy_mod_xr = { path = "../bevy_xr", version = "0.1.0-rc1" }

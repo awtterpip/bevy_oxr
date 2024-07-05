@@ -1,3 +1,4 @@
+use bevy::color::palettes::css;
 use bevy::{prelude::*, transform::TransformSystem};
 use bevy_mod_xr::hands::{HandBone, HandBoneRadius};
 pub struct HandGizmosPlugin;
@@ -19,16 +20,16 @@ fn draw_hand_gizmos(
     }
 }
 
-fn gizmo_color(bone: &HandBone) -> Color {
+fn gizmo_color(bone: &HandBone) -> Srgba {
     match bone {
-        HandBone::Palm => Color::WHITE,
-        HandBone::Wrist => Color::GRAY,
-        b if b.is_thumb() => Color::RED,
-        b if b.is_index() => Color::ORANGE,
-        b if b.is_middle() => Color::YELLOW,
-        b if b.is_ring() => Color::GREEN,
-        b if b.is_little() => Color::BLUE,
+        HandBone::Palm => css::WHITE,
+        HandBone::Wrist => css::GRAY,
+        b if b.is_thumb() => css::RED,
+        b if b.is_index() => css::ORANGE,
+        b if b.is_middle() => css::YELLOW,
+        b if b.is_ring() => css::GREEN,
+        b if b.is_little() => css::BLUE,
         // should be impossible to hit
-        _ => Color::rgb(1.0, 0.0, 1.0),
+        _ => Srgba::rgb(1.0, 0.0, 1.0),
     }
 }

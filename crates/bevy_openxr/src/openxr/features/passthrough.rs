@@ -15,10 +15,10 @@ pub struct OxrPassthroughPlugin;
 impl Plugin for OxrPassthroughPlugin {
     fn build(&self, app: &mut App) {
         let resources = app
-            .world
+            .world()
             .get_resource::<OxrInstance>()
             .and_then(|instance| {
-                app.world
+                app.world()
                     .get_resource::<OxrSystemId>()
                     .map(|system_id| (instance, system_id))
             });

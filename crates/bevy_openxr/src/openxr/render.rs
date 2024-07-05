@@ -277,7 +277,7 @@ pub fn update_views_render_world(
         let openxr::Vector3f { x, y, z } = view.pose.position;
         let translation = Vec3::new(x, y, z);
         transform.translation = translation;
-        extracted_view.transform = root.0.mul_transform(transform);
+        extracted_view.world_from_view = root.0.mul_transform(transform);
     }
 }
 
