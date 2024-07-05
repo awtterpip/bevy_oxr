@@ -1,6 +1,6 @@
 # Bevy Mod XR
 
-A crate for adding openxr support to Bevy ( planned to be upstreamed ). 
+A crate for adding openxr (and in the future webxr) support to Bevy. 
 
 To see it in action run the example in `crates/bevy_openxr/examples` with `cargo run -p bevy_openxr --example 3d_scene`
 
