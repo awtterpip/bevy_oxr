@@ -1,7 +1,10 @@
 [package]
 name = "bevy_mod_webxr"
-version.workspace = true
+description = "future bevy_mod_xr webxr backend"
+version = "0.0.0"
 edition.workspace = true
+repository.workspace = true
+license.workspace = true
 
 # bevy can't be placed behind target or proc macros won't work properly
 [dependencies]
