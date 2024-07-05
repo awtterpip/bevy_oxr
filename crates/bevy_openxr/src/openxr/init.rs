@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use bevy::prelude::*;
 use bevy::render::extract_resource::ExtractResourcePlugin;
 use bevy::render::renderer::RenderAdapter;
@@ -5,6 +7,7 @@ use bevy::render::renderer::RenderAdapterInfo;
 use bevy::render::renderer::RenderDevice;
 use bevy::render::renderer::RenderInstance;
 use bevy::render::renderer::RenderQueue;
+use bevy::render::renderer::WgpuWrapper;
 use bevy::render::settings::RenderCreation;
 use bevy::render::MainWorld;
 use bevy::render::RenderApp;
@@ -90,10 +93,10 @@ impl Plugin for OxrInitPlugin {
                         RenderPlugin {
                             render_creation: RenderCreation::manual(
                                 device.into(),
-                                RenderQueue(queue.into()),
-                                RenderAdapterInfo(adapter_info),
-                                RenderAdapter(adapter.into()),
-                                RenderInstance(wgpu_instance.into()),
+                                RenderQueue(Arc::new(WgpuWrapper::new(queue))),
+                                RenderAdapterInfo(WgpuWrapper::new(adapter_info)),
+                                RenderAdapter(Arc::new(WgpuWrapper::new(adapter))),
+                                RenderInstance(Arc::new(WgpuWrapper::new(wgpu_instance))),
                             ),
                             synchronous_pipeline_compilation: self.synchronous_pipeline_compilation,
                         },
@@ -121,10 +124,10 @@ impl Plugin for OxrInitPlugin {
                     .insert_non_send_resource(session_create_info)
                     .init_non_send_resource::<OxrSessionCreateNextChain>();
 
-                app.world
+                app.world_mut()
                     .spawn((TransformBundle::default(), XrTrackingRoot));
 
-                app.world
+                app.world_mut()
                     .resource_mut::<Events<XrStateChanged>>()
                     .send(XrStateChanged(XrState::Available));
 

@@ -28,7 +28,7 @@ impl Plugin for XrCameraPlugin {
             PostUpdate,
             update_frusta::<XrProjection>
                 .after(TransformSystem::TransformPropagate)
-                .before(VisibilitySystems::UpdatePerspectiveFrusta),
+                .before(VisibilitySystems::UpdateFrusta),
         );
         app.add_plugins((
             ExtractComponentPlugin::<XrProjection>::default(),
@@ -58,10 +58,6 @@ impl Default for XrProjection {
 pub struct XrCamera(pub u32);
 
 impl CameraProjection for XrProjection {
-    fn get_projection_matrix(&self) -> Mat4 {
-        self.projection_matrix
-    }
-
     fn update(&mut self, _width: f32, _height: f32) {}
 
     fn far(&self) -> f32 {
@@ -91,6 +87,10 @@ impl CameraProjection for XrProjection {
         }
 
         view_space_corners
+    }
+
+    fn get_clip_from_view(&self) -> Mat4 {
+        self.projection_matrix
     }
 }
 
