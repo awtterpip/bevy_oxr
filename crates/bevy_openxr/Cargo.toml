@@ -15,6 +15,7 @@ passthrough = []
 
 [dev-dependencies]
 bevy_xr_utils.path = "../bevy_xr_utils"
+bevy = { workspace = true, default-features = true }
 
 [target.'cfg(target_os = "android")'.dependencies]
 ndk-context = "0.1"
