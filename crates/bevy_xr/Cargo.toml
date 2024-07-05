@@ -1,7 +1,11 @@
 [package]
 name = "bevy_mod_xr"
+description = "semi generic Xr Api for Community Driven XR in Bevy"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords = ["gamedev", "bevy", "Xr", "Vr"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

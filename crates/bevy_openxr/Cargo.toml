@@ -1,7 +1,11 @@
 [package]
 name = "bevy_mod_openxr"
+description = "Community crate for OpenXR in Bevy"
 version.workspace = true
 edition.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords = ["gamedev", "bevy", "Xr", "Vr", "OpenXR"]
 
 [features]
 default = ["vulkan", "d3d12", "passthrough"]
@@ -26,7 +30,7 @@ openxr = "0.18.0"
 thiserror = "1.0.57"
 wgpu = "0.20"
 wgpu-hal = "0.21"
-bevy_mod_xr={path = "../bevy_xr",version = "0.1.0-rc1"}
+bevy_mod_xr = { path = "../bevy_xr", version = "0.1.0-rc1" }
 
 ash = { version = "0.37.3", optional = true }
 
