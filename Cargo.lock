@@ -771,7 +771,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_mod_webxr"
-version = "0.1.0-rc1"
+version = "0.0.0"
 dependencies = [
  "bevy",
  "bevy_mod_xr",
