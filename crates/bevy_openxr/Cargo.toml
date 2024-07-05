@@ -1,0 +1,40 @@
+[package]
+name = "bevy_mod_openxr"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["vulkan", "d3d12", "passthrough"]
+vulkan = ["dep:ash"]
+d3d12 = ["wgpu/dx12", "wgpu-hal/dx12", "dep:winapi", "dep:d3d12"]
+passthrough = []
+
+[dev-dependencies]
+bevy_xr_utils.path = "../bevy_xr_utils"
+
+[target.'cfg(target_os = "android")'.dependencies]
+ndk-context = "0.1"
+jni = "0.20"
+
+# bevy can't be placed behind target or proc macros won't work properly
+[dependencies]
+bevy.workspace = true
+
+# all other dependencies are placed under this since on wasm, this crate is completely empty
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+openxr = "0.18.0"
+thiserror = "1.0.57"
+wgpu = "0.19.3"
+wgpu-hal = "0.19.3"
+bevy_mod_xr.path = "../bevy_xr"
+
+ash = { version = "0.37.3", optional = true }
+
+[target.'cfg(target_family = "unix")'.dependencies]
+openxr = { version = "0.18.0", features = ["mint"] }
+wgpu = { version = "0.19.3", features = ["vulkan-portability"] }
+
+[target.'cfg(target_family = "windows")'.dependencies]
+openxr = { version = "0.18.0", features = ["mint", "static"] }
+winapi = { version = "0.3.9", optional = true }
+d3d12 = { version = "0.19", features = ["libloading"], optional = true }

@@ -1,14 +1,8 @@
-# Bevy OpenXR
+# Bevy Mod XR
 
-A crate for adding openxr support to Bevy ( planned to be upstreamed ). 
+A crate for adding openxr (and in the future webxr) support to Bevy. 
 
-To see it in action run the example in `examples` with `cargo run --example xr`
-
-## This crate will not recive any feature or performance updates
-the current implementation will not be updated!
-we will release a version for bevy 0.14 once that releases but no further version will be supported!
-there is a new rewrite that will be upstreamed into bevy in the future.
-you can use that from this git repo if you want, but be warned it has a completly different public api.
+To see it in action run the example in `crates/bevy_openxr/examples` with `cargo run -p bevy_openxr --example 3d_scene`
 
 ## Discord
 
@@ -22,7 +16,7 @@ https://discord.gg/sqMw7UJhNc
 
 - Make sure, if you're on Linux, that you have the `openxr` package installed on your system.
 - I'm getting poor performance.
-    - Like other bevy projects, make sure you're building in release (example: `cargo run --example xr --release`)
+    - Like other bevy projects, make sure you're building in release (example: `cargo run -p bevy_openxr --example 3d_scene --release`)
 
 ## License
 
@@ -39,3 +33,4 @@ at your option. This means you can select the license you prefer!
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in the work by you, as defined in the Apache-2.0 license, shall
 be dual licensed as above, without any additional terms or conditions.
+
