@@ -1,7 +1,10 @@
 [package]
 name = "bevy_xr_utils"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "utils for bevy_mod_xr and bevy_mod_openxr"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
