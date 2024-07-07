@@ -2,7 +2,7 @@
 
 A crate for adding openxr (and in the future webxr) support to Bevy. 
 
-To see it in action run the example in `crates/bevy_openxr/examples` with `cargo run -p bevy_openxr --example 3d_scene`
+To see it in action run the example in `crates/bevy_openxr/examples` with `cargo run -p bevy_mod_openxr --example 3d_scene`
 
 ## Discord
 
