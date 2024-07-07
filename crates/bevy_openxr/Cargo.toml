@@ -42,4 +42,4 @@ wgpu = { version = "0.19.3", features = ["vulkan-portability"] }
 [target.'cfg(target_family = "windows")'.dependencies]
 openxr = { version = "0.18.0", features = ["mint", "static"] }
 winapi = { version = "0.3.9", optional = true }
-d3d12 = { version = "0.19", features = ["libloading"], optional = true }
+d3d12 = { version = "0.20", features = ["libloading"], optional = true }
