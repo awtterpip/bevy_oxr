@@ -8,7 +8,7 @@ publish = false
 
 [dependencies]
 bevy_mod_openxr.path = "../.."
-bevy.workspace = true
+bevy = { workspace = true, default-features = true }
 bevy_xr_utils.path = "../../../bevy_xr_utils"
 
 
