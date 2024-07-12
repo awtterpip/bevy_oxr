@@ -31,7 +31,12 @@ pub struct OxrSpatialPlugin;
 impl Plugin for OxrSpatialPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<XrDestroySpace>()
-            .add_systems(XrFirst, destroy_space_event.before(XrHandleEvents))
+            .add_systems(
+                XrFirst,
+                destroy_space_event
+                    .before(XrHandleEvents::Poll)
+                    .run_if(session_available),
+            )
             .add_systems(
                 PreUpdate,
                 update_space_transforms

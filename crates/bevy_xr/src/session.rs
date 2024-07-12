@@ -10,7 +10,7 @@ pub struct XrCreateSessionEvent;
 
 /// A schedule thats ran whenever an [`XrCreateSessionEvent`] is recieved while the [`XrState`] is [`Available`](XrState::Available)
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug, Hash, ScheduleLabel)]
-pub struct XrCreateSession;
+pub struct XrSessionCreated;
 
 /// Event sent when [`XrCreateSession`] is ran
 #[derive(Event, Clone, Copy, Default)]
@@ -27,7 +27,7 @@ pub struct XrDestroySessionRender;
 
 /// Schedule thats ran whenever an [`XrDestroySessionEvent`] is recieved while the [`XrState`] is [`Exiting`](XrState::Exiting).
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug, Hash, ScheduleLabel)]
-pub struct XrDestroySession;
+pub struct XrPreDestroySession;
 
 /// Event sent to instruct backends to begin an XR session. Only works when the [`XrState`] is [`Ready`](XrState::Ready).
 #[derive(Event, Clone, Copy, Default)]
@@ -49,16 +49,19 @@ pub struct XrEndSession;
 #[derive(Event, Clone, Copy, Default)]
 pub struct XrRequestExitEvent;
 
-#[derive(Clone, Copy, Default, PartialEq, Eq, Debug, Hash, ScheduleLabel)]
-pub struct XrRequestExit;
-
 /// Schedule ran before [`First`] to handle XR events.
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug, Hash, ScheduleLabel)]
 pub struct XrFirst;
 
-/// System set for systems related to handling XR session events and updating the [`XrState`]
+/// System sets for systems related to handling XR session events and updating the [`XrState`]
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, SystemSet)]
-pub struct XrHandleEvents;
+pub enum XrHandleEvents {
+    Poll,
+    ExitEvents,
+    SessionStateUpdateEvents,
+    Cleanup,
+    FrameLoop,
+}
 
 /// System sets ran in the render world for XR.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, SystemSet)]
@@ -95,39 +98,33 @@ impl Plugin for XrSessionPlugin {
             .add_event::<XrRequestExitEvent>()
             .add_event::<XrStateChanged>()
             .add_event::<XrSessionCreatedEvent>()
-            .init_schedule(XrCreateSession)
-            .init_schedule(XrDestroySession)
+            .init_schedule(XrSessionCreated)
+            .init_schedule(XrPreDestroySession)
             .init_schedule(XrBeginSession)
             .init_schedule(XrEndSession)
-            .init_schedule(XrRequestExit)
             .add_schedule(xr_first)
-            .add_systems(
+            .configure_sets(
                 XrFirst,
                 (
-                    exits_session_on_app_exit
-                        .run_if(on_event::<AppExit>())
-                        .run_if(session_created),
-                    reset_per_frame_resources,
-                    run_xr_create_session
-                        .run_if(state_equals(XrState::Available))
-                        .run_if(on_event::<XrCreateSessionEvent>()),
-                    run_xr_destroy_session
-                        .run_if(state_matches!(XrState::Exiting { .. }))
-                        .run_if(on_event::<XrDestroySessionEvent>()),
-                    run_xr_begin_session
-                        .run_if(state_equals(XrState::Ready))
-                        .run_if(on_event::<XrBeginSessionEvent>()),
-                    run_xr_end_session
-                        .run_if(state_equals(XrState::Stopping))
-                        .run_if(on_event::<XrEndSessionEvent>()),
-                    run_xr_request_exit
-                        .run_if(session_created)
-                        .run_if(on_event::<XrRequestExitEvent>()),
+                    XrHandleEvents::Poll,
+                    XrHandleEvents::ExitEvents,
+                    XrHandleEvents::SessionStateUpdateEvents,
+                    XrHandleEvents::Cleanup,
+                    XrHandleEvents::FrameLoop,
                 )
-                    .chain()
-                    .in_set(XrHandleEvents),
+                    .chain(),
+            )
+            .add_systems(
+                XrFirst,
+                exits_session_on_app_exit
+                    .run_if(on_event::<AppExit>())
+                    .run_if(session_created)
+                    .in_set(XrHandleEvents::ExitEvents),
+            )
+            .add_systems(
+                XrFirst,
+                reset_per_frame_resources.in_set(XrHandleEvents::Cleanup),
             );
-
         app.world_mut()
             .resource_mut::<MainScheduleOrder>()
             .labels
@@ -156,14 +153,14 @@ impl Plugin for XrSessionPlugin {
         .add_systems(
             XrFirst,
             exits_session_on_app_exit
-                .before(XrHandleEvents)
+                .before(XrHandleEvents::ExitEvents)
                 .run_if(on_event::<AppExit>().and_then(session_running)),
         );
 
         let render_app = app.sub_app_mut(RenderApp);
 
         render_app
-            .init_schedule(XrDestroySession)
+            .init_schedule(XrPreDestroySession)
             .init_resource::<XrRootTransform>()
             .configure_sets(
                 Render,
@@ -188,9 +185,9 @@ impl Plugin for XrSessionPlugin {
             .add_systems(
                 Render,
                 (
-                    run_xr_destroy_session
-                        .run_if(resource_exists::<XrDestroySessionRender>)
-                        .in_set(XrRenderSet::HandleEvents),
+                    // run_xr_destroy_session
+                    //     .run_if(resource_exists::<XrDestroySessionRender>)
+                    //     .in_set(XrRenderSet::HandleEvents),
                     reset_per_frame_resources.in_set(RenderSet::Cleanup),
                 ),
             );
@@ -226,28 +223,6 @@ pub enum XrState {
         /// Whether we should automatically restart the session
         should_restart: bool,
     },
-}
-
-pub fn run_xr_create_session(world: &mut World) {
-    world.run_schedule(XrCreateSession);
-    world.send_event(XrSessionCreatedEvent);
-}
-
-pub fn run_xr_destroy_session(world: &mut World) {
-    world.run_schedule(XrDestroySession);
-    world.insert_resource(XrDestroySessionRender);
-}
-
-pub fn run_xr_begin_session(world: &mut World) {
-    world.run_schedule(XrBeginSession);
-}
-
-pub fn run_xr_end_session(world: &mut World) {
-    world.run_schedule(XrEndSession);
-}
-
-pub fn run_xr_request_exit(world: &mut World) {
-    world.run_schedule(XrRequestExit);
 }
 
 pub fn reset_per_frame_resources(world: &mut World) {
@@ -330,7 +305,7 @@ pub fn state_equals(status: XrState) -> impl FnMut(Option<Res<XrState>>) -> bool
 #[macro_export]
 macro_rules! state_matches {
     ($match:pat) => {
-        (|state: Option<Res<XrState>>| core::matches!(state.as_deref(), Some($match)))
+        |state: Option<Res<XrState>>| core::matches!(state.as_deref(), Some($match))
     };
 }
 

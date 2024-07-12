@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy_mod_xr::hands::{LeftHand, RightHand, XrHandBoneEntities, HAND_JOINT_COUNT};
-use bevy_mod_xr::session::{XrCreateSession, XrDestroySession, XrTrackingRoot};
+use bevy_mod_xr::session::{XrPreDestroySession, XrSessionCreated, XrTrackingRoot};
 use bevy_mod_xr::spaces::{XrPrimaryReferenceSpace, XrReferenceSpace};
 use bevy_mod_xr::{
     hands::{HandBone, HandBoneRadius},
@@ -28,13 +28,8 @@ impl Plugin for HandTrackingPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(PreUpdate, locate_hands.run_if(session_running));
         if self.default_hands {
-            app.add_systems(XrDestroySession, clean_up_default_hands)
-                .add_systems(
-                    XrCreateSession,
-                    (spawn_default_hands, apply_deferred)
-                        .chain()
-                        .after(create_xr_session),
-                );
+            app.add_systems(XrPreDestroySession, clean_up_default_hands)
+                .add_systems(XrSessionCreated, spawn_default_hands);
         }
     }
 }
