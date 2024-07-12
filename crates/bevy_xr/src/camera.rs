@@ -47,7 +47,7 @@ pub struct XrProjection {
 impl Default for XrProjection {
     fn default() -> Self {
         Self {
-            near: 0.01,
+            near: 0.1,
             projection_matrix: Mat4::IDENTITY,
         }
     }
