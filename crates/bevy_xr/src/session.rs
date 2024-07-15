@@ -12,7 +12,7 @@ pub struct XrCreateSessionEvent;
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug, Hash, ScheduleLabel)]
 pub struct XrSessionCreated;
 
-/// Event sent when [`XrCreateSession`] is ran
+/// Event sent after the XrSession was created.
 #[derive(Event, Clone, Copy, Default)]
 pub struct XrSessionCreatedEvent;
 
@@ -25,7 +25,7 @@ pub struct XrDestroySessionEvent;
 #[derive(Resource, ExtractResource, Clone, Copy, Default)]
 pub struct XrDestroySessionRender;
 
-/// Schedule thats ran whenever an [`XrDestroySessionEvent`] is recieved while the [`XrState`] is [`Exiting`](XrState::Exiting).
+/// Schedule thats ran whenever the XrSession is about to be destroyed
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug, Hash, ScheduleLabel)]
 pub struct XrPreDestroySession;
 
@@ -33,17 +33,17 @@ pub struct XrPreDestroySession;
 #[derive(Event, Clone, Copy, Default)]
 pub struct XrBeginSessionEvent;
 
-/// Schedule thats ran whenever an [`XrBeginSessionEvent`] is recieved while the [`XrState`] is [`Ready`](XrState::Ready).
+/// Schedule thats ran when the XrSession has begun.
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug, Hash, ScheduleLabel)]
-pub struct XrBeginSession;
+pub struct XrPostSessionBegin;
 
 /// Event sent to backends to end an XR session. Only works when the [`XrState`] is [`Stopping`](XrState::Stopping).
 #[derive(Event, Clone, Copy, Default)]
 pub struct XrEndSessionEvent;
 
-/// Schedule thats rna whenever an [`XrEndSessionEvent`] is recieved while the [`XrState`] is [`Stopping`](XrState::Stopping).
+/// Schedule thats rna whenever the XrSession is about to end
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug, Hash, ScheduleLabel)]
-pub struct XrEndSession;
+pub struct XrPreSessionEnd;
 
 /// Event sent to backends to request the [`XrState`] proceed to [`Exiting`](XrState::Exiting) and for the session to be exited. Can be called at any time a session exists.
 #[derive(Event, Clone, Copy, Default)]
@@ -100,8 +100,8 @@ impl Plugin for XrSessionPlugin {
             .add_event::<XrSessionCreatedEvent>()
             .init_schedule(XrSessionCreated)
             .init_schedule(XrPreDestroySession)
-            .init_schedule(XrBeginSession)
-            .init_schedule(XrEndSession)
+            .init_schedule(XrPostSessionBegin)
+            .init_schedule(XrPreSessionEnd)
             .add_schedule(xr_first)
             .configure_sets(
                 XrFirst,
