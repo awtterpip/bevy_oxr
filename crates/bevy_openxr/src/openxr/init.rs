@@ -105,14 +105,30 @@ impl Plugin for OxrInitPlugin {
                     .add_systems(
                         XrFirst,
                         poll_events
-                            .before(XrHandleEvents)
+                            .in_set(XrHandleEvents::Poll)
                             .run_if(not(state_equals(XrState::Unavailable))),
                     )
-                    .add_systems(XrCreateSession, create_xr_session)
-                    .add_systems(XrDestroySession, destroy_xr_session)
-                    .add_systems(XrBeginSession, begin_xr_session)
-                    .add_systems(XrEndSession, end_xr_session)
-                    .add_systems(XrRequestExit, request_exit_xr_session)
+                    .add_systems(
+                        XrFirst,
+                        (
+                            create_xr_session
+                                .run_if(state_equals(XrState::Available))
+                                .run_if(on_event::<XrCreateSessionEvent>()),
+                            destroy_xr_session
+                                .run_if(state_matches!(XrState::Exiting { .. }))
+                                .run_if(on_event::<XrDestroySessionEvent>()),
+                            begin_xr_session
+                                .run_if(state_equals(XrState::Ready))
+                                .run_if(on_event::<XrBeginSessionEvent>()),
+                            end_xr_session
+                                .run_if(state_equals(XrState::Stopping))
+                                .run_if(on_event::<XrEndSessionEvent>()),
+                            request_exit_xr_session
+                                .run_if(session_created)
+                                .run_if(on_event::<XrRequestExitEvent>()),
+                        )
+                            .in_set(XrHandleEvents::SessionStateUpdateEvents),
+                    )
                     .insert_resource(instance.clone())
                     .insert_resource(system_id)
                     .insert_resource(XrState::Available)
@@ -150,7 +166,7 @@ impl Plugin for OxrInitPlugin {
 
     fn finish(&self, app: &mut App) {
         app.sub_app_mut(RenderApp)
-            .add_systems(XrDestroySession, destroy_xr_session);
+            .add_systems(XrPreDestroySession, destroy_xr_session);
     }
 }
 
@@ -468,9 +484,13 @@ pub fn create_xr_session(world: &mut World) {
         Err(e) => error!("Failed to initialize XrSession: {e}"),
     }
     world.insert_non_send_resource(chain);
+    world.run_schedule(XrSessionCreated);
+    world.send_event(XrSessionCreatedEvent);
 }
 
 pub fn destroy_xr_session(world: &mut World) {
+    world.run_schedule(XrPreDestroySession);
+    world.insert_resource(XrDestroySessionRender);
     world.remove_resource::<OxrSession>();
     world.remove_resource::<OxrFrameWaiter>();
     world.remove_resource::<OxrFrameStream>();
@@ -480,18 +500,33 @@ pub fn destroy_xr_session(world: &mut World) {
     world.insert_resource(XrState::Available);
 }
 
-pub fn begin_xr_session(session: Res<OxrSession>, mut session_started: ResMut<OxrSessionStarted>) {
+pub fn begin_xr_session(
+    world: &mut World,
+    // session: Res<OxrSession>, mut session_started: ResMut<OxrSessionStarted>
+) {
     let _span = info_span!("xr_begin_session");
-    session
+    world
+        .get_resource::<OxrSession>()
+        .unwrap()
         .begin(openxr::ViewConfigurationType::PRIMARY_STEREO)
         .expect("Failed to begin session");
-    session_started.0 = true;
+    world.get_resource_mut::<OxrSessionStarted>().unwrap().0 = true;
+    world.run_schedule(XrPostSessionBegin);
 }
 
-pub fn end_xr_session(session: Res<OxrSession>, mut session_started: ResMut<OxrSessionStarted>) {
+pub fn end_xr_session(
+    world: &mut World,
+    // session: Res<OxrSession>, mut session_started: ResMut<OxrSessionStarted>
+) {
+    // Maybe this could be an event?
+    world.run_schedule(XrPreSessionEnd);
     let _span = info_span!("xr_end_session");
-    session.end().expect("Failed to end session");
-    session_started.0 = false;
+    world
+        .get_resource::<OxrSession>()
+        .unwrap()
+        .end()
+        .expect("Failed to end session");
+    world.get_resource_mut::<OxrSessionStarted>().unwrap().0 = false;
 }
 
 pub fn request_exit_xr_session(session: Res<OxrSession>) {

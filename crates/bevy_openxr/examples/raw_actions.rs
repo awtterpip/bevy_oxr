@@ -6,13 +6,12 @@ use bevy_mod_openxr::{
     action_set_attaching::OxrAttachActionSet,
     action_set_syncing::{OxrActionSetSyncSet, OxrSyncActionSet},
     add_xr_plugins,
-    init::create_xr_session,
     resources::OxrInstance,
     session::OxrSession,
     spaces::OxrSpaceExt,
 };
 use bevy_mod_xr::{
-    session::{session_available, XrCreateSession, XrTrackingRoot},
+    session::{session_available, session_running, XrSessionCreated, XrTrackingRoot},
     spaces::XrSpace,
     types::XrPose,
 };
@@ -21,9 +20,14 @@ use openxr::Posef;
 fn main() {
     let mut app = App::new();
     app.add_plugins(add_xr_plugins(DefaultPlugins));
-    app.add_systems(XrCreateSession, spawn_hands.after(create_xr_session));
-    app.add_systems(XrCreateSession, attach_set.after(create_xr_session));
-    app.add_systems(PreUpdate, sync_actions.before(OxrActionSetSyncSet));
+    app.add_systems(XrSessionCreated, spawn_hands);
+    app.add_systems(XrSessionCreated, attach_set);
+    app.add_systems(
+        PreUpdate,
+        sync_actions
+            .before(OxrActionSetSyncSet)
+            .run_if(session_running),
+    );
     app.add_systems(OxrSendActionBindings, suggest_action_bindings);
     app.add_systems(Startup, create_actions.run_if(session_available));
     app.add_systems(Startup, setup);

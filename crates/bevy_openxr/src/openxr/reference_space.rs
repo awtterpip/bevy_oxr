@@ -3,7 +3,7 @@ use bevy::{
     render::{extract_resource::ExtractResourcePlugin, RenderApp},
 };
 use bevy_mod_xr::{
-    session::{XrCreateSession, XrDestroySession},
+    session::{XrPreDestroySession, XrSessionCreated},
     spaces::{XrPrimaryReferenceSpace, XrReferenceSpace},
 };
 
@@ -38,15 +38,12 @@ impl Plugin for OxrReferenceSpacePlugin {
             .insert_resource(OxrDefaultPrimaryReferenceSpaceType(
                 self.default_primary_ref_space,
             ))
-            .add_systems(
-                XrCreateSession,
-                set_primary_ref_space.after(create_xr_session),
-            )
-            .add_systems(XrDestroySession, cleanup);
+            .add_systems(XrSessionCreated, set_primary_ref_space)
+            .add_systems(XrPreDestroySession, cleanup);
 
         let render_app = app.sub_app_mut(RenderApp);
 
-        render_app.add_systems(XrDestroySession, cleanup);
+        render_app.add_systems(XrPreDestroySession, cleanup);
     }
 }
 

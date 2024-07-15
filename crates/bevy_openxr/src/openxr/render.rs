@@ -13,7 +13,7 @@ use bevy::{
 use bevy_mod_xr::{
     camera::{XrCamera, XrCameraBundle, XrProjection},
     session::{
-        XrDestroySession, XrFirst, XrHandleEvents, XrRenderSet, XrRootTransform, XrTrackingRoot,
+        XrFirst, XrHandleEvents, XrPreDestroySession, XrRenderSet, XrRootTransform, XrTrackingRoot,
     },
     spaces::XrPrimaryReferenceSpace,
 };
@@ -46,7 +46,7 @@ impl Plugin for OxrRenderPlugin {
             ExtractResourcePlugin::<OxrSwapchainImages>::default(),
             ExtractResourcePlugin::<OxrViews>::default(),
         ))
-        .add_systems(XrDestroySession, clean_views)
+        .add_systems(XrPreDestroySession, clean_views)
         .add_systems(
             XrFirst,
             (
@@ -55,7 +55,7 @@ impl Plugin for OxrRenderPlugin {
                 init_views.run_if(resource_added::<OxrSession>),
             )
                 .chain()
-                .after(XrHandleEvents),
+                .in_set(XrHandleEvents::FrameLoop),
         )
         .add_systems(
             PostUpdate,
@@ -70,7 +70,7 @@ impl Plugin for OxrRenderPlugin {
         let render_app = app.sub_app_mut(RenderApp);
 
         render_app
-            .add_systems(XrDestroySession, clean_views)
+            .add_systems(XrPreDestroySession, clean_views)
             .add_systems(
                 Render,
                 (
