@@ -16,7 +16,7 @@ https://discord.gg/sqMw7UJhNc
 
 - Make sure, if you're on Linux, that you have the `openxr` package installed on your system.
 - I'm getting poor performance.
-    - Like other bevy projects, make sure you're building in release (example: `cargo run -p bevy_openxr --example 3d_scene --release`)
+    - Like other bevy projects, make sure you're building in release (example: `cargo run -p bevy_mod_openxr --example 3d_scene --release`)
 
 ## License
 
