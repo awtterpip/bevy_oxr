@@ -19,7 +19,7 @@ pub mod action_binding;
 pub mod action_set_attaching;
 pub mod action_set_syncing;
 pub mod error;
-mod exts;
+pub mod exts;
 pub mod features;
 pub mod graphics;
 pub mod helper_traits;
