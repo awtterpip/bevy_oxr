@@ -3,12 +3,12 @@ use std::{mem::MaybeUninit, ptr, sync::Mutex};
 use bevy::{prelude::*, utils::hashbrown::HashSet};
 use bevy_mod_xr::{
     session::{session_available, session_running, XrFirst, XrHandleEvents},
-    spaces::{XrDestroySpace, XrPrimaryReferenceSpace, XrReferenceSpace, XrSpace, XrSpatialOffset},
+    spaces::{XrDestroySpace, XrPrimaryReferenceSpace, XrReferenceSpace, XrSpace, XrVelocity},
     types::XrPose,
 };
 use openxr::{
     sys, HandJointLocation, HandJointLocations, HandJointVelocities, HandJointVelocity,
-    ReferenceSpaceType, SpaceLocationFlags, HAND_JOINT_COUNT,
+    ReferenceSpaceType, SpaceLocationFlags, SpaceVelocityFlags, HAND_JOINT_COUNT,
 };
 
 use crate::{
@@ -27,6 +27,7 @@ impl Plugin for OxrSpacePatchingPlugin {
         app.add_systems(Startup, patch_destroy_space.run_if(session_available));
     }
 }
+
 pub struct OxrSpatialPlugin;
 impl Plugin for OxrSpatialPlugin {
     fn build(&self, app: &mut App) {
@@ -42,8 +43,27 @@ impl Plugin for OxrSpatialPlugin {
                 update_space_transforms
                     .in_set(OxrSpaceSyncSet)
                     .run_if(session_running),
-            );
+            )
+            .observe(add_location_flags)
+            .observe(add_velocity_flags);
     }
+}
+
+fn add_velocity_flags(event: Trigger<OnAdd, XrVelocity>, mut cmds: Commands) {
+    if event.entity() == Entity::PLACEHOLDER {
+        error!("called add_location_flags observer without entity");
+        return;
+    }
+    cmds.entity(event.entity())
+        .insert(OxrSpaceLocationFlags(openxr::SpaceLocationFlags::default()));
+}
+fn add_location_flags(event: Trigger<OnAdd, XrSpace>, mut cmds: Commands) {
+    if event.entity() == Entity::PLACEHOLDER {
+        error!("called add_location_flags observer without entity");
+        return;
+    }
+    cmds.entity(event.entity())
+        .insert(OxrSpaceLocationFlags(openxr::SpaceLocationFlags::default()));
 }
 
 fn destroy_space_event(instance: Res<OxrInstance>, mut events: EventReader<XrDestroySpace>) {
@@ -92,6 +112,34 @@ unsafe extern "system" fn patched_destroy_space(space: openxr::sys::Space) -> op
     }
 }
 
+#[derive(Clone, Copy, Component)]
+pub struct OxrSpaceLocationFlags(pub openxr::SpaceLocationFlags);
+impl OxrSpaceLocationFlags {
+    pub fn pos_valid(&self) -> bool {
+        self.0.contains(SpaceLocationFlags::POSITION_VALID)
+    }
+    pub fn pos_tracked(&self) -> bool {
+        self.0.contains(SpaceLocationFlags::POSITION_TRACKED)
+    }
+    pub fn rot_valid(&self) -> bool {
+        self.0.contains(SpaceLocationFlags::ORIENTATION_VALID)
+    }
+    pub fn rot_tracked(&self) -> bool {
+        self.0.contains(SpaceLocationFlags::ORIENTATION_TRACKED)
+    }
+}
+#[derive(Clone, Copy, Component)]
+pub struct OxrSpaceVelocityFlags(pub openxr::SpaceVelocityFlags);
+impl OxrSpaceVelocityFlags {
+    pub fn linear_valid(&self) -> bool {
+        self.0.contains(SpaceVelocityFlags::LINEAR_VALID)
+    }
+    pub fn angular_valid(&self) -> bool {
+        self.0.contains(SpaceVelocityFlags::ANGULAR_VALID)
+    }
+}
+
+#[allow(clippy::type_complexity)]
 fn update_space_transforms(
     session: Res<OxrSession>,
     default_ref_space: Res<XrPrimaryReferenceSpace>,
@@ -100,39 +148,61 @@ fn update_space_transforms(
     mut query: Query<(
         &mut Transform,
         &XrSpace,
-        Option<&XrSpatialOffset>,
+        Option<&mut XrVelocity>,
         Option<&XrReferenceSpace>,
+        &mut OxrSpaceLocationFlags,
+        Option<&mut OxrSpaceVelocityFlags>,
     )>,
 ) {
-    for (mut transform, space, offset, ref_space) in &mut query {
-        let offset = offset.copied().unwrap_or_default();
+    for (
+        mut transform,
+        space,
+        velocity,
+        ref_space,
+        mut space_location_flags,
+        space_velocity_flags,
+    ) in &mut query
+    {
         let ref_space = ref_space.unwrap_or(&default_ref_space);
-        if let Ok(space_location) = session.locate_space(
-            space,
-            ref_space,
-            if pipelined.is_some() {
-                openxr::Time::from_nanos(
-                    frame_state.predicted_display_time.as_nanos()
-                        + frame_state.predicted_display_period.as_nanos(),
-                )
-            } else {
-                frame_state.predicted_display_time
-            },
-        ) {
-            if space_location
-                .location_flags
-                .contains(SpaceLocationFlags::POSITION_VALID)
-            {
-                transform.translation = offset
-                    .to_transform()
-                    .transform_point(space_location.pose.position.to_vec3())
+        let time = if pipelined.is_some() {
+            openxr::Time::from_nanos(
+                frame_state.predicted_display_time.as_nanos()
+                    + frame_state.predicted_display_period.as_nanos(),
+            )
+        } else {
+            frame_state.predicted_display_time
+        };
+        let space_location = if let Some(mut velocity) = velocity {
+            match session.locate_space_with_velocity(space, ref_space, time) {
+                Ok((location, space_velocity)) => {
+                    let flags = OxrSpaceVelocityFlags(space_velocity.velocity_flags);
+                    if flags.linear_valid() {
+                        velocity.linear = space_velocity.linear_velocity.to_vec3();
+                    }
+                    if flags.linear_valid() {
+                        velocity.linear = space_velocity.linear_velocity.to_vec3();
+                    }
+                    let Some(mut vel_flags) = space_velocity_flags else {
+                        error!("XrVelocity without OxrSpaceVelocityFlags");
+                        return;
+                    };
+                    *vel_flags = flags;
+                    Ok(location)
+                }
+                Err(err) => Err(err),
             }
-            if space_location
-                .location_flags
-                .contains(SpaceLocationFlags::ORIENTATION_VALID)
-            {
-                transform.rotation = offset.rotation * space_location.pose.orientation.to_quat();
+        } else {
+            session.locate_space(space, ref_space, time)
+        };
+        if let Ok(space_location) = space_location {
+            let flags = OxrSpaceLocationFlags(space_location.location_flags);
+            if flags.pos_valid() {
+                transform.translation = space_location.pose.position.to_vec3();
             }
+            if flags.rot_valid() {
+                transform.rotation = space_location.pose.orientation.to_quat();
+            }
+            *space_location_flags = flags;
         }
     }
 }

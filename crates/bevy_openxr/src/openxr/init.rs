@@ -15,6 +15,7 @@ use bevy::render::RenderPlugin;
 use bevy::winit::UpdateMode;
 use bevy::winit::WinitSettings;
 use bevy_mod_xr::session::*;
+use openxr::Event;
 
 use crate::error::OxrError;
 use crate::features::overlay::OxrOverlaySessionEvent;
@@ -80,6 +81,7 @@ impl Default for OxrInitPlugin {
 
 impl Plugin for OxrInitPlugin {
     fn build(&self, app: &mut App) {
+        app.add_event::<OxrInteractionProfileChanged>();
         match self.init_xr() {
             Ok((
                 instance,
@@ -260,12 +262,15 @@ impl OxrInitPlugin {
         ))
     }
 }
+#[derive(Event, Clone, Copy, Debug, Default)]
+pub struct OxrInteractionProfileChanged;
 
 /// Polls any OpenXR events and handles them accordingly
 pub fn poll_events(
     instance: Res<OxrInstance>,
     mut status: ResMut<XrState>,
     mut changed_event: EventWriter<XrStateChanged>,
+    mut interaction_profile_changed_event: EventWriter<OxrInteractionProfileChanged>,
     mut overlay_writer: Option<ResMut<Events<OxrOverlaySessionEvent>>>,
 ) {
     let _span = info_span!("xr_poll_events");
@@ -312,6 +317,10 @@ pub fn poll_events(
                 } else {
                     warn!("Overlay Event Recieved without the OverlayPlugin being added!");
                 }
+            }
+            // we might want to check if this is the correct session?
+            Event::InteractionProfileChanged(_) => {
+                interaction_profile_changed_event.send_default();
             }
             _ => {}
         }

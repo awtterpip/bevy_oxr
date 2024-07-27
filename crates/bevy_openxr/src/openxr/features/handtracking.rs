@@ -1,17 +1,18 @@
 use bevy::prelude::*;
 use bevy_mod_xr::hands::{LeftHand, RightHand, XrHandBoneEntities, HAND_JOINT_COUNT};
 use bevy_mod_xr::session::{XrPreDestroySession, XrSessionCreated, XrTrackingRoot};
-use bevy_mod_xr::spaces::{XrPrimaryReferenceSpace, XrReferenceSpace};
+use bevy_mod_xr::spaces::{XrPrimaryReferenceSpace, XrReferenceSpace, XrVelocity};
 use bevy_mod_xr::{
     hands::{HandBone, HandBoneRadius},
     session::session_running,
 };
 use openxr::SpaceLocationFlags;
 
-use crate::init::create_xr_session;
+use crate::helper_traits::ToVec3;
 use crate::resources::OxrFrameState;
 use crate::resources::Pipelined;
 use crate::session::OxrSession;
+use crate::spaces::{OxrSpaceLocationFlags, OxrSpaceVelocityFlags};
 
 pub struct HandTrackingPlugin {
     default_hands: bool,
@@ -43,7 +44,12 @@ pub fn spawn_hand_bones<T: Bundle + Clone>(
     #[allow(clippy::needless_range_loop)]
     for bone in HandBone::get_all_bones().into_iter() {
         bones[bone as usize] = cmds
-            .spawn((SpatialBundle::default(), bone, HandBoneRadius(0.0)))
+            .spawn((
+                SpatialBundle::default(),
+                bone,
+                HandBoneRadius(0.0),
+                OxrSpaceLocationFlags(openxr::SpaceLocationFlags::default()),
+            ))
             .insert(bundle.clone())
             .id();
     }
@@ -101,9 +107,9 @@ fn spawn_default_hands(
 }
 
 #[derive(Component, Clone, Copy)]
-struct DefaultHandTracker;
+pub struct DefaultHandTracker;
 #[derive(Component, Clone, Copy)]
-struct DefaultHandBone;
+pub struct DefaultHandBone;
 
 #[allow(clippy::type_complexity)]
 fn clean_up_default_hands(
@@ -128,34 +134,60 @@ fn locate_hands(
         &XrHandBoneEntities,
     )>,
     session: Res<OxrSession>,
-    mut bone_query: Query<(&HandBone, &mut HandBoneRadius, &mut Transform)>,
+    mut bone_query: Query<(
+        &HandBone,
+        &mut HandBoneRadius,
+        &mut Transform,
+        Option<&mut XrVelocity>,
+        &mut OxrSpaceLocationFlags,
+        Option<&mut OxrSpaceVelocityFlags>,
+    )>,
     pipelined: Option<Res<Pipelined>>,
 ) {
     for (tracker, ref_space, hand_entities) in &tracker_query {
+        let wants_velocities = hand_entities
+            .0
+            .iter()
+            .filter_map(|e| bone_query.get(*e).ok())
+            .any(|v| v.3.is_some());
+        let time = if pipelined.is_some() {
+            openxr::Time::from_nanos(
+                frame_state.predicted_display_time.as_nanos()
+                    + frame_state.predicted_display_period.as_nanos(),
+            )
+        } else {
+            frame_state.predicted_display_time
+        };
         let ref_space = ref_space.map(|v| &v.0).unwrap_or(&default_ref_space.0);
-        // relate_hand_joints also provides velocities
-        let joints = match session.locate_hand_joints(
-            tracker,
-            ref_space,
-            if pipelined.is_some() {
-                openxr::Time::from_nanos(
-                    frame_state.predicted_display_time.as_nanos()
-                        + frame_state.predicted_display_period.as_nanos(),
-                )
-            } else {
-                frame_state.predicted_display_time
-            },
-        ) {
-            Ok(Some(v)) => v,
-            Ok(None) => continue,
-            Err(openxr::sys::Result::ERROR_EXTENSION_NOT_PRESENT) => {
-                error!("HandTracking Extension not loaded");
-                continue;
-            }
-            Err(err) => {
-                warn!("Error while locating hand joints: {}", err.to_string());
-                continue;
-            }
+        let (joints, vels) = if wants_velocities {
+            let (loc, vel) =
+                match session.locate_hand_joints_with_velocities(tracker, ref_space, time) {
+                    Ok(Some(v)) => v,
+                    Ok(None) => continue,
+                    Err(openxr::sys::Result::ERROR_EXTENSION_NOT_PRESENT) => {
+                        error!("HandTracking Extension not loaded");
+                        continue;
+                    }
+                    Err(err) => {
+                        warn!("Error while locating hand joints: {}", err.to_string());
+                        continue;
+                    }
+                };
+            (loc, Some(vel))
+        } else {
+            let space = match session.locate_hand_joints(tracker, ref_space, time) {
+                Ok(Some(v)) => v,
+                Ok(None) => continue,
+                Err(openxr::sys::Result::ERROR_EXTENSION_NOT_PRESENT) => {
+                    error!("HandTracking Extension not loaded");
+                    continue;
+                }
+                Err(err) => {
+                    warn!("Error while locating hand joints: {}", err.to_string());
+                    continue;
+                }
+            };
+            (space, None)
         };
         let bone_entities = match bone_query.get_many_mut(hand_entities.0) {
             Ok(v) => v,
@@ -164,28 +196,45 @@ fn locate_hands(
                 continue;
             }
         };
-        for (bone, mut bone_radius, mut transform) in bone_entities {
+        for (bone, mut bone_radius, mut transform, velocity, mut location_flags, velocity_flags) in
+            bone_entities
+        {
             let joint = joints[*bone as usize];
-            **bone_radius = joint.radius;
+            if let Some(mut velocity) = velocity {
+                let Some(vels) = vels.as_ref() else {
+                    error!("somehow got a hand bone with an XrVelocity component, but there are no velocities");
+                    continue;
+                };
+                let Some(mut vel_flags) = velocity_flags else {
+                    error!("somehow got a hand bone with an XrVelocity component, but without velocity flags");
+                    continue;
+                };
+                let vel = vels[*bone as usize];
+                let flags = OxrSpaceVelocityFlags(vel.velocity_flags);
+                if flags.linear_valid() {
+                    velocity.linear = vel.linear_velocity.to_vec3();
+                }
+                if flags.angular_valid() {
+                    velocity.angular = vel.angular_velocity.to_vec3();
+                }
+                *vel_flags = flags;
+            }
 
-            if joint
-                .location_flags
-                .contains(SpaceLocationFlags::POSITION_VALID)
-            {
+            **bone_radius = joint.radius;
+            let flags = OxrSpaceLocationFlags(joint.location_flags);
+            if flags.pos_valid() {
                 transform.translation.x = joint.pose.position.x;
                 transform.translation.y = joint.pose.position.y;
                 transform.translation.z = joint.pose.position.z;
             }
 
-            if joint
-                .location_flags
-                .contains(SpaceLocationFlags::ORIENTATION_VALID)
-            {
+            if flags.rot_valid() {
                 transform.rotation.x = joint.pose.orientation.x;
                 transform.rotation.y = joint.pose.orientation.y;
                 transform.rotation.z = joint.pose.orientation.z;
                 transform.rotation.w = joint.pose.orientation.w;
             }
+            *location_flags = flags;
         }
     }
 }
