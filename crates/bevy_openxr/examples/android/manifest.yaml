@@ -24,6 +24,10 @@ android:
           value: "vr_only"
         - name: "com.oculus.supportedDevices"
           value: "quest|quest2|quest3|questpro"
+        - name: "pvr.app.type"
+          value: "vr"
+        - name: "pvr.sdk.version"
+          value: "OpenXR"
       activities:
         - config_changes: "density|keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|uiMode|screenLayout"
           launch_mode: "singleTask"
