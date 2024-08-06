@@ -27,7 +27,7 @@ fn gizmo_color(bone: &HandBone) -> Srgba {
         b if b.is_thumb() => css::RED,
         b if b.is_index() => css::ORANGE,
         b if b.is_middle() => css::YELLOW,
-        b if b.is_ring() => css::GREEN,
+        b if b.is_ring() => Srgba::rgb(0.0, 1.0, 0.0),
         b if b.is_little() => css::BLUE,
         // should be impossible to hit
         _ => Srgba::rgb(1.0, 0.0, 1.0),
