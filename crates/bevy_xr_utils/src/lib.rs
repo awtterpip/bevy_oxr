@@ -4,3 +4,5 @@ pub mod hand_gizmos;
 pub mod xr_utils_actions;
 #[cfg(not(target_family = "wasm"))]
 pub mod transform_utils;
+
+pub mod interaction_profile_constants;
