@@ -7,6 +7,7 @@ use bevy::ecs::component::Component;
 use bevy::ecs::reflect::ReflectComponent;
 use bevy::ecs::schedule::IntoSystemConfigs;
 use bevy::math::{Mat4, Vec3A};
+use bevy::pbr::{build_directional_light_cascades, clear_directional_light_cascades, SimulationLightSystems};
 use bevy::reflect::std_traits::ReflectDefault;
 use bevy::reflect::Reflect;
 use bevy::render::camera::{
@@ -29,6 +30,12 @@ impl Plugin for XrCameraPlugin {
             update_frusta::<XrProjection>
                 .after(TransformSystem::TransformPropagate)
                 .before(VisibilitySystems::UpdateFrusta),
+        );
+        app.add_systems(
+            PostUpdate,
+            build_directional_light_cascades::<XrProjection>
+                .in_set(SimulationLightSystems::UpdateDirectionalLightCascades)
+                .after(clear_directional_light_cascades),
         );
         app.add_plugins((
             ExtractComponentPlugin::<XrProjection>::default(),
