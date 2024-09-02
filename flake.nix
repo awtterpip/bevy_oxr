@@ -56,6 +56,7 @@
             # xbuild
 
             pkg-config
+            openssl
 
             # Common cargo tools we often use
             cargo-deny
