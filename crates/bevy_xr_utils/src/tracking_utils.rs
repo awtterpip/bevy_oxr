@@ -268,6 +268,9 @@ fn spawn_tracking_rig(
     let right = cmds
         .spawn((SpatialBundle { ..default() }, right_space, RightGrip))
         .id();
+
+    cmds.entity(root.single())
+        .push_children(&[head, local_floor, left, right]);
 }
 
 //bindings
