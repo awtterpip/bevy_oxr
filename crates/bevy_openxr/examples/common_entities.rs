@@ -11,12 +11,15 @@ use bevy_mod_openxr::{
     helper_traits::{ToQuat, ToVec3},
     resources::{OxrFrameState, OxrInstance, Pipelined},
     session::OxrSession,
-    spaces::{OxrSpaceExt, OxrSpaceLocationFlags, OxrSpaceSyncSet, OxrSpaceVelocityFlags},
+    spaces::{OxrSpaceExt, OxrSpaceLocationFlags, OxrSpaceSyncSet},
 };
 use bevy_mod_xr::{
     session::{session_available, session_running, XrSessionCreated, XrTrackingRoot},
-    spaces::{XrPrimaryReferenceSpace, XrReferenceSpace, XrSpace, XrVelocity},
+    spaces::{XrPrimaryReferenceSpace, XrReferenceSpace, XrSpace},
     types::XrPose,
+};
+use bevy_xr_utils::tracking_utils::{
+    TrackingUtilitiesPlugin, XRTrackedLocalFloor, XRTrackedStage, XRTrackedView,
 };
 use openxr::Posef;
 
@@ -38,15 +41,8 @@ fn main() {
     app.add_systems(XrSessionCreated, attach_set);
     app.add_systems(Startup, create_actions.run_if(session_available));
 
-    //head space
-    app.add_systems(
-        PreUpdate,
-        update_head_transforms
-            .in_set(OxrSpaceSyncSet)
-            .run_if(session_running),
-    );
-    //local floor emulated
-    app.add_systems(PreUpdate, update_local_floor.after(update_head_transforms));
+    //tracking utils plugin
+    app.add_plugins(TrackingUtilitiesPlugin);
 
     app.run();
 }
@@ -64,13 +60,13 @@ fn setup(
         transform: Transform::from_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
         ..default()
     });
-    // cube
-    commands.spawn(PbrBundle {
-        mesh: meshes.add(Cuboid::new(1.0, 1.0, 1.0)),
-        material: materials.add(Color::srgb_u8(124, 144, 255)),
-        transform: Transform::from_xyz(0.0, 0.5, 0.0),
-        ..default()
-    });
+    // // cube
+    // commands.spawn(PbrBundle {
+    //     mesh: meshes.add(Cuboid::new(1.0, 1.0, 1.0)),
+    //     material: materials.add(Color::srgb_u8(124, 144, 255)),
+    //     transform: Transform::from_xyz(0.0, 0.5, 0.0),
+    //     ..default()
+    // });
     // light
     commands.spawn(PointLightBundle {
         point_light: PointLight {
@@ -175,9 +171,7 @@ fn spawn_hands(
         ))
         .id();
     //head?
-    let head_space = session
-        .create_reference_space(openxr::ReferenceSpaceType::VIEW, Transform::IDENTITY)
-        .unwrap();
+
     let head = cmds
         .spawn((
             PbrBundle {
@@ -186,7 +180,7 @@ fn spawn_hands(
                 transform: Transform::from_xyz(0.0, 0.0, 0.0),
                 ..default()
             },
-            HeadXRSpace(head_space),
+            XRTrackedView,
         ))
         .id();
     //local_floor? emulated
@@ -198,7 +192,19 @@ fn spawn_hands(
                 transform: Transform::from_xyz(0.0, 0.0, 0.0),
                 ..default()
             },
-            LocalFloor,
+            XRTrackedLocalFloor,
+        ))
+        .id();
+
+    let rooter = cmds
+        .spawn((
+            PbrBundle {
+                mesh: meshes.add(Cuboid::new(0.5, 0.1, 0.5)),
+                material: materials.add(Color::srgb_u8(144, 255, 255)),
+                transform: Transform::from_xyz(0.0, 0.0, 0.0),
+                ..default()
+            },
+            XRTrackedStage,
         ))
         .id();
 
@@ -206,59 +212,3 @@ fn spawn_hands(
         .push_children(&[left, right, head, local_floor]);
 }
 
-#[derive(Component)]
-struct HeadXRSpace(XrReferenceSpace);
-
-#[allow(clippy::type_complexity)]
-fn update_head_transforms(
-    session: Res<OxrSession>,
-    default_ref_space: Res<XrPrimaryReferenceSpace>,
-    pipelined: Option<Res<Pipelined>>,
-    frame_state: Res<OxrFrameState>,
-    mut query: Query<(&mut Transform, &HeadXRSpace, Option<&XrReferenceSpace>)>,
-) {
-    for (mut transform, space, ref_space) in &mut query {
-        let ref_space = ref_space.unwrap_or(&default_ref_space);
-        let time = if pipelined.is_some() {
-            openxr::Time::from_nanos(
-                frame_state.predicted_display_time.as_nanos()
-                    + frame_state.predicted_display_period.as_nanos(),
-            )
-        } else {
-            frame_state.predicted_display_time
-        };
-        let space_location = session.locate_space(&space.0, ref_space, time);
-
-        if let Ok(space_location) = space_location {
-            let flags = OxrSpaceLocationFlags(space_location.location_flags);
-            if flags.pos_valid() {
-                transform.translation = space_location.pose.position.to_vec3();
-            }
-            if flags.rot_valid() {
-                transform.rotation = space_location.pose.orientation.to_quat();
-            }
-        }
-    }
-}
-
-//emulated local_floor
-#[derive(Component)]
-struct LocalFloor;
-
-fn update_local_floor(
-    mut headSpace: Query<&mut Transform, (With<HeadXRSpace>, Without<LocalFloor>)>,
-    mut local_floor: Query<&mut Transform, (With<LocalFloor>, Without<HeadXRSpace>)>,
-) {
-    let head_transform = headSpace.get_single_mut();
-    match head_transform {
-        Ok(head) => {
-            let mut calc_floor = head.clone();
-            calc_floor.translation.y = 0.0;
-            calc_floor.rotation = Quat::IDENTITY;
-            for (mut transform) in &mut local_floor {
-                *transform = calc_floor;
-            }
-        }
-        Err(_) => (),
-    }
-}
