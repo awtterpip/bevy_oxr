@@ -3,4 +3,5 @@
 .vscode
 \.DS_Store
 .envrc
+.zed
 .direnv
