@@ -1,45 +1,20 @@
 //! A simple 3D scene with light shining over a cube sitting on a plane.
 
-use std::ops::Deref;
-
 use bevy::prelude::*;
-use bevy_mod_openxr::{
-    action_binding::{OxrSendActionBindings, OxrSuggestActionBinding},
-    action_set_attaching::OxrAttachActionSet,
-    action_set_syncing::{OxrActionSetSyncSet, OxrSyncActionSet},
-    add_xr_plugins,
-    helper_traits::{ToQuat, ToVec3},
-    resources::{OxrFrameState, OxrInstance, Pipelined},
-    session::OxrSession,
-    spaces::{OxrSpaceExt, OxrSpaceLocationFlags, OxrSpaceSyncSet},
-};
-use bevy_mod_xr::{
-    session::{session_available, session_running, XrSessionCreated, XrTrackingRoot},
-    spaces::{XrPrimaryReferenceSpace, XrReferenceSpace, XrSpace},
-    types::XrPose,
-};
+use bevy_mod_openxr::add_xr_plugins;
+use bevy_mod_xr::session::{XrSessionCreated, XrTrackingRoot};
 use bevy_xr_utils::tracking_utils::{
-    TrackingUtilitiesPlugin, XRTrackedLocalFloor, XRTrackedStage, XRTrackedView,
+    TrackingUtilitiesPlugin, XRTrackedLeftGrip, XRTrackedLocalFloor, XRTrackedRightGrip,
+    XRTrackedStage, XRTrackedView,
 };
-use openxr::Posef;
 
 fn main() {
     let mut app = App::new();
     app.add_plugins(add_xr_plugins(DefaultPlugins));
     app.add_systems(Startup, setup);
-    //create bindings
-    app.add_systems(OxrSendActionBindings, suggest_action_bindings);
-    //sync actions
-    app.add_systems(
-        PreUpdate,
-        sync_actions
-            .before(OxrActionSetSyncSet)
-            .run_if(session_running),
-    );
+
     //things?
     app.add_systems(XrSessionCreated, spawn_hands);
-    app.add_systems(XrSessionCreated, attach_set);
-    app.add_systems(Startup, create_actions.run_if(session_available));
 
     //tracking utils plugin
     app.add_plugins(TrackingUtilitiesPlugin);
@@ -82,72 +57,12 @@ fn setup(
     });
 }
 
-#[derive(Resource)]
-struct ControllerActions {
-    set: openxr::ActionSet,
-    left: openxr::Action<Posef>,
-    right: openxr::Action<Posef>,
-}
-
-fn suggest_action_bindings(
-    actions: Res<ControllerActions>,
-    mut bindings: EventWriter<OxrSuggestActionBinding>,
-) {
-    bindings.send(OxrSuggestActionBinding {
-        action: actions.left.as_raw(),
-        interaction_profile: "/interaction_profiles/oculus/touch_controller".into(),
-        bindings: vec!["/user/hand/left/input/grip/pose".into()],
-    });
-    bindings.send(OxrSuggestActionBinding {
-        action: actions.right.as_raw(),
-        interaction_profile: "/interaction_profiles/oculus/touch_controller".into(),
-        bindings: vec!["/user/hand/right/input/grip/pose".into()],
-    });
-}
-
-fn sync_actions(actions: Res<ControllerActions>, mut sync: EventWriter<OxrSyncActionSet>) {
-    sync.send(OxrSyncActionSet(actions.set.clone()));
-}
-
-fn attach_set(actions: Res<ControllerActions>, mut attach: EventWriter<OxrAttachActionSet>) {
-    attach.send(OxrAttachActionSet(actions.set.clone()));
-}
-
-fn create_actions(instance: Res<OxrInstance>, mut cmds: Commands) {
-    let set = instance.create_action_set("hands", "Hands", 0).unwrap();
-    let left = set
-        .create_action("left_pose", "Left Hand Grip Pose", &[])
-        .unwrap();
-    let right = set
-        .create_action("right_pose", "Right Hand Grip Pose", &[])
-        .unwrap();
-
-    cmds.insert_resource(ControllerActions { set, left, right })
-}
-
 fn spawn_hands(
-    actions: Res<ControllerActions>,
     mut cmds: Commands,
     root: Query<Entity, With<XrTrackingRoot>>,
-    session: Res<OxrSession>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    // This is a demonstation of how to integrate with the openxr crate, the right space is the
-    // recommended way
-    let left_space = XrSpace::from_openxr_space(
-        actions
-            .left
-            .create_space(
-                session.deref().deref().clone(),
-                openxr::Path::NULL,
-                Posef::IDENTITY,
-            )
-            .unwrap(),
-    );
-    let right_space = session
-        .create_action_space(&actions.right, openxr::Path::NULL, XrPose::IDENTITY)
-        .unwrap();
     let left = cmds
         .spawn((
             PbrBundle {
@@ -156,20 +71,19 @@ fn spawn_hands(
                 transform: Transform::from_xyz(0.0, 0.5, 0.0),
                 ..default()
             },
-            left_space,
+            XRTrackedLeftGrip,
         ))
         .id();
-    let right = cmds
-        .spawn((
-            PbrBundle {
-                mesh: meshes.add(Cuboid::new(0.1, 0.1, 0.05)),
-                material: materials.add(Color::srgb_u8(124, 144, 255)),
-                transform: Transform::from_xyz(0.0, 0.5, 0.0),
-                ..default()
-            },
-            right_space,
-        ))
-        .id();
+    let bundle = (
+        PbrBundle {
+            mesh: meshes.add(Cuboid::new(0.1, 0.1, 0.05)),
+            material: materials.add(Color::srgb_u8(124, 144, 255)),
+            transform: Transform::from_xyz(0.0, 0.5, 0.0),
+            ..default()
+        },
+        XRTrackedRightGrip,
+    );
+    let right = cmds.spawn(bundle).id();
     //head?
 
     let head = cmds
@@ -211,4 +125,3 @@ fn spawn_hands(
     cmds.entity(root.single())
         .push_children(&[left, right, head, local_floor]);
 }
-

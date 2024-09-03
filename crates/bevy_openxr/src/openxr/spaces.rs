@@ -140,7 +140,7 @@ impl OxrSpaceVelocityFlags {
 }
 
 #[allow(clippy::type_complexity)]
-fn update_space_transforms(
+pub fn update_space_transforms(
     session: Res<OxrSession>,
     default_ref_space: Res<XrPrimaryReferenceSpace>,
     pipelined: Option<Res<Pipelined>>,

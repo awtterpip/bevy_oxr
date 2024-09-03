@@ -1,13 +1,19 @@
+use std::ops::Deref;
+
 use bevy::prelude::*;
 use bevy_mod_openxr::{
+    action_binding::{OxrSendActionBindings, OxrSuggestActionBinding},
+    action_set_attaching::OxrAttachActionSet,
+    action_set_syncing::{OxrActionSetSyncSet, OxrSyncActionSet},
     helper_traits::{ToQuat, ToVec3},
-    resources::{OxrFrameState, Pipelined},
+    resources::{OxrFrameState, OxrInstance, Pipelined},
     session::OxrSession,
-    spaces::{OxrSpaceLocationFlags, OxrSpaceSyncSet},
+    spaces::{update_space_transforms, OxrSpaceExt, OxrSpaceLocationFlags, OxrSpaceSyncSet},
 };
 use bevy_mod_xr::{
-    session::{session_running, XrSessionCreated, XrTrackingRoot},
-    spaces::{XrPrimaryReferenceSpace, XrReferenceSpace},
+    session::{session_available, session_running, XrSessionCreated, XrTrackingRoot},
+    spaces::{XrPrimaryReferenceSpace, XrReferenceSpace, XrSpace},
+    types::XrPose,
 };
 use openxr::Posef;
 
@@ -25,7 +31,7 @@ pub struct XRTrackedView;
 pub struct XRTrackedLeftGrip;
 
 #[derive(Component)]
-pub struct XRTRackedRightGrip;
+pub struct XRTrackedRightGrip;
 
 pub struct TrackingUtilitiesPlugin;
 
@@ -60,6 +66,28 @@ impl Plugin for TrackingUtilitiesPlugin {
             PreUpdate,
             update_local_floor.after(update_local_floor_transforms),
         );
+        //bindings
+        app.add_systems(OxrSendActionBindings, suggest_action_bindings);
+        //sync actions
+        app.add_systems(
+            PreUpdate,
+            sync_actions
+                .before(OxrActionSetSyncSet)
+                .run_if(session_running),
+        );
+        //attach sets
+        app.add_systems(XrSessionCreated, attach_set);
+        //create actions
+        app.add_systems(Startup, create_actions.run_if(session_available));
+        //left grip
+        // .add_systems(
+        //     PreUpdate,
+        //     update_space_transforms
+        //         .in_set(OxrSpaceSyncSet)
+        //         .run_if(session_running),
+        // )
+        app.add_systems(PreUpdate, update_left_grip.after(update_space_transforms));
+        app.add_systems(PreUpdate, update_right_grip.after(update_space_transforms));
     }
 }
 
@@ -167,6 +195,44 @@ fn update_local_floor(
     }
 }
 
+//left grip
+#[derive(Component)]
+struct LeftGrip;
+
+fn update_left_grip(
+    mut left_grip: Query<&mut Transform, (With<LeftGrip>, Without<XRTrackedLeftGrip>)>,
+    mut tracked_left_grip: Query<&mut Transform, (With<XRTrackedLeftGrip>, Without<LeftGrip>)>,
+) {
+    let head_transform = left_grip.get_single_mut();
+    match head_transform {
+        Ok(head) => {
+            for (mut transform) in &mut tracked_left_grip {
+                *transform = head.clone();
+            }
+        }
+        Err(_) => (),
+    }
+}
+
+//right grip
+#[derive(Component)]
+struct RightGrip;
+
+fn update_right_grip(
+    mut right_grip: Query<&mut Transform, (With<RightGrip>, Without<XRTrackedRightGrip>)>,
+    mut tracked_right_grip: Query<&mut Transform, (With<XRTrackedRightGrip>, Without<RightGrip>)>,
+) {
+    let head_transform = right_grip.get_single_mut();
+    match head_transform {
+        Ok(head) => {
+            for (mut transform) in &mut tracked_right_grip {
+                *transform = head.clone();
+            }
+        }
+        Err(_) => (),
+    }
+}
+
 //tracking rig
 #[derive(Resource)]
 struct ControllerActions {
@@ -176,9 +242,9 @@ struct ControllerActions {
 }
 
 fn spawn_tracking_rig(
-    // actions: Res<ControllerActions>,
+    actions: Res<ControllerActions>,
     mut cmds: Commands,
-    // root: Query<Entity, With<XrTrackingRoot>>,
+    root: Query<Entity, With<XrTrackingRoot>>,
     session: Res<OxrSession>,
 ) {
     //head
@@ -189,4 +255,55 @@ fn spawn_tracking_rig(
         .spawn((SpatialBundle { ..default() }, HeadXRSpace(head_space)))
         .id();
     let local_floor = cmds.spawn((SpatialBundle { ..default() }, LocalFloor)).id();
+
+    let left_space = session
+        .create_action_space(&actions.left, openxr::Path::NULL, XrPose::IDENTITY)
+        .unwrap();
+    let right_space = session
+        .create_action_space(&actions.right, openxr::Path::NULL, XrPose::IDENTITY)
+        .unwrap();
+    let left = cmds
+        .spawn((SpatialBundle { ..default() }, left_space, LeftGrip))
+        .id();
+    let right = cmds
+        .spawn((SpatialBundle { ..default() }, right_space, RightGrip))
+        .id();
+}
+
+//bindings
+//TODO figure out how to make these better
+fn suggest_action_bindings(
+    actions: Res<ControllerActions>,
+    mut bindings: EventWriter<OxrSuggestActionBinding>,
+) {
+    bindings.send(OxrSuggestActionBinding {
+        action: actions.left.as_raw(),
+        interaction_profile: "/interaction_profiles/oculus/touch_controller".into(),
+        bindings: vec!["/user/hand/left/input/grip/pose".into()],
+    });
+    bindings.send(OxrSuggestActionBinding {
+        action: actions.right.as_raw(),
+        interaction_profile: "/interaction_profiles/oculus/touch_controller".into(),
+        bindings: vec!["/user/hand/right/input/grip/pose".into()],
+    });
+}
+
+fn sync_actions(actions: Res<ControllerActions>, mut sync: EventWriter<OxrSyncActionSet>) {
+    sync.send(OxrSyncActionSet(actions.set.clone()));
+}
+
+fn attach_set(actions: Res<ControllerActions>, mut attach: EventWriter<OxrAttachActionSet>) {
+    attach.send(OxrAttachActionSet(actions.set.clone()));
+}
+
+fn create_actions(instance: Res<OxrInstance>, mut cmds: Commands) {
+    let set = instance.create_action_set("hands", "Hands", 0).unwrap();
+    let left = set
+        .create_action("left_pose", "Left Hand Grip Pose", &[])
+        .unwrap();
+    let right = set
+        .create_action("right_pose", "Right Hand Grip Pose", &[])
+        .unwrap();
+
+    cmds.insert_resource(ControllerActions { set, left, right })
 }
