@@ -76,7 +76,7 @@ fn spawn_hands(
         XRTrackedRightGrip,
     );
     let right = cmds.spawn(bundle).id();
-    //head?
+    //head
 
     let head = cmds
         .spawn((
@@ -89,7 +89,7 @@ fn spawn_hands(
             XRTrackedView,
         ))
         .id();
-    //local_floor? emulated
+    //local_floor emulated
     let local_floor = cmds
         .spawn((
             PbrBundle {
@@ -102,7 +102,7 @@ fn spawn_hands(
         ))
         .id();
 
-    let rooter = cmds
+    let stage = cmds
         .spawn((
             PbrBundle {
                 mesh: meshes.add(Cuboid::new(0.5, 0.1, 0.5)),
@@ -114,6 +114,6 @@ fn spawn_hands(
         ))
         .id();
 
-    cmds.entity(rooter)
+    cmds.entity(stage)
         .push_children(&[left, right, head, local_floor]);
 }
