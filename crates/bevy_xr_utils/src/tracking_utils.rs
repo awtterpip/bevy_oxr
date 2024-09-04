@@ -254,9 +254,9 @@ fn spawn_tracking_rig(
         .create_reference_space(openxr::ReferenceSpaceType::VIEW, Transform::IDENTITY)
         .unwrap();
     let head = cmds
-        .spawn((SpatialBundle { ..default() }, HeadXRSpace(head_space)))
+        .spawn((SpatialBundle::default(), HeadXRSpace(head_space)))
         .id();
-    let local_floor = cmds.spawn((SpatialBundle { ..default() }, LocalFloor)).id();
+    let local_floor = cmds.spawn((SpatialBundle::default(), LocalFloor)).id();
 
     let left_space = session
         .create_action_space(&actions.left, openxr::Path::NULL, XrPose::IDENTITY)
@@ -265,10 +265,10 @@ fn spawn_tracking_rig(
         .create_action_space(&actions.right, openxr::Path::NULL, XrPose::IDENTITY)
         .unwrap();
     let left = cmds
-        .spawn((SpatialBundle { ..default() }, left_space, LeftGrip))
+        .spawn((SpatialBundle::default(), left_space, LeftGrip))
         .id();
     let right = cmds
-        .spawn((SpatialBundle { ..default() }, right_space, RightGrip))
+        .spawn((SpatialBundle::default(), right_space, RightGrip))
         .id();
 
     cmds.entity(root.single())
