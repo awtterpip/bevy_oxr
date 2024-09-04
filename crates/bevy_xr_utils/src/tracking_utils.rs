@@ -1,4 +1,3 @@
-
 use bevy::prelude::*;
 use bevy_mod_openxr::{
     action_binding::{OxrSendActionBindings, OxrSuggestActionBinding},
@@ -7,7 +6,7 @@ use bevy_mod_openxr::{
     helper_traits::{ToQuat, ToVec3},
     resources::{OxrFrameState, OxrInstance, Pipelined},
     session::OxrSession,
-    spaces::{ OxrSpaceLocationFlags, OxrSpaceSyncSet},
+    spaces::{OxrSpaceLocationFlags, OxrSpaceSyncSet},
 };
 use bevy_mod_xr::{
     session::{session_available, session_running, XrSessionCreated, XrTrackingRoot},
@@ -55,16 +54,11 @@ impl Plugin for TrackingUtilitiesPlugin {
         app.add_systems(PreUpdate, update_view.after(update_head_transforms));
 
         //local floor transforms
-        //internal
         app.add_systems(
             PreUpdate,
             update_local_floor_transforms.after(update_head_transforms),
         );
-        //external
-        app.add_systems(
-            PreUpdate,
-            update_local_floor.after(update_local_floor_transforms),
-        );
+
         //bindings
         app.add_systems(OxrSendActionBindings, suggest_action_bindings);
         //sync actions
@@ -78,13 +72,7 @@ impl Plugin for TrackingUtilitiesPlugin {
         app.add_systems(XrSessionCreated, attach_set);
         //create actions
         app.add_systems(Startup, create_actions.run_if(session_available));
-        //left grip
-        // .add_systems(
-        //     PreUpdate,
-        //     update_space_transforms
-        //         .in_set(OxrSpaceSyncSet)
-        //         .run_if(session_running),
-        // )
+
         app.add_systems(PreUpdate, update_left_grip.after(OxrSpaceSyncSet));
         app.add_systems(PreUpdate, update_right_grip.after(OxrSpaceSyncSet));
     }
@@ -157,12 +145,9 @@ fn update_view(
 }
 
 //local floor
-#[derive(Component)]
-struct LocalFloor;
-//internal
 fn update_local_floor_transforms(
-    mut head_space: Query<&mut Transform, (With<HeadXRSpace>, Without<LocalFloor>)>,
-    mut local_floor: Query<&mut Transform, (With<LocalFloor>, Without<HeadXRSpace>)>,
+    mut head_space: Query<&mut Transform, (With<HeadXRSpace>, Without<XrTrackedLocalFloor>)>,
+    mut local_floor: Query<&mut Transform, (With<XrTrackedLocalFloor>, Without<HeadXRSpace>)>,
 ) {
     let head_transform = head_space.get_single_mut();
     match head_transform {
@@ -175,21 +160,6 @@ fn update_local_floor_transforms(
             calc_floor.rotation = new_rot;
             for (mut transform) in &mut local_floor {
                 *transform = calc_floor;
-            }
-        }
-        Err(_) => (),
-    }
-}
-//external
-fn update_local_floor(
-    mut local_floor: Query<&mut Transform, (With<LocalFloor>, Without<XrTrackedLocalFloor>)>,
-    mut tracked_floor: Query<&mut Transform, (With<XrTrackedLocalFloor>, Without<LocalFloor>)>,
-) {
-    let head_transform = local_floor.get_single_mut();
-    match head_transform {
-        Ok(head) => {
-            for (mut transform) in &mut tracked_floor {
-                *transform = head.clone();
             }
         }
         Err(_) => (),
@@ -255,7 +225,7 @@ fn spawn_tracking_rig(
     let head = cmds
         .spawn((SpatialBundle::default(), HeadXRSpace(head_space)))
         .id();
-    let local_floor = cmds.spawn((SpatialBundle::default(), LocalFloor)).id();
+    // let local_floor = cmds.spawn((SpatialBundle::default(), LocalFloor)).id();
 
     let left_space = session
         .create_action_space(&actions.left, openxr::Path::NULL, XrPose::IDENTITY)
@@ -271,11 +241,11 @@ fn spawn_tracking_rig(
         .id();
 
     cmds.entity(root.single())
-        .push_children(&[head, local_floor, left, right]);
+        .push_children(&[head, left, right]);
 }
 
 //bindings
-//TODO figure out how to make these better
+//TODO figure out how to make these better, specifically not be controller specific
 fn suggest_action_bindings(
     actions: Res<ControllerActions>,
     mut bindings: EventWriter<OxrSuggestActionBinding>,
