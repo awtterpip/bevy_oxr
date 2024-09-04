@@ -1,4 +1,3 @@
-use std::ops::Deref;
 
 use bevy::prelude::*;
 use bevy_mod_openxr::{
@@ -8,11 +7,11 @@ use bevy_mod_openxr::{
     helper_traits::{ToQuat, ToVec3},
     resources::{OxrFrameState, OxrInstance, Pipelined},
     session::OxrSession,
-    spaces::{update_space_transforms, OxrSpaceExt, OxrSpaceLocationFlags, OxrSpaceSyncSet},
+    spaces::{ OxrSpaceLocationFlags, OxrSpaceSyncSet},
 };
 use bevy_mod_xr::{
     session::{session_available, session_running, XrSessionCreated, XrTrackingRoot},
-    spaces::{XrPrimaryReferenceSpace, XrReferenceSpace, XrSpace},
+    spaces::{XrPrimaryReferenceSpace, XrReferenceSpace},
     types::XrPose,
 };
 use openxr::Posef;
@@ -86,8 +85,8 @@ impl Plugin for TrackingUtilitiesPlugin {
         //         .in_set(OxrSpaceSyncSet)
         //         .run_if(session_running),
         // )
-        app.add_systems(PreUpdate, update_left_grip.after(update_space_transforms));
-        app.add_systems(PreUpdate, update_right_grip.after(update_space_transforms));
+        app.add_systems(PreUpdate, update_left_grip.after(OxrSpaceSyncSet));
+        app.add_systems(PreUpdate, update_right_grip.after(OxrSpaceSyncSet));
     }
 }
 
