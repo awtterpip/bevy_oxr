@@ -19,19 +19,19 @@ use openxr::Posef;
 
 //exernal api
 #[derive(Component)]
-pub struct XRTrackedStage;
+pub struct XrTrackedStage;
 
 #[derive(Component)]
-pub struct XRTrackedLocalFloor;
+pub struct XrTrackedLocalFloor;
 
 #[derive(Component)]
-pub struct XRTrackedView;
+pub struct XrTrackedView;
 
 #[derive(Component)]
-pub struct XRTrackedLeftGrip;
+pub struct XrTrackedLeftGrip;
 
 #[derive(Component)]
-pub struct XRTrackedRightGrip;
+pub struct XrTrackedRightGrip;
 
 pub struct TrackingUtilitiesPlugin;
 
@@ -93,8 +93,8 @@ impl Plugin for TrackingUtilitiesPlugin {
 
 //stage
 fn update_stage(
-    mut root_query: Query<&mut Transform, (With<XrTrackingRoot>, Without<XRTrackedStage>)>,
-    mut stage_query: Query<&mut Transform, (With<XRTrackedStage>, Without<XrTrackingRoot>)>,
+    mut root_query: Query<&mut Transform, (With<XrTrackingRoot>, Without<XrTrackedStage>)>,
+    mut stage_query: Query<&mut Transform, (With<XrTrackedStage>, Without<XrTrackingRoot>)>,
 ) {
     let tracking_root_transform = root_query.get_single_mut();
     match tracking_root_transform {
@@ -143,8 +143,8 @@ fn update_head_transforms(
 }
 
 fn update_view(
-    mut head_query: Query<&mut Transform, (With<HeadXRSpace>, Without<XRTrackedView>)>,
-    mut view_query: Query<&mut Transform, (With<XRTrackedView>, Without<HeadXRSpace>)>,
+    mut head_query: Query<&mut Transform, (With<HeadXRSpace>, Without<XrTrackedView>)>,
+    mut view_query: Query<&mut Transform, (With<XrTrackedView>, Without<HeadXRSpace>)>,
 ) {
     let head_transform = head_query.get_single_mut();
     match head_transform {
@@ -183,8 +183,8 @@ fn update_local_floor_transforms(
 }
 //external
 fn update_local_floor(
-    mut local_floor: Query<&mut Transform, (With<LocalFloor>, Without<XRTrackedLocalFloor>)>,
-    mut tracked_floor: Query<&mut Transform, (With<XRTrackedLocalFloor>, Without<LocalFloor>)>,
+    mut local_floor: Query<&mut Transform, (With<LocalFloor>, Without<XrTrackedLocalFloor>)>,
+    mut tracked_floor: Query<&mut Transform, (With<XrTrackedLocalFloor>, Without<LocalFloor>)>,
 ) {
     let head_transform = local_floor.get_single_mut();
     match head_transform {
@@ -202,8 +202,8 @@ fn update_local_floor(
 struct LeftGrip;
 
 fn update_left_grip(
-    mut left_grip: Query<&mut Transform, (With<LeftGrip>, Without<XRTrackedLeftGrip>)>,
-    mut tracked_left_grip: Query<&mut Transform, (With<XRTrackedLeftGrip>, Without<LeftGrip>)>,
+    mut left_grip: Query<&mut Transform, (With<LeftGrip>, Without<XrTrackedLeftGrip>)>,
+    mut tracked_left_grip: Query<&mut Transform, (With<XrTrackedLeftGrip>, Without<LeftGrip>)>,
 ) {
     let head_transform = left_grip.get_single_mut();
     match head_transform {
@@ -221,8 +221,8 @@ fn update_left_grip(
 struct RightGrip;
 
 fn update_right_grip(
-    mut right_grip: Query<&mut Transform, (With<RightGrip>, Without<XRTrackedRightGrip>)>,
-    mut tracked_right_grip: Query<&mut Transform, (With<XRTrackedRightGrip>, Without<RightGrip>)>,
+    mut right_grip: Query<&mut Transform, (With<RightGrip>, Without<XrTrackedRightGrip>)>,
+    mut tracked_right_grip: Query<&mut Transform, (With<XrTrackedRightGrip>, Without<RightGrip>)>,
 ) {
     let head_transform = right_grip.get_single_mut();
     match head_transform {

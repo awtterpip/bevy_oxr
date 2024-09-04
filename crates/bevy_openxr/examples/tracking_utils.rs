@@ -4,8 +4,8 @@ use bevy::prelude::*;
 use bevy_mod_openxr::add_xr_plugins;
 use bevy_mod_xr::session::{XrSessionCreated, XrTrackingRoot};
 use bevy_xr_utils::tracking_utils::{
-    TrackingUtilitiesPlugin, XRTrackedLeftGrip, XRTrackedLocalFloor, XRTrackedRightGrip,
-    XRTrackedStage, XRTrackedView,
+    TrackingUtilitiesPlugin, XrTrackedLeftGrip, XrTrackedLocalFloor, XrTrackedRightGrip,
+    XrTrackedStage, XrTrackedView,
 };
 
 fn main() {
@@ -63,7 +63,7 @@ fn spawn_hands(
                 transform: Transform::from_xyz(0.0, 0.5, 0.0),
                 ..default()
             },
-            XRTrackedLeftGrip,
+            XrTrackedLeftGrip,
         ))
         .id();
     let bundle = (
@@ -73,7 +73,7 @@ fn spawn_hands(
             transform: Transform::from_xyz(0.0, 0.5, 0.0),
             ..default()
         },
-        XRTrackedRightGrip,
+        XrTrackedRightGrip,
     );
     let right = cmds.spawn(bundle).id();
     //head
@@ -86,7 +86,7 @@ fn spawn_hands(
                 transform: Transform::from_xyz(0.0, 0.0, 0.0),
                 ..default()
             },
-            XRTrackedView,
+            XrTrackedView,
         ))
         .id();
     //local_floor emulated
@@ -98,7 +98,7 @@ fn spawn_hands(
                 transform: Transform::from_xyz(0.0, 0.0, 0.0),
                 ..default()
             },
-            XRTrackedLocalFloor,
+            XrTrackedLocalFloor,
         ))
         .id();
 
@@ -110,7 +110,7 @@ fn spawn_hands(
                 transform: Transform::from_xyz(0.0, 0.0, 0.0),
                 ..default()
             },
-            XRTrackedStage,
+            XrTrackedStage,
         ))
         .id();
 
