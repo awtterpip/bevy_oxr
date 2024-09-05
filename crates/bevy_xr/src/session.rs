@@ -1,3 +1,6 @@
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
+
 use bevy::app::{AppExit, MainScheduleOrder};
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;
@@ -22,8 +25,8 @@ pub struct XrSessionCreatedEvent;
 pub struct XrDestroySessionEvent;
 
 /// Resource flag thats inserted into the world and extracted to the render world to inform any session resources in the render world to drop.
-#[derive(Resource, ExtractResource, Clone, Copy, Default)]
-pub struct XrDestroySessionRender;
+#[derive(Resource, Clone, Default)]
+pub struct XrDestroySessionRender(pub Arc<AtomicBool>);
 
 /// Schedule thats ran whenever the XrSession is about to be destroyed
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug, Hash, ScheduleLabel)]
@@ -89,6 +92,7 @@ pub struct XrSessionPlugin {
 
 impl Plugin for XrSessionPlugin {
     fn build(&self, app: &mut App) {
+        app.init_resource::<XrDestroySessionRender>();
         let mut xr_first = Schedule::new(XrFirst);
         xr_first.set_executor_kind(bevy::ecs::schedule::ExecutorKind::Simple);
         app.add_event::<XrCreateSessionEvent>()
@@ -120,11 +124,11 @@ impl Plugin for XrSessionPlugin {
                     .run_if(on_event::<AppExit>())
                     .run_if(session_created)
                     .in_set(XrHandleEvents::ExitEvents),
-            )
-            .add_systems(
-                XrFirst,
-                reset_per_frame_resources.in_set(XrHandleEvents::Cleanup),
             );
+            // .add_systems(
+            //     XrFirst,
+            //     reset_per_frame_resources.in_set(XrHandleEvents::Cleanup),
+            // );
         app.world_mut()
             .resource_mut::<MainScheduleOrder>()
             .labels
@@ -142,7 +146,6 @@ impl Plugin for XrSessionPlugin {
 
         app.add_plugins((
             ExtractResourcePlugin::<XrState>::default(),
-            ExtractResourcePlugin::<XrDestroySessionRender>::default(),
             ExtractResourcePlugin::<XrRootTransform>::default(),
         ))
         .init_resource::<XrRootTransform>()
@@ -181,16 +184,11 @@ impl Plugin for XrSessionPlugin {
                 XrRenderSet::PostRender
                     .after(RenderSet::Render)
                     .before(RenderSet::Cleanup),
-            )
-            .add_systems(
-                Render,
-                (
-                    // run_xr_destroy_session
-                    //     .run_if(resource_exists::<XrDestroySessionRender>)
-                    //     .in_set(XrRenderSet::HandleEvents),
-                    reset_per_frame_resources.in_set(RenderSet::Cleanup),
-                ),
             );
+            // .add_systems(
+            //     Render,
+            //     (reset_per_frame_resources.in_set(RenderSet::Cleanup),),
+            // );
     }
 }
 
@@ -235,11 +233,14 @@ pub fn auto_handle_session(
     mut begin_session: EventWriter<XrBeginSessionEvent>,
     mut end_session: EventWriter<XrEndSessionEvent>,
     mut destroy_session: EventWriter<XrDestroySessionEvent>,
+    mut no_auto_restart: Local<bool>,
 ) {
     for XrStateChanged(state) in state_changed.read() {
         match state {
             XrState::Available => {
-                create_session.send_default();
+                if !*no_auto_restart {
+                    create_session.send_default();
+                }
             }
             XrState::Ready => {
                 begin_session.send_default();
@@ -247,7 +248,8 @@ pub fn auto_handle_session(
             XrState::Stopping => {
                 end_session.send_default();
             }
-            XrState::Exiting { .. } => {
+            XrState::Exiting { should_restart } => {
+                *no_auto_restart = !should_restart;
                 destroy_session.send_default();
             }
             _ => (),

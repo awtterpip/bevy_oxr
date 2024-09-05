@@ -6,7 +6,7 @@ use bevy_mod_xr::session::{XrSessionPlugin, XrState};
 
 fn main() {
     App::new()
-        .add_plugins(add_xr_plugins(DefaultPlugins).set(XrSessionPlugin { auto_handle: false }))
+        .add_plugins(add_xr_plugins(DefaultPlugins).set(XrSessionPlugin { auto_handle: true }))
         .add_plugins(bevy_xr_utils::hand_gizmos::HandGizmosPlugin)
         .add_systems(Startup, setup)
         .add_systems(Update, handle_input)
@@ -42,6 +42,12 @@ fn handle_input(
     if keys.just_pressed(KeyCode::KeyR) {
         info!("sending request exit");
         request_exit.send_default();
+    }
+    if keys.just_pressed(KeyCode::KeyT) {
+        info!("sending request exit");
+        request_exit.send_default();
+        info!("sending end");
+        end.send_default();
     }
     if keys.just_pressed(KeyCode::KeyI) {
         info!("current state: {:?}", *state);
