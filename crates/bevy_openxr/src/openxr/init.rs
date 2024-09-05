@@ -522,7 +522,6 @@ pub fn create_xr_session(world: &mut World) {
 }
 
 pub fn destroy_xr_session(world: &mut World) {
-    info!("running destroy!");
     world.run_schedule(XrPreDestroySession);
     world.remove_resource::<OxrSession>();
     world.remove_resource::<OxrFrameWaiter>();

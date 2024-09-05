@@ -43,12 +43,6 @@ fn handle_input(
         info!("sending request exit");
         request_exit.send_default();
     }
-    if keys.just_pressed(KeyCode::KeyT) {
-        info!("sending request exit");
-        request_exit.send_default();
-        info!("sending end");
-        end.send_default();
-    }
     if keys.just_pressed(KeyCode::KeyI) {
         info!("current state: {:?}", *state);
     }

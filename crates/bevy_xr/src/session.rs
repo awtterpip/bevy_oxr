@@ -125,10 +125,6 @@ impl Plugin for XrSessionPlugin {
                     .run_if(session_created)
                     .in_set(XrHandleEvents::ExitEvents),
             );
-            // .add_systems(
-            //     XrFirst,
-            //     reset_per_frame_resources.in_set(XrHandleEvents::Cleanup),
-            // );
         app.world_mut()
             .resource_mut::<MainScheduleOrder>()
             .labels
@@ -185,10 +181,6 @@ impl Plugin for XrSessionPlugin {
                     .after(RenderSet::Render)
                     .before(RenderSet::Cleanup),
             );
-            // .add_systems(
-            //     Render,
-            //     (reset_per_frame_resources.in_set(RenderSet::Cleanup),),
-            // );
     }
 }
 
@@ -221,10 +213,6 @@ pub enum XrState {
         /// Whether we should automatically restart the session
         should_restart: bool,
     },
-}
-
-pub fn reset_per_frame_resources(world: &mut World) {
-    world.remove_resource::<XrDestroySessionRender>();
 }
 
 pub fn auto_handle_session(
