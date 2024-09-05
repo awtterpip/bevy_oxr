@@ -186,7 +186,6 @@ impl Plugin for OxrInitPlugin {
                     resource_exists::<XrDestroySessionRender>
                         .and_then(|v: Res<XrDestroySessionRender>| v.0.load(Ordering::Relaxed)),
                 )
-                // .in_set(XrRenderSet::HandleEvents)
                 .chain(),
         );
     }
