@@ -1,6 +1,9 @@
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
+use bevy::ecs::system::RunSystemOnce;
 use bevy::prelude::*;
+use bevy::render::extract_resource::ExtractResource;
 use bevy::render::extract_resource::ExtractResourcePlugin;
 use bevy::render::renderer::RenderAdapter;
 use bevy::render::renderer::RenderAdapterInfo;
@@ -10,6 +13,7 @@ use bevy::render::renderer::RenderQueue;
 use bevy::render::renderer::WgpuWrapper;
 use bevy::render::settings::RenderCreation;
 use bevy::render::MainWorld;
+use bevy::render::Render;
 use bevy::render::RenderApp;
 use bevy::render::RenderPlugin;
 use bevy::winit::UpdateMode;
@@ -116,7 +120,13 @@ impl Plugin for OxrInitPlugin {
                             create_xr_session
                                 .run_if(state_equals(XrState::Available))
                                 .run_if(on_event::<XrCreateSessionEvent>()),
-                            destroy_xr_session
+                            (
+                                destroy_xr_session,
+                                (|v: Res<XrDestroySessionRender>| {
+                                    v.0.store(true, Ordering::Relaxed);
+                                    info!("setting destroy render session");
+                                }),
+                            )
                                 .run_if(state_matches!(XrState::Exiting { .. }))
                                 .run_if(on_event::<XrDestroySessionEvent>()),
                             begin_xr_session
@@ -143,7 +153,7 @@ impl Plugin for OxrInitPlugin {
                     .init_non_send_resource::<OxrSessionCreateNextChain>();
 
                 app.world_mut()
-                    .spawn((TransformBundle::default(), XrTrackingRoot));
+                    .spawn((SpatialBundle::default(), XrTrackingRoot));
 
                 app.world_mut()
                     .resource_mut::<Events<XrStateChanged>>()
@@ -167,8 +177,17 @@ impl Plugin for OxrInitPlugin {
     }
 
     fn finish(&self, app: &mut App) {
-        app.sub_app_mut(RenderApp)
-            .add_systems(XrPreDestroySession, destroy_xr_session);
+        app.sub_app_mut(RenderApp).add_systems(
+            Render,
+            (destroy_xr_session, |v: Res<XrDestroySessionRender>| {
+                v.0.store(false, Ordering::Relaxed)
+            })
+                .run_if(
+                    resource_exists::<XrDestroySessionRender>
+                        .and_then(|v: Res<XrDestroySessionRender>| v.0.load(Ordering::Relaxed)),
+                )
+                .chain(),
+        );
     }
 }
 
@@ -488,6 +507,10 @@ pub fn create_xr_session(world: &mut World) {
                 swapchain,
                 images,
                 graphics_info,
+                session_destroy_flag: world
+                    .get_resource::<XrDestroySessionRender>()
+                    .expect("added by xr session plugin")
+                    .clone(),
             });
         }
         Err(e) => error!("Failed to initialize XrSession: {e}"),
@@ -499,7 +522,6 @@ pub fn create_xr_session(world: &mut World) {
 
 pub fn destroy_xr_session(world: &mut World) {
     world.run_schedule(XrPreDestroySession);
-    world.insert_resource(XrDestroySessionRender);
     world.remove_resource::<OxrSession>();
     world.remove_resource::<OxrFrameWaiter>();
     world.remove_resource::<OxrFrameStream>();
@@ -550,6 +572,7 @@ struct OxrRenderResources {
     swapchain: OxrSwapchain,
     images: OxrSwapchainImages,
     graphics_info: OxrGraphicsInfo,
+    session_destroy_flag: XrDestroySessionRender,
 }
 
 /// This system transfers important render resources from the main world to the render world when a session is created.
@@ -560,6 +583,7 @@ pub fn transfer_xr_resources(mut commands: Commands, mut world: ResMut<MainWorld
         swapchain,
         images,
         graphics_info,
+        session_destroy_flag,
     }) = world.remove_resource()
     else {
         return;
@@ -570,4 +594,5 @@ pub fn transfer_xr_resources(mut commands: Commands, mut world: ResMut<MainWorld
     commands.insert_resource(swapchain);
     commands.insert_resource(images);
     commands.insert_resource(graphics_info);
+    commands.insert_resource(session_destroy_flag);
 }
