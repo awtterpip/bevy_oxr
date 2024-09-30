@@ -6,7 +6,7 @@ use bevy_mod_xr::{
     hands::{HandBone, HandBoneRadius},
     session::session_running,
 };
-use openxr::SpaceLocationFlags;
+use openxr::{SpaceLocationFlags, SpaceVelocityFlags};
 
 use crate::helper_traits::ToVec3;
 use crate::resources::OxrFrameState;
@@ -159,17 +159,33 @@ fn locate_hands(
             frame_state.predicted_display_time
         };
         let ref_space = ref_space.map(|v| &v.0).unwrap_or(&default_ref_space.0);
+        let mut clear_flags = || {
+            for e in hand_entities.0.iter() {
+                let Ok((_, _, _, _, mut flags, vel_flags)) = bone_query.get_mut(*e) else {
+                    continue;
+                };
+                flags.0 = SpaceLocationFlags::EMPTY;
+                if let Some(mut flags) = vel_flags {
+                    flags.0 = SpaceVelocityFlags::EMPTY;
+                }
+            }
+        };
         let (joints, vels) = if wants_velocities {
             let (loc, vel) =
                 match session.locate_hand_joints_with_velocities(tracker, ref_space, time) {
                     Ok(Some(v)) => v,
-                    Ok(None) => continue,
+                    Ok(None) => {
+                        clear_flags();
+                        continue;
+                    }
                     Err(openxr::sys::Result::ERROR_EXTENSION_NOT_PRESENT) => {
                         error!("HandTracking Extension not loaded");
+                        clear_flags();
                         continue;
                     }
                     Err(err) => {
                         warn!("Error while locating hand joints: {}", err.to_string());
+                        clear_flags();
                         continue;
                     }
                 };
@@ -177,13 +193,18 @@ fn locate_hands(
         } else {
             let space = match session.locate_hand_joints(tracker, ref_space, time) {
                 Ok(Some(v)) => v,
-                Ok(None) => continue,
+                Ok(None) => {
+                    clear_flags();
+                    continue;
+                }
                 Err(openxr::sys::Result::ERROR_EXTENSION_NOT_PRESENT) => {
                     error!("HandTracking Extension not loaded");
+                    clear_flags();
                     continue;
                 }
                 Err(err) => {
                     warn!("Error while locating hand joints: {}", err.to_string());
+                    clear_flags();
                     continue;
                 }
             };
