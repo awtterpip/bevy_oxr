@@ -47,17 +47,29 @@
           includeNDK = true;
           platformVersions = [ "32" ];
         };
+        androidStudio = pkgs.android-studio.withSdk androidComposition.androidsdk;
+        xbuild = pkgs.callPackage ./xbuild { };
       in
       {
-        packages.default = pkgs.callPackage ./xbuild { };
+        packages.default = xbuild;
         devShells.default = pkgs.mkShell rec {
           # build dependencies
           nativeBuildInputs = with pkgs; [
+            jdk
+            kotlin
+            gradle
+            squashfsTools
+            clang
+            lldb
+            libllvm
+            lld
+            androidComposition.androidsdk
+            
             # the entire rust toolchain
             rustToolchain
+
             # tool for cross compiling
-            cargo-apk
-            # xbuild
+            xbuild
 
             pkg-config
             openssl
@@ -112,6 +124,8 @@
           LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath buildInputs;
           # this is most likely not needed. for some reason shadows flicker without it.
           AMD_VULKAN_ICD = "RADV";
+
+
         };
         # This only formats the nix files.
         formatter = pkgs.nixpkgs-fmt;
