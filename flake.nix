@@ -69,6 +69,7 @@
             rustToolchain
 
             # tool for cross compiling
+            cargo-apk
             xbuild
 
             pkg-config
