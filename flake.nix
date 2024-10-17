@@ -8,18 +8,20 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = {
-    self,
-    nixpkgs,
-    fenix,
-    flake-utils,
-  }:
+  outputs =
+    { self
+    , nixpkgs
+    , fenix
+    , flake-utils
+    ,
+    }:
     flake-utils.lib.eachDefaultSystem (
-      system: let
+      system:
+      let
         # setup pkgs
         pkgs = import nixpkgs {
           inherit system;
-          overlays = [fenix.overlays.default];
+          overlays = [ fenix.overlays.default ];
           config = {
             android_sdk.accept_license = true;
             allowUnfree = true;
@@ -41,11 +43,13 @@
             targets.x86_64-pc-windows-gnu.stable.rust-std
           ];
         androidComposition = pkgs.androidenv.composeAndroidPackages {
-          abiVersions = ["arm64-v8a"];
+          abiVersions = [ "arm64-v8a" ];
           includeNDK = true;
-          platformVersions = ["32"];
+          platformVersions = [ "32" ];
         };
-      in {
+      in
+      {
+        packages.default = pkgs.callPackage ./xbuild { };
         devShells.default = pkgs.mkShell rec {
           # build dependencies
           nativeBuildInputs = with pkgs; [
