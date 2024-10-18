@@ -119,8 +119,8 @@
             ];
 
           # android vars
-          ANDROID_SDK_ROOT = "${androidComposition.androidsdk}/libexec/android-sdk";
-          ANDROID_NDK_ROOT = "${ANDROID_SDK_ROOT}/ndk-bundle";
+          ANDROID_HOME = "${androidComposition.androidsdk}/libexec/android-sdk";
+          ANDROID_NDK_ROOT = "${ANDROID_HOME}/ndk-bundle";
 
           LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath buildInputs;
           # this is most likely not needed. for some reason shadows flicker without it.
