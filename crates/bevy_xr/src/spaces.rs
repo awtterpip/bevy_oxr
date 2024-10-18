@@ -1,14 +1,15 @@
 use bevy::{
+    ecs::component::StorageType,
     prelude::*,
     render::{extract_component::ExtractComponent, extract_resource::ExtractResource},
 };
 
 /// Any Spaces will be invalid after the owning session exits
 #[repr(transparent)]
-#[derive(Clone, Copy, Hash, PartialEq, Eq, Reflect, Debug, Component, ExtractComponent)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Reflect, Debug, ExtractComponent)]
 pub struct XrSpace(u64);
 
-#[derive(Clone, Copy, Reflect, Debug, Component, ExtractComponent, Default)]
+#[derive(Clone, Copy, Reflect, Debug, ExtractComponent, Default)]
 pub struct XrVelocity {
     /// Velocity of a space relative to it's reference space
     pub linear: Vec3,
@@ -42,6 +43,22 @@ pub struct XrReferenceSpace(pub XrSpace);
 )]
 pub struct XrPrimaryReferenceSpace(pub XrReferenceSpace);
 
+#[derive(
+    Clone, Copy, Hash, PartialEq, Eq, Reflect, Debug, Component, ExtractComponent, Default,
+)]
+pub struct XrSpaceLocationFlags {
+    pub position_tracked: bool,
+    pub rotation_tracked: bool,
+}
+
+#[derive(
+    Clone, Copy, Hash, PartialEq, Eq, Reflect, Debug, Component, ExtractComponent, Default,
+)]
+pub struct XrSpaceVelocityFlags {
+    pub linear_valid: bool,
+    pub angular_valid: bool,
+}
+
 impl XrSpace {
     /// # Safety
     /// only call with known valid handles
@@ -50,5 +67,30 @@ impl XrSpace {
     }
     pub fn as_raw(&self) -> u64 {
         self.0
+    }
+}
+
+impl Component for XrSpace {
+    const STORAGE_TYPE: StorageType = StorageType::Table;
+
+    fn register_component_hooks(hooks: &mut bevy::ecs::component::ComponentHooks) {
+        hooks.on_add(|mut world, entity, _| {
+            world
+                .commands()
+                .entity(entity)
+                .insert(XrSpaceLocationFlags::default());
+        });
+    }
+}
+impl Component for XrVelocity {
+    const STORAGE_TYPE: StorageType = StorageType::Table;
+
+    fn register_component_hooks(hooks: &mut bevy::ecs::component::ComponentHooks) {
+        hooks.on_add(|mut world, entity, _| {
+            world
+                .commands()
+                .entity(entity)
+                .insert(XrSpaceVelocityFlags::default());
+        });
     }
 }
