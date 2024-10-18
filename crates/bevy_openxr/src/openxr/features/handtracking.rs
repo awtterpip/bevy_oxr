@@ -2,7 +2,10 @@ use bevy::prelude::*;
 use bevy_mod_xr::hands::{HandBone, HandBoneRadius};
 use bevy_mod_xr::hands::{LeftHand, RightHand, XrHandBoneEntities, HAND_JOINT_COUNT};
 use bevy_mod_xr::session::{XrPreDestroySession, XrSessionCreated, XrTrackingRoot};
-use bevy_mod_xr::spaces::{XrPrimaryReferenceSpace, XrReferenceSpace, XrVelocity};
+use bevy_mod_xr::spaces::{
+    XrPrimaryReferenceSpace, XrReferenceSpace, XrSpaceLocationFlags, XrSpaceVelocityFlags,
+    XrVelocity,
+};
 use openxr::{SpaceLocationFlags, SpaceVelocityFlags};
 
 use crate::helper_traits::ToVec3;
@@ -47,6 +50,7 @@ pub fn spawn_hand_bones<T: Bundle + Clone>(
                 bone,
                 HandBoneRadius(0.0),
                 OxrSpaceLocationFlags(openxr::SpaceLocationFlags::default()),
+                XrSpaceLocationFlags::default(),
             ))
             .insert(bundle.clone())
             .id();
@@ -138,7 +142,9 @@ fn locate_hands(
         &mut Transform,
         Option<&mut XrVelocity>,
         &mut OxrSpaceLocationFlags,
+        &mut XrSpaceLocationFlags,
         Option<&mut OxrSpaceVelocityFlags>,
+        Option<&mut XrSpaceVelocityFlags>,
     )>,
     pipelined: Option<Res<Pipelined>>,
 ) {
@@ -159,12 +165,20 @@ fn locate_hands(
         let ref_space = ref_space.map(|v| &v.0).unwrap_or(&default_ref_space.0);
         let mut clear_flags = || {
             for e in hand_entities.0.iter() {
-                let Ok((_, _, _, _, mut flags, vel_flags)) = bone_query.get_mut(*e) else {
+                let Ok((_, _, _, _, mut flags, mut xr_flags, vel_flags, xr_vel_flags)) =
+                    bone_query.get_mut(*e)
+                else {
                     continue;
                 };
                 flags.0 = SpaceLocationFlags::EMPTY;
                 if let Some(mut flags) = vel_flags {
                     flags.0 = SpaceVelocityFlags::EMPTY;
+                }
+                xr_flags.position_tracked = false;
+                xr_flags.rotation_tracked = false;
+                if let Some(mut flags) = xr_vel_flags {
+                    flags.linear_valid = false;
+                    flags.angular_valid = false;
                 }
             }
         };
@@ -215,8 +229,16 @@ fn locate_hands(
                 continue;
             }
         };
-        for (bone, mut bone_radius, mut transform, velocity, mut location_flags, velocity_flags) in
-            bone_entities
+        for (
+            bone,
+            mut bone_radius,
+            mut transform,
+            velocity,
+            mut location_flags,
+            mut xr_location_flags,
+            velocity_flags,
+            xr_velocity_flags,
+        ) in bone_entities
         {
             let joint = joints[*bone as usize];
             if let Some(mut velocity) = velocity {
@@ -228,6 +250,10 @@ fn locate_hands(
                     error!("somehow got a hand bone with an XrVelocity component, but without velocity flags");
                     continue;
                 };
+                let Some(mut xr_vel_flags) = xr_velocity_flags else {
+                    error!("somehow got a hand bone with an XrVelocity component, but without velocity flags");
+                    continue;
+                };
                 let vel = vels[*bone as usize];
                 let flags = OxrSpaceVelocityFlags(vel.velocity_flags);
                 if flags.linear_valid() {
@@ -236,6 +262,8 @@ fn locate_hands(
                 if flags.angular_valid() {
                     velocity.angular = vel.angular_velocity.to_vec3();
                 }
+                xr_vel_flags.linear_valid = flags.linear_valid();
+                xr_vel_flags.angular_valid = flags.angular_valid();
                 *vel_flags = flags;
             }
 
@@ -253,6 +281,8 @@ fn locate_hands(
                 transform.rotation.z = joint.pose.orientation.z;
                 transform.rotation.w = joint.pose.orientation.w;
             }
+            xr_location_flags.position_tracked = flags.pos_valid() && flags.pos_tracked();
+            xr_location_flags.rotation_tracked = flags.rot_valid() && flags.rot_tracked();
             *location_flags = flags;
         }
     }
