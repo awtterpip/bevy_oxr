@@ -2,7 +2,7 @@ use std::{mem::MaybeUninit, ptr, sync::Mutex};
 
 use bevy::{prelude::*, utils::hashbrown::HashSet};
 use bevy_mod_xr::{
-    session::{session_available, session_running, XrFirst, XrHandleEvents},
+    session::{XrFirst, XrHandleEvents},
     spaces::{XrDestroySpace, XrPrimaryReferenceSpace, XrReferenceSpace, XrSpace, XrVelocity},
     types::XrPose,
 };
@@ -13,6 +13,7 @@ use openxr::{
 
 use crate::{
     helper_traits::{ToPosef, ToQuat, ToVec3},
+    openxr_session_available, openxr_session_running,
     resources::{OxrFrameState, OxrInstance, Pipelined},
     session::OxrSession,
 };
@@ -24,7 +25,10 @@ pub struct OxrSpaceSyncSet;
 pub struct OxrSpacePatchingPlugin;
 impl Plugin for OxrSpacePatchingPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, patch_destroy_space.run_if(session_available));
+        app.add_systems(
+            Startup,
+            patch_destroy_space.run_if(openxr_session_available),
+        );
     }
 }
 
@@ -36,13 +40,13 @@ impl Plugin for OxrSpatialPlugin {
                 XrFirst,
                 destroy_space_event
                     .before(XrHandleEvents::Poll)
-                    .run_if(session_available),
+                    .run_if(openxr_session_available),
             )
             .add_systems(
                 PreUpdate,
                 update_space_transforms
                     .in_set(OxrSpaceSyncSet)
-                    .run_if(session_running),
+                    .run_if(openxr_session_running),
             )
             .observe(add_location_flags)
             .observe(add_velocity_flags);

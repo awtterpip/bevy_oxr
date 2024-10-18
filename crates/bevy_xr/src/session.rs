@@ -266,6 +266,7 @@ pub fn status_changed_to(
 }
 
 /// A [`Condition`](bevy::ecs::schedule::Condition) system that says if the XR session is available. Returns true as long as [`XrState`] exists and isn't [`Unavailable`](XrStatus::Unavailable).
+/// When using backend specific resources use the backend specific condition
 pub fn session_available(status: Option<Res<XrState>>) -> bool {
     status.is_some_and(|s| *s != XrState::Unavailable)
 }
@@ -282,7 +283,8 @@ pub fn session_ready_or_running(status: Option<Res<XrState>>) -> bool {
     matches!(status.as_deref(), Some(XrState::Ready | XrState::Running))
 }
 
-/// A [`Condition`](bevy::ecs::schedule::Condition) system that says if the XR session is running
+/// A [`Condition`](bevy::ecs::schedule::Condition) system that says if the XR session is running.
+/// When using backend specific resources use the backend specific condition
 pub fn session_running(status: Option<Res<XrState>>) -> bool {
     matches!(status.as_deref(), Some(XrState::Running))
 }

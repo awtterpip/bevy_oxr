@@ -1,14 +1,12 @@
 use bevy::prelude::*;
+use bevy_mod_xr::hands::{HandBone, HandBoneRadius};
 use bevy_mod_xr::hands::{LeftHand, RightHand, XrHandBoneEntities, HAND_JOINT_COUNT};
 use bevy_mod_xr::session::{XrPreDestroySession, XrSessionCreated, XrTrackingRoot};
 use bevy_mod_xr::spaces::{XrPrimaryReferenceSpace, XrReferenceSpace, XrVelocity};
-use bevy_mod_xr::{
-    hands::{HandBone, HandBoneRadius},
-    session::session_running,
-};
 use openxr::{SpaceLocationFlags, SpaceVelocityFlags};
 
 use crate::helper_traits::ToVec3;
+use crate::openxr_session_running;
 use crate::resources::OxrFrameState;
 use crate::resources::Pipelined;
 use crate::session::OxrSession;
@@ -27,7 +25,7 @@ impl Default for HandTrackingPlugin {
 
 impl Plugin for HandTrackingPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(PreUpdate, locate_hands.run_if(session_running));
+        app.add_systems(PreUpdate, locate_hands.run_if(openxr_session_running));
         if self.default_hands {
             app.add_systems(XrPreDestroySession, clean_up_default_hands)
                 .add_systems(XrSessionCreated, spawn_default_hands);

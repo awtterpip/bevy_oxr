@@ -7,7 +7,7 @@ use bevy_mod_xr::{
     spaces::{XrPrimaryReferenceSpace, XrReferenceSpace},
 };
 
-use crate::{init::create_xr_session, session::OxrSession};
+use crate::session::OxrSession;
 
 pub struct OxrReferenceSpacePlugin {
     pub default_primary_ref_space: openxr::ReferenceSpaceType,
