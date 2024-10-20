@@ -14,5 +14,6 @@ bevy = { version = "0.14.0", default-features = false, features = [
 	"bevy_render",
 	"bevy_core_pipeline",
 	"bevy_winit",
+	"bevy_pbr",
 	"x11",
 ] }

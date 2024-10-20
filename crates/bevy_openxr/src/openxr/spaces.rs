@@ -2,8 +2,11 @@ use std::{mem::MaybeUninit, ptr, sync::Mutex};
 
 use bevy::{prelude::*, utils::hashbrown::HashSet};
 use bevy_mod_xr::{
-    session::{session_available, session_running, XrFirst, XrHandleEvents},
-    spaces::{XrDestroySpace, XrPrimaryReferenceSpace, XrReferenceSpace, XrSpace, XrVelocity},
+    session::{XrFirst, XrHandleEvents},
+    spaces::{
+        XrDestroySpace, XrPrimaryReferenceSpace, XrReferenceSpace, XrSpace, XrSpaceLocationFlags,
+        XrSpaceVelocityFlags, XrVelocity,
+    },
     types::XrPose,
 };
 use openxr::{
@@ -13,6 +16,7 @@ use openxr::{
 
 use crate::{
     helper_traits::{ToPosef, ToQuat, ToVec3},
+    openxr_session_available, openxr_session_running,
     resources::{OxrFrameState, OxrInstance, Pipelined},
     session::OxrSession,
 };
@@ -24,7 +28,10 @@ pub struct OxrSpaceSyncSet;
 pub struct OxrSpacePatchingPlugin;
 impl Plugin for OxrSpacePatchingPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, patch_destroy_space.run_if(session_available));
+        app.add_systems(
+            Startup,
+            patch_destroy_space.run_if(openxr_session_available),
+        );
     }
 }
 
@@ -36,13 +43,13 @@ impl Plugin for OxrSpatialPlugin {
                 XrFirst,
                 destroy_space_event
                     .before(XrHandleEvents::Poll)
-                    .run_if(session_available),
+                    .run_if(openxr_session_available),
             )
             .add_systems(
                 PreUpdate,
                 update_space_transforms
                     .in_set(OxrSpaceSyncSet)
-                    .run_if(session_running),
+                    .run_if(openxr_session_running),
             )
             .observe(add_location_flags)
             .observe(add_velocity_flags);
@@ -151,7 +158,9 @@ fn update_space_transforms(
         Option<&mut XrVelocity>,
         Option<&XrReferenceSpace>,
         &mut OxrSpaceLocationFlags,
+        &mut XrSpaceLocationFlags,
         Option<&mut OxrSpaceVelocityFlags>,
+        Option<&mut XrSpaceVelocityFlags>,
     )>,
 ) {
     for (
@@ -159,8 +168,10 @@ fn update_space_transforms(
         space,
         velocity,
         ref_space,
-        mut space_location_flags,
-        space_velocity_flags,
+        mut oxr_space_location_flags,
+        mut xr_space_location_flags,
+        oxr_space_velocity_flags,
+        xr_space_velocity_flags,
     ) in &mut query
     {
         let ref_space = ref_space.unwrap_or(&default_ref_space);
@@ -182,11 +193,17 @@ fn update_space_transforms(
                     if flags.linear_valid() {
                         velocity.linear = space_velocity.linear_velocity.to_vec3();
                     }
-                    let Some(mut vel_flags) = space_velocity_flags else {
+                    let Some(mut vel_flags) = oxr_space_velocity_flags else {
                         error!("XrVelocity without OxrSpaceVelocityFlags");
                         return;
                     };
+                    let Some(mut xr_vel_flags) = xr_space_velocity_flags else {
+                        error!("XrVelocity without XrSpaceVelocityFlags");
+                        return;
+                    };
                     *vel_flags = flags;
+                    xr_vel_flags.linear_valid = vel_flags.linear_valid();
+                    xr_vel_flags.angular_valid = vel_flags.angular_valid();
                     Ok(location)
                 }
                 Err(err) => Err(err),
@@ -202,7 +219,9 @@ fn update_space_transforms(
             if flags.rot_valid() {
                 transform.rotation = space_location.pose.orientation.to_quat();
             }
-            *space_location_flags = flags;
+            *oxr_space_location_flags = flags;
+            xr_space_location_flags.position_tracked = flags.pos_valid() && flags.pos_tracked();
+            xr_space_location_flags.rotation_tracked = flags.rot_valid() && flags.rot_tracked();
         }
     }
 }

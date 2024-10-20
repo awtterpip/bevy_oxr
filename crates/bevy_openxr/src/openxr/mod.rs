@@ -1,14 +1,17 @@
 // use actions::XrActionPlugin;
 use bevy::{
     app::{PluginGroup, PluginGroupBuilder},
+    prelude::Res,
     render::RenderPlugin,
     utils::default,
     window::{PresentMode, Window, WindowPlugin},
 };
-use bevy_mod_xr::camera::XrCameraPlugin;
 use bevy_mod_xr::session::XrSessionPlugin;
+use bevy_mod_xr::{camera::XrCameraPlugin, session::XrState};
 use init::OxrInitPlugin;
 use render::OxrRenderPlugin;
+use resources::OxrInstance;
+use session::OxrSession;
 
 use self::{
     features::{handtracking::HandTrackingPlugin, passthrough::OxrPassthroughPlugin},
@@ -32,6 +35,23 @@ pub mod resources;
 pub mod session;
 pub mod spaces;
 pub mod types;
+
+/// A [`Condition`](bevy::ecs::schedule::Condition) system that says if the OpenXR session is available.
+pub fn openxr_session_available(
+    status: Option<Res<XrState>>,
+    instance: Option<Res<OxrInstance>>,
+) -> bool {
+    status.is_some_and(|s| *s != XrState::Unavailable) && instance.is_some()
+}
+
+/// A [`Condition`](bevy::ecs::schedule::Condition) system that says if the OpenXR is running.
+/// use this when working with OpenXR specific things
+pub fn openxr_session_running(
+    status: Option<Res<XrState>>,
+    session: Option<Res<OxrSession>>,
+) -> bool {
+    matches!(status.as_deref(), Some(XrState::Running)) & session.is_some()
+}
 
 pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
     plugins

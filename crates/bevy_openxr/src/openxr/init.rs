@@ -1,9 +1,7 @@
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
-use bevy::ecs::system::RunSystemOnce;
 use bevy::prelude::*;
-use bevy::render::extract_resource::ExtractResource;
 use bevy::render::extract_resource::ExtractResourcePlugin;
 use bevy::render::renderer::RenderAdapter;
 use bevy::render::renderer::RenderAdapterInfo;
