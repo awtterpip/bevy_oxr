@@ -7,14 +7,11 @@ on:
   workflow_dispatch:
 
 jobs:
-  check_native:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
 
-    name: Check ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+
+  check_linux:
+    name: Check Ubuntu
+    runs-on: ubuntu-latest
 
     env:
       CARGO_TERM_COLOR: always
@@ -22,10 +19,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - run: rustup toolchain install stable --profile minimal --no-self-update
+      - name: Install bevy dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y \
+            g++ pkg-config libx11-dev libasound2-dev libudev-dev libopenxr-loader1 libopenxr-dev
 
-      - run: cargo check --all --all-targets
-        working-directory: .
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: check
+        run: cargo check --all --all-targets
+  check_windows:
+    name: Check Windows
+    runs-on: windows-latest
+
+    env:
+      CARGO_TERM_COLOR: always
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: check
+        run: cargo check --all --all-targets
 
   check_wasm:
     name: Check Wasm
@@ -37,10 +55,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - run: rustup toolchain install stable --profile minimal --target wasm32-unknown-unknown --no-self-update
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: install wasm toolchain
+        run: rustup toolchain install stable --profile minimal --target wasm32-unknown-unknown --no-self-update
 
       - run: cargo check --target wasm32-unknown-unknown -p bevy_mod_xr
       - run: cargo check --target wasm32-unknown-unknown -p bevy_mod_openxr
       - run: cargo check --target wasm32-unknown-unknown -p bevy_mod_webxr
-      - run: cargo check --target wasm32-unknown-unknown -p bevy_mod_xr_utils
-        working-directory: .
+      - run: cargo check --target wasm32-unknown-unknown -p bevy_xr_utils
