@@ -1,12 +1,6 @@
 use bevy::prelude::*;
 use bevy_mod_openxr::{
-    action_binding::{OxrSendActionBindings, OxrSuggestActionBinding},
-    action_set_attaching::OxrAttachActionSet,
-    action_set_syncing::{OxrActionSetSyncSet, OxrSyncActionSet},
-    helper_traits::{ToQuat, ToVec3},
-    resources::{OxrFrameState, OxrInstance, Pipelined},
-    session::OxrSession,
-    spaces::{OxrSpaceLocationFlags, OxrSpaceSyncSet},
+    action_binding::{OxrSendActionBindings, OxrSuggestActionBinding}, action_set_attaching::OxrAttachActionSet, action_set_syncing::{OxrActionSetSyncSet, OxrSyncActionSet}, helper_traits::{ToQuat, ToVec3}, openxr_session_available, openxr_session_running, resources::{OxrFrameState, OxrInstance, Pipelined}, session::OxrSession, spaces::{OxrSpaceLocationFlags, OxrSpaceSyncSet}
 };
 use bevy_mod_xr::{
     session::{session_available, session_running, XrSessionCreated, XrTrackingRoot},
@@ -48,7 +42,7 @@ impl Plugin for TrackingUtilitiesPlugin {
             PreUpdate,
             update_head_transforms
                 .in_set(OxrSpaceSyncSet)
-                .run_if(session_running),
+                .run_if(openxr_session_running),
         );
         //external
         app.add_systems(PreUpdate, update_view.after(update_head_transforms));
@@ -66,12 +60,12 @@ impl Plugin for TrackingUtilitiesPlugin {
             PreUpdate,
             sync_actions
                 .before(OxrActionSetSyncSet)
-                .run_if(session_running),
+                .run_if(openxr_session_running),
         );
         //attach sets
         app.add_systems(XrSessionCreated, attach_set);
         //create actions
-        app.add_systems(Startup, create_actions.run_if(session_available));
+        app.add_systems(Startup, create_actions.run_if(openxr_session_available));
 
         app.add_systems(PreUpdate, update_left_grip.after(OxrSpaceSyncSet));
         app.add_systems(PreUpdate, update_right_grip.after(OxrSpaceSyncSet));
