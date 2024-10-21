@@ -15,3 +15,7 @@ bevy_mod_openxr = { path = "../bevy_openxr", version = "0.1.0-rc1" }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 openxr = "0.18.0"
+
+[lints.clippy]
+too_many_arguments = "allow"
+type_complexity = "allow"

@@ -1,6 +1,9 @@
 use bevy::prelude::*;
-use bevy_mod_xr::hands::{HandBone, HandBoneRadius};
-use bevy_mod_xr::hands::{LeftHand, RightHand, XrHandBoneEntities, HAND_JOINT_COUNT};
+use bevy_mod_xr::hands::{
+    spawn_hand_bones, HandBone, HandBoneRadius, HandSide, SpawnHandTracker,
+    SpawnHandTrackerCommandExecutor,
+};
+use bevy_mod_xr::hands::{LeftHand, RightHand, XrHandBoneEntities};
 use bevy_mod_xr::session::{XrPreDestroySession, XrSessionCreated, XrTrackingRoot};
 use bevy_mod_xr::spaces::{
     XrPrimaryReferenceSpace, XrReferenceSpace, XrSpaceLocationFlags, XrSpaceVelocityFlags,
@@ -9,11 +12,11 @@ use bevy_mod_xr::spaces::{
 use openxr::{SpaceLocationFlags, SpaceVelocityFlags};
 
 use crate::helper_traits::ToVec3;
-use crate::openxr_session_running;
 use crate::resources::OxrFrameState;
 use crate::resources::Pipelined;
 use crate::session::OxrSession;
 use crate::spaces::{OxrSpaceLocationFlags, OxrSpaceVelocityFlags};
+use crate::{openxr_session_available, openxr_session_running};
 
 pub struct HandTrackingPlugin {
     default_hands: bool,
@@ -33,42 +36,24 @@ impl Plugin for HandTrackingPlugin {
             app.add_systems(XrPreDestroySession, clean_up_default_hands)
                 .add_systems(XrSessionCreated, spawn_default_hands);
         }
+        app.add_systems(Startup, set_spawn_executor.run_if(openxr_session_available));
     }
 }
 
-pub fn spawn_hand_bones<T: Bundle + Clone>(
-    cmds: &mut Commands,
-    bundle: T,
-) -> [Entity; HAND_JOINT_COUNT] {
-    let mut bones: [Entity; HAND_JOINT_COUNT] = [Entity::PLACEHOLDER; HAND_JOINT_COUNT];
-    // screw you clippy, i don't see a better way to init this array
-    #[allow(clippy::needless_range_loop)]
-    for bone in HandBone::get_all_bones().into_iter() {
-        bones[bone as usize] = cmds
-            .spawn((
-                SpatialBundle::default(),
-                bone,
-                HandBoneRadius(0.0),
-                OxrSpaceLocationFlags(openxr::SpaceLocationFlags::default()),
-                XrSpaceLocationFlags::default(),
-            ))
-            .insert(bundle.clone())
-            .id();
-    }
-    bones
+fn set_spawn_executor(mut cmds: Commands) {
+    cmds.insert_resource(SpawnHandTrackerCommandExecutor(handle_tracker_spawn))
 }
 
-fn spawn_default_hands(
-    mut cmds: Commands,
-    session: Res<OxrSession>,
-    root: Query<Entity, With<XrTrackingRoot>>,
-) {
-    debug!("spawning default hands");
-    let Ok(root) = root.get_single() else {
-        error!("unable to get tracking root, skipping hand creation");
+fn handle_tracker_spawn(world: &mut World, tracker: Entity, side: HandSide) {
+    let Some(session) = world.get_resource_mut::<OxrSession>() else {
+        error!("unable to get session while creating hand tracker");
         return;
     };
-    let tracker_left = match session.create_hand_tracker(openxr::HandEXT::LEFT) {
+    debug!("spawning hand");
+    let oxr_tracker = match session.create_hand_tracker(match side {
+        HandSide::Left => openxr::HandEXT::LEFT,
+        HandSide::Right => openxr::HandEXT::RIGHT,
+    }) {
         Ok(t) => t,
         Err(openxr::sys::Result::ERROR_EXTENSION_NOT_PRESENT) => {
             warn!("Handtracking Extension not loaded, Unable to create Handtracker!");
@@ -79,33 +64,44 @@ fn spawn_default_hands(
             return;
         }
     };
-    let tracker_right = match session.create_hand_tracker(openxr::HandEXT::RIGHT) {
-        Ok(t) => t,
-        Err(openxr::sys::Result::ERROR_EXTENSION_NOT_PRESENT) => {
-            warn!("Handtracking Extension not loaded, Unable to create Handtracker!");
-            return;
-        }
-        Err(err) => {
-            warn!("Error while creating Handtracker: {}", err.to_string());
-            return;
-        }
+
+    world
+        .entity_mut(tracker)
+        .insert(OxrHandTracker(oxr_tracker));
+}
+
+fn spawn_default_hands(mut cmds: Commands, root: Query<Entity, With<XrTrackingRoot>>) {
+    let Ok(root) = root.get_single() else {
+        error!("unable to get tracking root, skipping handtracker creation");
+        return;
     };
-    let left_bones = spawn_hand_bones(&mut cmds, (DefaultHandBone, LeftHand));
-    let right_bones = spawn_hand_bones(&mut cmds, (DefaultHandBone, RightHand));
+    debug!("spawning default hands");
+    let left_bones = spawn_hand_bones(&mut cmds, |_| {
+        (
+            DefaultHandBone,
+            LeftHand,
+            OxrSpaceLocationFlags(openxr::SpaceLocationFlags::default()),
+        )
+    });
+    let right_bones = spawn_hand_bones(&mut cmds, |_| {
+        (
+            DefaultHandBone,
+            RightHand,
+            OxrSpaceLocationFlags(openxr::SpaceLocationFlags::default()),
+        )
+    });
     cmds.entity(root).push_children(&left_bones);
     cmds.entity(root).push_children(&right_bones);
-    cmds.spawn((
-        DefaultHandTracker,
-        OxrHandTracker(tracker_left),
-        XrHandBoneEntities(left_bones),
-        LeftHand,
-    ));
-    cmds.spawn((
-        DefaultHandTracker,
-        OxrHandTracker(tracker_right),
-        XrHandBoneEntities(right_bones),
-        RightHand,
-    ));
+    cmds.push(SpawnHandTracker {
+        joints: XrHandBoneEntities(left_bones),
+        tracker_bundle: DefaultHandTracker,
+        side: HandSide::Left,
+    });
+    cmds.push(SpawnHandTracker {
+        joints: XrHandBoneEntities(right_bones),
+        tracker_bundle: DefaultHandTracker,
+        side: HandSide::Right,
+    });
 }
 
 #[derive(Component, Clone, Copy)]

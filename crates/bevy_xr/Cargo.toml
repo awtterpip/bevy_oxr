@@ -11,3 +11,7 @@ keywords = ["gamedev", "bevy", "Xr", "Vr"]
 
 [dependencies]
 bevy.workspace = true
+
+[lints.clippy]
+too_many_arguments = "allow"
+type_complexity = "allow"
