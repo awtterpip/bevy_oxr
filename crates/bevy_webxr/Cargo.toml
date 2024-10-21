@@ -17,3 +17,7 @@ wgpu = "0.19.3"
 wgpu-hal = "0.19.3"
 
 bevy_mod_xr = { path = "../bevy_xr", version = "0.1.0-rc1" }
+
+[lints.clippy]
+too_many_arguments = "allow"
+type_complexity = "allow"

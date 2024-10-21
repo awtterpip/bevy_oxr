@@ -1,5 +1,4 @@
 use bevy::{
-    app::Plugin,
     ecs::{component::Component, entity::Entity, world::Command},
     hierarchy::BuildWorldChildren,
     log::{error, warn},
@@ -8,7 +7,7 @@ use bevy::{
 };
 
 use crate::{
-    session::{XrSessionCreated, XrTrackingRoot},
+    session:: XrTrackingRoot,
     spaces::XrSpaceLocationFlags,
 };
 pub const HAND_JOINT_COUNT: usize = 26;

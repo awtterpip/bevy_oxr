@@ -43,3 +43,7 @@ wgpu = { version = "0.20", features = ["vulkan-portability"] }
 openxr = { version = "0.18.0", features = ["mint", "static"] }
 winapi = { version = "0.3.9", optional = true }
 d3d12 = { version = "0.20", features = ["libloading"], optional = true }
+
+[lints.clippy]
+too_many_arguments = "allow"
+type_complexity = "allow"

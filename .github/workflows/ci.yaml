@@ -1,0 +1,51 @@
+name: CI
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check_native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    name: Check ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    env:
+      CARGO_TERM_COLOR: always
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: rustup toolchain install stable --profile minimal --no-self-update
+
+      - uses: ./
+        with:
+          workspaces: .
+
+      - run: cargo check
+        working-directory: .
+
+  check_wasm:
+    name: Check Wasm
+    runs-on: ubuntu-latest
+
+    env:
+      CARGO_TERM_COLOR: always
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: rustup toolchain install stable --profile minimal --target wasm32-unknown-unknown --no-self-update
+
+      - uses: ./
+        with:
+          workspaces: .
+
+      - run: cargo check --target wasm32-unknown-unknown
+        working-directory: .
