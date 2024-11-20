@@ -1,15 +1,11 @@
 use bevy::{
     ecs::{component::Component, entity::Entity, world::Command},
-    hierarchy::BuildWorldChildren,
     log::{error, warn},
     math::bool,
-    prelude::{Bundle, Commands, Deref, DerefMut, Resource, SpatialBundle, With, World},
+    prelude::{BuildChildren, Bundle, Commands, Deref, DerefMut, Resource, Transform, Visibility, With, World},
 };
 
-use crate::{
-    session:: XrTrackingRoot,
-    spaces::XrSpaceLocationFlags,
-};
+use crate::{session::XrTrackingRoot, spaces::XrSpaceLocationFlags};
 pub const HAND_JOINT_COUNT: usize = 26;
 
 pub fn spawn_hand_bones<T: Bundle>(
@@ -20,7 +16,8 @@ pub fn spawn_hand_bones<T: Bundle>(
     for bone in HandBone::get_all_bones().into_iter() {
         bones[bone as usize] = cmds
             .spawn((
-                SpatialBundle::default(),
+                Transform::default(),
+                Visibility::default(),
                 bone,
                 HandBoneRadius(0.0),
                 XrSpaceLocationFlags::default(),
@@ -205,9 +202,9 @@ impl<B: Bundle> Command for SpawnHandTracker<B> {
             HandSide::Right => tracker.insert(LeftHand),
         };
         let tracker = tracker.id();
-        world.entity_mut(root).push_children(&[tracker]);
+        world.entity_mut(root).add_children(&[tracker]);
         executor.0(world, tracker, self.side);
-        if let Some(mut tracker) = world.get_entity_mut(tracker) {
+        if let Ok(mut tracker) = world.get_entity_mut(tracker) {
             tracker.insert(self.side);
             tracker.insert(self.tracker_bundle);
         }

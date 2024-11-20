@@ -16,7 +16,11 @@ fn draw_hand_gizmos(
 ) {
     for (transform, bone, radius) in &query {
         let pose = transform.compute_transform();
-        gizmos.sphere(pose.translation, pose.rotation, **radius, gizmo_color(bone));
+        let pose = Isometry3d {
+            translation: pose.translation.into(),
+            rotation: pose.rotation,
+        };
+        gizmos.sphere(pose, **radius, gizmo_color(bone));
     }
 }
 

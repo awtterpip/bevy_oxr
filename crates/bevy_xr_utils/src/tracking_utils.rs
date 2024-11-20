@@ -1,11 +1,17 @@
 use bevy::prelude::*;
 use bevy_mod_openxr::{
-    action_binding::{OxrSendActionBindings, OxrSuggestActionBinding}, action_set_attaching::OxrAttachActionSet, action_set_syncing::{OxrActionSetSyncSet, OxrSyncActionSet}, helper_traits::{ToQuat, ToVec3}, openxr_session_available, openxr_session_running, resources::{OxrFrameState, OxrInstance, Pipelined}, session::OxrSession, spaces::{OxrSpaceLocationFlags, OxrSpaceSyncSet}
+    action_binding::{OxrSendActionBindings, OxrSuggestActionBinding},
+    action_set_attaching::OxrAttachActionSet,
+    action_set_syncing::{OxrActionSetSyncSet, OxrSyncActionSet},
+    helper_traits::{ToQuat, ToVec3},
+    openxr_session_available, openxr_session_running,
+    resources::{OxrFrameState, OxrInstance, Pipelined},
+    session::OxrSession,
+    spaces::{OxrSpaceLocationFlags, OxrSpaceSyncSet},
 };
 use bevy_mod_xr::{
-    session::{session_available, session_running, XrSessionCreated, XrTrackingRoot},
+    session::{XrSessionCreated, XrTrackingRoot},
     spaces::{XrPrimaryReferenceSpace, XrReferenceSpace},
-    types::XrPose,
 };
 use openxr::Posef;
 
@@ -78,13 +84,10 @@ fn update_stage(
     mut stage_query: Query<&mut Transform, (With<XrTrackedStage>, Without<XrTrackingRoot>)>,
 ) {
     let tracking_root_transform = root_query.get_single_mut();
-    match tracking_root_transform {
-        Ok(root) => {
-            for (mut transform) in &mut stage_query {
-                *transform = root.clone();
-            }
+    if let Ok(root) = tracking_root_transform {
+        for mut transform in &mut stage_query {
+            *transform = *root;
         }
-        Err(_) => (),
     }
 }
 
@@ -128,13 +131,10 @@ fn update_view(
     mut view_query: Query<&mut Transform, (With<XrTrackedView>, Without<HeadXRSpace>)>,
 ) {
     let head_transform = head_query.get_single_mut();
-    match head_transform {
-        Ok(root) => {
-            for (mut transform) in &mut view_query {
-                *transform = root.clone();
-            }
+    if let Ok(root) = head_transform {
+        for mut transform in &mut view_query {
+            *transform = *root;
         }
-        Err(_) => (),
     }
 }
 
@@ -144,19 +144,16 @@ fn update_local_floor_transforms(
     mut local_floor: Query<&mut Transform, (With<XrTrackedLocalFloor>, Without<HeadXRSpace>)>,
 ) {
     let head_transform = head_space.get_single_mut();
-    match head_transform {
-        Ok(head) => {
-            let mut calc_floor = head.clone();
-            calc_floor.translation.y = 0.0;
-            //TODO: use yaw
-            let (y, x, z) = calc_floor.rotation.to_euler(EulerRot::YXZ);
-            let new_rot = Quat::from_rotation_y(y);
-            calc_floor.rotation = new_rot;
-            for (mut transform) in &mut local_floor {
-                *transform = calc_floor;
-            }
+    if let Ok(head) = head_transform {
+        let mut calc_floor = *head;
+        calc_floor.translation.y = 0.0;
+        //TODO: use yaw
+        let (y, x, z) = calc_floor.rotation.to_euler(EulerRot::YXZ);
+        let new_rot = Quat::from_rotation_y(y);
+        calc_floor.rotation = new_rot;
+        for (mut transform) in &mut local_floor {
+            *transform = calc_floor;
         }
-        Err(_) => (),
     }
 }
 
@@ -222,20 +219,30 @@ fn spawn_tracking_rig(
     // let local_floor = cmds.spawn((SpatialBundle::default(), LocalFloor)).id();
 
     let left_space = session
-        .create_action_space(&actions.left, openxr::Path::NULL, XrPose::IDENTITY)
+        .create_action_space(&actions.left, openxr::Path::NULL, Isometry3d::IDENTITY)
         .unwrap();
     let right_space = session
-        .create_action_space(&actions.right, openxr::Path::NULL, XrPose::IDENTITY)
+        .create_action_space(&actions.right, openxr::Path::NULL, Isometry3d::IDENTITY)
         .unwrap();
     let left = cmds
-        .spawn((SpatialBundle::default(), left_space, LeftGrip))
+        .spawn((
+            Transform::default(),
+            Visibility::default(),
+            left_space,
+            LeftGrip,
+        ))
         .id();
     let right = cmds
-        .spawn((SpatialBundle::default(), right_space, RightGrip))
+        .spawn((
+            Transform::default(),
+            Visibility::default(),
+            right_space,
+            RightGrip,
+        ))
         .id();
 
     cmds.entity(root.single())
-        .push_children(&[head, left, right]);
+        .add_children(&[head, left, right]);
 }
 
 //bindings

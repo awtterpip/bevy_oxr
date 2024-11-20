@@ -1,3 +1,5 @@
+use core::panic;
+
 use bevy::app::{App, Plugin, PostUpdate};
 use bevy::core_pipeline::core_3d::graph::Core3d;
 use bevy::core_pipeline::core_3d::Camera3d;
@@ -7,7 +9,9 @@ use bevy::ecs::component::Component;
 use bevy::ecs::reflect::ReflectComponent;
 use bevy::ecs::schedule::IntoSystemConfigs;
 use bevy::math::{Mat4, Vec3A};
-use bevy::pbr::{build_directional_light_cascades, clear_directional_light_cascades, SimulationLightSystems};
+use bevy::pbr::{
+    build_directional_light_cascades, clear_directional_light_cascades, SimulationLightSystems,
+};
 use bevy::reflect::std_traits::ReflectDefault;
 use bevy::reflect::Reflect;
 use bevy::render::camera::{
@@ -68,10 +72,8 @@ impl CameraProjection for XrProjection {
     fn update(&mut self, _width: f32, _height: f32) {}
 
     fn far(&self) -> f32 {
-        let far = self.projection_matrix.to_cols_array()[14]
-            / (self.projection_matrix.to_cols_array()[10] + 1.0);
-
-        far
+        self.projection_matrix.to_cols_array()[14]
+            / (self.projection_matrix.to_cols_array()[10] + 1.0)
     }
 
     // TODO calculate this properly
@@ -98,6 +100,10 @@ impl CameraProjection for XrProjection {
 
     fn get_clip_from_view(&self) -> Mat4 {
         self.projection_matrix
+    }
+
+    fn get_clip_from_view_for_sub(&self, _sub_view: &bevy::render::camera::SubCameraView) -> Mat4 {
+        panic!("sub view not supported for xr camera");
     }
 }
 

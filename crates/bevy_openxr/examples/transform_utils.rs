@@ -41,52 +41,46 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // circular base
-    commands.spawn(PbrBundle {
-        mesh: meshes.add(Circle::new(4.0)),
-        material: materials.add(Color::WHITE),
-        transform: Transform::from_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
-        ..default()
-    });
+    commands.spawn((
+        Mesh3d(meshes.add(Circle::new(4.0))),
+        MeshMaterial3d(materials.add(Color::WHITE)),
+        Transform::from_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+    ));
     // red cube
-    commands.spawn(PbrBundle {
-        mesh: meshes.add(Cuboid::new(1.0, 1.0, 1.0)),
-        material: materials.add(Color::srgb_u8(252, 44, 3)),
-        transform: Transform::from_xyz(4.0, 0.5, 0.0).with_scale(Vec3::splat(0.5)),
-        ..default()
-    });
+    commands.spawn((
+        Mesh3d(meshes.add(Cuboid::new(1.0, 1.0, 1.0))),
+        MeshMaterial3d(materials.add(Color::srgb_u8(252, 44, 3))),
+        Transform::from_xyz(4.0, 0.5, 0.0).with_scale(Vec3::splat(0.5)),
+    ));
     // blue cube
-    commands.spawn(PbrBundle {
-        mesh: meshes.add(Cuboid::new(1.0, 1.0, 1.0)),
-        material: materials.add(Color::srgb_u8(3, 28, 252)),
-        transform: Transform::from_xyz(-4.0, 0.5, 0.0).with_scale(Vec3::splat(0.5)),
-        ..default()
-    });
+    commands.spawn((
+        Mesh3d(meshes.add(Cuboid::new(1.0, 1.0, 1.0))),
+        MeshMaterial3d(materials.add(Color::srgb_u8(3, 28, 252))),
+        Transform::from_xyz(-4.0, 0.5, 0.0).with_scale(Vec3::splat(0.5)),
+    ));
     // green cube
-    commands.spawn(PbrBundle {
-        mesh: meshes.add(Cuboid::new(1.0, 1.0, 1.0)),
-        material: materials.add(Color::srgb_u8(3, 252, 32)),
-        transform: Transform::from_xyz(0.0, 0.5, 4.0).with_scale(Vec3::splat(0.5)),
-        ..default()
-    });
+    commands.spawn((
+        Mesh3d(meshes.add(Cuboid::new(1.0, 1.0, 1.0))),
+        MeshMaterial3d(materials.add(Color::srgb_u8(3, 252, 32))),
+        Transform::from_xyz(0.0, 0.5, 4.0).with_scale(Vec3::splat(0.5)),
+    ));
     // white cube
-    commands.spawn(PbrBundle {
-        mesh: meshes.add(Cuboid::new(1.0, 1.0, 1.0)),
-        material: materials.add(Color::srgb_u8(250, 250, 250)),
-        transform: Transform::from_xyz(0.0, 0.5, -4.0).with_scale(Vec3::splat(0.5)),
-        ..default()
-    });
+    commands.spawn((
+        Mesh3d(meshes.add(Cuboid::new(1.0, 1.0, 1.0))),
+        MeshMaterial3d(materials.add(Color::srgb_u8(250, 250, 250))),
+        Transform::from_xyz(0.0, 0.5, -4.0).with_scale(Vec3::splat(0.5)),
+    ));
     // black cube
-    commands.spawn(PbrBundle {
-        mesh: meshes.add(Cuboid::new(1.0, 1.0, 1.0)),
-        material: materials.add(Color::srgb_u8(0, 0, 0)),
-        transform: Transform::from_xyz(0.0, 0.1, 0.0).with_scale(Vec3::splat(0.2)),
-        ..default()
-    });
+    commands.spawn((
+        Mesh3d(meshes.add(Cuboid::new(1.0, 1.0, 1.0))),
+        MeshMaterial3d(materials.add(Color::srgb_u8(0, 0, 0))),
+        Transform::from_xyz(0.0, 0.1, 0.0).with_scale(Vec3::splat(0.2)),
+    ));
 
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
-        ..default()
-    });
+    commands.spawn((
+        Camera3d::default(),
+        Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
+    ));
 }
 
 #[derive(Component)]

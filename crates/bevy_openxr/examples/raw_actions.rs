@@ -13,7 +13,6 @@ use bevy_mod_openxr::{
 use bevy_mod_xr::{
     session::{session_available, session_running, XrSessionCreated, XrTrackingRoot},
     spaces::XrSpace,
-    types::XrPose,
 };
 use openxr::Posef;
 
@@ -55,32 +54,29 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // circular base
-    commands.spawn(PbrBundle {
-        mesh: meshes.add(Circle::new(4.0)),
-        material: materials.add(Color::WHITE),
-        transform: Transform::from_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
-        ..default()
-    });
+    commands.spawn((
+        Mesh3d(meshes.add(Circle::new(4.0))),
+        MeshMaterial3d(materials.add(Color::WHITE)),
+        Transform::from_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+    ));
     // cube
-    commands.spawn(PbrBundle {
-        mesh: meshes.add(Cuboid::new(1.0, 1.0, 1.0)),
-        material: materials.add(Color::srgb_u8(124, 144, 255)),
-        transform: Transform::from_xyz(0.0, 0.5, 0.0),
-        ..default()
-    });
+    commands.spawn((
+        Mesh3d(meshes.add(Cuboid::new(1.0, 1.0, 1.0))),
+        MeshMaterial3d(materials.add(Color::srgb_u8(124, 144, 255))),
+        Transform::from_xyz(0.0, 0.5, 0.0),
+    ));
     // light
-    commands.spawn(PointLightBundle {
-        point_light: PointLight {
+    commands.spawn((
+        PointLight {
             shadows_enabled: true,
             ..default()
         },
-        transform: Transform::from_xyz(4.0, 8.0, 4.0),
-        ..default()
-    });
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
-        ..default()
-    });
+        Transform::from_xyz(4.0, 8.0, 4.0),
+    ));
+    commands.spawn((
+        Camera3d::default(),
+        Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
+    ));
 }
 fn suggest_action_bindings(
     actions: Res<ControllerActions>,
@@ -130,34 +126,28 @@ fn spawn_hands(
             .unwrap(),
     );
     let right_space = session
-        .create_action_space(&actions.right, openxr::Path::NULL, XrPose::IDENTITY)
+        .create_action_space(&actions.right, openxr::Path::NULL, Isometry3d::IDENTITY)
         .unwrap();
     let left = cmds
         .spawn((
-            PbrBundle {
-                mesh: meshes.add(Cuboid::new(0.1, 0.1, 0.05)),
-                material: materials.add(Color::srgb_u8(124, 144, 255)),
-                transform: Transform::from_xyz(0.0, 0.5, 0.0),
-                ..default()
-            },
+            Mesh3d(meshes.add(Cuboid::new(0.1, 0.1, 0.05))),
+            MeshMaterial3d(materials.add(Color::srgb_u8(124, 144, 255))),
+            Transform::from_xyz(0.0, 0.5, 0.0),
             left_space,
             Controller,
         ))
         .id();
     let right = cmds
         .spawn((
-            PbrBundle {
-                mesh: meshes.add(Cuboid::new(0.1, 0.1, 0.05)),
-                material: materials.add(Color::srgb_u8(124, 144, 255)),
-                transform: Transform::from_xyz(0.0, 0.5, 0.0),
-                ..default()
-            },
+            Mesh3d(meshes.add(Cuboid::new(0.1, 0.1, 0.05))),
+            MeshMaterial3d(materials.add(Color::srgb_u8(124, 144, 255))),
+            Transform::from_xyz(0.0, 0.5, 0.0),
             right_space,
             Controller,
         ))
         .id();
 
-    cmds.entity(root.single()).push_children(&[left, right]);
+    cmds.entity(root.single()).add_children(&[left, right]);
 }
 
 #[derive(Component)]

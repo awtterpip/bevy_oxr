@@ -10,11 +10,11 @@ keywords = ["gamedev", "bevy", "Xr", "Vr", "OpenXR"]
 [features]
 default = ["vulkan", "d3d12", "passthrough"]
 vulkan = ["dep:ash"]
-d3d12 = ["wgpu/dx12", "wgpu-hal/dx12", "dep:winapi", "dep:d3d12"]
+d3d12 = ["wgpu/dx12", "wgpu-hal/dx12", "dep:winapi"]
 passthrough = []
 
 [dev-dependencies]
-bevy_xr_utils.path = "../bevy_xr_utils"
+bevy_xr_utils.workspace = true
 bevy = { workspace = true, default-features = true }
 
 [target.'cfg(target_os = "android")'.dependencies]
@@ -27,22 +27,20 @@ bevy.workspace = true
 
 # all other dependencies are placed under this since on wasm, this crate is completely empty
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
-openxr = "0.18.0"
-thiserror = "1.0.57"
-wgpu = "0.20"
-wgpu-hal = "0.21"
-bevy_mod_xr = { path = "../bevy_xr", version = "0.1.0-rc1" }
-
-ash = { version = "0.37.3", optional = true }
+bevy_mod_xr.workspace = true
+openxr.workspace = true
+thiserror.workspace = true
+wgpu.workspace = true
+wgpu-hal.workspace = true
+ash = { version = "0.38", optional = true }
 
 [target.'cfg(target_family = "unix")'.dependencies]
-openxr = { version = "0.18.0", features = ["mint"] }
-wgpu = { version = "0.20", features = ["vulkan-portability"] }
+openxr = { workspace = true, features = ["mint"] }
+wgpu = { workspace = true, features = ["vulkan-portability"] }
 
 [target.'cfg(target_family = "windows")'.dependencies]
-openxr = { version = "0.18.0", features = ["mint", "static"] }
+openxr = { workspace=true, features = ["mint", "static"] }
 winapi = { version = "0.3.9", optional = true }
-d3d12 = { version = "0.20", features = ["libloading"], optional = true }
 
 [lints.clippy]
 too_many_arguments = "allow"

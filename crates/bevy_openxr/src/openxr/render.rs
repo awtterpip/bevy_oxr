@@ -150,16 +150,18 @@ pub fn init_views(
         info!("{}", graphics_info.resolution);
         let view_handle =
             add_texture_view(&mut manual_texture_views, temp_tex, &graphics_info, index);
-
         let cam = commands
-            .spawn((XrCameraBundle {
-                camera: Camera {
-                    target: RenderTarget::TextureView(view_handle),
+            .spawn(
+                (XrCameraBundle {
+                    camera: Camera {
+                        target: RenderTarget::TextureView(view_handle),
+                        ..Default::default()
+                    },
+                    view: XrCamera(index),
                     ..Default::default()
-                },
-                view: XrCamera(index),
-                ..Default::default()
-            },))
+                }),
+            )
+            .remove::<Projection>()
             .id();
         match root.get_single() {
             Ok(root) => {

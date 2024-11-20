@@ -7,9 +7,9 @@ publish = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy_mod_openxr.path = "../.."
+bevy_mod_openxr.workspace = true
 bevy = { workspace = true, default-features = true }
-bevy_xr_utils.path = "../../../bevy_xr_utils"
+bevy_xr_utils.workspace = true
 
 [build-dependencies]
 reqwest = { version = "0.12", features = ["blocking"] }

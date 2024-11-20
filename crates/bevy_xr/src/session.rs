@@ -121,7 +121,7 @@ impl Plugin for XrSessionPlugin {
             .add_systems(
                 XrFirst,
                 exits_session_on_app_exit
-                    .run_if(on_event::<AppExit>())
+                    .run_if(on_event::<AppExit>)
                     .run_if(session_created)
                     .in_set(XrHandleEvents::ExitEvents),
             );
@@ -129,6 +129,8 @@ impl Plugin for XrSessionPlugin {
             .resource_mut::<MainScheduleOrder>()
             .labels
             .insert(0, XrFirst.intern());
+        app.world_mut()
+            .spawn((Transform::default(), Visibility::default(), XrTrackingRoot));
 
         if self.auto_handle {
             app.add_systems(PreUpdate, auto_handle_session);
@@ -153,7 +155,7 @@ impl Plugin for XrSessionPlugin {
             XrFirst,
             exits_session_on_app_exit
                 .before(XrHandleEvents::ExitEvents)
-                .run_if(on_event::<AppExit>().and_then(session_running)),
+                .run_if(on_event::<AppExit>.and(session_running)),
         );
 
         let render_app = app.sub_app_mut(RenderApp);

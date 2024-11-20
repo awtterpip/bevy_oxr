@@ -113,7 +113,7 @@ impl Plugin for OxrInitPlugin {
                         (
                             create_xr_session
                                 .run_if(state_equals(XrState::Available))
-                                .run_if(on_event::<XrCreateSessionEvent>()),
+                                .run_if(on_event::<XrCreateSessionEvent>),
                             (
                                 destroy_xr_session,
                                 (|v: Res<XrDestroySessionRender>| {
@@ -122,16 +122,16 @@ impl Plugin for OxrInitPlugin {
                                 }),
                             )
                                 .run_if(state_matches!(XrState::Exiting { .. }))
-                                .run_if(on_event::<XrDestroySessionEvent>()),
+                                .run_if(on_event::<XrDestroySessionEvent>),
                             begin_xr_session
                                 .run_if(state_equals(XrState::Ready))
-                                .run_if(on_event::<XrBeginSessionEvent>()),
+                                .run_if(on_event::<XrBeginSessionEvent>),
                             end_xr_session
                                 .run_if(state_equals(XrState::Stopping))
-                                .run_if(on_event::<XrEndSessionEvent>()),
+                                .run_if(on_event::<XrEndSessionEvent>),
                             request_exit_xr_session
                                 .run_if(session_created)
-                                .run_if(on_event::<XrRequestExitEvent>()),
+                                .run_if(on_event::<XrRequestExitEvent>),
                         )
                             .in_set(XrHandleEvents::SessionStateUpdateEvents),
                     )
@@ -145,9 +145,6 @@ impl Plugin for OxrInitPlugin {
                     .insert_resource(OxrSessionStarted(false))
                     .insert_non_send_resource(session_create_info)
                     .init_non_send_resource::<OxrSessionCreateNextChain>();
-
-                app.world_mut()
-                    .spawn((SpatialBundle::default(), XrTrackingRoot));
 
                 app.world_mut()
                     .resource_mut::<Events<XrStateChanged>>()
@@ -178,7 +175,7 @@ impl Plugin for OxrInitPlugin {
             })
                 .run_if(
                     resource_exists::<XrDestroySessionRender>
-                        .and_then(|v: Res<XrDestroySessionRender>| v.0.load(Ordering::Relaxed)),
+                        .and(|v: Res<XrDestroySessionRender>| v.0.load(Ordering::Relaxed)),
                 )
                 .chain(),
         );
@@ -467,7 +464,7 @@ pub fn create_xr_session(world: &mut World) {
     let system_id = world.resource::<OxrSystemId>();
     match init_xr_session(
         device.wgpu_device(),
-        &instance,
+        instance,
         **system_id,
         &mut chain,
         create_info.clone(),
@@ -475,8 +472,8 @@ pub fn create_xr_session(world: &mut World) {
         Ok((session, frame_waiter, frame_stream, swapchain, images, graphics_info)) => {
             world.insert_resource(session.clone());
             world.insert_resource(frame_waiter);
-            world.insert_resource(images.clone());
-            world.insert_resource(graphics_info.clone());
+            world.insert_resource(images);
+            world.insert_resource(graphics_info);
             world.insert_resource(OxrRenderResources {
                 session,
                 frame_stream,

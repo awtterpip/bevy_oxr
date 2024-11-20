@@ -90,14 +90,14 @@ fn spawn_default_hands(mut cmds: Commands, root: Query<Entity, With<XrTrackingRo
             OxrSpaceLocationFlags(openxr::SpaceLocationFlags::default()),
         )
     });
-    cmds.entity(root).push_children(&left_bones);
-    cmds.entity(root).push_children(&right_bones);
-    cmds.push(SpawnHandTracker {
+    cmds.entity(root).add_children(&left_bones);
+    cmds.entity(root).add_children(&right_bones);
+    cmds.queue(SpawnHandTracker {
         joints: XrHandBoneEntities(left_bones),
         tracker_bundle: DefaultHandTracker,
         side: HandSide::Left,
     });
-    cmds.push(SpawnHandTracker {
+    cmds.queue(SpawnHandTracker {
         joints: XrHandBoneEntities(right_bones),
         tracker_bundle: DefaultHandTracker,
         side: HandSide::Right,

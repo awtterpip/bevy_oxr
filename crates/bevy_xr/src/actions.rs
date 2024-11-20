@@ -94,11 +94,11 @@ impl<A: Action<ActionType = bool>> ActionState<A> {
     }
 
     pub fn just_pressed(&self) -> bool {
-        self.previous_state == false && self.current_state == true
+        !self.previous_state && self.current_state
     }
 
     pub fn just_released(&self) -> bool {
-        self.previous_state == true && self.current_state == false
+        self.previous_state && !self.current_state
     }
 
     pub fn press(&mut self) {

@@ -37,14 +37,14 @@ impl LayerProvider for ProjectionLayer {
         Some(Box::new(
             CompositionLayerProjection::new()
                 .layer_flags(CompositionLayerFlags::BLEND_TEXTURE_SOURCE_ALPHA)
-                .space(&stage)
+                .space(stage)
                 .views(&[
                     CompositionLayerProjectionView::new()
                         .pose(openxr_views.0[0].pose)
                         .fov(openxr_views.0[0].fov)
                         .sub_image(
                             SwapchainSubImage::new()
-                                .swapchain(&swapchain)
+                                .swapchain(swapchain)
                                 .image_array_index(0)
                                 .image_rect(rect),
                         ),
@@ -53,7 +53,7 @@ impl LayerProvider for ProjectionLayer {
                         .fov(openxr_views.0[1].fov)
                         .sub_image(
                             SwapchainSubImage::new()
-                                .swapchain(&swapchain)
+                                .swapchain(swapchain)
                                 .image_array_index(1)
                                 .image_rect(rect),
                         ),
@@ -235,9 +235,15 @@ impl<'a> Default for CompositionLayerProjection<'a> {
 pub struct CompositionLayerPassthrough {
     inner: sys::CompositionLayerPassthroughFB,
 }
+impl Default for CompositionLayerPassthrough {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CompositionLayerPassthrough {
     #[inline]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             inner: openxr::sys::CompositionLayerPassthroughFB {
                 ty: openxr::sys::CompositionLayerPassthroughFB::TYPE,

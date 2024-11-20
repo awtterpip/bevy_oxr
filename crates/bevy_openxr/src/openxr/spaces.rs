@@ -7,7 +7,6 @@ use bevy_mod_xr::{
         XrDestroySpace, XrPrimaryReferenceSpace, XrReferenceSpace, XrSpace, XrSpaceLocationFlags,
         XrSpaceVelocityFlags, XrVelocity,
     },
-    types::XrPose,
 };
 use openxr::{
     sys, HandJointLocation, HandJointLocations, HandJointVelocities, HandJointVelocity,
@@ -51,26 +50,9 @@ impl Plugin for OxrSpatialPlugin {
                     .in_set(OxrSpaceSyncSet)
                     .run_if(openxr_session_running),
             )
-            .observe(add_location_flags)
-            .observe(add_velocity_flags);
+            .register_required_components::<XrSpaceLocationFlags, OxrSpaceLocationFlags>()
+            .register_required_components::<XrSpaceVelocityFlags, OxrSpaceVelocityFlags>();
     }
-}
-
-fn add_velocity_flags(event: Trigger<OnAdd, XrVelocity>, mut cmds: Commands) {
-    if event.entity() == Entity::PLACEHOLDER {
-        error!("called add_location_flags observer without entity");
-        return;
-    }
-    cmds.entity(event.entity())
-        .insert(OxrSpaceLocationFlags(openxr::SpaceLocationFlags::default()));
-}
-fn add_location_flags(event: Trigger<OnAdd, XrSpace>, mut cmds: Commands) {
-    if event.entity() == Entity::PLACEHOLDER {
-        error!("called add_location_flags observer without entity");
-        return;
-    }
-    cmds.entity(event.entity())
-        .insert(OxrSpaceLocationFlags(openxr::SpaceLocationFlags::default()));
 }
 
 fn destroy_space_event(instance: Res<OxrInstance>, mut events: EventReader<XrDestroySpace>) {
@@ -119,7 +101,7 @@ unsafe extern "system" fn patched_destroy_space(space: openxr::sys::Space) -> op
     }
 }
 
-#[derive(Clone, Copy, Component)]
+#[derive(Clone, Copy, Component, Default)]
 pub struct OxrSpaceLocationFlags(pub openxr::SpaceLocationFlags);
 impl OxrSpaceLocationFlags {
     pub fn pos_valid(&self) -> bool {
@@ -135,7 +117,7 @@ impl OxrSpaceLocationFlags {
         self.0.contains(SpaceLocationFlags::ORIENTATION_TRACKED)
     }
 }
-#[derive(Clone, Copy, Component)]
+#[derive(Clone, Copy, Component, Default)]
 pub struct OxrSpaceVelocityFlags(pub openxr::SpaceVelocityFlags);
 impl OxrSpaceVelocityFlags {
     pub fn linear_valid(&self) -> bool {
@@ -231,7 +213,7 @@ impl OxrSession {
         &self,
         action: &openxr::Action<T>,
         subaction_path: openxr::Path,
-        pose_in_space: XrPose,
+        pose_in_space: Isometry3d,
     ) -> openxr::Result<XrSpace> {
         let info = sys::ActionSpaceCreateInfo {
             ty: sys::ActionSpaceCreateInfo::TYPE,
