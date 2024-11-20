@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 use bevy_mod_openxr::add_xr_plugins;
-use bevy_mod_xr::session::XrSessionCreated;
+use bevy_mod_xr::session::{XrSessionCreated, XrTracker};
 use bevy_xr_utils::tracking_utils::{
     TrackingUtilitiesPlugin, XrTrackedLeftGrip, XrTrackedLocalFloor, XrTrackedRightGrip,
     XrTrackedStage, XrTrackedView,
@@ -53,50 +53,42 @@ fn spawn_hands(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let left = cmds
-        .spawn((
-            Mesh3d(meshes.add(Cuboid::new(0.1, 0.1, 0.05))),
-            MeshMaterial3d(materials.add(Color::srgb_u8(124, 144, 255))),
-            Transform::from_xyz(0.0, 0.5, 0.0),
-            XrTrackedLeftGrip,
-        ))
-        .id();
-    let bundle = (
+    cmds.spawn((
+        Mesh3d(meshes.add(Cuboid::new(0.1, 0.1, 0.05))),
+        MeshMaterial3d(materials.add(Color::srgb_u8(124, 144, 255))),
+        Transform::from_xyz(0.0, 0.5, 0.0),
+        XrTrackedLeftGrip,
+        XrTracker,
+    ));
+    cmds.spawn((
         Mesh3d(meshes.add(Cuboid::new(0.1, 0.1, 0.05))),
         MeshMaterial3d(materials.add(Color::srgb_u8(124, 144, 255))),
         Transform::from_xyz(0.0, 0.5, 0.0),
         XrTrackedRightGrip,
-    );
-    let right = cmds.spawn(bundle).id();
+        XrTracker,
+    ));
     //head
-
-    let head = cmds
-        .spawn((
-            Mesh3d(meshes.add(Cuboid::new(0.2, 0.2, 0.2))),
-            MeshMaterial3d(materials.add(Color::srgb_u8(255, 144, 144))),
-            Transform::from_xyz(0.0, 0.0, 0.0),
-            XrTrackedView,
-        ))
-        .id();
+    cmds.spawn((
+        Mesh3d(meshes.add(Cuboid::new(0.2, 0.2, 0.2))),
+        MeshMaterial3d(materials.add(Color::srgb_u8(255, 144, 144))),
+        Transform::from_xyz(0.0, 0.0, 0.0),
+        XrTrackedView,
+        XrTracker,
+    ));
     //local_floor emulated
-    let local_floor = cmds
-        .spawn((
-            Mesh3d(meshes.add(Cuboid::new(0.5, 0.1, 0.5))),
-            MeshMaterial3d(materials.add(Color::srgb_u8(144, 255, 144))),
-            Transform::from_xyz(0.0, 0.0, 0.0),
-            XrTrackedLocalFloor,
-        ))
-        .id();
+    cmds.spawn((
+        Mesh3d(meshes.add(Cuboid::new(0.5, 0.1, 0.5))),
+        MeshMaterial3d(materials.add(Color::srgb_u8(144, 255, 144))),
+        Transform::from_xyz(0.0, 0.0, 0.0),
+        XrTrackedLocalFloor,
+        XrTracker,
+    ));
 
-    let stage = cmds
-        .spawn((
-            Mesh3d(meshes.add(Cuboid::new(0.5, 0.1, 0.5))),
-            MeshMaterial3d(materials.add(Color::srgb_u8(144, 255, 255))),
-            Transform::from_xyz(0.0, 0.0, 0.0),
-            XrTrackedStage,
-        ))
-        .id();
-
-    cmds.entity(stage)
-        .add_children(&[left, right, head, local_floor]);
+    cmds.spawn((
+        Mesh3d(meshes.add(Cuboid::new(0.5, 0.1, 0.5))),
+        MeshMaterial3d(materials.add(Color::srgb_u8(144, 255, 255))),
+        Transform::from_xyz(0.0, 0.0, 0.0),
+        XrTrackedStage,
+        XrTracker,
+    ));
 }

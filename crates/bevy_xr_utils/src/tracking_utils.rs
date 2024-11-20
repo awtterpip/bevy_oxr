@@ -10,7 +10,7 @@ use bevy_mod_openxr::{
     spaces::{OxrSpaceLocationFlags, OxrSpaceSyncSet},
 };
 use bevy_mod_xr::{
-    session::{XrSessionCreated, XrTrackingRoot},
+    session::{XrSessionCreated, XrTracker, XrTrackingRoot},
     spaces::{XrPrimaryReferenceSpace, XrReferenceSpace},
 };
 use openxr::Posef;
@@ -80,11 +80,10 @@ impl Plugin for TrackingUtilitiesPlugin {
 
 //stage
 fn update_stage(
-    mut root_query: Query<&mut Transform, (With<XrTrackingRoot>, Without<XrTrackedStage>)>,
+    root_query: Query<&Transform, (With<XrTrackingRoot>, Without<XrTrackedStage>)>,
     mut stage_query: Query<&mut Transform, (With<XrTrackedStage>, Without<XrTrackingRoot>)>,
 ) {
-    let tracking_root_transform = root_query.get_single_mut();
-    if let Ok(root) = tracking_root_transform {
+    if let Ok(root) = root_query.get_single() {
         for mut transform in &mut stage_query {
             *transform = *root;
         }
@@ -148,10 +147,10 @@ fn update_local_floor_transforms(
         let mut calc_floor = *head;
         calc_floor.translation.y = 0.0;
         //TODO: use yaw
-        let (y, x, z) = calc_floor.rotation.to_euler(EulerRot::YXZ);
+        let (y, _, _) = calc_floor.rotation.to_euler(EulerRot::YXZ);
         let new_rot = Quat::from_rotation_y(y);
         calc_floor.rotation = new_rot;
-        for (mut transform) in &mut local_floor {
+        for mut transform in &mut local_floor {
             *transform = calc_floor;
         }
     }
@@ -166,13 +165,10 @@ fn update_left_grip(
     mut tracked_left_grip: Query<&mut Transform, (With<XrTrackedLeftGrip>, Without<LeftGrip>)>,
 ) {
     let head_transform = left_grip.get_single_mut();
-    match head_transform {
-        Ok(head) => {
-            for (mut transform) in &mut tracked_left_grip {
-                *transform = head.clone();
-            }
+    if let Ok(head) = head_transform {
+        for mut transform in &mut tracked_left_grip {
+            *transform = *head;
         }
-        Err(_) => (),
     }
 }
 
@@ -185,13 +181,10 @@ fn update_right_grip(
     mut tracked_right_grip: Query<&mut Transform, (With<XrTrackedRightGrip>, Without<RightGrip>)>,
 ) {
     let head_transform = right_grip.get_single_mut();
-    match head_transform {
-        Ok(head) => {
-            for (mut transform) in &mut tracked_right_grip {
-                *transform = head.clone();
-            }
+    if let Ok(head) = head_transform {
+        for mut transform in &mut tracked_right_grip {
+            *transform = *head;
         }
-        Err(_) => (),
     }
 }
 
@@ -206,16 +199,18 @@ struct ControllerActions {
 fn spawn_tracking_rig(
     actions: Res<ControllerActions>,
     mut cmds: Commands,
-    root: Query<Entity, With<XrTrackingRoot>>,
     session: Res<OxrSession>,
 ) {
     //head
     let head_space = session
         .create_reference_space(openxr::ReferenceSpaceType::VIEW, Transform::IDENTITY)
         .unwrap();
-    let head = cmds
-        .spawn((SpatialBundle::default(), HeadXRSpace(head_space)))
-        .id();
+    cmds.spawn((
+        Transform::default(),
+        Visibility::default(),
+        XrTracker,
+        HeadXRSpace(head_space),
+    ));
     // let local_floor = cmds.spawn((SpatialBundle::default(), LocalFloor)).id();
 
     let left_space = session
@@ -224,25 +219,8 @@ fn spawn_tracking_rig(
     let right_space = session
         .create_action_space(&actions.right, openxr::Path::NULL, Isometry3d::IDENTITY)
         .unwrap();
-    let left = cmds
-        .spawn((
-            Transform::default(),
-            Visibility::default(),
-            left_space,
-            LeftGrip,
-        ))
-        .id();
-    let right = cmds
-        .spawn((
-            Transform::default(),
-            Visibility::default(),
-            right_space,
-            RightGrip,
-        ))
-        .id();
-
-    cmds.entity(root.single())
-        .add_children(&[head, left, right]);
+    cmds.spawn((left_space, LeftGrip));
+    cmds.spawn((right_space, RightGrip));
 }
 
 //bindings

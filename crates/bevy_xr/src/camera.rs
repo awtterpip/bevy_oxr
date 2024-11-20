@@ -1,7 +1,6 @@
 use core::panic;
 
 use bevy::app::{App, Plugin, PostUpdate};
-use bevy::core_pipeline::core_3d::graph::Core3d;
 use bevy::core_pipeline::core_3d::Camera3d;
 use bevy::ecs::component::{Component, StorageType};
 use bevy::ecs::reflect::ReflectComponent;
@@ -17,6 +16,8 @@ use bevy::render::camera::{CameraProjection, CameraProjectionPlugin};
 use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
 use bevy::render::view::{update_frusta, VisibilitySystems};
 use bevy::transform::TransformSystem;
+
+use crate::session::XrTracker;
 
 pub struct XrCameraPlugin;
 
@@ -69,7 +70,7 @@ impl Default for XrProjection {
 
 /// Marker component for an XR view. It is the backends responsibility to update this.
 #[derive(Clone, Copy, Component, ExtractComponent, Debug, Default)]
-#[require(Camera3d, XrProjection)]
+#[require(Camera3d, XrProjection, XrTracker)]
 pub struct XrCamera(pub u32);
 
 impl CameraProjection for XrProjection {

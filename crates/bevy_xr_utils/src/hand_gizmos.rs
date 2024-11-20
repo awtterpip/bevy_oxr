@@ -1,6 +1,6 @@
 use bevy::color::palettes::css;
 use bevy::{prelude::*, transform::TransformSystem};
-use bevy_mod_xr::hands::{HandBone, HandBoneRadius};
+use bevy_mod_xr::hands::{HandBone, XrHandBoneRadius};
 use bevy_mod_xr::spaces::XrSpaceLocationFlags;
 pub struct HandGizmosPlugin;
 impl Plugin for HandGizmosPlugin {
@@ -16,7 +16,7 @@ fn draw_hand_gizmos(
     query: Query<(
         &GlobalTransform,
         &HandBone,
-        &HandBoneRadius,
+        &XrHandBoneRadius,
         &XrSpaceLocationFlags,
     )>,
 ) {

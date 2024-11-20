@@ -1,5 +1,4 @@
 use bevy::{
-    ecs::query::QuerySingleError,
     prelude::*,
     render::{
         camera::{ManualTextureView, ManualTextureViewHandle, ManualTextureViews, RenderTarget},
@@ -12,9 +11,7 @@ use bevy::{
 };
 use bevy_mod_xr::{
     camera::{XrCamera, XrProjection},
-    session::{
-        XrFirst, XrHandleEvents, XrPreDestroySession, XrRenderSet, XrRootTransform, XrTrackingRoot,
-    },
+    session::{XrFirst, XrHandleEvents, XrPreDestroySession, XrRenderSet, XrRootTransform},
     spaces::XrPrimaryReferenceSpace,
 };
 use openxr::ViewStateFlags;
@@ -34,10 +31,6 @@ impl Plugin for OxrRenderPlugin {
     fn build(&self, app: &mut App) {
         if app.is_plugin_added::<PipelinedRenderingPlugin>() {
             app.init_resource::<Pipelined>();
-
-            // if let Some(sub_app) = app.remove_sub_app(RenderExtractApp) {
-            //     app.insert_sub_app(RenderExtractApp, SubApp::new(sub_app.app, update_rendering));
-            // }
         }
 
         app.add_plugins((
@@ -140,7 +133,6 @@ pub fn init_views(
     graphics_info: Res<OxrGraphicsInfo>,
     mut manual_texture_views: ResMut<ManualTextureViews>,
     swapchain_images: Res<OxrSwapchainImages>,
-    root: Query<Entity, With<XrTrackingRoot>>,
     mut commands: Commands,
 ) {
     let _span = info_span!("xr_init_views");
@@ -150,27 +142,13 @@ pub fn init_views(
         info!("XrCamera resolution: {}", graphics_info.resolution);
         let view_handle =
             add_texture_view(&mut manual_texture_views, temp_tex, &graphics_info, index);
-        let cam = commands
-            .spawn((
-                Camera {
-                    target: RenderTarget::TextureView(view_handle),
-                    ..Default::default()
-                },
-                XrCamera(index),
-            ))
-            .remove::<Projection>()
-            .id();
-        match root.get_single() {
-            Ok(root) => {
-                commands.entity(root).add_child(cam);
-            }
-            Err(QuerySingleError::NoEntities(_)) => {
-                warn!("No XrTrackingRoot!");
-            }
-            Err(QuerySingleError::MultipleEntities(_)) => {
-                warn!("Multiple XrTrackingRoots! this is not allowed");
-            }
-        }
+        commands.spawn((
+            Camera {
+                target: RenderTarget::TextureView(view_handle),
+                ..Default::default()
+            },
+            XrCamera(index),
+        ));
     }
 }
 

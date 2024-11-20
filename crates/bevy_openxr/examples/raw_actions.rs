@@ -11,7 +11,7 @@ use bevy_mod_openxr::{
     spaces::OxrSpaceExt,
 };
 use bevy_mod_xr::{
-    session::{session_available, session_running, XrSessionCreated, XrTrackingRoot},
+    session::{session_available, session_running, XrSessionCreated},
     spaces::XrSpace,
 };
 use openxr::Posef;
@@ -108,7 +108,6 @@ fn create_actions(instance: Res<OxrInstance>, mut cmds: Commands) {
 fn spawn_hands(
     actions: Res<ControllerActions>,
     mut cmds: Commands,
-    root: Query<Entity, With<XrTrackingRoot>>,
     session: Res<OxrSession>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -128,26 +127,18 @@ fn spawn_hands(
     let right_space = session
         .create_action_space(&actions.right, openxr::Path::NULL, Isometry3d::IDENTITY)
         .unwrap();
-    let left = cmds
-        .spawn((
-            Mesh3d(meshes.add(Cuboid::new(0.1, 0.1, 0.05))),
-            MeshMaterial3d(materials.add(Color::srgb_u8(124, 144, 255))),
-            Transform::from_xyz(0.0, 0.5, 0.0),
-            left_space,
-            Controller,
-        ))
-        .id();
-    let right = cmds
-        .spawn((
-            Mesh3d(meshes.add(Cuboid::new(0.1, 0.1, 0.05))),
-            MeshMaterial3d(materials.add(Color::srgb_u8(124, 144, 255))),
-            Transform::from_xyz(0.0, 0.5, 0.0),
-            right_space,
-            Controller,
-        ))
-        .id();
-
-    cmds.entity(root.single()).add_children(&[left, right]);
+    cmds.spawn((
+        Mesh3d(meshes.add(Cuboid::new(0.1, 0.1, 0.05))),
+        MeshMaterial3d(materials.add(Color::srgb_u8(124, 144, 255))),
+        left_space,
+        Controller,
+    ));
+    cmds.spawn((
+        Mesh3d(meshes.add(Cuboid::new(0.1, 0.1, 0.05))),
+        MeshMaterial3d(materials.add(Color::srgb_u8(124, 144, 255))),
+        right_space,
+        Controller,
+    ));
 }
 
 #[derive(Component)]

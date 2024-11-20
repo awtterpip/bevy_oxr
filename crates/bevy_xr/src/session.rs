@@ -2,6 +2,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use bevy::app::{AppExit, MainScheduleOrder};
+use bevy::ecs::component::StorageType;
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;
 use bevy::render::extract_resource::{ExtractResource, ExtractResourcePlugin};
@@ -84,7 +85,29 @@ pub struct XrRootTransform(pub GlobalTransform);
 
 /// Component used to specify the entity we should use as the tracking root.
 #[derive(Component)]
+#[require(Transform, Visibility)]
 pub struct XrTrackingRoot;
+#[derive(Resource)]
+struct TrackingRootRes(Entity);
+
+/// Makes the entity a child of the XrTrackingRoot if the entity has no parent
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Reflect, Debug, Default)]
+pub struct XrTracker;
+impl Component for XrTracker {
+    const STORAGE_TYPE: StorageType = StorageType::SparseSet;
+
+    fn register_component_hooks(hooks: &mut bevy::ecs::component::ComponentHooks) {
+        hooks.on_add(|mut world, entity, _| {
+            if world.entity(entity).components::<Has<Parent>>() {
+                return;
+            }
+            let Some(root) = world.get_resource::<TrackingRootRes>().map(|r| r.0) else {
+                return;
+            };
+            world.commands().entity(root).add_child(entity);
+        });
+    }
+}
 
 pub struct XrSessionPlugin {
     pub auto_handle: bool,
@@ -125,12 +148,12 @@ impl Plugin for XrSessionPlugin {
                     .run_if(session_created)
                     .in_set(XrHandleEvents::ExitEvents),
             );
+        let root = app.world_mut().spawn(XrTrackingRoot).id();
+        app.world_mut().insert_resource(TrackingRootRes(root));
         app.world_mut()
             .resource_mut::<MainScheduleOrder>()
             .labels
             .insert(0, XrFirst.intern());
-        app.world_mut()
-            .spawn((Transform::default(), Visibility::default(), XrTrackingRoot));
 
         if self.auto_handle {
             app.add_systems(PreUpdate, auto_handle_session);
