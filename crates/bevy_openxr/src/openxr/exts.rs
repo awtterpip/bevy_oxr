@@ -29,6 +29,10 @@ impl OxrExtensions {
         self.0.ext_hand_tracking = false;
         self
     }
+    pub fn enable_extx_overlay(&mut self) -> &mut Self {
+        self.0.extx_overlay = true;
+        self
+    }
     /// returns true if all of the extensions enabled are also available in `available_exts`
     pub fn is_available(&self, available_exts: &OxrExtensions) -> bool {
         self.clone() & available_exts.clone() == *self
