@@ -1,10 +1,11 @@
 //! A simple 3D scene with light shining over a cube sitting on a plane.
 
 use bevy::prelude::*;
-use bevy_mod_openxr::{add_xr_plugins, init::OxrInitPlugin, types::OxrExtensions};
-use bevy_mod_xr::session::XrState;
-// use openxr::EnvironmentBlendMode;
-// use wgpu::TextureFormat;
+use bevy_mod_openxr::{
+    add_xr_plugins, features::overlay::OxrOverlaySessionEvent, init::OxrInitPlugin,
+    types::OxrExtensions,
+};
+use openxr::EnvironmentBlendMode;
 
 fn main() {
     App::new()
@@ -12,30 +13,30 @@ fn main() {
             exts: {
                 let mut exts = OxrExtensions::default();
                 exts.enable_hand_tracking();
-                exts.other.push("XR_EXTX_overlay\0".into());
+                exts.extx_overlay = true;
                 exts
             },
-            // blend_modes: Some({
-            //     let mut v = Vec::new();
-            //     v.push(EnvironmentBlendMode::ALPHA_BLEND);
-            //     v.push(EnvironmentBlendMode::ADDITIVE);
-            //     v.push(EnvironmentBlendMode::OPAQUE);
-            //     v
-            // }),
-            // formats: Some({
-            //     let mut v = Vec::new();
-            //     // v.push(TextureFormat::Rgba8Uint);
-            //     v.push(TextureFormat::Rgba8Unorm);
-            //     v.push(TextureFormat::Rgba8UnormSrgb);
-            //     v
-            // }),
+            blend_modes: Some({
+                vec![
+                    EnvironmentBlendMode::ALPHA_BLEND,
+                    EnvironmentBlendMode::OPAQUE,
+                ]
+            }),
             ..OxrInitPlugin::default()
         }))
         .insert_resource(ClearColor(Color::NONE))
         .add_plugins(bevy_xr_utils::hand_gizmos::HandGizmosPlugin)
         .add_systems(Startup, setup)
         .add_systems(Update, handle_input)
+        .add_systems(Update, print_main_session_changes)
         .run();
+}
+
+fn print_main_session_changes(mut events: EventReader<OxrOverlaySessionEvent>) {
+    for event in events.read() {
+        let OxrOverlaySessionEvent::MainSessionVisibilityChanged { visible, flags: _ } = event;
+        info!("main session visible: {visible}");
+    }
 }
 
 fn handle_input(
@@ -45,7 +46,6 @@ fn handle_input(
     mut begin: EventWriter<bevy_mod_xr::session::XrBeginSessionEvent>,
     mut create: EventWriter<bevy_mod_xr::session::XrCreateSessionEvent>,
     mut request_exit: EventWriter<bevy_mod_xr::session::XrRequestExitEvent>,
-    state: Res<XrState>,
 ) {
     if keys.just_pressed(KeyCode::KeyE) {
         info!("sending end");
@@ -67,9 +67,6 @@ fn handle_input(
         info!("sending request exit");
         request_exit.send_default();
     }
-    if keys.just_pressed(KeyCode::KeyI) {
-        info!("current state: {:?}", *state);
-    }
 }
 
 /// set up a simple 3D scene
@@ -78,12 +75,6 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    // circular base
-    // commands.spawn((
-    //     Mesh3d(meshes.add(Circle::new(4.0))),
-    //     MeshMaterial3d(materials.add(Color::WHITE)),
-    //     Transform::from_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
-    // ));
     // cube
     commands.spawn((
         Mesh3d(meshes.add(Cuboid::new(1.0, 1.0, 1.0))),
@@ -92,11 +83,11 @@ fn setup(
     ));
     // light
     commands.spawn((
-         PointLight {
+        PointLight {
             shadows_enabled: true,
             ..default()
         },
-         Transform::from_xyz(4.0, 8.0, 4.0),
+        Transform::from_xyz(4.0, 8.0, 4.0),
     ));
     commands.spawn((
         Camera3d::default(),

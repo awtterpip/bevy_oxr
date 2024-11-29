@@ -1,4 +1,7 @@
-use bevy::{ecs::system::Resource, prelude::{Deref, DerefMut}};
+use bevy::{
+    ecs::system::Resource,
+    prelude::{Deref, DerefMut},
+};
 use openxr::ExtensionSet;
 
 #[derive(Clone, Debug, Eq, PartialEq, Deref, DerefMut, Resource)]
@@ -196,6 +199,8 @@ macro_rules! impl_ext {
                 ext_local_floor,
                 ext_hand_tracking_data_source,
                 ext_plane_detection,
+                ext_future,
+                ext_user_presence,
                 fb_composition_layer_image_layout,
                 fb_composition_layer_alpha_blend,
                 #[cfg(target_os = "android")]
@@ -238,6 +243,7 @@ macro_rules! impl_ext {
                 fb_composition_layer_depth_test,
                 fb_spatial_entity_storage_batch,
                 fb_spatial_entity_user,
+                fb_face_tracking2,
                 htc_vive_cosmos_controller_interaction,
                 htc_facial_tracking,
                 htc_vive_focus3_controller_interaction,
@@ -245,6 +251,7 @@ macro_rules! impl_ext {
                 htc_vive_wrist_tracker_interaction,
                 htc_passthrough,
                 htc_foveation,
+                htc_anchor,
                 huawei_controller_interaction,
                 #[cfg(target_os = "android")]
                 khr_android_thread_settings,
@@ -276,6 +283,8 @@ macro_rules! impl_ext {
                 khr_composition_layer_equirect2,
                 khr_binding_modification,
                 khr_swapchain_usage_input_attachment_bit,
+                khr_locate_spaces,
+                khr_maintenance1,
                 meta_foveation_eye_tracked,
                 meta_local_dimming,
                 meta_passthrough_preferences,
@@ -283,11 +292,18 @@ macro_rules! impl_ext {
                 meta_vulkan_swapchain_create_info,
                 meta_performance_metrics,
                 meta_headset_id,
+                meta_recommended_layer_resolution,
                 meta_passthrough_color_lut,
+                meta_spatial_entity_mesh,
+                meta_automatic_layer_filter,
+                meta_touch_controller_plus,
+                meta_environment_depth,
                 ml_ml2_controller_interaction,
                 ml_frame_end_info,
                 ml_global_dimmer,
                 ml_compat,
+                ml_marker_understanding,
+                ml_localization_map,
                 ml_user_calibration,
                 mnd_headless,
                 mnd_swapchain_usage_input_attachment_bit,
@@ -319,7 +335,12 @@ macro_rules! impl_ext {
                 varjo_environment_depth_estimation,
                 varjo_marker_tracking,
                 varjo_view_offset,
+                varjo_xr4_controller_interaction,
                 yvr_controller_interaction,
+                extx_overlay,
+                mndx_egl_enable,
+                mndx_force_feedback_curl,
+                htcx_vive_tracker_interaction,
             }
         )*
 

@@ -10,7 +10,7 @@ resolver = "2"
 members = ["crates/*", "crates/bevy_openxr/examples/android"]
 
 [workspace.dependencies]
-bevy = { version = "0.15.0-rc.3", default-features = false, features = [
+bevy = { version = "0.15", default-features = false, features = [
 	"bevy_render",
 	"bevy_core_pipeline",
 	"bevy_winit",

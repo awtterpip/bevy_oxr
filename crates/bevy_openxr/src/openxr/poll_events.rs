@@ -45,15 +45,16 @@ use super::{openxr_session_available, resources::OxrInstance};
 pub struct OxrEventHandlers {
     pub handlers: Vec<OxrEventHandler>,
 }
-pub type OxrEventHandler = SystemId<OxrEvent, ()>;
+pub type OxrEventHandler = SystemId<In<OxrEvent>, ()>;
 
 pub struct OxrEvent {
     event: Rc<RefCell<Option<Event<'static>>>>,
 }
 
 impl OxrEvent {
-    pub(crate) fn new<'a>(event: Rc<RefCell<Option<Event<'a>>>>) -> Self {
+    pub(crate) fn new(event: Rc<RefCell<Option<Event<'_>>>>) -> Self {
         Self {
+        #[allow(clippy::missing_transmute_annotations)]
             event: unsafe { mem::transmute(event) },
         }
     }
@@ -63,19 +64,19 @@ impl OxrEvent {
     /// don't Store the [Event] anywhere!!
     #[allow(clippy::needless_lifetimes)]
     pub unsafe fn get<'a>(&'a self) -> Option<Event<'a>> {
-        self.event.borrow().clone()
+        *self.event.borrow()
     }
 }
 pub trait OxrEventHandlerExt {
     fn add_oxr_event_handler<M>(
         &mut self,
-        system: impl IntoSystem<OxrEvent, (), M> + 'static,
+        system: impl IntoSystem<In<OxrEvent>, (), M> + 'static,
     ) -> &mut Self;
 }
 impl OxrEventHandlerExt for App {
     fn add_oxr_event_handler<M>(
         &mut self,
-        system: impl IntoSystem<OxrEvent, (), M> + 'static,
+        system: impl IntoSystem<In<OxrEvent>, (), M> + 'static,
     ) -> &mut Self {
         self.init_resource::<OxrEventHandlers>();
         let id = self.register_system(system);
