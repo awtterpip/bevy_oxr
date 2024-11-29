@@ -2,11 +2,17 @@ use std::ops::Deref;
 
 use bevy::prelude::*;
 use bevy_mod_openxr::{
-    action_binding::{OxrSendActionBindings, OxrSuggestActionBinding}, action_set_attaching::OxrAttachActionSet, action_set_syncing::{OxrActionSetSyncSet, OxrSyncActionSet}, add_xr_plugins, openxr_session_running, resources::OxrInstance, session::OxrSession, spaces::OxrSpaceExt
+    action_binding::{OxrSendActionBindings, OxrSuggestActionBinding},
+    action_set_attaching::OxrAttachActionSet,
+    action_set_syncing::{OxrActionSetSyncSet, OxrSyncActionSet},
+    add_xr_plugins, openxr_session_running,
+    resources::OxrInstance,
+    session::OxrSession,
+    spaces::OxrSpaceExt,
 };
 use bevy_mod_xr::{
-    session::{session_available, session_running, XrSessionCreated},
-    spaces::{XrSpace, XrSpaceLocationFlags},
+    session::{session_available, XrSessionCreated},
+    spaces::XrSpace,
 };
 use openxr::Posef;
 
@@ -125,16 +131,12 @@ fn spawn_hands(
         Mesh3d(meshes.add(Cuboid::new(0.1, 0.1, 0.05))),
         MeshMaterial3d(materials.add(Color::srgb_u8(124, 144, 255))),
         left_space,
-        // runtime required components are not inserted for non runrime required components, should
-        // be fixed in the final bevy 0.15 release
-        XrSpaceLocationFlags::default(),
         Controller,
     ));
     cmds.spawn((
         Mesh3d(meshes.add(Cuboid::new(0.1, 0.1, 0.05))),
         MeshMaterial3d(materials.add(Color::srgb_u8(124, 144, 255))),
         right_space,
-        XrSpaceLocationFlags::default(),
         Controller,
     ));
 }
