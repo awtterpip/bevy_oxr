@@ -9,6 +9,7 @@ use bevy::{
 use bevy_mod_xr::session::XrSessionPlugin;
 use bevy_mod_xr::{camera::XrCameraPlugin, session::XrState};
 use init::OxrInitPlugin;
+use poll_events::{OxrEventHandlers, OxrEventsPlugin};
 use render::OxrRenderPlugin;
 use resources::OxrInstance;
 use session::OxrSession;
@@ -35,6 +36,7 @@ pub mod resources;
 pub mod session;
 pub mod spaces;
 pub mod types;
+pub mod poll_events;
 
 /// A [`Condition`](bevy::ecs::schedule::Condition) system that says if the OpenXR session is available.
 pub fn openxr_session_available(
@@ -60,6 +62,7 @@ pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
         // .disable::<PipelinedRenderingPlugin>()
         .add_before::<RenderPlugin, _>(XrSessionPlugin { auto_handle: true })
         .add_before::<RenderPlugin, _>(OxrInitPlugin::default())
+        .add(OxrEventsPlugin)
         .add(OxrReferenceSpacePlugin::default())
         .add(OxrRenderPlugin)
         .add(OxrPassthroughPlugin)

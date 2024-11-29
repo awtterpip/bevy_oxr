@@ -18,6 +18,7 @@ use bevy::winit::UpdateMode;
 use bevy::winit::WinitSettings;
 use bevy_mod_xr::session::*;
 use openxr::Event;
+use openxr::EventDataBuffer;
 
 use crate::error::OxrError;
 use crate::features::overlay::OxrOverlaySessionEvent;
@@ -28,6 +29,8 @@ use crate::session::OxrSessionCreateNextChain;
 use crate::types::*;
 
 use super::exts::OxrEnabledExtensions;
+use super::poll_events::OxrEvent;
+use super::poll_events::OxrEventHandlerExt;
 
 pub fn session_started(started: Option<Res<OxrSessionStarted>>) -> bool {
     started.is_some_and(|started| started.0)
@@ -106,12 +109,7 @@ impl Plugin for OxrInitPlugin {
                         },
                         ExtractResourcePlugin::<OxrSessionStarted>::default(),
                     ))
-                    .add_systems(
-                        XrFirst,
-                        poll_events
-                            .in_set(XrHandleEvents::Poll)
-                            .run_if(not(state_equals(XrState::Unavailable))),
-                    )
+                    .add_oxr_event_handler(handle_events)
                     .add_systems(
                         XrFirst,
                         (
@@ -282,65 +280,46 @@ impl OxrInitPlugin {
 #[derive(Event, Clone, Copy, Debug, Default)]
 pub struct OxrInteractionProfileChanged;
 
-/// Polls any OpenXR events and handles them accordingly
-pub fn poll_events(
-    instance: Res<OxrInstance>,
+pub fn handle_events(
+    event: In<OxrEvent>,
     mut status: ResMut<XrState>,
     mut changed_event: EventWriter<XrStateChanged>,
     mut interaction_profile_changed_event: EventWriter<OxrInteractionProfileChanged>,
-    mut overlay_writer: Option<ResMut<Events<OxrOverlaySessionEvent>>>,
 ) {
-    let _span = info_span!("xr_poll_events");
-    let mut buffer = Default::default();
-    while let Some(event) = instance
-        .poll_event(&mut buffer)
-        .expect("Failed to poll event")
-    {
-        use openxr::Event::*;
-        match event {
-            SessionStateChanged(state) => {
-                use openxr::SessionState;
+    use openxr::Event::*;
+    match unsafe { event.get() } {
+        SessionStateChanged(state) => {
+            use openxr::SessionState;
 
-                let state = state.state();
+            let state = state.state();
 
-                info!("entered XR state {:?}", state);
+            info!("entered XR state {:?}", state);
 
-                let new_status = match state {
-                    SessionState::IDLE => XrState::Idle,
-                    SessionState::READY => XrState::Ready,
-                    SessionState::SYNCHRONIZED | SessionState::VISIBLE | SessionState::FOCUSED => {
-                        XrState::Running
-                    }
-                    SessionState::STOPPING => XrState::Stopping,
-                    SessionState::EXITING => XrState::Exiting {
-                        should_restart: false,
-                    },
-                    SessionState::LOSS_PENDING => XrState::Exiting {
-                        should_restart: true,
-                    },
-                    _ => unreachable!(),
-                };
-                changed_event.send(XrStateChanged(new_status));
-                *status = new_status;
-            }
-            InstanceLossPending(_) => {}
-            EventsLost(e) => warn!("lost {} XR events", e.lost_event_count()),
-            MainSessionVisibilityChangedEXTX(d) => {
-                if let Some(writer) = overlay_writer.as_mut() {
-                    writer.send(OxrOverlaySessionEvent::MainSessionVisibilityChanged {
-                        visible: d.visible(),
-                        flags: d.flags(),
-                    });
-                } else {
-                    warn!("Overlay Event Recieved without the OverlayPlugin being added!");
+            let new_status = match state {
+                SessionState::IDLE => XrState::Idle,
+                SessionState::READY => XrState::Ready,
+                SessionState::SYNCHRONIZED | SessionState::VISIBLE | SessionState::FOCUSED => {
+                    XrState::Running
                 }
-            }
-            // we might want to check if this is the correct session?
-            Event::InteractionProfileChanged(_) => {
-                interaction_profile_changed_event.send_default();
-            }
-            _ => {}
+                SessionState::STOPPING => XrState::Stopping,
+                SessionState::EXITING => XrState::Exiting {
+                    should_restart: false,
+                },
+                SessionState::LOSS_PENDING => XrState::Exiting {
+                    should_restart: true,
+                },
+                _ => unreachable!(),
+            };
+            changed_event.send(XrStateChanged(new_status));
+            *status = new_status;
         }
+        InstanceLossPending(_) => {}
+        EventsLost(e) => warn!("lost {} XR events", e.lost_event_count()),
+        // we might want to check if this is the correct session?
+        Event::InteractionProfileChanged(_) => {
+            interaction_profile_changed_event.send_default();
+        }
+        _ => {}
     }
 }
 

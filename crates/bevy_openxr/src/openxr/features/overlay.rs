@@ -1,12 +1,13 @@
 use std::{mem, ptr};
 
 use bevy::prelude::*;
-use openxr::sys;
+use openxr::{sys, Event};
 
 use crate::{
     next_chain::{OxrNextChainStructBase, OxrNextChainStructProvider},
     openxr::exts::OxrEnabledExtensions,
     openxr_session_available,
+    poll_events::{OxrEvent, OxrEventHandlerExt},
     session::{OxrSessionCreateNextChain, OxrSessionCreateNextProvider},
 };
 
@@ -20,6 +21,16 @@ impl Plugin for OxrOverlayPlugin {
             First,
             add_overlay_info_to_chain.run_if(openxr_session_available),
         );
+        app.add_oxr_event_handler(handle_overlay_event);
+    }
+}
+
+fn handle_overlay_event(event: In<OxrEvent>, mut writer: EventWriter<OxrOverlaySessionEvent>) {
+    if let Event::MainSessionVisibilityChangedEXTX(event) = unsafe { event.get() } {
+        writer.send(OxrOverlaySessionEvent::MainSessionVisibilityChanged {
+            visible: event.visible(),
+            flags: event.flags(),
+        });
     }
 }
 
