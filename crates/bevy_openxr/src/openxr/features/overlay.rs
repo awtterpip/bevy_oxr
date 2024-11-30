@@ -26,7 +26,8 @@ impl Plugin for OxrOverlayPlugin {
 }
 
 fn handle_overlay_event(event: In<OxrEvent>, mut writer: EventWriter<OxrOverlaySessionEvent>) {
-    if let Event::MainSessionVisibilityChangedEXTX(event) = unsafe { event.get() } {
+    // this unwrap will never panic since we are in a valid scope
+    if let Event::MainSessionVisibilityChangedEXTX(event) = unsafe { event.get() }.unwrap() {
         writer.send(OxrOverlaySessionEvent::MainSessionVisibilityChanged {
             visible: event.visible(),
             flags: event.flags(),

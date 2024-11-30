@@ -18,10 +18,8 @@ use bevy::winit::UpdateMode;
 use bevy::winit::WinitSettings;
 use bevy_mod_xr::session::*;
 use openxr::Event;
-use openxr::EventDataBuffer;
 
 use crate::error::OxrError;
-use crate::features::overlay::OxrOverlaySessionEvent;
 use crate::graphics::*;
 use crate::resources::*;
 use crate::session::OxrSession;
@@ -287,7 +285,8 @@ pub fn handle_events(
     mut interaction_profile_changed_event: EventWriter<OxrInteractionProfileChanged>,
 ) {
     use openxr::Event::*;
-    match unsafe { event.get() } {
+    // this unwrap will never panic since we are in a valid scope
+    match unsafe { event.get() }.unwrap() {
         SessionStateChanged(state) => {
             use openxr::SessionState;
 

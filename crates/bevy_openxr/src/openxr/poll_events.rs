@@ -1,4 +1,4 @@
-use std::mem;
+use std::{cell::RefCell, mem, ops::Deref, rc::Rc};
 
 use bevy::{ecs::system::SystemId, prelude::*};
 use bevy_mod_xr::session::{XrFirst, XrHandleEvents};
@@ -27,11 +27,15 @@ pub fn poll_events(world: &mut World) {
         .poll_event(&mut buffer)
         .expect("Failed to poll event")
     {
+        let event = Rc::new(RefCell::new(Some(event)));
         for handler in handlers.handlers.iter() {
-            if let Err(err) = world.run_system_with_input::<_, ()>(*handler, OxrEvent::new(event)) {
+            if let Err(err) =
+                world.run_system_with_input::<_, ()>(*handler, OxrEvent::new(event.clone()))
+            {
                 error!("error when running oxr event handler: {err}");
             };
         }
+        event.deref().take();
     }
     world.insert_resource(handlers);
 }
@@ -44,21 +48,22 @@ pub struct OxrEventHandlers {
 pub type OxrEventHandler = SystemId<OxrEvent, ()>;
 
 pub struct OxrEvent {
-    event: Event<'static>,
+    event: Rc<RefCell<Option<Event<'static>>>>,
 }
 
 impl OxrEvent {
-    pub(crate) fn new<'a>(event: Event<'a>) -> Self {
+    pub(crate) fn new<'a>(event: Rc<RefCell<Option<Event<'a>>>>) -> Self {
         Self {
-            event: unsafe { mem::transmute::<Event<'a>, Event<'static>>(event) },
+            event: unsafe { mem::transmute(event) },
         }
     }
+    /// always returns [Some] if called in a valid scope
     /// # Safety
     /// The event is only valid for the duration of the poll event callback,
     /// don't Store the [Event] anywhere!!
     #[allow(clippy::needless_lifetimes)]
-    pub unsafe fn get<'a>(&'a self) -> Event<'a> {
-        self.event
+    pub unsafe fn get<'a>(&'a self) -> Option<Event<'a>> {
+        self.event.borrow().clone()
     }
 }
 pub trait OxrEventHandlerExt {
@@ -68,7 +73,10 @@ pub trait OxrEventHandlerExt {
     ) -> &mut Self;
 }
 impl OxrEventHandlerExt for App {
-    fn add_oxr_event_handler<M>(&mut self, system: impl IntoSystem<OxrEvent, (), M> + 'static) -> &mut Self {
+    fn add_oxr_event_handler<M>(
+        &mut self,
+        system: impl IntoSystem<OxrEvent, (), M> + 'static,
+    ) -> &mut Self {
         self.init_resource::<OxrEventHandlers>();
         let id = self.register_system(system);
         self.world_mut()
