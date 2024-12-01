@@ -9,6 +9,7 @@ use bevy::{
 use bevy_mod_xr::session::XrSessionPlugin;
 use bevy_mod_xr::{camera::XrCameraPlugin, session::XrState};
 use init::OxrInitPlugin;
+use poll_events::OxrEventsPlugin;
 use render::OxrRenderPlugin;
 use resources::OxrInstance;
 use session::OxrSession;
@@ -29,6 +30,7 @@ pub mod helper_traits;
 pub mod init;
 pub mod layer_builder;
 pub mod next_chain;
+pub mod poll_events;
 pub mod reference_space;
 pub mod render;
 pub mod resources;
@@ -60,6 +62,7 @@ pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
         // .disable::<PipelinedRenderingPlugin>()
         .add_before::<RenderPlugin, _>(XrSessionPlugin { auto_handle: true })
         .add_before::<RenderPlugin, _>(OxrInitPlugin::default())
+        .add(OxrEventsPlugin)
         .add(OxrReferenceSpacePlugin::default())
         .add(OxrRenderPlugin)
         .add(OxrPassthroughPlugin)
