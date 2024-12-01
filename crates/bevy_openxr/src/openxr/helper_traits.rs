@@ -1,5 +1,4 @@
-use bevy::prelude::*;
-use bevy_mod_xr::types::XrPose;
+use bevy::{math::Vec3A, prelude::*};
 
 pub trait ToPosef {
     fn to_posef(&self) -> openxr::Posef;
@@ -7,8 +6,8 @@ pub trait ToPosef {
 pub trait ToTransform {
     fn to_transform(&self) -> Transform;
 }
-pub trait ToXrPose {
-    fn to_xr_pose(&self) -> XrPose;
+pub trait ToIsometry3d {
+    fn to_xr_pose(&self) -> Isometry3d;
 }
 pub trait ToQuaternionf {
     fn to_quaternionf(&self) -> openxr::Quaternionf;
@@ -42,15 +41,15 @@ impl ToTransform for openxr::Posef {
             .with_rotation(self.orientation.to_quat())
     }
 }
-impl ToXrPose for openxr::Posef {
-    fn to_xr_pose(&self) -> XrPose {
-        XrPose {
-            translation: self.position.to_vec3(),
+impl ToIsometry3d for openxr::Posef {
+    fn to_xr_pose(&self) -> Isometry3d {
+        Isometry3d {
+            translation: self.position.to_vec3().into(),
             rotation: self.orientation.to_quat(),
         }
     }
 }
-impl ToPosef for XrPose {
+impl ToPosef for Isometry3d {
     fn to_posef(&self) -> openxr::Posef {
         openxr::Posef {
             orientation: self.rotation.to_quaternionf(),
@@ -82,6 +81,15 @@ impl ToQuat for openxr::Quaternionf {
     }
 }
 impl ToVector3f for Vec3 {
+    fn to_vector3f(&self) -> openxr::Vector3f {
+        openxr::Vector3f {
+            x: self.x,
+            y: self.y,
+            z: self.z,
+        }
+    }
+}
+impl ToVector3f for Vec3A {
     fn to_vector3f(&self) -> openxr::Vector3f {
         openxr::Vector3f {
             x: self.x,

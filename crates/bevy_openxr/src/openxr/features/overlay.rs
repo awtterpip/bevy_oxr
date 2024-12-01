@@ -55,7 +55,7 @@ fn add_overlay_info_to_chain(
     exts: Res<OxrEnabledExtensions>,
     settings: Res<OxrOverlaySettings>,
 ) {
-    if exts.other.contains(&"XR_EXTX_overlay\0".to_string()) {
+    if exts.extx_overlay {
         chain.push(OxrSessionCreateInfoOverlay::new(
             settings.flags,
             settings.session_layer_placement,

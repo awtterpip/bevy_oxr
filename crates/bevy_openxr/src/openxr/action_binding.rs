@@ -16,7 +16,7 @@ impl Plugin for OxrActionBindingPlugin {
         app.add_event::<OxrSuggestActionBinding>();
         app.add_systems(
             Update,
-            run_action_binding_sugestion.run_if(on_event::<XrSessionCreatedEvent>()),
+            run_action_binding_sugestion.run_if(on_event::<XrSessionCreatedEvent>),
         );
     }
 }
@@ -25,7 +25,7 @@ impl Plugin for OxrActionBindingPlugin {
 // Event to allow requesting binding suggestion for new actions
 pub(crate) fn run_action_binding_sugestion(world: &mut World) {
     world.run_schedule(OxrSendActionBindings);
-    world.run_system_once(bind_actions);
+    _ = world.run_system_once(bind_actions);
 }
 
 fn bind_actions(instance: Res<OxrInstance>, mut actions: EventReader<OxrSuggestActionBinding>) {
