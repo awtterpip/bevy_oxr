@@ -201,9 +201,9 @@ fn update_right_grip(
 //tracking rig
 #[derive(Resource)]
 pub struct ControllerActions {
-    set: openxr::ActionSet,
-    left: openxr::Action<Posef>,
-    right: openxr::Action<Posef>,
+    pub set: openxr::ActionSet,
+    pub left: openxr::Action<Posef>,
+    pub right: openxr::Action<Posef>,
 }
 
 fn spawn_tracking_rig(
