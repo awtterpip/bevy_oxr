@@ -54,7 +54,7 @@ impl Plugin for TrackingUtilitiesPlugin {
         );
 
         //bindings
-        app.add_systems(OxrSendActionBindings, suggest_action_bindings);
+        // app.add_systems(OxrSendActionBindings, suggest_action_bindings);
         //sync actions
         app.add_systems(
             PreUpdate,
@@ -200,10 +200,10 @@ fn update_right_grip(
 
 //tracking rig
 #[derive(Resource)]
-struct ControllerActions {
-    set: openxr::ActionSet,
-    left: openxr::Action<Posef>,
-    right: openxr::Action<Posef>,
+pub struct ControllerActions {
+    pub set: openxr::ActionSet,
+    pub left: openxr::Action<Posef>,
+    pub right: openxr::Action<Posef>,
 }
 
 fn spawn_tracking_rig(
@@ -240,7 +240,7 @@ fn spawn_tracking_rig(
 
 //bindings
 //TODO figure out how to make these better, specifically not be controller specific
-fn suggest_action_bindings(
+pub fn suggest_action_bindings(
     actions: Res<ControllerActions>,
     mut bindings: EventWriter<OxrSuggestActionBinding>,
 ) {
