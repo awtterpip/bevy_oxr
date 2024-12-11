@@ -31,7 +31,7 @@ openxr = "0.18.0"
 thiserror = "1.0.57"
 wgpu = "0.20"
 wgpu-hal = "0.21"
-bevy_mod_xr = { path = "../bevy_xr", version = "0.1.0-rc1" }
+bevy_mod_xr = { path = "../bevy_xr", version = "0.1.0" }
 
 ash = { version = "0.37.3", optional = true }
 
