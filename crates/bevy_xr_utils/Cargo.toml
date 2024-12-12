@@ -10,8 +10,8 @@ description = "utils for bevy_mod_xr and bevy_mod_openxr"
 
 [dependencies]
 bevy = { workspace = true, features = ["bevy_gizmos"] }
-bevy_mod_xr = { path = "../bevy_xr", version = "0.1.0-rc1" }
-bevy_mod_openxr = { path = "../bevy_openxr", version = "0.1.0-rc1" }
+bevy_mod_xr = { path = "../bevy_xr", version = "0.1.0" }
+bevy_mod_openxr = { path = "../bevy_openxr", version = "0.1.0" }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 openxr = "0.18.0"
