@@ -1,5 +1,5 @@
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Community crate for XR in Bevy"
 repository = "https://github.com/awtterpip/bevy_oxr"
