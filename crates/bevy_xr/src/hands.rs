@@ -202,7 +202,7 @@ impl<B: Bundle> Command for SpawnHandTracker<B> {
         let mut tracker = world.spawn(self.joints);
         match &self.side {
             HandSide::Left => tracker.insert(LeftHand),
-            HandSide::Right => tracker.insert(LeftHand),
+            HandSide::Right => tracker.insert(RightHand),
         };
         let tracker = tracker.id();
         world.entity_mut(root).push_children(&[tracker]);
