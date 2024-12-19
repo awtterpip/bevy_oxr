@@ -4,8 +4,7 @@ use bevy::prelude::*;
 use bevy_mod_openxr::add_xr_plugins;
 use bevy_mod_xr::session::{XrSessionCreated, XrTracker};
 use bevy_xr_utils::tracking_utils::{
-    TrackingUtilitiesPlugin, XrTrackedLeftGrip, XrTrackedLocalFloor, XrTrackedRightGrip,
-    XrTrackedStage, XrTrackedView,
+    suggest_action_bindings, TrackingUtilitiesPlugin, XrTrackedLeftGrip, XrTrackedLocalFloor, XrTrackedRightGrip, XrTrackedStage, XrTrackedView
 };
 
 fn main() {
@@ -18,6 +17,8 @@ fn main() {
 
     //tracking utils plugin
     app.add_plugins(TrackingUtilitiesPlugin);
+    //default bindings only use for prototyping
+    app.add_systems(OxrSendActionBindings, suggest_action_bindings);
 
     app.run();
 }

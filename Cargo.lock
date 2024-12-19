@@ -876,7 +876,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_mod_openxr"
-version = "0.1.0-rc2"
+version = "0.1.1"
 dependencies = [
  "ash",
  "bevy",
@@ -904,14 +904,14 @@ dependencies = [
 
 [[package]]
 name = "bevy_mod_xr"
-version = "0.1.0-rc2"
+version = "0.1.1"
 dependencies = [
  "bevy",
 ]
 
 [[package]]
 name = "bevy_openxr_android"
-version = "0.1.0-rc2"
+version = "0.1.1"
 dependencies = [
  "bevy",
  "bevy_mod_openxr",
@@ -1331,7 +1331,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_xr_utils"
-version = "0.1.0-rc2"
+version = "0.1.1"
 dependencies = [
  "bevy",
  "bevy_mod_openxr",
