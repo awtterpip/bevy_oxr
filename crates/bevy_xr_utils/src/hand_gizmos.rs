@@ -30,6 +30,7 @@ fn draw_hand_gizmos(
             rotation: pose.rotation,
         };
         gizmos.sphere(pose, **radius, gizmo_color(bone));
+        gizmos.axes(pose, **radius);
     }
 }
 
