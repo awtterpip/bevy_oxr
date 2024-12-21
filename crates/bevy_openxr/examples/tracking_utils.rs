@@ -1,7 +1,7 @@
 //! A simple 3D scene with light shining over a cube sitting on a plane.
 
 use bevy::prelude::*;
-use bevy_mod_openxr::add_xr_plugins;
+use bevy_mod_openxr::{action_binding::OxrSendActionBindings, add_xr_plugins};
 use bevy_mod_xr::session::{XrSessionCreated, XrTracker};
 use bevy_xr_utils::tracking_utils::{
     suggest_action_bindings, TrackingUtilitiesPlugin, XrTrackedLeftGrip, XrTrackedLocalFloor, XrTrackedRightGrip, XrTrackedStage, XrTrackedView

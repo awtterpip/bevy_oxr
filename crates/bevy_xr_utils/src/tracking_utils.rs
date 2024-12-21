@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy_mod_openxr::{
-    action_binding::{OxrSendActionBindings, OxrSuggestActionBinding},
+    action_binding::OxrSuggestActionBinding,
     action_set_attaching::OxrAttachActionSet,
     action_set_syncing::{OxrActionSetSyncSet, OxrSyncActionSet},
     helper_traits::{ToQuat, ToVec3},
