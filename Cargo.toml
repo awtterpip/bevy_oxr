@@ -10,10 +10,17 @@ resolver = "2"
 members = ["crates/*", "crates/bevy_openxr/examples/android"]
 
 [workspace.dependencies]
-bevy = { version = "0.14.0", default-features = false, features = [
+bevy = { version = "0.15", default-features = false, features = [
 	"bevy_render",
 	"bevy_core_pipeline",
 	"bevy_winit",
 	"bevy_pbr",
 	"x11",
 ] }
+bevy_mod_xr.path = "crates/bevy_xr"
+bevy_mod_openxr.path = "crates/bevy_openxr"
+bevy_xr_utils.path = "crates/bevy_xr_utils"
+openxr = "0.19.0"
+thiserror = "2.0.3"
+wgpu = "23"
+wgpu-hal = "23"

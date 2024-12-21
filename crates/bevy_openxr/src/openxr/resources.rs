@@ -43,6 +43,7 @@ impl OxrEntry {
                 application_version: app_info.version.to_u32(),
                 engine_name: "Bevy",
                 engine_version: Version::BEVY.to_u32(),
+                api_version: openxr::Version::new(1, 1, 36),
             },
             &required_exts.into(),
             layers,
@@ -108,7 +109,7 @@ impl OxrInstance {
         graphics_match!(
             self.1;
             _ => {
-                let (graphics, session_info) = Api::init_graphics(&self.2, &self, system_id)?;
+                let (graphics, session_info) = Api::init_graphics(&self.2, self, system_id)?;
 
                 Ok((graphics, SessionCreateInfo(Api::wrap(session_info))))
             }
@@ -185,7 +186,7 @@ impl OxrFrameStream {
             stream => {
                 let mut new_layers = vec![];
 
-                for (i, layer) in layers.into_iter().enumerate() {
+                for (i, layer) in layers.iter().enumerate() {
                     if let Some(swapchain) = layer.swapchain() {
                         if !swapchain.0.using_graphics::<Api>() {
                             error!(
@@ -196,7 +197,10 @@ impl OxrFrameStream {
                             continue;
                         }
                     }
-                    new_layers.push(unsafe { std::mem::transmute(layer.header()) });
+                    new_layers.push(unsafe {
+                        #[allow(clippy::missing_transmute_annotations)]
+                        std::mem::transmute(layer.header())
+                    });
                 }
 
                 Ok(stream.end(display_time, environment_blend_mode, new_layers.as_slice())?)

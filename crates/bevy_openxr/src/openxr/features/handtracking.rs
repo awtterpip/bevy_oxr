@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 use bevy_mod_xr::hands::{
-    spawn_hand_bones, HandBone, HandBoneRadius, HandSide, SpawnHandTracker,
-    SpawnHandTrackerCommandExecutor,
+    spawn_hand_bones, HandBone, HandSide, SpawnHandTracker, SpawnHandTrackerCommandExecutor,
+    XrHandBoneRadius,
 };
 use bevy_mod_xr::hands::{LeftHand, RightHand, XrHandBoneEntities};
-use bevy_mod_xr::session::{XrPreDestroySession, XrSessionCreated, XrTrackingRoot};
+use bevy_mod_xr::session::{XrPreDestroySession, XrSessionCreated};
 use bevy_mod_xr::spaces::{
     XrPrimaryReferenceSpace, XrReferenceSpace, XrSpaceLocationFlags, XrSpaceVelocityFlags,
     XrVelocity,
@@ -70,11 +70,7 @@ fn handle_tracker_spawn(world: &mut World, tracker: Entity, side: HandSide) {
         .insert(OxrHandTracker(oxr_tracker));
 }
 
-fn spawn_default_hands(mut cmds: Commands, root: Query<Entity, With<XrTrackingRoot>>) {
-    let Ok(root) = root.get_single() else {
-        error!("unable to get tracking root, skipping handtracker creation");
-        return;
-    };
+fn spawn_default_hands(mut cmds: Commands) {
     debug!("spawning default hands");
     let left_bones = spawn_hand_bones(&mut cmds, |_| {
         (
@@ -90,14 +86,12 @@ fn spawn_default_hands(mut cmds: Commands, root: Query<Entity, With<XrTrackingRo
             OxrSpaceLocationFlags(openxr::SpaceLocationFlags::default()),
         )
     });
-    cmds.entity(root).push_children(&left_bones);
-    cmds.entity(root).push_children(&right_bones);
-    cmds.push(SpawnHandTracker {
+    cmds.queue(SpawnHandTracker {
         joints: XrHandBoneEntities(left_bones),
         tracker_bundle: DefaultHandTracker,
         side: HandSide::Left,
     });
-    cmds.push(SpawnHandTracker {
+    cmds.queue(SpawnHandTracker {
         joints: XrHandBoneEntities(right_bones),
         tracker_bundle: DefaultHandTracker,
         side: HandSide::Right,
@@ -134,7 +128,7 @@ fn locate_hands(
     session: Res<OxrSession>,
     mut bone_query: Query<(
         &HandBone,
-        &mut HandBoneRadius,
+        &mut XrHandBoneRadius,
         &mut Transform,
         Option<&mut XrVelocity>,
         &mut OxrSpaceLocationFlags,

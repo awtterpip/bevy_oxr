@@ -8,7 +8,7 @@ impl Plugin for OxrActionAttachingPlugin {
         app.add_systems(
             PostUpdate,
             attach_sets
-                .run_if(on_event::<XrSessionCreatedEvent>())
+                .run_if(on_event::<XrSessionCreatedEvent>)
                 .after(run_action_binding_sugestion),
         );
     }
