@@ -1,3 +1,4 @@
+use std::convert::identity;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
@@ -98,7 +99,11 @@ impl Component for XrTracker {
 
     fn register_component_hooks(hooks: &mut bevy::ecs::component::ComponentHooks) {
         hooks.on_add(|mut world, entity, _| {
-            if world.entity(entity).components::<Has<Parent>>() {
+            if world
+                .entity(entity)
+                .get_components::<Has<Parent>>()
+                .is_some_and(identity)
+            {
                 return;
             }
             let Some(root) = world.get_resource::<TrackingRootRes>().map(|r| r.0) else {
