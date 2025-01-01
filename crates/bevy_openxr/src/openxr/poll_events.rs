@@ -19,7 +19,7 @@ impl Plugin for OxrEventsPlugin {
 }
 /// Polls any OpenXR events and handles them accordingly
 pub fn poll_events(world: &mut World) {
-    let _span = info_span!("xr_poll_events").entered();
+    let _span = debug_span!("xr_poll_events").entered();
     let instance = world.resource::<OxrInstance>().clone();
     let handlers = world.remove_resource::<OxrEventHandlers>().unwrap();
     let mut buffer = EventDataBuffer::default();
@@ -54,7 +54,7 @@ pub struct OxrEvent {
 impl OxrEvent {
     pub(crate) fn new(event: Rc<RefCell<Option<Event<'_>>>>) -> Self {
         Self {
-        #[allow(clippy::missing_transmute_annotations)]
+            #[allow(clippy::missing_transmute_annotations)]
             event: unsafe { mem::transmute(event) },
         }
     }

@@ -508,12 +508,13 @@ pub fn begin_xr_session(
     world: &mut World,
     // session: Res<OxrSession>, mut session_started: ResMut<OxrSessionStarted>
 ) {
-    let _span = info_span!("xr_begin_session").entered();
+    let _span = debug_span!("xr_begin_session").entered();
     world
         .get_resource::<OxrSession>()
         .unwrap()
         .begin(openxr::ViewConfigurationType::PRIMARY_STEREO)
         .expect("Failed to begin session");
+    drop(_span);
     world.get_resource_mut::<OxrSessionStarted>().unwrap().0 = true;
     world.run_schedule(XrPostSessionBegin);
 }
@@ -524,7 +525,7 @@ pub fn end_xr_session(
 ) {
     // Maybe this could be an event?
     world.run_schedule(XrPreSessionEnd);
-    let _span = info_span!("xr_end_session").entered();
+    let _span = debug_span!("xr_end_session").entered();
     world
         .get_resource::<OxrSession>()
         .unwrap()
