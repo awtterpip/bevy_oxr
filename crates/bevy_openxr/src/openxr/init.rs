@@ -508,7 +508,7 @@ pub fn begin_xr_session(
     world: &mut World,
     // session: Res<OxrSession>, mut session_started: ResMut<OxrSessionStarted>
 ) {
-    let _span = info_span!("xr_begin_session");
+    let _span = info_span!("xr_begin_session").entered();
     world
         .get_resource::<OxrSession>()
         .unwrap()
@@ -524,7 +524,7 @@ pub fn end_xr_session(
 ) {
     // Maybe this could be an event?
     world.run_schedule(XrPreSessionEnd);
-    let _span = info_span!("xr_end_session");
+    let _span = info_span!("xr_end_session").entered();
     world
         .get_resource::<OxrSession>()
         .unwrap()

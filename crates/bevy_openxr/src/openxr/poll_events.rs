@@ -19,7 +19,7 @@ impl Plugin for OxrEventsPlugin {
 }
 /// Polls any OpenXR events and handles them accordingly
 pub fn poll_events(world: &mut World) {
-    let _span = info_span!("xr_poll_events");
+    let _span = info_span!("xr_poll_events").entered();
     let instance = world.resource::<OxrInstance>().clone();
     let handlers = world.remove_resource::<OxrEventHandlers>().unwrap();
     let mut buffer = EventDataBuffer::default();
