@@ -24,7 +24,7 @@ pub struct Version(pub u8, pub u8, pub u16);
 
 impl Version {
     /// Bevy's version number
-    pub const BEVY: Self = Self(0, 13, 0);
+    pub const BEVY: Self = Self(0, 15, 0);
 
     pub const fn to_u32(self) -> u32 {
         let major = (self.0 as u32) << 24;

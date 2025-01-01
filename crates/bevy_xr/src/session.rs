@@ -1,7 +1,9 @@
+use std::convert::identity;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use bevy::app::{AppExit, MainScheduleOrder};
+use bevy::ecs::component::StorageType;
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;
 use bevy::render::extract_resource::{ExtractResource, ExtractResourcePlugin};
@@ -84,7 +86,33 @@ pub struct XrRootTransform(pub GlobalTransform);
 
 /// Component used to specify the entity we should use as the tracking root.
 #[derive(Component)]
+#[require(Transform, Visibility)]
 pub struct XrTrackingRoot;
+#[derive(Resource)]
+struct TrackingRootRes(Entity);
+
+/// Makes the entity a child of the XrTrackingRoot if the entity has no parent
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Reflect, Debug, Default)]
+pub struct XrTracker;
+impl Component for XrTracker {
+    const STORAGE_TYPE: StorageType = StorageType::SparseSet;
+
+    fn register_component_hooks(hooks: &mut bevy::ecs::component::ComponentHooks) {
+        hooks.on_add(|mut world, entity, _| {
+            if world
+                .entity(entity)
+                .get_components::<Has<Parent>>()
+                .is_some_and(identity)
+            {
+                return;
+            }
+            let Some(root) = world.get_resource::<TrackingRootRes>().map(|r| r.0) else {
+                return;
+            };
+            world.commands().entity(root).add_child(entity);
+        });
+    }
+}
 
 pub struct XrSessionPlugin {
     pub auto_handle: bool,
@@ -121,10 +149,12 @@ impl Plugin for XrSessionPlugin {
             .add_systems(
                 XrFirst,
                 exits_session_on_app_exit
-                    .run_if(on_event::<AppExit>())
+                    .run_if(on_event::<AppExit>)
                     .run_if(session_created)
                     .in_set(XrHandleEvents::ExitEvents),
             );
+        let root = app.world_mut().spawn(XrTrackingRoot).id();
+        app.world_mut().insert_resource(TrackingRootRes(root));
         app.world_mut()
             .resource_mut::<MainScheduleOrder>()
             .labels
@@ -153,7 +183,7 @@ impl Plugin for XrSessionPlugin {
             XrFirst,
             exits_session_on_app_exit
                 .before(XrHandleEvents::ExitEvents)
-                .run_if(on_event::<AppExit>().and_then(session_running)),
+                .run_if(on_event::<AppExit>.and(session_running)),
         );
 
         let render_app = app.sub_app_mut(RenderApp);

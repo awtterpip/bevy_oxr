@@ -1,5 +1,4 @@
 use bevy::{
-    ecs::query::QuerySingleError,
     prelude::*,
     render::{
         camera::{ManualTextureView, ManualTextureViewHandle, ManualTextureViews, RenderTarget},
@@ -11,10 +10,8 @@ use bevy::{
     transform::TransformSystem,
 };
 use bevy_mod_xr::{
-    camera::{XrCamera, XrCameraBundle, XrProjection},
-    session::{
-        XrFirst, XrHandleEvents, XrPreDestroySession, XrRenderSet, XrRootTransform, XrTrackingRoot,
-    },
+    camera::{XrCamera, XrProjection},
+    session::{XrFirst, XrHandleEvents, XrPreDestroySession, XrRenderSet, XrRootTransform},
     spaces::XrPrimaryReferenceSpace,
 };
 use openxr::ViewStateFlags;
@@ -34,10 +31,6 @@ impl Plugin for OxrRenderPlugin {
     fn build(&self, app: &mut App) {
         if app.is_plugin_added::<PipelinedRenderingPlugin>() {
             app.init_resource::<Pipelined>();
-
-            // if let Some(sub_app) = app.remove_sub_app(RenderExtractApp) {
-            //     app.insert_sub_app(RenderExtractApp, SubApp::new(sub_app.app, update_rendering));
-            // }
         }
 
         app.add_plugins((
@@ -140,43 +133,26 @@ pub fn init_views(
     graphics_info: Res<OxrGraphicsInfo>,
     mut manual_texture_views: ResMut<ManualTextureViews>,
     swapchain_images: Res<OxrSwapchainImages>,
-    root: Query<Entity, With<XrTrackingRoot>>,
     mut commands: Commands,
 ) {
-    let _span = info_span!("xr_init_views");
     let temp_tex = swapchain_images.first().unwrap();
     // this for loop is to easily add support for quad or mono views in the future.
     for index in 0..2 {
-        info!("{}", graphics_info.resolution);
+        let _span = debug_span!("xr_init_view").entered();
+        info!("XrCamera resolution: {}", graphics_info.resolution);
         let view_handle =
             add_texture_view(&mut manual_texture_views, temp_tex, &graphics_info, index);
-
-        let cam = commands
-            .spawn((XrCameraBundle {
-                camera: Camera {
-                    target: RenderTarget::TextureView(view_handle),
-                    ..Default::default()
-                },
-                view: XrCamera(index),
+        commands.spawn((
+            Camera {
+                target: RenderTarget::TextureView(view_handle),
                 ..Default::default()
-            },))
-            .id();
-        match root.get_single() {
-            Ok(root) => {
-                commands.entity(root).add_child(cam);
-            }
-            Err(QuerySingleError::NoEntities(_)) => {
-                warn!("No XrTrackingRoot!");
-            }
-            Err(QuerySingleError::MultipleEntities(_)) => {
-                warn!("Multiple XrTrackingRoots! this is not allowed");
-            }
-        }
+            },
+            XrCamera(index),
+        ));
     }
 }
 
 pub fn wait_frame(mut frame_waiter: ResMut<OxrFrameWaiter>, mut commands: Commands) {
-    let _span = info_span!("xr_wait_frame");
     let state = frame_waiter.wait().expect("Failed to wait frame");
     commands.insert_resource(OxrFrameState(state));
 }
@@ -385,11 +361,11 @@ pub fn insert_texture_views(
     mut manual_texture_views: ResMut<ManualTextureViews>,
     graphics_info: Res<OxrGraphicsInfo>,
 ) {
-    let _span = info_span!("xr_insert_texture_views");
     let index = swapchain.acquire_image().expect("Failed to acquire image");
     let image = &swapchain_images[index as usize];
 
     for i in 0..2 {
+        let _span = debug_span!("xr_insert_texture_view").entered();
         add_texture_view(&mut manual_texture_views, image, &graphics_info, i);
     }
 }
@@ -423,23 +399,21 @@ pub fn add_texture_view(
 }
 
 pub fn begin_frame(mut frame_stream: ResMut<OxrFrameStream>) {
-    let _span = info_span!("xr_begin_frame");
     frame_stream.begin().expect("Failed to begin frame");
 }
 
 pub fn release_image(mut swapchain: ResMut<OxrSwapchain>) {
-    let _span = info_span!("xr_release_image");
     #[cfg(target_os = "android")]
     {
         let ctx = ndk_context::android_context();
         let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }.unwrap();
         let env = vm.attach_current_thread_as_daemon();
     }
+    let _span = debug_span!("xr_release_image").entered();
     swapchain.release_image().unwrap();
 }
 
 pub fn end_frame(world: &mut World) {
-    let _span = info_span!("xr_end_frame");
     #[cfg(target_os = "android")]
     {
         let ctx = ndk_context::android_context();
@@ -449,6 +423,7 @@ pub fn end_frame(world: &mut World) {
     world.resource_scope::<OxrFrameStream, ()>(|world, mut frame_stream| {
         let mut layers = vec![];
         let frame_state = world.resource::<OxrFrameState>();
+        let _span = debug_span!("get layers").entered();
         if frame_state.should_render {
             for layer in world.resource::<OxrRenderLayers>().iter() {
                 if let Some(layer) = layer.get(world) {
@@ -456,7 +431,9 @@ pub fn end_frame(world: &mut World) {
                 }
             }
         }
+        drop(_span);
         let layers: Vec<_> = layers.iter().map(Box::as_ref).collect();
+        let _span = debug_span!("xr_end_frame").entered();
         if let Err(e) = frame_stream.end(
             frame_state.predicted_display_time,
             world.resource::<OxrGraphicsInfo>().blend_mode,

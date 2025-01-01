@@ -1,6 +1,7 @@
 use bevy::color::palettes::css;
 use bevy::{prelude::*, transform::TransformSystem};
-use bevy_mod_xr::hands::{HandBone, HandBoneRadius};
+use bevy_mod_xr::hands::{HandBone, XrHandBoneRadius};
+use bevy_mod_xr::spaces::XrSpaceLocationFlags;
 pub struct HandGizmosPlugin;
 impl Plugin for HandGizmosPlugin {
     fn build(&self, app: &mut App) {
@@ -12,11 +13,24 @@ impl Plugin for HandGizmosPlugin {
 }
 fn draw_hand_gizmos(
     mut gizmos: Gizmos,
-    query: Query<(&GlobalTransform, &HandBone, &HandBoneRadius)>,
+    query: Query<(
+        &GlobalTransform,
+        &HandBone,
+        &XrHandBoneRadius,
+        &XrSpaceLocationFlags,
+    )>,
 ) {
-    for (transform, bone, radius) in &query {
+    for (transform, bone, radius, flags) in &query {
+        if (!flags.position_tracked) || (!flags.rotation_tracked) {
+            continue;
+        }
         let pose = transform.compute_transform();
-        gizmos.sphere(pose.translation, pose.rotation, **radius, gizmo_color(bone));
+        let pose = Isometry3d {
+            translation: pose.translation.into(),
+            rotation: pose.rotation,
+        };
+        gizmos.sphere(pose, **radius, gizmo_color(bone));
+        gizmos.axes(pose, **radius);
     }
 }
 

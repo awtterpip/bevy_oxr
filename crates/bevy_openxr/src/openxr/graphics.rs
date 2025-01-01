@@ -1,5 +1,5 @@
-#[cfg(all(feature = "d3d12", windows))]
-mod d3d12;
+// #[cfg(all(feature = "d3d12", windows))]
+// mod d3d12;
 #[cfg(feature = "vulkan")]
 pub mod vulkan;
 
@@ -8,7 +8,10 @@ use std::any::TypeId;
 use bevy::math::UVec2;
 use openxr::{FrameStream, FrameWaiter, Session};
 
-use crate::{session::OxrSessionCreateNextChain, types::{AppInfo, OxrExtensions, Result, WgpuGraphics}};
+use crate::{
+    session::OxrSessionCreateNextChain,
+    types::{AppInfo, OxrExtensions, Result, WgpuGraphics},
+};
 
 /// This is an extension trait to the [`Graphics`](openxr::Graphics) trait and is how the graphics API should be interacted with.
 pub unsafe trait GraphicsExt: openxr::Graphics {
@@ -37,7 +40,7 @@ pub unsafe trait GraphicsExt: openxr::Graphics {
         instance: &openxr::Instance,
         system_id: openxr::SystemId,
     ) -> Result<(WgpuGraphics, Self::SessionCreateInfo)>;
-        unsafe fn create_session(
+    unsafe fn create_session(
         instance: &openxr::Instance,
         system_id: openxr::SystemId,
         info: &Self::SessionCreateInfo,
@@ -74,8 +77,8 @@ impl GraphicsBackend {
     const ALL: &'static [Self] = &[
         #[cfg(feature = "vulkan")]
         Self::Vulkan(()),
-        #[cfg(all(feature = "d3d12", windows))]
-        Self::D3D12(()),
+        // #[cfg(all(feature = "d3d12", windows))]
+        // Self::D3D12(()),
     ];
 
     pub fn available_backends(exts: &OxrExtensions) -> Vec<Self> {
@@ -103,8 +106,8 @@ impl GraphicsBackend {
 pub enum GraphicsWrap<T: GraphicsType> {
     #[cfg(feature = "vulkan")]
     Vulkan(T::Inner<openxr::Vulkan>),
-    #[cfg(all(feature = "d3d12", windows))]
-    D3D12(T::Inner<openxr::D3D12>),
+    // #[cfg(all(feature = "d3d12", windows))]
+    // D3D12(T::Inner<openxr::D3D12>),
 }
 
 impl<T: GraphicsType> GraphicsWrap<T> {
@@ -173,12 +176,12 @@ macro_rules! graphics_match {
                 type Api = openxr::Vulkan;
                 graphics_match!(@arm_impl Vulkan; $expr $(=> $($return)*)?)
             },
-            #[cfg(all(feature = "d3d12", windows))]
-            $crate::graphics::GraphicsWrap::D3D12($var) => {
-                #[allow(unused)]
-                type Api = openxr::D3D12;
-                graphics_match!(@arm_impl D3D12; $expr $(=> $($return)*)?)
-            },
+            // #[cfg(all(feature = "d3d12", windows))]
+            // $crate::graphics::GraphicsWrap::D3D12($var) => {
+            //     #[allow(unused)]
+            //     type Api = openxr::D3D12;
+            //     graphics_match!(@arm_impl D3D12; $expr $(=> $($return)*)?)
+            // },
         }
     };
 

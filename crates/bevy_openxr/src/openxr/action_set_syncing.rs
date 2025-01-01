@@ -22,7 +22,6 @@ fn sync_sets(session: Res<OxrSession>, mut events: EventReader<OxrSyncActionSet>
         .map(|v| &v.0)
         .map(openxr::ActiveActionSet::new)
         .collect::<Vec<_>>();
-
     if sets.is_empty() {
         return;
     }
