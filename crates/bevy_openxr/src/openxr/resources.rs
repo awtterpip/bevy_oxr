@@ -43,7 +43,7 @@ impl OxrEntry {
                 application_version: app_info.version.to_u32(),
                 engine_name: "Bevy",
                 engine_version: Version::BEVY.to_u32(),
-                api_version: openxr::Version::new(1, 1, 36),
+                api_version: openxr::Version::new(1, 0, 34),
             },
             &required_exts.into(),
             layers,
