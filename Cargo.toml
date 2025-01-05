@@ -15,6 +15,7 @@ bevy = { version = "0.15", default-features = false, features = [
 	"bevy_core_pipeline",
 	"bevy_winit",
 	"bevy_pbr",
+	"bevy_window",
 	"x11",
 ] }
 bevy_mod_xr.path = "crates/bevy_xr"

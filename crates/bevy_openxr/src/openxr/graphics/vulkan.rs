@@ -110,13 +110,12 @@ unsafe impl GraphicsExt for openxr::Vulkan {
             return Err(OxrError::FailedGraphicsRequirements);
         };
         let vk_entry = unsafe { ash::Entry::load() }?;
-        let flags = wgpu::InstanceFlags::empty();
+        let flags = wgpu::InstanceFlags::default().with_env();
         let extensions =
             <Vulkan as Api>::Instance::desired_extensions(&vk_entry, VK_TARGET_VERSION_ASH, flags)?;
         let device_extensions = [
             ash::khr::swapchain::NAME,
             ash::khr::draw_indirect_count::NAME,
-            // #[cfg(target_os = "android")]
             ash::khr::timeline_semaphore::NAME,
             ash::khr::imageless_framebuffer::NAME,
             ash::khr::image_format_list::NAME,
@@ -189,7 +188,8 @@ unsafe impl GraphicsExt for openxr::Vulkan {
         let wgpu_features = wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES
             | wgpu::Features::MULTIVIEW
             | wgpu::Features::MULTI_DRAW_INDIRECT_COUNT
-            | wgpu::Features::MULTI_DRAW_INDIRECT;
+            | wgpu::Features::MULTI_DRAW_INDIRECT
+            | wgpu::Features::TEXTURE_FORMAT_16BIT_NORM;
 
         let Some(wgpu_exposed_adapter) = wgpu_vk_instance.expose_adapter(vk_physical_device) else {
             error!("WGPU failed to provide an adapter");
