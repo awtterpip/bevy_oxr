@@ -115,10 +115,15 @@ unsafe impl GraphicsExt for openxr::Vulkan {
             <Vulkan as Api>::Instance::desired_extensions(&vk_entry, VK_TARGET_VERSION_ASH, flags)?;
         let device_extensions = [
             ash::khr::swapchain::NAME,
+            #[cfg(target_os = "android")]
             ash::khr::draw_indirect_count::NAME,
             ash::khr::timeline_semaphore::NAME,
             ash::khr::imageless_framebuffer::NAME,
             ash::khr::image_format_list::NAME,
+            #[cfg(target_os = "macos")]
+            ash::khr::portability_subset::NAME,
+            #[cfg(target_os = "macos")]
+            ash::ext::metal_objects::NAME,
         ];
 
         let vk_instance = unsafe {
