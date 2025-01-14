@@ -8,8 +8,15 @@ publish = false
 
 [dependencies]
 bevy_mod_openxr.workspace = true
-bevy = { workspace = true, default-features = true }
 bevy_xr_utils.workspace = true
+bevy = { workspace = true, default-features = false, features = [
+    # Bevy 0.15 made GameActivity the default which breaks Quest builds
+    # To use NativeActivity instead of GameActivity all of the features have to be listed manually
+    "android-native-activity",
+    "bevy_window",
+    "multi_threaded",
+    "tonemapping_luts",
+] }
 
 [build-dependencies]
 reqwest = { version = "0.12", features = ["blocking"] }
