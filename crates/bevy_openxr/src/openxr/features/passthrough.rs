@@ -40,18 +40,17 @@ impl Plugin for OxrPassthroughPlugin {
 pub fn insert_passthrough(world: &mut World) {
     let session = world.resource::<OxrSession>();
 
-    let (passthrough, passthrough_layer) = create_passthrough(
+    if let Ok((passthrough, passthrough_layer)) = create_passthrough(
         session,
         openxr::PassthroughFlagsFB::IS_RUNNING_AT_CREATION,
         openxr::PassthroughLayerPurposeFB::RECONSTRUCTION,
-    )
-    .unwrap();
-
-    world
-        .resource_mut::<OxrRenderLayers>()
-        .insert(0, Box::new(PassthroughLayer));
-    world.insert_resource(passthrough);
-    world.insert_resource(passthrough_layer);
+    ) {
+        world
+            .resource_mut::<OxrRenderLayers>()
+            .insert(0, Box::new(PassthroughLayer));
+        world.insert_resource(passthrough);
+        world.insert_resource(passthrough_layer);
+    }
 }
 
 pub fn resume_passthrough(
