@@ -64,7 +64,7 @@ pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
         .add_before::<RenderPlugin>(OxrInitPlugin::default())
         .add(OxrEventsPlugin)
         .add(OxrReferenceSpacePlugin::default())
-        .add(OxrRenderPlugin)
+        .add(OxrRenderPlugin::default())
         .add(OxrPassthroughPlugin)
         .add(HandTrackingPlugin::default())
         .add(XrCameraPlugin)

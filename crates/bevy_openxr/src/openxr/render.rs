@@ -25,7 +25,17 @@ pub struct OxrRenderBegin;
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, SystemSet)]
 pub struct OxrRenderEnd;
 
-pub struct OxrRenderPlugin;
+pub struct OxrRenderPlugin {
+    pub spawn_cameras: bool,
+}
+
+impl Default for OxrRenderPlugin {
+    fn default() -> Self {
+        Self {
+            spawn_cameras: true,
+        }
+    }
+}
 
 impl Plugin for OxrRenderPlugin {
     fn build(&self, app: &mut App) {
@@ -45,7 +55,12 @@ impl Plugin for OxrRenderPlugin {
             (
                 wait_frame.run_if(should_run_frame_loop),
                 update_cameras.run_if(should_run_frame_loop),
-                init_views.run_if(resource_added::<OxrSession>),
+                if self.spawn_cameras {
+                    init_views::<true>
+                } else {
+                    init_views::<false>
+                }
+                .run_if(resource_added::<OxrSession>),
             )
                 .chain()
                 .in_set(XrHandleEvents::FrameLoop),
@@ -129,7 +144,7 @@ pub fn clean_views(
     }
 }
 
-pub fn init_views(
+pub fn init_views<const SPAWN_CAMERAS: bool>(
     graphics_info: Res<OxrGraphicsInfo>,
     mut manual_texture_views: ResMut<ManualTextureViews>,
     swapchain_images: Res<OxrSwapchainImages>,
@@ -142,13 +157,15 @@ pub fn init_views(
         info!("XrCamera resolution: {}", graphics_info.resolution);
         let view_handle =
             add_texture_view(&mut manual_texture_views, temp_tex, &graphics_info, index);
-        commands.spawn((
-            Camera {
-                target: RenderTarget::TextureView(view_handle),
-                ..Default::default()
-            },
-            XrCamera(index),
-        ));
+        if SPAWN_CAMERAS {
+            commands.spawn((
+                Camera {
+                    target: RenderTarget::TextureView(view_handle),
+                    ..Default::default()
+                },
+                XrCamera(index),
+            ));
+        }
     }
 }
 
