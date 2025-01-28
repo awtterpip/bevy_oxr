@@ -159,10 +159,14 @@ pub fn wait_frame(mut frame_waiter: ResMut<OxrFrameWaiter>, mut commands: Comman
 
 pub fn update_cameras(
     frame_state: Res<OxrFrameState>,
-    mut cameras: Query<&mut Camera, With<XrCamera>>,
+    mut cameras: Query<(&mut Camera, &XrCamera)>,
 ) {
+    for (mut camera, xr_camera) in &mut cameras {
+        camera.target =
+            RenderTarget::TextureView(ManualTextureViewHandle(XR_TEXTURE_INDEX + xr_camera.0));
+    }
     if frame_state.is_changed() {
-        for mut camera in &mut cameras {
+        for (mut camera, _) in &mut cameras {
             camera.is_active = frame_state.should_render
         }
     }
