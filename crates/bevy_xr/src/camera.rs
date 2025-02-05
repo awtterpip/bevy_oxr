@@ -7,7 +7,7 @@ use bevy::ecs::reflect::ReflectComponent;
 use bevy::ecs::schedule::IntoSystemConfigs;
 use bevy::math::{Mat4, Vec3A};
 use bevy::pbr::{PbrPlugin, PbrProjectionPlugin};
-use bevy::prelude::Projection;
+use bevy::prelude::{Projection, SystemSet};
 use bevy::reflect::std_traits::ReflectDefault;
 use bevy::reflect::Reflect;
 use bevy::render::camera::{CameraProjection, CameraProjectionPlugin};
@@ -37,6 +37,9 @@ impl Plugin for XrCameraPlugin {
         ));
     }
 }
+
+#[derive(Clone, Copy, Default, PartialEq, Eq, Debug, Hash, SystemSet)]
+pub struct XrViewInit;
 
 #[derive(Debug, Clone, Reflect, ExtractComponent)]
 #[reflect(Component, Default)]

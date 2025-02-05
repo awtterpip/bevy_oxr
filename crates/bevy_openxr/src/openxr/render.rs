@@ -10,8 +10,11 @@ use bevy::{
     transform::TransformSystem,
 };
 use bevy_mod_xr::{
-    camera::{XrCamera, XrProjection},
-    session::{XrFirst, XrHandleEvents, XrPreDestroySession, XrRenderSet, XrRootTransform},
+    camera::{XrCamera, XrProjection, XrViewInit},
+    session::{
+        XrFirst, XrHandleEvents, XrPreDestroySession, XrRenderSet, XrRootTransform,
+        XrSessionCreated,
+    },
     spaces::XrPrimaryReferenceSpace,
 };
 use openxr::ViewStateFlags;
@@ -55,15 +58,18 @@ impl Plugin for OxrRenderPlugin {
             (
                 wait_frame.run_if(should_run_frame_loop),
                 update_cameras.run_if(should_run_frame_loop),
-                if self.spawn_cameras {
-                    init_views::<true>
-                } else {
-                    init_views::<false>
-                }
-                .run_if(resource_added::<OxrSession>),
             )
                 .chain()
                 .in_set(XrHandleEvents::FrameLoop),
+        )
+        .add_systems(
+            XrSessionCreated,
+            if self.spawn_cameras {
+                init_views::<true>
+            } else {
+                init_views::<false>
+            }
+            .in_set(XrViewInit),
         )
         .add_systems(
             PostUpdate,
