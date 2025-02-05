@@ -194,7 +194,8 @@ unsafe impl GraphicsExt for openxr::Vulkan {
             | wgpu::Features::MULTIVIEW
             | wgpu::Features::MULTI_DRAW_INDIRECT_COUNT
             | wgpu::Features::MULTI_DRAW_INDIRECT
-            | wgpu::Features::TEXTURE_FORMAT_16BIT_NORM;
+            | wgpu::Features::TEXTURE_FORMAT_16BIT_NORM
+            | wgpu::Features::CLEAR_TEXTURE;
 
         let Some(wgpu_exposed_adapter) = wgpu_vk_instance.expose_adapter(vk_physical_device) else {
             error!("WGPU failed to provide an adapter");
