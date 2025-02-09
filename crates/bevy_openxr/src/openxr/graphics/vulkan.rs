@@ -1,7 +1,7 @@
 use std::ffi::{c_void, CString};
 
 use ash::vk::Handle;
-use bevy::log::error;
+use bevy::log::{debug, error};
 use bevy::math::UVec2;
 use openxr::{sys, Version};
 use wgpu_hal::api::Vulkan;
@@ -154,6 +154,13 @@ unsafe impl GraphicsExt for openxr::Vulkan {
                 ash::vk::Instance::from_raw(vk_instance as _),
             )
         };
+        let api_layers = unsafe { vk_entry.enumerate_instance_layer_properties()? };
+        let has_nv_optimus = api_layers.iter().any(|v| {
+            v.layer_name_as_c_str()
+                .is_ok_and(|v| v == c"VK_LAYER_NV_optimus")
+        });
+
+        drop(api_layers);
 
         let vk_instance_ptr = vk_instance.handle().as_raw() as *const c_void;
 
@@ -176,31 +183,54 @@ unsafe impl GraphicsExt for openxr::Vulkan {
             return Err(OxrError::FailedGraphicsRequirements);
         }
 
+        // the android_sdk_version stuff is copied from wgpu
+        #[cfg(target_os = "android")]
+        let android_sdk_version = {
+            let properties = android_system_properties::AndroidSystemProperties::new();
+            // See: https://developer.android.com/reference/android/os/Build.VERSION_CODES
+            if let Some(val) = properties.get("ro.build.version.sdk") {
+                match val.parse::<u32>() {
+                    Ok(sdk_ver) => sdk_ver,
+                    Err(err) => {
+                        error!(
+                            concat!(
+                                "Couldn't parse Android's ",
+                                "ro.build.version.sdk system property ({}): {}",
+                            ),
+                            val,
+                            err,
+                        );
+                        0
+                    }
+                }
+            } else {
+                error!("Couldn't read Android's ro.build.version.sdk system property");
+                0
+            }
+        };
+        #[cfg(not(target_os = "android"))]
+        let android_sdk_version = 0;
+
         let wgpu_vk_instance = unsafe {
             <Vulkan as Api>::Instance::from_raw(
                 vk_entry.clone(),
                 vk_instance.clone(),
-                VK_TARGET_VERSION_ASH,
-                0,
+                vk_device_properties.api_version,
+                android_sdk_version,
                 None,
                 extensions,
                 flags,
-                false,
+                has_nv_optimus,
                 None,
             )?
         };
-
-        let wgpu_features = wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES
-            | wgpu::Features::MULTIVIEW
-            | wgpu::Features::MULTI_DRAW_INDIRECT_COUNT
-            | wgpu::Features::MULTI_DRAW_INDIRECT
-            | wgpu::Features::TEXTURE_FORMAT_16BIT_NORM
-            | wgpu::Features::CLEAR_TEXTURE;
 
         let Some(wgpu_exposed_adapter) = wgpu_vk_instance.expose_adapter(vk_physical_device) else {
             error!("WGPU failed to provide an adapter");
             return Err(OxrError::FailedGraphicsRequirements);
         };
+        let wgpu_features = wgpu_exposed_adapter.features;
+        debug!("wgpu features: {wgpu_features:#?}");
 
         let enabled_extensions = wgpu_exposed_adapter
             .adapter
@@ -267,20 +297,15 @@ unsafe impl GraphicsExt for openxr::Vulkan {
         let wgpu_instance =
             unsafe { wgpu::Instance::from_hal::<wgpu_hal::api::Vulkan>(wgpu_vk_instance) };
         let wgpu_adapter = unsafe { wgpu_instance.create_adapter_from_hal(wgpu_exposed_adapter) };
+        let limits = wgpu_adapter.limits();
+        debug!("wgpu_limits: {limits:#?}");
         let (wgpu_device, wgpu_queue) = unsafe {
             wgpu_adapter.create_device_from_hal(
                 wgpu_open_device,
                 &wgpu::DeviceDescriptor {
                     label: None,
                     required_features: wgpu_features,
-                    required_limits: wgpu::Limits {
-                        max_bind_groups: 8,
-                        max_storage_buffer_binding_size: wgpu_adapter
-                            .limits()
-                            .max_storage_buffer_binding_size,
-                        max_push_constant_size: 4,
-                        ..Default::default()
-                    },
+                    required_limits: limits,
                     memory_hints: wgpu::MemoryHints::Performance,
                 },
                 None,
