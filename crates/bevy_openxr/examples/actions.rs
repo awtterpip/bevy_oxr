@@ -139,7 +139,7 @@ fn handle_flight_input(
                         let view = views.first();
                         match view {
                             Some(v) => {
-                                let reference_quat = root_position.rotation.inverse() * v.pose.orientation.to_quat();
+                                let reference_quat = root_position.rotation * v.pose.orientation.to_quat();
                                 let locomotion_vector = reference_quat.mul_vec3(input_vector);
 
                                 root_position.translation +=

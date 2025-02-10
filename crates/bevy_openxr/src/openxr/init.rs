@@ -77,7 +77,7 @@ impl Default for OxrInitPlugin {
             backends: default(),
             formats: Some(vec![wgpu::TextureFormat::Rgba8UnormSrgb]),
             resolutions: default(),
-            synchronous_pipeline_compilation: default(),
+            synchronous_pipeline_compilation: false,
         }
     }
 }
@@ -118,9 +118,10 @@ impl Plugin for OxrInitPlugin {
                                 destroy_xr_session,
                                 (|v: Res<XrDestroySessionRender>| {
                                     v.0.store(true, Ordering::Relaxed);
-                                    info!("setting destroy render session");
+                                    debug!("setting destroy render session");
                                 }),
                             )
+                                .chain()
                                 .run_if(state_matches!(XrState::Exiting { .. }))
                                 .run_if(on_event::<XrDestroySessionEvent>),
                             begin_xr_session
@@ -132,6 +133,7 @@ impl Plugin for OxrInitPlugin {
                             request_exit_xr_session
                                 .run_if(session_created)
                                 .run_if(on_event::<XrRequestExitEvent>),
+                            detect_session_destroyed,
                         )
                             .in_set(XrHandleEvents::SessionStateUpdateEvents),
                     )
@@ -170,16 +172,35 @@ impl Plugin for OxrInitPlugin {
     fn finish(&self, app: &mut App) {
         app.sub_app_mut(RenderApp).add_systems(
             Render,
-            (destroy_xr_session, |v: Res<XrDestroySessionRender>| {
-                v.0.store(false, Ordering::Relaxed)
-            })
+            (
+                destroy_xr_session,
+                |v: Res<XrDestroySessionRender>, mut cmds: Commands| {
+                    v.0.store(false, Ordering::Relaxed);
+                    cmds.insert_resource(XrState::Available);
+                },
+            )
+                .chain()
                 .run_if(
                     resource_exists::<XrDestroySessionRender>
                         .and(|v: Res<XrDestroySessionRender>| v.0.load(Ordering::Relaxed)),
-                )
-                .chain(),
+                ),
         );
     }
+}
+
+fn detect_session_destroyed(
+    mut last_state: Local<bool>,
+    state: Res<XrDestroySessionRender>,
+    mut sender: EventWriter<XrSessionDestroyedEvent>,
+    mut cmds: Commands,
+) {
+    let state = state.0.load(Ordering::Relaxed);
+    if *last_state && !state {
+        debug!("XrSession was fully destroyed!");
+        sender.send_default();
+        cmds.insert_resource(XrState::Available);
+    }
+    *last_state = state;
 }
 
 impl OxrInitPlugin {
