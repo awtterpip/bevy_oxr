@@ -9,7 +9,7 @@ keywords = ["gamedev", "bevy", "Xr", "Vr", "OpenXR"]
 
 [features]
 default = ["vulkan", "d3d12", "passthrough"]
-vulkan = ["dep:ash"]
+vulkan = ["dep:ash", "dep:android_system_properties"]
 d3d12 = ["wgpu/dx12", "wgpu-hal/dx12", "dep:winapi"]
 passthrough = []
 
@@ -20,6 +20,7 @@ bevy = { workspace = true, default-features = true }
 [target.'cfg(target_os = "android")'.dependencies]
 ndk-context = "0.1"
 jni = "0.20"
+android_system_properties = { version = "0.1.5", optional = true }
 
 # bevy can't be placed behind target or proc macros won't work properly
 [dependencies]
@@ -39,7 +40,7 @@ openxr = { workspace = true, features = ["mint"] }
 wgpu = { workspace = true, features = ["vulkan-portability"] }
 
 [target.'cfg(target_family = "windows")'.dependencies]
-openxr = { workspace=true, features = ["mint", "static"] }
+openxr = { workspace = true, features = ["mint", "static"] }
 winapi = { version = "0.3.9", optional = true }
 
 [lints.clippy]
