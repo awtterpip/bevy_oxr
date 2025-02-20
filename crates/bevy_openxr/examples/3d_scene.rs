@@ -12,6 +12,7 @@ fn main() {
                     blend_modes: Some(vec![
                         EnvironmentBlendMode::ALPHA_BLEND,
                         EnvironmentBlendMode::ADDITIVE,
+                        EnvironmentBlendMode::OPAQUE,
                     ]),
                     ..Default::default()
                 },
