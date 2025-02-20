@@ -46,9 +46,13 @@ pub struct XrPostSessionBegin;
 #[derive(Event, Clone, Copy, Default)]
 pub struct XrEndSessionEvent;
 
-/// Schedule thats rna whenever the XrSession is about to end
+/// Schedule thats ran whenever the XrSession is about to end
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug, Hash, ScheduleLabel)]
 pub struct XrPreSessionEnd;
+
+/// Event that is emitted when the XrSession is fully destroyed
+#[derive(Clone, Copy, Default, PartialEq, Eq, Debug, Hash, Event)]
+pub struct XrSessionDestroyedEvent;
 
 /// Event sent to backends to request the [`XrState`] proceed to [`Exiting`](XrState::Exiting) and for the session to be exited. Can be called at any time a session exists.
 #[derive(Event, Clone, Copy, Default)]
@@ -130,6 +134,7 @@ impl Plugin for XrSessionPlugin {
             .add_event::<XrRequestExitEvent>()
             .add_event::<XrStateChanged>()
             .add_event::<XrSessionCreatedEvent>()
+            .add_event::<XrSessionDestroyedEvent>()
             .init_schedule(XrSessionCreated)
             .init_schedule(XrPreDestroySession)
             .init_schedule(XrPostSessionBegin)
