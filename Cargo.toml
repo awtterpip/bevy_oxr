@@ -1,5 +1,5 @@
 [workspace.package]
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 description = "Community crate for XR in Bevy"
 repository = "https://github.com/awtterpip/bevy_oxr"
@@ -18,9 +18,9 @@ bevy = { version = "0.15", default-features = false, features = [
 	"bevy_window",
 	"x11",
 ] }
-bevy_mod_xr.path = "crates/bevy_xr"
-bevy_mod_openxr.path = "crates/bevy_openxr"
-bevy_xr_utils.path = "crates/bevy_xr_utils"
+bevy_mod_xr = { path = "crates/bevy_xr", version = "0.2.0" }
+bevy_mod_openxr = { path = "crates/bevy_openxr", version = "0.2.0" }
+bevy_xr_utils = { path = "crates/bevy_xr_utils", version = "0.2.0" }
 openxr = "0.19.0"
 thiserror = "2.0.3"
 wgpu = "23"
