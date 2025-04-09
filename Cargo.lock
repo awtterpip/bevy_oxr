@@ -876,7 +876,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_mod_openxr"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "android_system_properties",
  "ash",
@@ -905,14 +905,14 @@ dependencies = [
 
 [[package]]
 name = "bevy_mod_xr"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "bevy",
 ]
 
 [[package]]
 name = "bevy_openxr_android"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "bevy",
  "bevy_mod_openxr",
@@ -1332,7 +1332,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_xr_utils"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "bevy",
  "bevy_mod_openxr",
@@ -1871,9 +1871,9 @@ dependencies = [
 
 [[package]]
 name = "crossbeam-channel"
-version = "0.5.13"
+version = "0.5.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33480d6946193aa8033910124896ca395333cae7e2d1113d1fef6c3272217df2"
+checksum = "82b8f8f868b36967f9606790d1903570de9ceaf870a7bf9fbbd3016d636a2cb2"
 dependencies = [
  "crossbeam-utils",
 ]
