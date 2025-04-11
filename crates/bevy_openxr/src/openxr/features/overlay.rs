@@ -7,7 +7,7 @@ use crate::{
     next_chain::{OxrNextChainStructBase, OxrNextChainStructProvider},
     openxr::exts::OxrEnabledExtensions,
     openxr_session_available,
-    poll_events::{OxrEvent, OxrEventHandlerExt},
+    poll_events::{OxrEventHandlerExt, OxrEventIn},
     session::{OxrSessionCreateNextChain, OxrSessionCreateNextProvider},
 };
 
@@ -25,9 +25,8 @@ impl Plugin for OxrOverlayPlugin {
     }
 }
 
-fn handle_overlay_event(event: In<OxrEvent>, mut writer: EventWriter<OxrOverlaySessionEvent>) {
-    // this unwrap will never panic since we are in a valid scope
-    if let Event::MainSessionVisibilityChangedEXTX(event) = unsafe { event.get() }.unwrap() {
+fn handle_overlay_event(event: OxrEventIn, mut writer: EventWriter<OxrOverlaySessionEvent>) {
+    if let Event::MainSessionVisibilityChangedEXTX(event) = *event {
         writer.send(OxrOverlaySessionEvent::MainSessionVisibilityChanged {
             visible: event.visible(),
             flags: event.flags(),
