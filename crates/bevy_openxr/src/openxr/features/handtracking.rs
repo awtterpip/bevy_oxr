@@ -110,7 +110,7 @@ fn clean_up_default_hands(
 ) {
     for e in &query {
         debug!("removing default hand entity");
-        cmds.entity(e).despawn_recursive();
+        cmds.entity(e).despawn();
     }
 }
 

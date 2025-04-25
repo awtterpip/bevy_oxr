@@ -10,7 +10,7 @@ resolver = "2"
 members = ["crates/*", "crates/bevy_openxr/examples/android"]
 
 [workspace.dependencies]
-bevy = { git = "https://github.com/bevyengine/bevy", default-features = false, features = [
+bevy = { version = "0.16.0", default-features = false, features = [
 	"bevy_render",
 	"bevy_core_pipeline",
 	"bevy_winit",

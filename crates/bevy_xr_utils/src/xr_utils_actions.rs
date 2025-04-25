@@ -171,7 +171,7 @@ fn create_openxr_events(
                             bindings: binding,
                         };
                         //finally send the suggestion
-                        binding_writer.send(sugestion);
+                        binding_writer.write(sugestion);
                     }
                 }
                 bevy_mod_xr::actions::ActionType::Float => {
@@ -210,7 +210,7 @@ fn create_openxr_events(
                             bindings: binding,
                         };
                         //finally send the suggestion
-                        binding_writer.send(sugestion);
+                        binding_writer.write(sugestion);
                     }
                 }
                 bevy_mod_xr::actions::ActionType::Vector => {
@@ -249,13 +249,13 @@ fn create_openxr_events(
                             bindings: binding,
                         };
                         //finally send the suggestion
-                        binding_writer.send(sugestion);
+                        binding_writer.write(sugestion);
                     }
                 }
             };
         }
 
-        attach_writer.send(OxrAttachActionSet(action_set));
+        attach_writer.write(OxrAttachActionSet(action_set));
     }
 }
 
@@ -264,7 +264,7 @@ fn sync_active_action_sets(
     active_action_set_query: Query<&XRUtilsActionSetReference, With<ActiveSet>>,
 ) {
     for set in &active_action_set_query {
-        sync_set.send(OxrSyncActionSet(set.0.clone()));
+        sync_set.write(OxrSyncActionSet(set.0.clone()));
     }
 }
 

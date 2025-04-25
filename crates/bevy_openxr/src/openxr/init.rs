@@ -198,7 +198,7 @@ fn detect_session_destroyed(
     let state = state.0.load(Ordering::Relaxed);
     if *last_state && !state {
         debug!("XrSession was fully destroyed!");
-        sender.send_default();
+        sender.write_default();
         cmds.insert_resource(XrState::Available);
     }
     *last_state = state;
@@ -327,14 +327,14 @@ pub fn handle_events(
                 },
                 _ => unreachable!(),
             };
-            changed_event.send(XrStateChanged(new_status));
+            changed_event.write(XrStateChanged(new_status));
             *status = new_status;
         }
         InstanceLossPending(_) => {}
         EventsLost(e) => warn!("lost {} XR events", e.lost_event_count()),
         // we might want to check if this is the correct session?
         Event::InteractionProfileChanged(_) => {
-            interaction_profile_changed_event.send_default();
+            interaction_profile_changed_event.write_default();
         }
         _ => {}
     }

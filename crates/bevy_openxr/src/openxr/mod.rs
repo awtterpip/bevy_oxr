@@ -6,7 +6,6 @@ use bevy::{
     utils::default,
     window::{PresentMode, Window, WindowPlugin},
 };
-use bevy::render::camera::CameraPlugin;
 use bevy_mod_xr::session::XrSessionPlugin;
 use bevy_mod_xr::{camera::XrCameraPlugin, session::XrState};
 use init::OxrInitPlugin;

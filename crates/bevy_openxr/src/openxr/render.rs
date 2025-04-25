@@ -1,4 +1,4 @@
-use bevy::render::camera::CustomProjection;
+
 use bevy::{
     prelude::*,
     render::{
@@ -147,7 +147,7 @@ pub fn clean_views(
 ) {
     for (e, cam) in &cam_query {
         manual_texture_views.remove(&ManualTextureViewHandle(XR_TEXTURE_INDEX + cam.0));
-        commands.entity(e).despawn_recursive();
+        commands.entity(e).despawn();
     }
 }
 

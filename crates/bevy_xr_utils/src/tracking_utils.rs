@@ -83,7 +83,7 @@ fn update_stage(
     root_query: Query<&Transform, (With<XrTrackingRoot>, Without<XrTrackedStage>)>,
     mut stage_query: Query<&mut Transform, (With<XrTrackedStage>, Without<XrTrackingRoot>)>,
 ) {
-    if let Ok(root) = root_query.get_single() {
+    if let Ok(root) = root_query.single() {
         for mut transform in &mut stage_query {
             *transform = *root;
         }
@@ -129,7 +129,7 @@ fn update_view(
     mut head_query: Query<&mut Transform, (With<HeadXRSpace>, Without<XrTrackedView>)>,
     mut view_query: Query<&mut Transform, (With<XrTrackedView>, Without<HeadXRSpace>)>,
 ) {
-    let head_transform = head_query.get_single_mut();
+    let head_transform = head_query.single_mut();
     if let Ok(root) = head_transform {
         for mut transform in &mut view_query {
             *transform = *root;
@@ -142,7 +142,7 @@ fn update_local_floor_transforms(
     mut head_space: Query<&mut Transform, (With<HeadXRSpace>, Without<XrTrackedLocalFloor>)>,
     mut local_floor: Query<&mut Transform, (With<XrTrackedLocalFloor>, Without<HeadXRSpace>)>,
 ) {
-    let head_transform = head_space.get_single_mut();
+    let head_transform = head_space.single_mut();
     if let Ok(head) = head_transform {
         let mut calc_floor = *head;
         calc_floor.translation.y = 0.0;
@@ -164,7 +164,7 @@ fn update_left_grip(
     mut left_grip: Query<&mut Transform, (With<LeftGrip>, Without<XrTrackedLeftGrip>)>,
     mut tracked_left_grip: Query<&mut Transform, (With<XrTrackedLeftGrip>, Without<LeftGrip>)>,
 ) {
-    let head_transform = left_grip.get_single_mut();
+    let head_transform = left_grip.single_mut();
     if let Ok(head) = head_transform {
         for mut transform in &mut tracked_left_grip {
             *transform = *head;
@@ -180,7 +180,7 @@ fn update_right_grip(
     mut right_grip: Query<&mut Transform, (With<RightGrip>, Without<XrTrackedRightGrip>)>,
     mut tracked_right_grip: Query<&mut Transform, (With<XrTrackedRightGrip>, Without<RightGrip>)>,
 ) {
-    let head_transform = right_grip.get_single_mut();
+    let head_transform = right_grip.single_mut();
     if let Ok(head) = head_transform {
         for mut transform in &mut tracked_right_grip {
             *transform = *head;
@@ -229,12 +229,12 @@ pub fn suggest_action_bindings(
     actions: Res<ControllerActions>,
     mut bindings: EventWriter<OxrSuggestActionBinding>,
 ) {
-    bindings.send(OxrSuggestActionBinding {
+    bindings.write(OxrSuggestActionBinding {
         action: actions.left.as_raw(),
         interaction_profile: "/interaction_profiles/oculus/touch_controller".into(),
         bindings: vec!["/user/hand/left/input/grip/pose".into()],
     });
-    bindings.send(OxrSuggestActionBinding {
+    bindings.write(OxrSuggestActionBinding {
         action: actions.right.as_raw(),
         interaction_profile: "/interaction_profiles/oculus/touch_controller".into(),
         bindings: vec!["/user/hand/right/input/grip/pose".into()],
@@ -242,11 +242,11 @@ pub fn suggest_action_bindings(
 }
 
 fn sync_actions(actions: Res<ControllerActions>, mut sync: EventWriter<OxrSyncActionSet>) {
-    sync.send(OxrSyncActionSet(actions.set.clone()));
+    sync.write(OxrSyncActionSet(actions.set.clone()));
 }
 
 fn attach_set(actions: Res<ControllerActions>, mut attach: EventWriter<OxrAttachActionSet>) {
-    attach.send(OxrAttachActionSet(actions.set.clone()));
+    attach.write(OxrAttachActionSet(actions.set.clone()));
 }
 
 fn create_actions(instance: Res<OxrInstance>, mut cmds: Commands) {

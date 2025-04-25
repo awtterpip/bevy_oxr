@@ -28,7 +28,7 @@ pub fn handle_transform_events(
     mut position_reader: EventReader<SnapToPosition>,
     mut rotation_reader: EventReader<SnapToRotation>,
 ) {
-    let result = root_query.get_single_mut();
+    let result = root_query.single_mut();
     match result {
         Ok(mut root_transform) => {
             let view = views.first();

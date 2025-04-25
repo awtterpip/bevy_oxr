@@ -9,7 +9,7 @@ use crate::resources::*;
 use crate::spaces::OxrSpaceExt as _;
 
 pub trait LayerProvider {
-    fn get<'a>(&'a self, world: &'a World) -> Option<Box<dyn CompositionLayer + '_>>;
+    fn get<'a>(&'a self, world: &'a World) -> Option<Box<dyn CompositionLayer + 'a>>;
 }
 
 pub struct ProjectionLayer;
@@ -63,7 +63,7 @@ impl LayerProvider for ProjectionLayer {
 }
 
 impl LayerProvider for PassthroughLayer {
-    fn get<'a>(&'a self, world: &'a World) -> Option<Box<dyn CompositionLayer + '_>> {
+    fn get(&self, world: &World) -> Option<Box<dyn CompositionLayer>> {
         Some(Box::new(
             CompositionLayerPassthrough::new()
                 .layer_handle(world.get_resource::<OxrPassthroughLayer>()?)
