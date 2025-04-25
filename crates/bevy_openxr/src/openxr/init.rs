@@ -27,7 +27,7 @@ use crate::session::OxrSessionCreateNextChain;
 use crate::types::*;
 
 use super::exts::OxrEnabledExtensions;
-use super::poll_events::OxrEvent;
+use super::poll_events::OxrEventIn;
 use super::poll_events::OxrEventHandlerExt;
 
 pub fn session_started(started: Option<Res<OxrSessionStarted>>) -> bool {
@@ -297,14 +297,13 @@ impl OxrInitPlugin {
 pub struct OxrInteractionProfileChanged;
 
 pub fn handle_events(
-    event: In<OxrEvent>,
+    event: OxrEventIn,
     mut status: ResMut<XrState>,
     mut changed_event: EventWriter<XrStateChanged>,
     mut interaction_profile_changed_event: EventWriter<OxrInteractionProfileChanged>,
 ) {
     use openxr::Event::*;
-    // this unwrap will never panic since we are in a valid scope
-    match unsafe { event.get() }.unwrap() {
+    match *event {
         SessionStateChanged(state) => {
             use openxr::SessionState;
 
