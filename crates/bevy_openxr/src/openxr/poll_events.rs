@@ -1,3 +1,4 @@
+use super::{openxr_session_available, resources::OxrInstance};
 use bevy::{ecs::system::SystemId, prelude::*};
 use bevy_mod_xr::session::{XrFirst, XrHandleEvents};
 use openxr::{Event, EventDataBuffer};
@@ -30,7 +31,7 @@ pub fn poll_events(world: &mut World) {
             .iter()
             .map(|v| SystemId::<OxrEventIn, ()>::from_entity(*v))
         {
-            if let Err(err) = world.run_system_with_input(handler, event) {
+            if let Err(err) = world.run_system_with(handler, event) {
                 error!("error when running oxr event handler: {err}");
             };
         }
@@ -38,7 +39,6 @@ pub fn poll_events(world: &mut World) {
     world.insert_resource(handlers);
 }
 
-use super::{openxr_session_available, resources::OxrInstance};
 #[derive(Resource, Debug, Default)]
 pub struct OxrEventHandlers(Vec<Entity>);
 pub trait OxrEventHandlerExt {

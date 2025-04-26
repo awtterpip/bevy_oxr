@@ -1,6 +1,6 @@
 use std::{mem::MaybeUninit, ptr, sync::Mutex};
 
-use bevy::{prelude::*, utils::hashbrown::HashSet};
+use bevy::{platform::collections::hash_set::HashSet, prelude::*};
 use bevy_mod_xr::{
     session::{XrFirst, XrHandleEvents},
     spaces::{

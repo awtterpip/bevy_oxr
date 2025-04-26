@@ -3,8 +3,8 @@ use std::ptr;
 
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::ecs::system::RunSystemOnce;
+use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
-use bevy::utils::HashMap;
 use bevy_mod_xr::session::XrSessionCreatedEvent;
 use openxr::sys::ActionSuggestedBinding;
 

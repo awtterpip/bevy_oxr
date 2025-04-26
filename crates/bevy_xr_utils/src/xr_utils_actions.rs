@@ -131,7 +131,7 @@ fn create_openxr_events(
         commands.entity(id).insert(oxr_action_set);
 
         //since the actions are made from the sets lets go
-        for &child in children.iter() {
+        for child in children.iter() {
             //first get the action entity and stuff
             let (create_action, bindings) = actions_query.get(child).unwrap();
             //lets create dat action
@@ -158,7 +158,7 @@ fn create_openxr_events(
                         }),
                     ));
                     //since we need actions for bindings lets go!!
-                    for &bind in bindings.iter() {
+                    for bind in bindings.iter() {
                         //interaction profile
                         //get the binding entity and stuff
                         let create_binding = bindings_query.get(bind).unwrap();
@@ -171,7 +171,7 @@ fn create_openxr_events(
                             bindings: binding,
                         };
                         //finally send the suggestion
-                        binding_writer.send(sugestion);
+                        binding_writer.write(sugestion);
                     }
                 }
                 bevy_mod_xr::actions::ActionType::Float => {
@@ -197,7 +197,7 @@ fn create_openxr_events(
                         }),
                     ));
                     //since we need actions for bindings lets go!!
-                    for &bind in bindings.iter() {
+                    for bind in bindings.iter() {
                         //interaction profile
                         //get the binding entity and stuff
                         let create_binding = bindings_query.get(bind).unwrap();
@@ -210,7 +210,7 @@ fn create_openxr_events(
                             bindings: binding,
                         };
                         //finally send the suggestion
-                        binding_writer.send(sugestion);
+                        binding_writer.write(sugestion);
                     }
                 }
                 bevy_mod_xr::actions::ActionType::Vector => {
@@ -236,7 +236,7 @@ fn create_openxr_events(
                         }),
                     ));
                     //since we need actions for bindings lets go!!
-                    for &bind in bindings.iter() {
+                    for bind in bindings.iter() {
                         //interaction profile
                         //get the binding entity and stuff
                         let create_binding = bindings_query.get(bind).unwrap();
@@ -249,13 +249,13 @@ fn create_openxr_events(
                             bindings: binding,
                         };
                         //finally send the suggestion
-                        binding_writer.send(sugestion);
+                        binding_writer.write(sugestion);
                     }
                 }
             };
         }
 
-        attach_writer.send(OxrAttachActionSet(action_set));
+        attach_writer.write(OxrAttachActionSet(action_set));
     }
 }
 
@@ -264,7 +264,7 @@ fn sync_active_action_sets(
     active_action_set_query: Query<&XRUtilsActionSetReference, With<ActiveSet>>,
 ) {
     for set in &active_action_set_query {
-        sync_set.send(OxrSyncActionSet(set.0.clone()));
+        sync_set.write(OxrSyncActionSet(set.0.clone()));
     }
 }
 

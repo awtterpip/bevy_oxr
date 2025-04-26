@@ -28,8 +28,8 @@ fn main() {
             send_recenter.after(XRUtilsActionSystemSet::SyncActionStates),
         )
         .insert_resource(AmbientLight {
-            color: Default::default(),
             brightness: 500.0,
+            ..AmbientLight::default()
         })
         .run();
 }
@@ -161,7 +161,7 @@ fn send_look_at_red_cube_event(
                     info!("send facing");
                     let quat = Transform::default()
                         .looking_at(Transform::from_xyz(4.0, 0.0, 0.0).translation, Vec3::Y); //this is a transform facing the red cube from the center of the scene, you should use the HMD posision but I was lazy.
-                    event_writer.send(SnapToRotation(quat.rotation));
+                    event_writer.write(SnapToRotation(quat.rotation));
                 }
             }
             XRUtilsActionState::Float(_) => (),
@@ -185,7 +185,7 @@ fn send_recenter(
                 if send {
                     let center = Transform::default().translation;
 
-                    event_writer.send(SnapToPosition(center));
+                    event_writer.write(SnapToPosition(center));
                 }
             }
             XRUtilsActionState::Float(_) => (),

@@ -115,7 +115,6 @@ unsafe impl GraphicsExt for openxr::Vulkan {
             <Vulkan as Api>::Instance::desired_extensions(&vk_entry, VK_TARGET_VERSION_ASH, flags)?;
         let device_extensions = [
             ash::khr::swapchain::NAME,
-            #[cfg(target_os = "android")]
             ash::khr::draw_indirect_count::NAME,
             ash::khr::timeline_semaphore::NAME,
             ash::khr::imageless_framebuffer::NAME,
@@ -197,8 +196,7 @@ unsafe impl GraphicsExt for openxr::Vulkan {
                                 "Couldn't parse Android's ",
                                 "ro.build.version.sdk system property ({}): {}",
                             ),
-                            val,
-                            err,
+                            val, err,
                         );
                         0
                     }
@@ -652,6 +650,7 @@ fn wgpu_to_vulkan(format: wgpu::TextureFormat) -> Option<ash::vk::Format> {
         Tf::R32Uint => F::R32_UINT,
         Tf::R32Sint => F::R32_SINT,
         Tf::R32Float => F::R32_SFLOAT,
+        Tf::R64Uint => F::R64_UINT,
         Tf::Rg16Uint => F::R16G16_UINT,
         Tf::Rg16Sint => F::R16G16_SINT,
         Tf::Rg16Float => F::R16G16_SFLOAT,

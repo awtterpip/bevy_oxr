@@ -28,7 +28,7 @@ pub fn handle_transform_events(
     mut position_reader: EventReader<SnapToPosition>,
     mut rotation_reader: EventReader<SnapToRotation>,
 ) {
-    let result = root_query.get_single_mut();
+    let result = root_query.single_mut();
     match result {
         Ok(mut root_transform) => {
             let view = views.first();
@@ -45,7 +45,7 @@ pub fn handle_transform_events(
                     }
 
                     //rotation
-                    let root_local = root_transform.translation.clone();
+                    let root_local = root_transform.translation;
                     let hmd_global =
                         root_transform.rotation.mul_vec3(view_translation) + root_local;
                     let view_rot = view.pose.orientation.to_quat();
