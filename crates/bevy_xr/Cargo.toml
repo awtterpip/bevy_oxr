@@ -10,7 +10,7 @@ keywords = ["gamedev", "bevy", "Xr", "Vr"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy.workspace = true
+bevy = { workspace = true, features = ["bevy_log"] }
 
 [lints.clippy]
 too_many_arguments = "allow"

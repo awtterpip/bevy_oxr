@@ -13,6 +13,7 @@ use bevy::render::settings::RenderCreation;
 use bevy::render::MainWorld;
 use bevy::render::Render;
 use bevy::render::RenderApp;
+use bevy::render::RenderDebugFlags;
 use bevy::render::RenderPlugin;
 use bevy::winit::UpdateMode;
 use bevy::winit::WinitSettings;
@@ -24,11 +25,12 @@ use crate::graphics::*;
 use crate::resources::*;
 use crate::session::OxrSession;
 use crate::session::OxrSessionCreateNextChain;
+use crate::types::Result as OxrResult;
 use crate::types::*;
 
 use super::exts::OxrEnabledExtensions;
-use super::poll_events::OxrEventIn;
 use super::poll_events::OxrEventHandlerExt;
+use super::poll_events::OxrEventIn;
 
 pub fn session_started(started: Option<Res<OxrSessionStarted>>) -> bool {
     started.is_some_and(|started| started.0)
@@ -62,6 +64,7 @@ pub struct OxrInitPlugin {
     pub resolutions: Option<Vec<UVec2>>,
     /// Passed into the render plugin when added to the app.
     pub synchronous_pipeline_compilation: bool,
+    pub render_debug_flags: RenderDebugFlags,
 }
 impl Default for OxrInitPlugin {
     fn default() -> Self {
@@ -73,11 +76,12 @@ impl Default for OxrInitPlugin {
                 exts.enable_hand_tracking();
                 exts
             },
-            blend_modes: default(),
+            blend_modes: Some(vec![openxr::EnvironmentBlendMode::OPAQUE]),
             backends: default(),
             formats: Some(vec![wgpu::TextureFormat::Rgba8UnormSrgb]),
             resolutions: default(),
             synchronous_pipeline_compilation: false,
+            render_debug_flags: default(),
         }
     }
 }
@@ -104,7 +108,7 @@ impl Plugin for OxrInitPlugin {
                                 RenderInstance(Arc::new(WgpuWrapper::new(wgpu_instance))),
                             ),
                             synchronous_pipeline_compilation: self.synchronous_pipeline_compilation,
-                            debug_flags: Default::default(),
+                            debug_flags: self.render_debug_flags,
                         },
                         ExtractResourcePlugin::<OxrSessionStarted>::default(),
                     ))
@@ -207,7 +211,7 @@ fn detect_session_destroyed(
 impl OxrInitPlugin {
     fn init_xr(
         &self,
-    ) -> crate::types::Result<(
+    ) -> OxrResult<(
         OxrInstance,
         OxrSystemId,
         WgpuGraphics,
@@ -351,7 +355,7 @@ fn init_xr_session(
         resolutions,
         graphics_info,
     }: SessionConfigInfo,
-) -> crate::types::Result<(
+) -> OxrResult<(
     OxrSession,
     OxrFrameWaiter,
     OxrFrameStream,
@@ -457,7 +461,7 @@ fn init_xr_session(
     } else {
         available_blend_modes.first().copied()
     }
-    .ok_or(OxrError::NoAvailableBackend)?;
+    .ok_or(OxrError::NoAvailableBlendMode)?;
 
     let graphics_info = OxrGraphicsInfo {
         blend_mode,

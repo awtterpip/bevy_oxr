@@ -29,7 +29,7 @@ pub(crate) fn run_action_binding_sugestion(world: &mut World) {
 }
 
 fn bind_actions(instance: Res<OxrInstance>, mut actions: EventReader<OxrSuggestActionBinding>) {
-    let mut bindings: HashMap<&str, Vec<ActionSuggestedBinding>, _> = HashMap::new();
+    let mut bindings: HashMap<&str, Vec<ActionSuggestedBinding>> = HashMap::new();
     for e in actions.read() {
         bindings.entry(&e.interaction_profile).or_default().extend(
             e.bindings

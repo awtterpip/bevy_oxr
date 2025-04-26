@@ -8,6 +8,7 @@ use openxr::PassthroughCapabilityFlagsFB;
 use crate::layer_builder::PassthroughLayer;
 use crate::resources::*;
 use crate::session::OxrSession;
+use crate::types::Result as OxrResult;
 
 pub struct OxrPassthroughPlugin;
 
@@ -72,7 +73,7 @@ pub fn create_passthrough(
     session: &OxrSession,
     flags: openxr::PassthroughFlagsFB,
     purpose: openxr::PassthroughLayerPurposeFB,
-) -> crate::types::Result<(OxrPassthrough, OxrPassthroughLayer)> {
+) -> OxrResult<(OxrPassthrough, OxrPassthroughLayer)> {
     let passthrough = session.create_passthrough(flags)?;
 
     let passthrough_layer = session.create_passthrough_layer(&passthrough, purpose)?;
@@ -81,7 +82,10 @@ pub fn create_passthrough(
 }
 
 #[inline]
-pub fn supports_passthrough(instance: &OxrInstance, system: OxrSystemId) -> crate::types::Result<bool> {
+pub fn supports_passthrough(
+    instance: &OxrInstance,
+    system: OxrSystemId,
+) -> OxrResult<bool> {
     if instance.exts().fb_passthrough.is_none() {
         return Ok(false);
     }

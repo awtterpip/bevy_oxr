@@ -3,7 +3,6 @@ use std::ffi::{c_void, CString};
 use ash::vk::Handle;
 use bevy::log::{debug, error};
 use bevy::math::UVec2;
-use bevy::render::render_resource::TextureFormat;
 use openxr::{sys, Version};
 use wgpu_hal::api::Vulkan;
 use wgpu_hal::Api;
@@ -197,8 +196,7 @@ unsafe impl GraphicsExt for openxr::Vulkan {
                                 "Couldn't parse Android's ",
                                 "ro.build.version.sdk system property ({}): {}",
                             ),
-                            val,
-                            err,
+                            val, err,
                         );
                         0
                     }
@@ -652,6 +650,7 @@ fn wgpu_to_vulkan(format: wgpu::TextureFormat) -> Option<ash::vk::Format> {
         Tf::R32Uint => F::R32_UINT,
         Tf::R32Sint => F::R32_SINT,
         Tf::R32Float => F::R32_SFLOAT,
+        Tf::R64Uint => F::R64_UINT,
         Tf::Rg16Uint => F::R16G16_UINT,
         Tf::Rg16Sint => F::R16G16_SINT,
         Tf::Rg16Float => F::R16G16_SFLOAT,
@@ -756,8 +755,5 @@ fn wgpu_to_vulkan(format: wgpu::TextureFormat) -> Option<ash::vk::Format> {
                 AstcBlock::B12x12 => F::ASTC_12X12_SFLOAT_BLOCK_EXT,
             },
         },
-        TextureFormat::R64Uint => {
-            panic!()
-        }
     })
 }

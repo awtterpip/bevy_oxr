@@ -2,7 +2,7 @@ use bevy::{
     ecs::{component::Component, entity::Entity},
     log::warn,
     math::bool,
-    prelude::{Bundle, Commands, Deref, DerefMut, Resource, Transform, Visibility, World},
+    prelude::{Bundle, Command, Commands, Deref, DerefMut, Resource, Transform, Visibility, World},
 };
 use crate::{session::XrTracker, spaces::XrSpaceLocationFlags};
 pub const HAND_JOINT_COUNT: usize = 26;
@@ -180,8 +180,8 @@ pub struct SpawnHandTracker<B: Bundle> {
     pub side: HandSide,
 }
 
-impl<B: Bundle> bevy::prelude::Command for SpawnHandTracker<B> {
-    fn apply(self, world: &mut bevy::prelude::World) {
+impl<B: Bundle> Command for SpawnHandTracker<B> {
+    fn apply(self, world: &mut World) {
         let Some(executor) = world.remove_resource::<SpawnHandTrackerCommandExecutor>() else {
             warn!("no SpawnHandTracker executor defined, skipping handtracker creation");
             return;
