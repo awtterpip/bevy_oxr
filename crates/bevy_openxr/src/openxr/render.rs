@@ -1,4 +1,3 @@
-
 use bevy::{
     prelude::*,
     render::{
@@ -251,7 +250,6 @@ pub fn update_views(
     views: ResMut<OxrViews>,
 ) {
     for (mut transform, mut projection, camera) in query.iter_mut() {
-        println!("we have this query");
         let Some(view) = views.get(camera.0 as usize) else {
             continue;
         };
@@ -270,11 +268,6 @@ pub fn update_views(
             },
         );
         projection.projection_matrix = projection_matrix;
-
-        println!(
-            "Updateing projectinon matrix to: {:#?}",
-            projection.projection_matrix
-        );
 
         let openxr::Quaternionf { x, y, z, w } = view.pose.orientation;
         let rotation = Quat::from_xyzw(x, y, z, w);

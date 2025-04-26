@@ -3,7 +3,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use bevy::app::{AppExit, MainScheduleOrder};
-use bevy::ecs::component::{HookContext, Mutable, StorageType};
+use bevy::ecs::component::HookContext;
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::ecs::world::DeferredWorld;
 use bevy::prelude::*;
@@ -216,7 +216,7 @@ impl Plugin for XrSessionPlugin {
 }
 
 fn exits_session_on_app_exit(mut request_exit: EventWriter<XrRequestExitEvent>) {
-    request_exit.send_default();
+    request_exit.write_default();
 }
 
 /// Event sent by backends whenever [`XrState`] is changed.
@@ -258,18 +258,18 @@ pub fn auto_handle_session(
         match state {
             XrState::Available => {
                 if !*no_auto_restart {
-                    create_session.send_default();
+                    create_session.write_default();
                 }
             }
             XrState::Ready => {
-                begin_session.send_default();
+                begin_session.write_default();
             }
             XrState::Stopping => {
-                end_session.send_default();
+                end_session.write_default();
             }
             XrState::Exiting { should_restart } => {
                 *no_auto_restart = !should_restart;
-                destroy_session.send_default();
+                destroy_session.write_default();
             }
             _ => (),
         }
@@ -280,7 +280,7 @@ pub fn update_root_transform(
     mut root_transform: ResMut<XrRootTransform>,
     root: Query<&GlobalTransform, With<XrTrackingRoot>>,
 ) {
-    let Ok(transform) = root.get_single() else {
+    let Ok(transform) = root.single() else {
         return;
     };
 

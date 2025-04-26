@@ -1,19 +1,14 @@
 use core::panic;
 
-use bevy::app::{App, Plugin, PostUpdate};
+use bevy::app::{App, Plugin};
 use bevy::core_pipeline::core_3d::Camera3d;
-use bevy::ecs::component::{Component, HookContext, Mutable, StorageType};
-use bevy::ecs::reflect::ReflectComponent;
-use bevy::ecs::world::DeferredWorld;
+use bevy::ecs::component::Component;
 use bevy::math::{Mat4, Vec3A, Vec4};
-use bevy::pbr::{PbrPlugin, PbrProjectionPlugin};
-use bevy::prelude::{Projection, SystemSet};
+use bevy::prelude::SystemSet;
 use bevy::reflect::std_traits::ReflectDefault;
 use bevy::reflect::Reflect;
-use bevy::render::camera::{CameraProjection, CameraProjectionPlugin, CustomProjection};
+use bevy::render::camera::CameraProjection;
 use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
-use bevy::render::view::{update_frusta, VisibilitySystems};
-use bevy::transform::TransformSystem;
 
 use crate::session::XrTracker;
 
@@ -21,17 +16,7 @@ pub struct XrCameraPlugin;
 
 impl Plugin for XrCameraPlugin {
     fn build(&self, app: &mut App) {
-        /*app.add_plugins(CameraProjectionPlugin::<XrProjection>::default());
-        app.add_systems(
-            PostUpdate,
-            update_frusta::<XrProjection>
-                .after(TransformSystem::TransformPropagate)
-                .before(VisibilitySystems::UpdateFrusta),
-        );
-        if app.is_plugin_added::<PbrPlugin>() {
-            app.add_plugins(PbrProjectionPlugin::<XrProjection>::default());
-        }*/
-        app.add_plugins((ExtractComponentPlugin::<XrCamera>::default(),));
+        app.add_plugins(ExtractComponentPlugin::<XrCamera>::default());
     }
 }
 
@@ -43,10 +28,6 @@ pub struct XrViewInit;
 pub struct XrProjection {
     pub projection_matrix: Mat4,
     pub near: f32,
-}
-
-fn on_projection_add(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
-    world.commands().entity(entity).remove::<Projection>();
 }
 
 impl Default for XrProjection {
@@ -124,7 +105,6 @@ pub fn calculate_projection(near_z: f32, fov: Fov) -> Mat4 {
     // let y_fov = (self.fov.angle_up.abs() + self.fov.angle_down.abs());
     // return Mat4::perspective_infinite_reverse_rh(y_fov, x_fov / y_fov, self.near);
 
-    let is_vulkan_api = false; // FIXME wgpu probably abstracts this
     let far_z = -1.; //   use infinite proj
                      // let far_z = self.far;
 
@@ -141,11 +121,7 @@ pub fn calculate_projection(near_z: f32, fov: Fov) -> Mat4 {
     // positive Y up (OpenGL / D3D / Metal).
     // const float tanAngleHeight =
     //     graphicsApi == GRAPHICS_VULKAN ? (tanAngleDown - tanAngleUp) : (tanAngleUp - tanAngleDown);
-    let tan_angle_height = if is_vulkan_api {
-        tan_angle_down - tan_angle_up
-    } else {
-        tan_angle_up - tan_angle_down
-    };
+    let tan_angle_height = tan_angle_up - tan_angle_down;
 
     // Set to nearZ for a [-1,1] Z clip space (OpenGL / OpenGL ES).
     // Set to zero for a [0,1] Z clip space (Vulkan / D3D / Metal).

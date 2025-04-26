@@ -27,7 +27,7 @@ impl Plugin for OxrOverlayPlugin {
 
 fn handle_overlay_event(event: OxrEventIn, mut writer: EventWriter<OxrOverlaySessionEvent>) {
     if let Event::MainSessionVisibilityChangedEXTX(event) = *event {
-        writer.send(OxrOverlaySessionEvent::MainSessionVisibilityChanged {
+        writer.write(OxrOverlaySessionEvent::MainSessionVisibilityChanged {
             visible: event.visible(),
             flags: event.flags(),
         });

@@ -9,7 +9,7 @@ use crate::resources::*;
 use crate::spaces::OxrSpaceExt as _;
 
 pub trait LayerProvider {
-    fn get<'a>(&'a self, world: &'a World) -> Option<Box<dyn CompositionLayer + 'a>>;
+    fn get<'a>(&'a self, world: &'a World) -> Option<Box<dyn CompositionLayer<'a> + 'a>>;
 }
 
 pub struct ProjectionLayer;
@@ -117,7 +117,7 @@ impl<'a> SwapchainSubImage<'a> {
     }
 }
 
-impl<'a> Default for SwapchainSubImage<'a> {
+impl Default for SwapchainSubImage<'_> {
     fn default() -> Self {
         Self::new()
     }
@@ -165,11 +165,15 @@ impl<'a> CompositionLayerProjectionView<'a> {
         self
     }
 }
-impl<'a> Default for CompositionLayerProjectionView<'a> {
+impl Default for CompositionLayerProjectionView<'_> {
     fn default() -> Self {
         Self::new()
     }
 }
+/// # Safety
+/// the header function must return a ref to a valid Composition Layer struct. 
+/// it has to use `repr(C)` and it has to follow the shape of a Composition Layer struct from the
+/// OpenXR specification
 pub unsafe trait CompositionLayer<'a> {
     fn swapchain(&self) -> Option<&'a OxrSwapchain>;
     fn header(&self) -> &sys::CompositionLayerBaseHeader;
@@ -227,7 +231,7 @@ unsafe impl<'a> CompositionLayer<'a> for CompositionLayerProjection<'a> {
         unsafe { mem::transmute(&self.inner) }
     }
 }
-impl<'a> Default for CompositionLayerProjection<'a> {
+impl Default for CompositionLayerProjection<'_> {
     fn default() -> Self {
         Self::new()
     }

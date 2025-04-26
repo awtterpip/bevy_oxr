@@ -45,7 +45,7 @@ pub fn handle_transform_events(
                     }
 
                     //rotation
-                    let root_local = root_transform.translation.clone();
+                    let root_local = root_transform.translation;
                     let hmd_global =
                         root_transform.rotation.mul_vec3(view_translation) + root_local;
                     let view_rot = view.pose.orientation.to_quat();

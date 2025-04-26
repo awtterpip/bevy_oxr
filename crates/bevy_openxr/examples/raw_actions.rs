@@ -35,7 +35,7 @@ fn main() {
 }
 
 fn attach_set(actions: Res<ControllerActions>, mut attach: EventWriter<OxrAttachActionSet>) {
-    attach.send(OxrAttachActionSet(actions.set.clone()));
+    attach.write(OxrAttachActionSet(actions.set.clone()));
 }
 
 #[derive(Resource)]
@@ -45,7 +45,7 @@ struct ControllerActions {
     right: openxr::Action<Posef>,
 }
 fn sync_actions(actions: Res<ControllerActions>, mut sync: EventWriter<OxrSyncActionSet>) {
-    sync.send(OxrSyncActionSet(actions.set.clone()));
+    sync.write(OxrSyncActionSet(actions.set.clone()));
 }
 /// set up a simple 3D scene
 fn setup(
@@ -82,12 +82,12 @@ fn suggest_action_bindings(
     actions: Res<ControllerActions>,
     mut bindings: EventWriter<OxrSuggestActionBinding>,
 ) {
-    bindings.send(OxrSuggestActionBinding {
+    bindings.write(OxrSuggestActionBinding {
         action: actions.left.as_raw(),
         interaction_profile: "/interaction_profiles/oculus/touch_controller".into(),
         bindings: vec!["/user/hand/left/input/grip/pose".into()],
     });
-    bindings.send(OxrSuggestActionBinding {
+    bindings.write(OxrSuggestActionBinding {
         action: actions.right.as_raw(),
         interaction_profile: "/interaction_profiles/oculus/touch_controller".into(),
         bindings: vec!["/user/hand/right/input/grip/pose".into()],

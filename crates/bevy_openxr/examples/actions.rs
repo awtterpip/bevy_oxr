@@ -21,8 +21,8 @@ fn main() {
         .add_systems(Update, handle_flight_input)
         // Realtime lighting is expensive, use ambient light instead
         .insert_resource(AmbientLight {
-            color: Default::default(),
             brightness: 500.0,
+            ..AmbientLight::default()
         })
         .run();
 }
@@ -48,7 +48,7 @@ fn setup_scene(
 
     commands.spawn((
         Camera3d::default(),
-         Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
+        Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
 }
 
@@ -132,14 +132,15 @@ fn handle_flight_input(
                 //hard code speed for now
                 let speed = 5.0;
 
-                let root = oxr_root.get_single_mut();
+                let root = oxr_root.single_mut();
                 match root {
                     Ok(mut root_position) => {
                         //lets assume HMD based direction for now
                         let view = views.first();
                         match view {
                             Some(v) => {
-                                let reference_quat = root_position.rotation * v.pose.orientation.to_quat();
+                                let reference_quat =
+                                    root_position.rotation * v.pose.orientation.to_quat();
                                 let locomotion_vector = reference_quat.mul_vec3(input_vector);
 
                                 root_position.translation +=

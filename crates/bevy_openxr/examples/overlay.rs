@@ -49,23 +49,23 @@ fn handle_input(
 ) {
     if keys.just_pressed(KeyCode::KeyE) {
         info!("sending end");
-        end.send_default();
+        end.write_default();
     }
     if keys.just_pressed(KeyCode::KeyC) {
         info!("sending create");
-        create.send_default();
+        create.write_default();
     }
     if keys.just_pressed(KeyCode::KeyD) {
         info!("sending destroy");
-        destroy.send_default();
+        destroy.write_default();
     }
     if keys.just_pressed(KeyCode::KeyB) {
         info!("sending begin");
-        begin.send_default();
+        begin.write_default();
     }
     if keys.just_pressed(KeyCode::KeyR) {
         info!("sending request exit");
-        request_exit.send_default();
+        request_exit.write_default();
     }
 }
 
