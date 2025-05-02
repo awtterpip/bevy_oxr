@@ -330,7 +330,7 @@ pub struct OxrRenderLayers(pub Vec<Box<dyn LayerProvider + Send + Sync>>);
 
 /// Resource storing graphics info for the currently running session.
 #[derive(Clone, Copy, Resource, ExtractResource)]
-pub struct OxrGraphicsInfo {
+pub struct OxrCurrentSessionConfig {
     pub blend_mode: EnvironmentBlendMode,
     pub resolution: UVec2,
     pub format: wgpu::TextureFormat,

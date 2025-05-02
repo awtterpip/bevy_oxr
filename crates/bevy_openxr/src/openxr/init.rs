@@ -346,7 +346,7 @@ fn init_xr_session(
     OxrFrameStream,
     OxrSwapchain,
     OxrSwapchainImages,
-    OxrGraphicsInfo,
+    OxrCurrentSessionConfig,
 )> {
     let (session, frame_waiter, frame_stream) =
         unsafe { instance.create_session(system_id, graphics_info, chain)? };
@@ -448,7 +448,7 @@ fn init_xr_session(
     }
     .ok_or(OxrError::NoAvailableBlendMode)?;
 
-    let graphics_info = OxrGraphicsInfo {
+    let graphics_info = OxrCurrentSessionConfig {
         blend_mode,
         resolution,
         format,
@@ -512,7 +512,7 @@ pub fn destroy_xr_session(world: &mut World) {
     world.remove_resource::<OxrFrameStream>();
     world.remove_resource::<OxrSwapchain>();
     world.remove_resource::<OxrSwapchainImages>();
-    world.remove_resource::<OxrGraphicsInfo>();
+    world.remove_resource::<OxrCurrentSessionConfig>();
     world.insert_resource(XrState::Available);
 }
 
@@ -557,7 +557,7 @@ struct OxrRenderResources {
     frame_stream: OxrFrameStream,
     swapchain: OxrSwapchain,
     images: OxrSwapchainImages,
-    graphics_info: OxrGraphicsInfo,
+    graphics_info: OxrCurrentSessionConfig,
     session_destroy_flag: XrDestroySessionRender,
 }
 
