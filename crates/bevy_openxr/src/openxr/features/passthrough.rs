@@ -5,6 +5,7 @@ use bevy::render::RenderSet;
 use openxr::sys::SystemPassthroughProperties2FB;
 use openxr::PassthroughCapabilityFlagsFB;
 
+use crate::exts::OxrEnabledExtensions;
 use crate::layer_builder::PassthroughLayer;
 use crate::resources::*;
 use crate::session::OxrSession;
@@ -14,25 +15,31 @@ pub struct OxrPassthroughPlugin;
 
 impl Plugin for OxrPassthroughPlugin {
     fn build(&self, app: &mut App) {
-        let resources = app
+        if app
             .world()
-            .get_resource::<OxrInstance>()
-            .and_then(|instance| {
-                app.world()
-                    .get_resource::<OxrSystemId>()
-                    .map(|system_id| (instance, system_id))
-            });
-        if resources.is_some_and(|(instance, system)| {
-            supports_passthrough(instance, *system).is_ok_and(|s| s)
-        }) {
-            app.sub_app_mut(RenderApp).add_systems(
-                Render,
-                insert_passthrough
-                    .in_set(RenderSet::PrepareAssets)
-                    .run_if(resource_added::<OxrSession>),
-            );
-        } else {
-            error!("Passthrough is not supported with this runtime")
+            .get_resource::<OxrEnabledExtensions>()
+            .is_some_and(|e| e.fb_passthrough)
+        {
+            let resources = app
+                .world()
+                .get_resource::<OxrInstance>()
+                .and_then(|instance| {
+                    app.world()
+                        .get_resource::<OxrSystemId>()
+                        .map(|system_id| (instance, system_id))
+                });
+            if resources.is_some_and(|(instance, system)| {
+                supports_passthrough(instance, *system).is_ok_and(|s| s)
+            }) {
+                app.sub_app_mut(RenderApp).add_systems(
+                    Render,
+                    insert_passthrough
+                        .in_set(RenderSet::PrepareAssets)
+                        .run_if(resource_added::<OxrSession>),
+                );
+            } else {
+                error!("Passthrough is not supported with this runtime")
+            }
         }
     }
 }
@@ -82,10 +89,7 @@ pub fn create_passthrough(
 }
 
 #[inline]
-pub fn supports_passthrough(
-    instance: &OxrInstance,
-    system: OxrSystemId,
-) -> OxrResult<bool> {
+pub fn supports_passthrough(instance: &OxrInstance, system: OxrSystemId) -> OxrResult<bool> {
     if instance.exts().fb_passthrough.is_none() {
         return Ok(false);
     }

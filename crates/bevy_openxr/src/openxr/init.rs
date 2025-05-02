@@ -54,14 +54,8 @@ pub struct OxrInitPlugin {
     /// Extensions wanted for this session.
     // TODO!() This should be changed to take a simpler list of features wanted that this crate supports. i.e. hand tracking
     pub exts: OxrExtensions,
-    /// List of blend modes the openxr session can use. If [None], pick the first available blend mode.
-    pub blend_modes: Option<Vec<EnvironmentBlendMode>>,
     /// List of backends the openxr session can use. If [None], pick the first available backend.
     pub backends: Option<Vec<GraphicsBackend>>,
-    /// List of formats the openxr session can use. If [None], pick the first available format
-    pub formats: Option<Vec<wgpu::TextureFormat>>,
-    /// List of resolutions that the openxr swapchain can use. If [None] pick the first available resolution.
-    pub resolutions: Option<Vec<UVec2>>,
     /// Passed into the render plugin when added to the app.
     pub synchronous_pipeline_compilation: bool,
     pub render_debug_flags: RenderDebugFlags,
@@ -76,10 +70,7 @@ impl Default for OxrInitPlugin {
                 exts.enable_hand_tracking();
                 exts
             },
-            blend_modes: Some(vec![openxr::EnvironmentBlendMode::OPAQUE]),
             backends: default(),
-            formats: Some(vec![wgpu::TextureFormat::Rgba8UnormSrgb]),
-            resolutions: default(),
             synchronous_pipeline_compilation: false,
             render_debug_flags: default(),
         }
@@ -89,13 +80,14 @@ impl Default for OxrInitPlugin {
 impl Plugin for OxrInitPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<OxrInteractionProfileChanged>();
+        app.init_resource::<OxrSessionConfig>();
         match self.init_xr() {
             Ok((
                 instance,
                 system_id,
                 WgpuGraphics(device, queue, adapter_info, adapter, wgpu_instance),
-                session_create_info,
                 enabled_exts,
+                graphics_info,
             )) => {
                 app.insert_resource(enabled_exts)
                     .add_plugins((
@@ -150,7 +142,7 @@ impl Plugin for OxrInitPlugin {
                         unfocused_mode: UpdateMode::Continuous,
                     })
                     .insert_resource(OxrSessionStarted(false))
-                    .insert_non_send_resource(session_create_info)
+                    .insert_non_send_resource(graphics_info)
                     .init_non_send_resource::<OxrSessionCreateNextChain>();
 
                 app.world_mut()
@@ -215,8 +207,8 @@ impl OxrInitPlugin {
         OxrInstance,
         OxrSystemId,
         WgpuGraphics,
-        SessionConfigInfo,
         OxrEnabledExtensions,
+        SessionGraphicsCreateInfo,
     )> {
         #[cfg(windows)]
         let entry = OxrEntry(openxr::Entry::linked());
@@ -282,19 +274,12 @@ impl OxrInitPlugin {
 
         let (graphics, graphics_info) = instance.init_graphics(system_id)?;
 
-        let session_create_info = SessionConfigInfo {
-            blend_modes: self.blend_modes.clone(),
-            formats: self.formats.clone(),
-            resolutions: self.resolutions.clone(),
-            graphics_info,
-        };
-
         Ok((
             instance,
             OxrSystemId(system_id),
             graphics,
-            session_create_info,
             OxrEnabledExtensions(exts),
+            graphics_info,
         ))
     }
 }
@@ -349,12 +334,12 @@ fn init_xr_session(
     instance: &OxrInstance,
     system_id: openxr::SystemId,
     chain: &mut OxrSessionCreateNextChain,
-    SessionConfigInfo {
+    OxrSessionConfig {
         blend_modes,
         formats,
         resolutions,
-        graphics_info,
-    }: SessionConfigInfo,
+    }: OxrSessionConfig,
+    graphics_info: SessionGraphicsCreateInfo,
 ) -> OxrResult<(
     OxrSession,
     OxrFrameWaiter,
@@ -485,14 +470,16 @@ pub fn create_xr_session(world: &mut World) {
         .unwrap();
     let device = world.resource::<RenderDevice>();
     let instance = world.resource::<OxrInstance>();
-    let create_info = world.non_send_resource::<SessionConfigInfo>();
+    let session_config = world.resource::<OxrSessionConfig>();
+    let session_create_info = world.non_send_resource::<SessionGraphicsCreateInfo>();
     let system_id = world.resource::<OxrSystemId>();
     match init_xr_session(
         device.wgpu_device(),
         instance,
         **system_id,
         &mut chain,
-        create_info.clone(),
+        session_config.clone(),
+        session_create_info.clone(),
     ) {
         Ok((session, frame_waiter, frame_stream, swapchain, images, graphics_info)) => {
             world.insert_resource(session.clone());

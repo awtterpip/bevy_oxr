@@ -1,24 +1,17 @@
 //! A simple 3D scene with light shining over a cube sitting on a plane.
 
 use bevy::prelude::*;
-use bevy_mod_openxr::{add_xr_plugins, init::OxrInitPlugin};
+use bevy_mod_openxr::add_xr_plugins;
 use bevy_mod_xr::session::{XrSessionPlugin, XrState};
 
-fn main() {
+fn main() -> AppExit {
     App::new()
-        .add_plugins(
-            add_xr_plugins(DefaultPlugins)
-                .set(XrSessionPlugin { auto_handle: true })
-                .set(OxrInitPlugin {
-                    blend_modes: Some(vec![openxr::EnvironmentBlendMode::OPAQUE]),
-                    ..Default::default()
-                }),
-        )
+        .add_plugins(add_xr_plugins(DefaultPlugins).set(XrSessionPlugin { auto_handle: true }))
         .add_plugins(bevy_xr_utils::hand_gizmos::HandGizmosPlugin)
         .add_systems(Startup, setup)
         .add_systems(Update, handle_input)
         .insert_resource(AmbientLight::default())
-        .run();
+        .run()
 }
 
 fn handle_input(
