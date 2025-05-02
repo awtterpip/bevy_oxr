@@ -1,7 +1,7 @@
+use crate::hands::{HandBone, XrHandBoneRadius};
+use crate::spaces::XrSpaceLocationFlags;
 use bevy::color::palettes::css;
 use bevy::{prelude::*, transform::TransformSystem};
-use bevy_mod_xr::hands::{HandBone, XrHandBoneRadius};
-use bevy_mod_xr::spaces::XrSpaceLocationFlags;
 pub struct HandGizmosPlugin;
 impl Plugin for HandGizmosPlugin {
     fn build(&self, app: &mut App) {

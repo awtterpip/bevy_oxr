@@ -930,6 +930,7 @@ version = "0.2.1"
 dependencies = [
  "bevy",
  "bevy_mod_openxr",
+ "bevy_mod_xr",
  "bevy_xr_utils",
  "reqwest",
  "zip",

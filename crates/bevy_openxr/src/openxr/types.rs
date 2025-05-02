@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use crate::error::OxrError;
-use crate::graphics::{GraphicsExt, GraphicsType, GraphicsWrap};
+use crate::graphics::GraphicsExt;
 
 pub use crate::openxr::exts::OxrExtensions;
 
