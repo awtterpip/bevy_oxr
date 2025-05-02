@@ -5,6 +5,9 @@ use bevy::{
 
 use crate::session::XrTracker;
 
+#[derive(SystemSet, Hash, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct XrSpaceSyncSet;
+
 /// Any Spaces will be invalid after the owning session exits
 #[repr(transparent)]
 #[derive(Component, Clone, Copy, Hash, PartialEq, Eq, Reflect, Debug, ExtractComponent)]

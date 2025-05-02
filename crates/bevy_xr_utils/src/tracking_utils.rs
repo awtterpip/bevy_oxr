@@ -7,11 +7,11 @@ use bevy_mod_openxr::{
     openxr_session_available, openxr_session_running,
     resources::{OxrFrameState, OxrInstance, Pipelined},
     session::OxrSession,
-    spaces::{OxrSpaceLocationFlags, OxrSpaceSyncSet},
+    spaces::OxrSpaceLocationFlags,
 };
 use bevy_mod_xr::{
     session::{XrSessionCreated, XrTracker, XrTrackingRoot},
-    spaces::{XrPrimaryReferenceSpace, XrReferenceSpace},
+    spaces::{XrPrimaryReferenceSpace, XrReferenceSpace, XrSpaceSyncSet},
 };
 use openxr::Posef;
 
@@ -47,7 +47,7 @@ impl Plugin for TrackingUtilitiesPlugin {
         app.add_systems(
             PreUpdate,
             update_head_transforms
-                .in_set(OxrSpaceSyncSet)
+                .in_set(XrSpaceSyncSet)
                 .run_if(openxr_session_running),
         );
         //external
@@ -73,8 +73,8 @@ impl Plugin for TrackingUtilitiesPlugin {
         //create actions
         app.add_systems(Startup, create_actions.run_if(openxr_session_available));
 
-        app.add_systems(PreUpdate, update_left_grip.after(OxrSpaceSyncSet));
-        app.add_systems(PreUpdate, update_right_grip.after(OxrSpaceSyncSet));
+        app.add_systems(PreUpdate, update_left_grip.after(XrSpaceSyncSet));
+        app.add_systems(PreUpdate, update_right_grip.after(XrSpaceSyncSet));
     }
 }
 
