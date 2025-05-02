@@ -896,7 +896,6 @@ dependencies = [
  "ash",
  "bevy",
  "bevy_mod_xr",
- "bevy_xr_utils",
  "jni 0.20.0",
  "ndk-context",
  "openxr",
