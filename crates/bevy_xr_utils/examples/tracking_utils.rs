@@ -4,12 +4,14 @@ use bevy::prelude::*;
 use bevy_mod_openxr::{action_binding::OxrSendActionBindings, add_xr_plugins};
 use bevy_mod_xr::session::{XrSessionCreated, XrTracker};
 use bevy_xr_utils::tracking_utils::{
-    suggest_action_bindings, TrackingUtilitiesPlugin, XrTrackedLeftGrip, XrTrackedLocalFloor, XrTrackedRightGrip, XrTrackedStage, XrTrackedView
+    suggest_action_bindings, TrackingUtilitiesPlugin, XrTrackedLeftGrip, XrTrackedLocalFloor,
+    XrTrackedRightGrip, XrTrackedStage, XrTrackedView,
 };
 
 fn main() {
     let mut app = App::new();
     app.add_plugins(add_xr_plugins(DefaultPlugins));
+    app.add_plugins(bevy_mod_xr::hand_debug_gizmos::HandGizmosPlugin);
     app.add_systems(Startup, setup);
 
     //things?

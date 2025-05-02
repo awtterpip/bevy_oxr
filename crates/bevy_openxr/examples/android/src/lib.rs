@@ -15,7 +15,7 @@ fn main() {
             },
             ..default()
         }))
-        .add_plugins(bevy_xr_utils::hand_gizmos::HandGizmosPlugin)
+        .add_plugins(bevy_mod_xr::hand_debug_gizmos::HandGizmosPlugin)
         .add_systems(Startup, setup)
         .add_systems(Update, modify_msaa)
         .insert_resource(AmbientLight {

@@ -19,7 +19,7 @@ fn main() -> AppExit {
             ]),
             ..default()
         })
-        .add_plugins(bevy_xr_utils::hand_gizmos::HandGizmosPlugin)
+        .add_plugins(bevy_mod_xr::hand_debug_gizmos::HandGizmosPlugin)
         .add_systems(Startup, setup)
         .insert_resource(ClearColor(Color::NONE))
         .run()

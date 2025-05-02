@@ -8,10 +8,10 @@ use bevy_xr_utils::xr_utils_actions::{
     XRUtilsActionsPlugin, XRUtilsBinding,
 };
 
-fn main() {
+fn main() -> AppExit {
     App::new()
         .add_plugins(add_xr_plugins(DefaultPlugins))
-        .add_plugins(bevy_xr_utils::hand_gizmos::HandGizmosPlugin)
+        .add_plugins(bevy_mod_xr::hand_debug_gizmos::HandGizmosPlugin)
         .add_plugins(transform_utils::TransformUtilitiesPlugin)
         .add_systems(Startup, setup)
         .add_plugins(XRUtilsActionsPlugin)
@@ -31,7 +31,7 @@ fn main() {
             brightness: 500.0,
             ..AmbientLight::default()
         })
-        .run();
+        .run()
 }
 
 /// set up a simple 3D scene

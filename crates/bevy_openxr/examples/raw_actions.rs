@@ -16,9 +16,10 @@ use bevy_mod_xr::{
 };
 use openxr::Posef;
 
-fn main() {
+fn main() -> AppExit {
     let mut app = App::new();
     app.add_plugins(add_xr_plugins(DefaultPlugins));
+    app.add_plugins(bevy_mod_xr::hand_debug_gizmos::HandGizmosPlugin);
     app.add_systems(XrSessionCreated, spawn_hands);
     app.add_systems(XrSessionCreated, attach_set);
     app.add_systems(
@@ -31,7 +32,7 @@ fn main() {
     app.add_systems(Startup, create_actions.run_if(session_available));
     app.add_systems(Startup, setup);
 
-    app.run();
+    app.run()
 }
 
 fn attach_set(actions: Res<ControllerActions>, mut attach: EventWriter<OxrAttachActionSet>) {
