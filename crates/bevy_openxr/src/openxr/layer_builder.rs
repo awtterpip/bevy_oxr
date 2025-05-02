@@ -21,7 +21,7 @@ impl LayerProvider for ProjectionLayer {
         let stage = world.get_resource::<XrPrimaryReferenceSpace>()?;
         let openxr_views = world.get_resource::<OxrViews>()?;
         let swapchain = world.get_resource::<OxrSwapchain>()?;
-        let graphics_info = world.get_resource::<OxrGraphicsInfo>()?;
+        let graphics_info = world.get_resource::<OxrCurrentSessionConfig>()?;
         let rect = openxr::Rect2Di {
             offset: openxr::Offset2Di { x: 0, y: 0 },
             extent: openxr::Extent2Di {

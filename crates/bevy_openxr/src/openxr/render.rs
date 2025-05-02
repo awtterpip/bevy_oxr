@@ -48,7 +48,7 @@ impl Plugin for OxrRenderPlugin {
 
         app.add_plugins((
             ExtractResourcePlugin::<OxrFrameState>::default(),
-            ExtractResourcePlugin::<OxrGraphicsInfo>::default(),
+            ExtractResourcePlugin::<OxrCurrentSessionConfig>::default(),
             ExtractResourcePlugin::<OxrSwapchainImages>::default(),
             ExtractResourcePlugin::<OxrViews>::default(),
         ))
@@ -151,7 +151,7 @@ pub fn clean_views(
 }
 
 pub fn init_views<const SPAWN_CAMERAS: bool>(
-    graphics_info: Res<OxrGraphicsInfo>,
+    graphics_info: Res<OxrCurrentSessionConfig>,
     mut manual_texture_views: ResMut<ManualTextureViews>,
     swapchain_images: Res<OxrSwapchainImages>,
     mut commands: Commands,
@@ -304,7 +304,7 @@ pub fn insert_texture_views(
     swapchain_images: Res<OxrSwapchainImages>,
     mut swapchain: ResMut<OxrSwapchain>,
     mut manual_texture_views: ResMut<ManualTextureViews>,
-    graphics_info: Res<OxrGraphicsInfo>,
+    graphics_info: Res<OxrCurrentSessionConfig>,
 ) {
     let index = swapchain.acquire_image().expect("Failed to acquire image");
     let image = &swapchain_images[index as usize];
@@ -324,7 +324,7 @@ pub fn wait_image(mut swapchain: ResMut<OxrSwapchain>) {
 pub fn add_texture_view(
     manual_texture_views: &mut ManualTextureViews,
     texture: &wgpu::Texture,
-    info: &OxrGraphicsInfo,
+    info: &OxrCurrentSessionConfig,
     index: u32,
 ) -> ManualTextureViewHandle {
     let view = texture.create_view(&wgpu::TextureViewDescriptor {
@@ -381,7 +381,7 @@ pub fn end_frame(world: &mut World) {
         let _span = debug_span!("xr_end_frame").entered();
         if let Err(e) = frame_stream.end(
             frame_state.predicted_display_time,
-            world.resource::<OxrGraphicsInfo>().blend_mode,
+            world.resource::<OxrCurrentSessionConfig>().blend_mode,
             &layers,
         ) {
             error!("Failed to end frame stream: {e}");

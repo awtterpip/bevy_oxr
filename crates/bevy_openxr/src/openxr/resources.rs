@@ -106,13 +106,13 @@ impl OxrInstance {
     pub fn init_graphics(
         &self,
         system_id: openxr::SystemId,
-    ) -> OxrResult<(WgpuGraphics, SessionCreateInfo)> {
+    ) -> OxrResult<(WgpuGraphics, SessionGraphicsCreateInfo)> {
         graphics_match!(
             self.1;
             _ => {
                 let (graphics, session_info) = Api::init_graphics(&self.2, self, system_id)?;
 
-                Ok((graphics, SessionCreateInfo(Api::wrap(session_info))))
+                Ok((graphics, SessionGraphicsCreateInfo(Api::wrap(session_info))))
             }
         )
     }
@@ -127,12 +127,12 @@ impl OxrInstance {
     pub unsafe fn create_session(
         &self,
         system_id: openxr::SystemId,
-        info: SessionCreateInfo,
+        info: SessionGraphicsCreateInfo,
         chain: &mut OxrSessionCreateNextChain,
     ) -> OxrResult<(OxrSession, OxrFrameWaiter, OxrFrameStream)> {
         if !info.0.using_graphics_of_val(&self.1) {
             return OxrResult::Err(OxrError::GraphicsBackendMismatch {
-                item: std::any::type_name::<SessionCreateInfo>(),
+                item: std::any::type_name::<SessionGraphicsCreateInfo>(),
                 backend: info.0.graphics_name(),
                 expected_backend: self.1.graphics_name(),
             });
@@ -330,23 +330,39 @@ pub struct OxrRenderLayers(pub Vec<Box<dyn LayerProvider + Send + Sync>>);
 
 /// Resource storing graphics info for the currently running session.
 #[derive(Clone, Copy, Resource, ExtractResource)]
-pub struct OxrGraphicsInfo {
+pub struct OxrCurrentSessionConfig {
     pub blend_mode: EnvironmentBlendMode,
     pub resolution: UVec2,
     pub format: wgpu::TextureFormat,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Resource, Debug)]
 /// This is used to store information from startup that is needed to create the session after the instance has been created.
-pub struct SessionConfigInfo {
+pub struct OxrSessionConfig {
     /// List of blend modes the openxr session can use. If [None], pick the first available blend mode.
     pub blend_modes: Option<Vec<EnvironmentBlendMode>>,
     /// List of formats the openxr session can use. If [None], pick the first available format
     pub formats: Option<Vec<wgpu::TextureFormat>>,
     /// List of resolutions that the openxr swapchain can use. If [None] pick the first available resolution.
     pub resolutions: Option<Vec<UVec2>>,
-    /// Graphics info used to create a session.
-    pub graphics_info: SessionCreateInfo,
+}
+impl Default for OxrSessionConfig {
+    fn default() -> Self {
+        Self {
+            blend_modes: Some(vec![openxr::EnvironmentBlendMode::OPAQUE]),
+            formats: Some(vec![wgpu::TextureFormat::Rgba8UnormSrgb]),
+            resolutions: default(),
+        }
+    }
+}
+
+/// Info needed to create a session. Mostly contains graphics info.
+/// This is an API agnostic version of [openxr::Graphics::SessionCreateInfo] used for some of this library's functions
+#[derive(Clone)]
+pub struct SessionGraphicsCreateInfo(pub GraphicsWrap<Self>);
+
+impl GraphicsType for SessionGraphicsCreateInfo {
+    type Inner<G: GraphicsExt> = G::SessionCreateInfo;
 }
 
 #[derive(ExtractResource, Resource, Clone, Default)]

@@ -87,12 +87,3 @@ impl<G: GraphicsExt> TryFrom<SwapchainCreateInfo> for openxr::SwapchainCreateInf
         })
     }
 }
-
-/// Info needed to create a session. Mostly contains graphics info.
-/// This is an API agnostic version of [openxr::Graphics::SessionCreateInfo] used for some of this library's functions
-#[derive(Clone)]
-pub struct SessionCreateInfo(pub GraphicsWrap<Self>);
-
-impl GraphicsType for SessionCreateInfo {
-    type Inner<G: GraphicsExt> = G::SessionCreateInfo;
-}

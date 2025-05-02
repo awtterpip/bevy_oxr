@@ -3,7 +3,7 @@
 use bevy::prelude::*;
 use bevy_mod_openxr::{
     add_xr_plugins, features::overlay::OxrOverlaySessionEvent, init::OxrInitPlugin,
-    types::OxrExtensions,
+    resources::OxrSessionConfig, types::OxrExtensions,
 };
 use openxr::EnvironmentBlendMode;
 
@@ -16,14 +16,17 @@ fn main() {
                 exts.extx_overlay = true;
                 exts
             },
+            ..OxrInitPlugin::default()
+        }))
+        .insert_resource(OxrSessionConfig {
             blend_modes: Some({
                 vec![
                     EnvironmentBlendMode::ALPHA_BLEND,
                     EnvironmentBlendMode::OPAQUE,
                 ]
             }),
-            ..OxrInitPlugin::default()
-        }))
+            ..OxrSessionConfig::default()
+        })
         .insert_resource(ClearColor(Color::NONE))
         .add_plugins(bevy_xr_utils::hand_gizmos::HandGizmosPlugin)
         .add_systems(Startup, setup)

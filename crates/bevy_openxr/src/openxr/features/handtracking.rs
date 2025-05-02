@@ -6,8 +6,8 @@ use bevy_mod_xr::hands::{
 use bevy_mod_xr::hands::{LeftHand, RightHand, XrHandBoneEntities};
 use bevy_mod_xr::session::{XrPreDestroySession, XrSessionCreated};
 use bevy_mod_xr::spaces::{
-    XrPrimaryReferenceSpace, XrReferenceSpace, XrSpaceLocationFlags, XrSpaceVelocityFlags,
-    XrVelocity,
+    XrPrimaryReferenceSpace, XrReferenceSpace, XrSpaceLocationFlags, XrSpaceSyncSet,
+    XrSpaceVelocityFlags, XrVelocity,
 };
 use openxr::{SpaceLocationFlags, SpaceVelocityFlags};
 
@@ -31,7 +31,12 @@ impl Default for HandTrackingPlugin {
 
 impl Plugin for HandTrackingPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(PreUpdate, locate_hands.run_if(openxr_session_running));
+        app.add_systems(
+            PreUpdate,
+            locate_hands
+                .in_set(XrSpaceSyncSet)
+                .run_if(openxr_session_running),
+        );
         if self.default_hands {
             app.add_systems(XrPreDestroySession, clean_up_default_hands)
                 .add_systems(XrSessionCreated, spawn_default_hands);

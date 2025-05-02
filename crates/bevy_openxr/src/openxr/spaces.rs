@@ -4,8 +4,7 @@ use bevy::{platform::collections::hash_set::HashSet, prelude::*};
 use bevy_mod_xr::{
     session::{XrFirst, XrHandleEvents},
     spaces::{
-        XrDestroySpace, XrPrimaryReferenceSpace, XrReferenceSpace, XrSpace, XrSpaceLocationFlags,
-        XrSpaceVelocityFlags, XrVelocity,
+        XrDestroySpace, XrPrimaryReferenceSpace, XrReferenceSpace, XrSpace, XrSpaceLocationFlags, XrSpaceSyncSet, XrSpaceVelocityFlags, XrVelocity
     },
 };
 use openxr::{
@@ -19,9 +18,6 @@ use crate::{
     resources::{OxrFrameState, OxrInstance, Pipelined},
     session::OxrSession,
 };
-
-#[derive(SystemSet, Hash, Debug, Clone, Copy, PartialEq, Eq)]
-pub struct OxrSpaceSyncSet;
 
 /// VERY IMPORTANT!! only disable when you know what you are doing
 pub struct OxrSpacePatchingPlugin;
@@ -47,7 +43,7 @@ impl Plugin for OxrSpatialPlugin {
             .add_systems(
                 PreUpdate,
                 update_space_transforms
-                    .in_set(OxrSpaceSyncSet)
+                    .in_set(XrSpaceSyncSet)
                     .run_if(openxr_session_running),
             )
             .register_required_components::<XrSpaceLocationFlags, OxrSpaceLocationFlags>()
