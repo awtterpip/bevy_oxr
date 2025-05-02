@@ -10,7 +10,7 @@ use bevy_xr_utils::xr_utils_actions::{
 fn main() {
     App::new()
         .add_plugins(add_xr_plugins(DefaultPlugins))
-        .add_plugins(bevy_xr_utils::hand_gizmos::HandGizmosPlugin)
+        .add_plugins(bevy_mod_xr::hand_debug_gizmos::HandGizmosPlugin)
         .add_systems(Startup, setup_scene)
         .add_systems(
             Startup,

@@ -8,6 +8,9 @@ repository.workspace = true
 keywords = ["gamedev", "bevy", "Xr", "Vr"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = ["gizmos"]
+gizmos = ["bevy/bevy_gizmos"]
 
 [dependencies]
 bevy = { workspace = true, features = ["bevy_log"] }
