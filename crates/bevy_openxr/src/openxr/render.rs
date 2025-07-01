@@ -30,15 +30,20 @@ pub struct OxrRenderEnd;
 
 pub struct OxrRenderPlugin {
     pub spawn_cameras: bool,
+    pub default_wait_frame: bool,
 }
 
 impl Default for OxrRenderPlugin {
     fn default() -> Self {
         Self {
             spawn_cameras: true,
+            default_wait_frame: true,
         }
     }
 }
+
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone, Copy)]
+pub struct OxrWaitFrameSystem;
 
 impl Plugin for OxrRenderPlugin {
     fn build(&self, app: &mut App) {
@@ -52,14 +57,21 @@ impl Plugin for OxrRenderPlugin {
             ExtractResourcePlugin::<OxrSwapchainImages>::default(),
             ExtractResourcePlugin::<OxrViews>::default(),
         ))
-        .add_systems(XrPreDestroySession, clean_views)
-        .add_systems(
+        .add_systems(XrPreDestroySession, clean_views);
+        if self.default_wait_frame {
+            app.add_systems(
+                XrFirst,
+                wait_frame
+                    .run_if(should_run_frame_loop)
+                    .in_set(OxrWaitFrameSystem)
+                    .in_set(XrHandleEvents::FrameLoop),
+            );
+        }
+        app.add_systems(
             XrFirst,
-            (
-                wait_frame.run_if(should_run_frame_loop),
-                update_cameras.run_if(should_run_frame_loop),
-            )
-                .chain()
+            update_cameras
+                .run_if(should_run_frame_loop)
+                .after(OxrWaitFrameSystem)
                 .in_set(XrHandleEvents::FrameLoop),
         )
         .add_systems(
