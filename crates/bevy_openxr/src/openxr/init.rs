@@ -81,7 +81,8 @@ impl Plugin for OxrInitPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<OxrInteractionProfileChanged>();
         app.init_resource::<OxrSessionConfig>();
-        match self.init_xr() {
+        let cfg = app.world_mut().remove_resource::<OxrManualGraphicsConfig>();
+        match self.init_xr(cfg.as_ref()) {
             Ok((
                 instance,
                 system_id,
@@ -160,6 +161,31 @@ impl Plugin for OxrInitPlugin {
             }
             Err(e) => {
                 error!("Failed to initialize openxr: {e}");
+                if let Some(cfg) = cfg {
+                    if let Ok(WgpuGraphics(device, queue, adapter_info, adapter, wgpu_instance)) =
+                        graphics_match!(
+                            cfg.fallback_backend;
+                            _ => Api::init_fallback_graphics(&self.app_info ,&cfg)
+                        )
+                        .inspect_err(|err| {
+                            error!("Failed to initialize custom fallback graphics: {err}")
+                        })
+                    {
+                        app.add_plugins(RenderPlugin {
+                            render_creation: RenderCreation::manual(
+                                device.into(),
+                                RenderQueue(Arc::new(WgpuWrapper::new(queue))),
+                                RenderAdapterInfo(WgpuWrapper::new(adapter_info)),
+                                RenderAdapter(Arc::new(WgpuWrapper::new(adapter))),
+                                RenderInstance(Arc::new(WgpuWrapper::new(wgpu_instance))),
+                            ),
+                            synchronous_pipeline_compilation: self.synchronous_pipeline_compilation,
+                            debug_flags: self.render_debug_flags,
+                        })
+                        .insert_resource(XrState::Unavailable);
+                        return;
+                    }
+                }
                 app.add_plugins(RenderPlugin::default())
                     .insert_resource(XrState::Unavailable);
             }
@@ -203,6 +229,7 @@ fn detect_session_destroyed(
 impl OxrInitPlugin {
     fn init_xr(
         &self,
+        cfg: Option<&OxrManualGraphicsConfig>,
     ) -> OxrResult<(
         OxrInstance,
         OxrSystemId,
@@ -272,7 +299,7 @@ impl OxrInitPlugin {
             }
         );
 
-        let (graphics, graphics_info) = instance.init_graphics(system_id)?;
+        let (graphics, graphics_info) = instance.init_graphics(system_id, cfg)?;
 
         Ok((
             instance,
