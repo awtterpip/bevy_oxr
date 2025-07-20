@@ -106,11 +106,12 @@ impl OxrInstance {
     pub fn init_graphics(
         &self,
         system_id: openxr::SystemId,
+        manual_config: Option<&OxrManualGraphicsConfig>,
     ) -> OxrResult<(WgpuGraphics, SessionGraphicsCreateInfo)> {
         graphics_match!(
             self.1;
             _ => {
-                let (graphics, session_info) = Api::init_graphics(&self.2, self, system_id)?;
+                let (graphics, session_info) = Api::init_graphics(&self.2, self, system_id, manual_config)?;
 
                 Ok((graphics, SessionGraphicsCreateInfo(Api::wrap(session_info))))
             }

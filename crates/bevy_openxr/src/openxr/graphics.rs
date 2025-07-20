@@ -3,9 +3,9 @@
 #[cfg(feature = "vulkan")]
 pub mod vulkan;
 
-use std::any::TypeId;
+use std::{any::TypeId, ffi::CStr};
 
-use bevy::math::UVec2;
+use bevy::{ecs::resource::Resource, math::UVec2};
 use openxr::{FrameStream, FrameWaiter, Session};
 
 use crate::{
@@ -39,6 +39,7 @@ pub unsafe trait GraphicsExt: openxr::Graphics {
         app_info: &AppInfo,
         instance: &openxr::Instance,
         system_id: openxr::SystemId,
+        cfg: Option<&OxrManualGraphicsConfig>,
     ) -> Result<(WgpuGraphics, Self::SessionCreateInfo)>;
     unsafe fn create_session(
         instance: &openxr::Instance,
@@ -46,6 +47,17 @@ pub unsafe trait GraphicsExt: openxr::Graphics {
         info: &Self::SessionCreateInfo,
         session_create_info_chain: &mut OxrSessionCreateNextChain,
     ) -> openxr::Result<(Session<Self>, FrameWaiter, FrameStream<Self>)>;
+    fn init_fallback_graphics(
+        app_info: &AppInfo,
+        cfg: &OxrManualGraphicsConfig,
+    ) -> Result<WgpuGraphics>;
+}
+
+#[derive(Resource)]
+pub struct OxrManualGraphicsConfig {
+    pub fallback_backend: GraphicsBackend,
+    pub vk_instance_exts: Vec<&'static CStr>,
+    pub vk_device_exts: Vec<&'static CStr>,
 }
 
 /// A type that can be used in [`GraphicsWrap`].
