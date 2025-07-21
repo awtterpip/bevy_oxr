@@ -92,6 +92,6 @@ categories = [
 # https://developer.android.com/studio/publish/app-signing
 #
 # !! IMPORTANT !!
-[package.metadata.android.signing.release]
-path = "./hotham_examples.keystore"
-keystore_password = "chomsky-vigilant-spa"
+# [package.metadata.android.signing.release]
+# path = "./hotham_examples.keystore"
+# keystore_password = "chomsky-vigilant-spa"

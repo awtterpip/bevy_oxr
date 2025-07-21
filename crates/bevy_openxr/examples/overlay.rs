@@ -19,12 +19,13 @@ fn main() {
             ..OxrInitPlugin::default()
         }))
         .insert_resource(OxrSessionConfig {
-            blend_modes: Some({
+            blend_mode_preference: {
                 vec![
                     EnvironmentBlendMode::ALPHA_BLEND,
+                    EnvironmentBlendMode::ADDITIVE,
                     EnvironmentBlendMode::OPAQUE,
                 ]
-            }),
+            },
             ..OxrSessionConfig::default()
         })
         .insert_resource(ClearColor(Color::NONE))

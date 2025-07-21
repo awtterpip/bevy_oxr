@@ -13,10 +13,11 @@ fn main() -> AppExit {
             DefaultPlugins.build().disable::<PipelinedRenderingPlugin>(),
         ))
         .insert_resource(OxrSessionConfig {
-            blend_modes: Some(vec![
+            blend_mode_preference: vec![
                 EnvironmentBlendMode::ALPHA_BLEND,
+                EnvironmentBlendMode::ADDITIVE,
                 EnvironmentBlendMode::OPAQUE,
-            ]),
+            ],
             ..default()
         })
         .add_plugins(bevy_mod_xr::hand_debug_gizmos::HandGizmosPlugin)

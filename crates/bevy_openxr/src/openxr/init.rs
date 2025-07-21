@@ -28,6 +28,7 @@ use crate::session::OxrSessionCreateNextChain;
 use crate::types::Result as OxrResult;
 use crate::types::*;
 
+use super::environment_blend_mode::OxrEnvironmentBlendModes;
 use super::exts::OxrEnabledExtensions;
 use super::poll_events::OxrEventHandlerExt;
 use super::poll_events::OxrEventIn;
@@ -66,7 +67,6 @@ impl Default for OxrInitPlugin {
             app_info: default(),
             exts: {
                 let mut exts = OxrExtensions::default();
-                exts.enable_fb_passthrough();
                 exts.enable_hand_tracking();
                 exts
             },
@@ -104,6 +104,7 @@ impl Plugin for OxrInitPlugin {
                             debug_flags: self.render_debug_flags,
                         },
                         ExtractResourcePlugin::<OxrSessionStarted>::default(),
+                        ExtractResourcePlugin::<OxrEnvironmentBlendModes>::default(),
                     ))
                     .add_oxr_event_handler(handle_events)
                     .add_systems(
@@ -249,7 +250,7 @@ impl OxrInitPlugin {
 
         // check available extensions and send a warning for any wanted extensions that aren't available.
         for ext in available_exts.unavailable_exts(&self.exts) {
-            error!(
+            warn!(
                 "Extension \"{ext}\" not available in the current OpenXR runtime. Disabling extension."
             );
         }
@@ -273,13 +274,7 @@ impl OxrInitPlugin {
 
         let exts = self.exts.clone() & available_exts;
 
-        let instance = entry.create_instance(
-            self.app_info.clone(),
-            exts.clone(),
-            // &["XR_APILAYER_LUNARG_api_dump"],
-            &[],
-            backend,
-        )?;
+        let instance = entry.create_instance(self.app_info.clone(), exts.clone(), &[], backend)?;
         let instance_props = instance.properties()?;
 
         info!(
@@ -362,7 +357,7 @@ fn init_xr_session(
     system_id: openxr::SystemId,
     chain: &mut OxrSessionCreateNextChain,
     OxrSessionConfig {
-        blend_modes,
+        blend_mode_preference,
         formats,
         resolutions,
     }: OxrSessionConfig,
@@ -374,6 +369,7 @@ fn init_xr_session(
     OxrSwapchain,
     OxrSwapchainImages,
     OxrCurrentSessionConfig,
+    OxrEnvironmentBlendModes,
 )> {
     let (session, frame_waiter, frame_stream) =
         unsafe { instance.create_session(system_id, graphics_info, chain)? };
@@ -461,25 +457,10 @@ fn init_xr_session(
         instance.enumerate_environment_blend_modes(system_id, view_configuration_type)?;
 
     // blend mode selection
-    let blend_mode = if let Some(wanted_blend_modes) = &blend_modes {
-        let mut blend_mode = None;
-        for wanted_blend_mode in wanted_blend_modes {
-            if available_blend_modes.contains(wanted_blend_mode) {
-                blend_mode = Some(*wanted_blend_mode);
-                break;
-            }
-        }
-        blend_mode
-    } else {
-        available_blend_modes.first().copied()
-    }
-    .ok_or(OxrError::NoAvailableBlendMode)?;
+    let blend_modes = OxrEnvironmentBlendModes::new(available_blend_modes, &blend_mode_preference)
+        .ok_or(OxrError::NoAvailableBlendMode)?;
 
-    let graphics_info = OxrCurrentSessionConfig {
-        blend_mode,
-        resolution,
-        format,
-    };
+    let graphics_info = OxrCurrentSessionConfig { resolution, format };
 
     Ok((
         session,
@@ -488,6 +469,7 @@ fn init_xr_session(
         swapchain,
         images,
         graphics_info,
+        blend_modes,
     ))
 }
 
@@ -508,7 +490,15 @@ pub fn create_xr_session(world: &mut World) {
         session_config.clone(),
         session_create_info.clone(),
     ) {
-        Ok((session, frame_waiter, frame_stream, swapchain, images, graphics_info)) => {
+        Ok((
+            session,
+            frame_waiter,
+            frame_stream,
+            swapchain,
+            images,
+            graphics_info,
+            blend_modes,
+        )) => {
             world.insert_resource(session.clone());
             world.insert_resource(frame_waiter);
             world.insert_resource(images);
@@ -524,6 +514,7 @@ pub fn create_xr_session(world: &mut World) {
                     .expect("added by xr session plugin")
                     .clone(),
             });
+            world.insert_resource(blend_modes);
         }
         Err(e) => error!("Failed to initialize XrSession: {e}"),
     }

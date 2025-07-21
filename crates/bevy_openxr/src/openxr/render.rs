@@ -22,6 +22,8 @@ use openxr::ViewStateFlags;
 use crate::{init::should_run_frame_loop, resources::*};
 use crate::{layer_builder::ProjectionLayer, session::OxrSession};
 
+use super::environment_blend_mode::OxrEnvironmentBlendModes;
+
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, SystemSet)]
 pub struct OxrRenderBegin;
 
@@ -393,7 +395,7 @@ pub fn end_frame(world: &mut World) {
         let _span = debug_span!("xr_end_frame").entered();
         if let Err(e) = frame_stream.end(
             frame_state.predicted_display_time,
-            world.resource::<OxrCurrentSessionConfig>().blend_mode,
+            world.resource::<OxrEnvironmentBlendModes>().blend_mode(),
             &layers,
         ) {
             error!("Failed to end frame stream: {e}");
