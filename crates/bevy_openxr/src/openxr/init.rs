@@ -18,7 +18,6 @@ use bevy::render::RenderPlugin;
 use bevy::winit::UpdateMode;
 use bevy::winit::WinitSettings;
 use bevy_mod_xr::session::*;
-use openxr::Event;
 
 use crate::error::OxrError;
 use crate::graphics::*;
@@ -79,7 +78,6 @@ impl Default for OxrInitPlugin {
 
 impl Plugin for OxrInitPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<OxrInteractionProfileChanged>();
         app.init_resource::<OxrSessionConfig>();
         let cfg = app.world_mut().remove_resource::<OxrManualGraphicsConfig>();
         match self.init_xr(cfg.as_ref()) {
@@ -305,14 +303,11 @@ impl OxrInitPlugin {
         ))
     }
 }
-#[derive(Event, Clone, Copy, Debug, Default)]
-pub struct OxrInteractionProfileChanged;
 
 pub fn handle_events(
     event: OxrEventIn,
     mut status: ResMut<XrState>,
     mut changed_event: EventWriter<XrStateChanged>,
-    mut interaction_profile_changed_event: EventWriter<OxrInteractionProfileChanged>,
 ) {
     use openxr::Event::*;
     match *event {
@@ -343,10 +338,6 @@ pub fn handle_events(
         }
         InstanceLossPending(_) => {}
         EventsLost(e) => warn!("lost {} XR events", e.lost_event_count()),
-        // we might want to check if this is the correct session?
-        Event::InteractionProfileChanged(_) => {
-            interaction_profile_changed_event.write_default();
-        }
         _ => {}
     }
 }
@@ -536,7 +527,6 @@ pub fn destroy_xr_session(world: &mut World) {
 
 pub fn begin_xr_session(
     world: &mut World,
-    // session: Res<OxrSession>, mut session_started: ResMut<OxrSessionStarted>
 ) {
     let _span = debug_span!("xr_begin_session").entered();
     world
@@ -551,9 +541,7 @@ pub fn begin_xr_session(
 
 pub fn end_xr_session(
     world: &mut World,
-    // session: Res<OxrSession>, mut session_started: ResMut<OxrSessionStarted>
 ) {
-    // Maybe this could be an event?
     world.run_schedule(XrPreSessionEnd);
     let _span = debug_span!("xr_end_session").entered();
     world
