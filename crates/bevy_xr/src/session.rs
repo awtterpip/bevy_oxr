@@ -191,7 +191,7 @@ impl Plugin for XrSessionPlugin {
 
         render_app
             .init_schedule(XrPreDestroySession)
-            .init_resource::<XrRootTransform>()
+            // .init_resource::<XrRootTransform>()
             .configure_sets(
                 Render,
                 (XrRenderSet::HandleEvents, XrRenderSet::PreRender).chain(),

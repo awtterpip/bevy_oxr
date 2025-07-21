@@ -332,7 +332,6 @@ pub struct OxrRenderLayers(pub Vec<Box<dyn LayerProvider + Send + Sync>>);
 /// Resource storing graphics info for the currently running session.
 #[derive(Clone, Copy, Resource, ExtractResource)]
 pub struct OxrCurrentSessionConfig {
-    pub blend_mode: EnvironmentBlendMode,
     pub resolution: UVec2,
     pub format: wgpu::TextureFormat,
 }
@@ -341,7 +340,7 @@ pub struct OxrCurrentSessionConfig {
 /// This is used to store information from startup that is needed to create the session after the instance has been created.
 pub struct OxrSessionConfig {
     /// List of blend modes the openxr session can use. If [None], pick the first available blend mode.
-    pub blend_modes: Option<Vec<EnvironmentBlendMode>>,
+    pub blend_mode_preference: Vec<EnvironmentBlendMode>,
     /// List of formats the openxr session can use. If [None], pick the first available format
     pub formats: Option<Vec<wgpu::TextureFormat>>,
     /// List of resolutions that the openxr swapchain can use. If [None] pick the first available resolution.
@@ -350,7 +349,7 @@ pub struct OxrSessionConfig {
 impl Default for OxrSessionConfig {
     fn default() -> Self {
         Self {
-            blend_modes: Some(vec![openxr::EnvironmentBlendMode::OPAQUE]),
+            blend_mode_preference: vec![openxr::EnvironmentBlendMode::OPAQUE],
             formats: Some(vec![wgpu::TextureFormat::Rgba8UnormSrgb]),
             resolutions: default(),
         }

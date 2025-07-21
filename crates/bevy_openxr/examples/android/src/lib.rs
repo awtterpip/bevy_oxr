@@ -16,6 +16,7 @@ fn main() {
             ..default()
         }))
         .add_plugins(bevy_mod_xr::hand_debug_gizmos::HandGizmosPlugin)
+        .add_plugins(bevy_mod_openxr::features::fb_passthrough::OxrFbPassthroughPlugin)
         .add_systems(Startup, setup)
         .add_systems(Update, modify_msaa)
         .insert_resource(AmbientLight {

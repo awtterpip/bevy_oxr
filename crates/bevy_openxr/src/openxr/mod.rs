@@ -14,14 +14,12 @@ use render::OxrRenderPlugin;
 use resources::OxrInstance;
 use session::OxrSession;
 
-use self::{
-    features::{handtracking::HandTrackingPlugin, passthrough::OxrPassthroughPlugin},
-    reference_space::OxrReferenceSpacePlugin,
-};
+use self::{features::handtracking::HandTrackingPlugin, reference_space::OxrReferenceSpacePlugin};
 
 pub mod action_binding;
 pub mod action_set_attaching;
 pub mod action_set_syncing;
+pub mod environment_blend_mode;
 pub mod error;
 pub mod exts;
 pub mod features;
@@ -59,13 +57,11 @@ pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
     plugins
         .build()
         .disable::<RenderPlugin>()
-        // .disable::<PipelinedRenderingPlugin>()
         .add_before::<RenderPlugin>(XrSessionPlugin { auto_handle: true })
         .add_before::<RenderPlugin>(OxrInitPlugin::default())
         .add(OxrEventsPlugin)
         .add(OxrReferenceSpacePlugin::default())
         .add(OxrRenderPlugin::default())
-        .add(OxrPassthroughPlugin)
         .add(HandTrackingPlugin::default())
         .add(XrCameraPlugin)
         .add(action_set_attaching::OxrActionAttachingPlugin)
@@ -74,20 +70,14 @@ pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
         .add(features::overlay::OxrOverlayPlugin)
         .add(spaces::OxrSpatialPlugin)
         .add(spaces::OxrSpacePatchingPlugin)
-        // .add(XrActionPlugin)
         // we should probably handle the exiting ourselfs so that we can correctly end the
         // session and instance
         .set(WindowPlugin {
             primary_window: Some(Window {
                 transparent: true,
                 present_mode: PresentMode::AutoNoVsync,
-                // title: self.app_info.name.clone(),
                 ..default()
             }),
-            // #[cfg(target_os = "android")]
-            // exit_condition: bevy::window::ExitCondition::DontExit,
-            #[cfg(target_os = "android")]
-            close_when_requested: true,
             ..default()
         })
 }
