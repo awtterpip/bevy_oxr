@@ -28,14 +28,13 @@ bevy.workspace = true
 # all other dependencies are placed under this since on wasm, this crate is completely empty
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 bevy_mod_xr.workspace = true
-openxr.workspace = true
+openxr = { workspace = true }
 thiserror.workspace = true
 wgpu.workspace = true
 wgpu-hal.workspace = true
 ash = { version = "0.38", optional = true }
 
 [target.'cfg(target_family = "unix")'.dependencies]
-openxr = { workspace = true, features = ["mint"] }
 wgpu = { workspace = true, features = ["vulkan-portability"] }
 
 [target.'cfg(target_family = "windows")'.dependencies]
