@@ -1394,6 +1394,7 @@ dependencies = [
  "bevy_mod_openxr",
  "bevy_mod_xr",
  "openxr",
+ "openxr_mndx_xdev_space",
 ]
 
 [[package]]
@@ -3902,6 +3903,15 @@ dependencies = [
  "cmake",
  "libc",
  "mint",
+]
+
+[[package]]
+name = "openxr_mndx_xdev_space"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1589b0afd8fdf8d5d143457d1d3edf763c6f0e79254435351245a39975711f25"
+dependencies = [
+ "openxr",
 ]
 
 [[package]]
