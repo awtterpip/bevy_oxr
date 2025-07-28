@@ -36,7 +36,10 @@ impl Plugin for MonadoXDevSpacesPlugin {
             return;
         }
         app.add_systems(XrSessionCreated, session_created);
-        app.add_systems(PreUpdate, update_xdev_list);
+        app.add_systems(
+            PreUpdate,
+            update_xdev_list.run_if(resource_exists::<PrimaryXDevList>),
+        );
         app.add_systems(
             XrPreDestroySession,
             (despawn_xdev_trackers, |mut cmds: Commands| {
