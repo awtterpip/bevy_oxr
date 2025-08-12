@@ -36,7 +36,10 @@ impl LayerProvider for ProjectionLayer {
 
         Some(Box::new(
             CompositionLayerProjection::new()
-                .layer_flags(CompositionLayerFlags::BLEND_TEXTURE_SOURCE_ALPHA)
+                .layer_flags(
+                    CompositionLayerFlags::BLEND_TEXTURE_SOURCE_ALPHA
+                        | CompositionLayerFlags::UNPREMULTIPLIED_ALPHA,
+                )
                 .space(stage)
                 .views(&[
                     CompositionLayerProjectionView::new()
@@ -171,7 +174,7 @@ impl Default for CompositionLayerProjectionView<'_> {
     }
 }
 /// # Safety
-/// the header function must return a ref to a valid Composition Layer struct. 
+/// the header function must return a ref to a valid Composition Layer struct.
 /// it has to use `repr(C)` and it has to follow the shape of a Composition Layer struct from the
 /// OpenXR specification
 pub unsafe trait CompositionLayer<'a> {
