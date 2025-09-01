@@ -2,11 +2,8 @@
 
 use bevy::prelude::*;
 use bevy_mod_openxr::{
-    add_xr_plugins,
-    features::overlay::{OxrOverlaySessionEvent, OxrOverlaySettings},
-    init::OxrInitPlugin,
-    resources::OxrSessionConfig,
-    types::OxrExtensions,
+    add_xr_plugins, features::overlay::OxrOverlaySessionEvent, init::OxrInitPlugin,
+    resources::OxrSessionConfig, types::OxrExtensions,
 };
 use openxr::EnvironmentBlendMode;
 
@@ -21,10 +18,6 @@ fn main() {
             },
             ..OxrInitPlugin::default()
         }))
-        .insert_resource(OxrOverlaySettings {
-            session_layer_placement: 300,
-            ..Default::default()
-        })
         .insert_resource(OxrSessionConfig {
             blend_mode_preference: {
                 vec![
@@ -89,11 +82,7 @@ fn setup(
     // cube
     commands.spawn((
         Mesh3d(meshes.add(Cuboid::new(1.0, 1.0, 1.0))),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: Color::srgba_u8(124, 144, 255, 127),
-            alpha_mode: AlphaMode::Blend,
-            ..Default::default()
-        })),
+        MeshMaterial3d(materials.add(Color::srgb_u8(124, 144, 255))),
         Transform::from_xyz(0.0, 2.5, 0.0),
     ));
     // light
