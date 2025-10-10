@@ -34,7 +34,7 @@ impl XrVelocity {
     }
 }
 
-#[derive(Event, Clone, Copy, Deref, DerefMut)]
+#[derive(Message, Clone, Copy, Deref, DerefMut)]
 pub struct XrDestroySpace(pub XrSpace);
 
 #[repr(transparent)]

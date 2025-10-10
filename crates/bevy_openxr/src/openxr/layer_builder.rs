@@ -171,7 +171,7 @@ impl Default for CompositionLayerProjectionView<'_> {
     }
 }
 /// # Safety
-/// the header function must return a ref to a valid Composition Layer struct. 
+/// the header function must return a ref to a valid Composition Layer struct.
 /// it has to use `repr(C)` and it has to follow the shape of a Composition Layer struct from the
 /// OpenXR specification
 pub unsafe trait CompositionLayer<'a> {

@@ -10,21 +10,22 @@ resolver = "2"
 members = ["crates/*", "crates/bevy_openxr/examples/android"]
 
 [workspace.dependencies]
-bevy = { version = "0.16.0", default-features = false, features = [
-	"bevy_render",
-	"bevy_core_pipeline",
-	"bevy_winit",
-	"bevy_pbr",
-	"bevy_window",
-	"x11",
+bevy = { version = "0.17", default-features = false, features = [
+  "bevy_render",
+  "bevy_core_pipeline",
+  "bevy_winit",
+  "bevy_pbr",
+  "bevy_window",
+  "x11",
+  "zstd_rust",
 ] }
 bevy_mod_xr = { path = "crates/bevy_xr", version = "0.3.0" }
 bevy_mod_openxr = { path = "crates/bevy_openxr", version = "0.3.0" }
 bevy_xr_utils = { path = "crates/bevy_xr_utils", version = "0.3.0" }
 openxr = "0.19.0"
 thiserror = "2.0.3"
-wgpu = "24.0.1"
-wgpu-hal = "24.0.2"
+wgpu = "26.0"
+wgpu-hal = "26.0"
 
 # Enable a small amount of optimization in the dev profile.
 [profile.dev]

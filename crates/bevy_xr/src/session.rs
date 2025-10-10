@@ -3,15 +3,15 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use bevy::app::{AppExit, MainScheduleOrder};
-use bevy::ecs::component::HookContext;
+use bevy::ecs::lifecycle::HookContext;
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::ecs::world::DeferredWorld;
 use bevy::prelude::*;
 use bevy::render::extract_resource::{ExtractResource, ExtractResourcePlugin};
-use bevy::render::{Render, RenderApp, RenderSet};
+use bevy::render::{Render, RenderApp, RenderSystems};
 
 /// Event sent to instruct backends to create an XR session. Only works when the [`XrState`] is [`Available`](XrState::Available).
-#[derive(Event, Clone, Copy, Default)]
+#[derive(Message, Clone, Copy, Default)]
 pub struct XrCreateSessionEvent;
 
 /// A schedule thats ran whenever an [`XrCreateSessionEvent`] is recieved while the [`XrState`] is [`Available`](XrState::Available)
@@ -19,12 +19,12 @@ pub struct XrCreateSessionEvent;
 pub struct XrSessionCreated;
 
 /// Event sent after the XrSession was created.
-#[derive(Event, Clone, Copy, Default)]
+#[derive(Message, Clone, Copy, Default)]
 pub struct XrSessionCreatedEvent;
 
 /// Event sent to instruct backends to destroy an XR session. Only works when the [`XrState`] is [`Exiting`](XrState::Exiting).
 /// If you would like to request that a running session be destroyed, send the [`XrRequestExitEvent`] instead.
-#[derive(Event, Clone, Copy, Default)]
+#[derive(Message, Clone, Copy, Default)]
 pub struct XrDestroySessionEvent;
 
 /// Resource flag thats inserted into the world and extracted to the render world to inform any session resources in the render world to drop.
@@ -36,7 +36,7 @@ pub struct XrDestroySessionRender(pub Arc<AtomicBool>);
 pub struct XrPreDestroySession;
 
 /// Event sent to instruct backends to begin an XR session. Only works when the [`XrState`] is [`Ready`](XrState::Ready).
-#[derive(Event, Clone, Copy, Default)]
+#[derive(Message, Clone, Copy, Default)]
 pub struct XrBeginSessionEvent;
 
 /// Schedule thats ran when the XrSession has begun.
@@ -44,7 +44,7 @@ pub struct XrBeginSessionEvent;
 pub struct XrPostSessionBegin;
 
 /// Event sent to backends to end an XR session. Only works when the [`XrState`] is [`Stopping`](XrState::Stopping).
-#[derive(Event, Clone, Copy, Default)]
+#[derive(Message, Clone, Copy, Default)]
 pub struct XrEndSessionEvent;
 
 /// Schedule thats ran whenever the XrSession is about to end
@@ -52,11 +52,11 @@ pub struct XrEndSessionEvent;
 pub struct XrPreSessionEnd;
 
 /// Event that is emitted when the XrSession is fully destroyed
-#[derive(Clone, Copy, Default, PartialEq, Eq, Debug, Hash, Event)]
+#[derive(Clone, Copy, Default, PartialEq, Eq, Debug, Hash, Message)]
 pub struct XrSessionDestroyedEvent;
 
 /// Event sent to backends to request the [`XrState`] proceed to [`Exiting`](XrState::Exiting) and for the session to be exited. Can be called at any time a session exists.
-#[derive(Event, Clone, Copy, Default)]
+#[derive(Message, Clone, Copy, Default)]
 pub struct XrRequestExitEvent;
 
 /// Schedule ran before [`First`] to handle XR events.
@@ -122,15 +122,15 @@ impl Plugin for XrSessionPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<XrDestroySessionRender>();
         let mut xr_first = Schedule::new(XrFirst);
-        xr_first.set_executor_kind(bevy::ecs::schedule::ExecutorKind::Simple);
-        app.add_event::<XrCreateSessionEvent>()
-            .add_event::<XrDestroySessionEvent>()
-            .add_event::<XrBeginSessionEvent>()
-            .add_event::<XrEndSessionEvent>()
-            .add_event::<XrRequestExitEvent>()
-            .add_event::<XrStateChanged>()
-            .add_event::<XrSessionCreatedEvent>()
-            .add_event::<XrSessionDestroyedEvent>()
+        xr_first.set_executor_kind(bevy::ecs::schedule::ExecutorKind::SingleThreaded);
+        app.add_message::<XrCreateSessionEvent>()
+            .add_message::<XrDestroySessionEvent>()
+            .add_message::<XrBeginSessionEvent>()
+            .add_message::<XrEndSessionEvent>()
+            .add_message::<XrRequestExitEvent>()
+            .add_message::<XrStateChanged>()
+            .add_message::<XrSessionCreatedEvent>()
+            .add_message::<XrSessionDestroyedEvent>()
             .init_schedule(XrSessionCreated)
             .init_schedule(XrPreDestroySession)
             .init_schedule(XrPostSessionBegin)
@@ -150,7 +150,7 @@ impl Plugin for XrSessionPlugin {
             .add_systems(
                 XrFirst,
                 exits_session_on_app_exit
-                    .run_if(on_event::<AppExit>)
+                    .run_if(on_message::<AppExit>)
                     .run_if(session_created)
                     .in_set(XrHandleEvents::ExitEvents),
             );
@@ -178,13 +178,13 @@ impl Plugin for XrSessionPlugin {
         .init_resource::<XrRootTransform>()
         .add_systems(
             PostUpdate,
-            update_root_transform.after(TransformSystem::TransformPropagate),
+            update_root_transform.after(TransformSystems::Propagate),
         )
         .add_systems(
             XrFirst,
             exits_session_on_app_exit
                 .before(XrHandleEvents::ExitEvents)
-                .run_if(on_event::<AppExit>.and(session_running)),
+                .run_if(on_message::<AppExit>.and(session_running)),
         );
 
         let render_app = app.sub_app_mut(RenderApp);
@@ -198,29 +198,29 @@ impl Plugin for XrSessionPlugin {
             )
             .configure_sets(
                 Render,
-                XrRenderSet::HandleEvents.after(RenderSet::ExtractCommands),
+                XrRenderSet::HandleEvents.after(RenderSystems::ExtractCommands),
             )
             .configure_sets(
                 Render,
                 XrRenderSet::PreRender
-                    .before(RenderSet::ManageViews)
-                    .before(RenderSet::PrepareAssets),
+                    .before(RenderSystems::ManageViews)
+                    .before(RenderSystems::PrepareAssets),
             )
             .configure_sets(
                 Render,
                 XrRenderSet::PostRender
-                    .after(RenderSet::Render)
-                    .before(RenderSet::Cleanup),
+                    .after(RenderSystems::Render)
+                    .before(RenderSystems::Cleanup),
             );
     }
 }
 
-fn exits_session_on_app_exit(mut request_exit: EventWriter<XrRequestExitEvent>) {
+fn exits_session_on_app_exit(mut request_exit: MessageWriter<XrRequestExitEvent>) {
     request_exit.write_default();
 }
 
 /// Event sent by backends whenever [`XrState`] is changed.
-#[derive(Event, Clone, Copy, Deref)]
+#[derive(Message, Clone, Copy, Deref)]
 pub struct XrStateChanged(pub XrState);
 
 /// A resource in the main world and render world representing the current session state.
@@ -247,11 +247,11 @@ pub enum XrState {
 }
 
 pub fn auto_handle_session(
-    mut state_changed: EventReader<XrStateChanged>,
-    mut create_session: EventWriter<XrCreateSessionEvent>,
-    mut begin_session: EventWriter<XrBeginSessionEvent>,
-    mut end_session: EventWriter<XrEndSessionEvent>,
-    mut destroy_session: EventWriter<XrDestroySessionEvent>,
+    mut state_changed: MessageReader<XrStateChanged>,
+    mut create_session: MessageWriter<XrCreateSessionEvent>,
+    mut begin_session: MessageWriter<XrBeginSessionEvent>,
+    mut end_session: MessageWriter<XrEndSessionEvent>,
+    mut destroy_session: MessageWriter<XrDestroySessionEvent>,
     mut no_auto_restart: Local<bool>,
 ) {
     for XrStateChanged(state) in state_changed.read() {
@@ -290,8 +290,8 @@ pub fn update_root_transform(
 /// A [`Condition`](bevy::ecs::schedule::Condition) that allows the system to run when the xr status changed to a specific [`XrStatus`].
 pub fn status_changed_to(
     status: XrState,
-) -> impl FnMut(EventReader<XrStateChanged>) -> bool + Clone {
-    move |mut reader: EventReader<XrStateChanged>| {
+) -> impl FnMut(MessageReader<XrStateChanged>) -> bool + Clone {
+    move |mut reader: MessageReader<XrStateChanged>| {
         reader.read().any(|new_status| new_status.0 == status)
     }
 }
@@ -332,5 +332,4 @@ macro_rules! state_matches {
     };
 }
 
-use bevy::transform::TransformSystem;
 pub use state_matches;

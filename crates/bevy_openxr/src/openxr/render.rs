@@ -1,13 +1,14 @@
 use bevy::{
+    camera::{visibility::NoFrustumCulling, ManualTextureViewHandle, RenderTarget},
     prelude::*,
     render::{
-        camera::{ManualTextureView, ManualTextureViewHandle, ManualTextureViews, RenderTarget},
         extract_resource::ExtractResourcePlugin,
         pipelined_rendering::PipelinedRenderingPlugin,
-        view::{ExtractedView, NoFrustumCulling},
+        texture::{ManualTextureView, ManualTextureViews},
+        view::ExtractedView,
         Render, RenderApp,
     },
-    transform::TransformSystem,
+    transform::TransformSystems,
 };
 use bevy_mod_xr::{
     camera::{calculate_projection, Fov, XrCamera, XrProjection, XrViewInit},
@@ -88,7 +89,7 @@ impl Plugin for OxrRenderPlugin {
         .add_systems(
             PostUpdate,
             (locate_views, update_views)
-                .before(TransformSystem::TransformPropagate)
+                .before(TransformSystems::Propagate)
                 .chain()
                 // .run_if(should_render)
                 .run_if(should_run_frame_loop),

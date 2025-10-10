@@ -6,7 +6,7 @@ pub struct OxrActionSetSyncSet;
 
 impl Plugin for OxrActionSyncingPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<OxrSyncActionSet>();
+        app.add_message::<OxrSyncActionSet>();
         app.add_systems(
             PreUpdate,
             sync_sets
@@ -16,7 +16,7 @@ impl Plugin for OxrActionSyncingPlugin {
     }
 }
 
-fn sync_sets(session: Res<OxrSession>, mut events: EventReader<OxrSyncActionSet>) {
+fn sync_sets(session: Res<OxrSession>, mut events: MessageReader<OxrSyncActionSet>) {
     let sets = events
         .read()
         .map(|v| &v.0)
@@ -31,7 +31,7 @@ fn sync_sets(session: Res<OxrSession>, mut events: EventReader<OxrSyncActionSet>
     }
 }
 
-#[derive(Event, Clone)]
+#[derive(Message, Clone)]
 /// Send this event for every ActionSet you want to attach to the [`OxrSession`] once the Session Status changed to Ready. all requests will
 pub struct OxrSyncActionSet(pub openxr::ActionSet);
 

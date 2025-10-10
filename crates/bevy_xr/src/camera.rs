@@ -1,13 +1,13 @@
 use core::panic;
 
 use bevy::app::{App, Plugin};
-use bevy::core_pipeline::core_3d::Camera3d;
+use bevy::camera::Camera3d;
+use bevy::camera::CameraProjection;
 use bevy::ecs::component::Component;
 use bevy::math::{Mat4, Vec3A, Vec4};
 use bevy::prelude::SystemSet;
 use bevy::reflect::std_traits::ReflectDefault;
 use bevy::reflect::Reflect;
-use bevy::render::camera::CameraProjection;
 use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
 
 use crate::session::XrTracker;
@@ -83,7 +83,7 @@ impl CameraProjection for XrProjection {
         self.projection_matrix
     }
 
-    fn get_clip_from_view_for_sub(&self, _sub_view: &bevy::render::camera::SubCameraView) -> Mat4 {
+    fn get_clip_from_view_for_sub(&self, _sub_view: &bevy::camera::SubCameraView) -> Mat4 {
         panic!("sub view not supported for xr camera");
     }
 }
@@ -195,8 +195,8 @@ mod tests {
     use std::f32::{self, consts::PI};
 
     use bevy::{
+        camera::{CameraProjection, PerspectiveProjection},
         math::{Mat4, Vec3A},
-        render::camera::{CameraProjection, PerspectiveProjection},
         utils::default,
     };
 

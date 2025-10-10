@@ -4,17 +4,17 @@ use bevy_mod_xr::session::XrSessionCreatedEvent;
 
 impl Plugin for OxrActionAttachingPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<OxrAttachActionSet>();
+        app.add_message::<OxrAttachActionSet>();
         app.add_systems(
             PostUpdate,
             attach_sets
-                .run_if(on_event::<XrSessionCreatedEvent>)
+                .run_if(on_message::<XrSessionCreatedEvent>)
                 .after(run_action_binding_sugestion),
         );
     }
 }
 
-fn attach_sets(session: Res<OxrSession>, mut events: EventReader<OxrAttachActionSet>) {
+fn attach_sets(session: Res<OxrSession>, mut events: MessageReader<OxrAttachActionSet>) {
     let sets = events.read().map(|v| &v.0).collect::<Vec<_>>();
     if sets.is_empty() {
         return;
@@ -36,7 +36,7 @@ fn attach_sets(session: Res<OxrSession>, mut events: EventReader<OxrAttachAction
     };
 }
 
-#[derive(Event, Clone)]
+#[derive(Message, Clone)]
 /// Send this event for every ActionSet you want to attach to the [`OxrSession`] once the Session Status changed to Ready. all requests will
 /// be applied in [`PostUpdate`]
 pub struct OxrAttachActionSet(pub openxr::ActionSet);

@@ -9,24 +9,24 @@ pub struct TransformUtilitiesPlugin;
 
 impl Plugin for TransformUtilitiesPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<SnapToRotation>();
-        app.add_event::<SnapToPosition>();
+        app.add_message::<SnapToRotation>();
+        app.add_message::<SnapToPosition>();
         app.add_systems(PostUpdate, handle_transform_events);
     }
 }
 
 //events
-#[derive(Event, Debug)]
+#[derive(Message, Debug)]
 pub struct SnapToRotation(pub Quat);
 
-#[derive(Event, Debug)]
+#[derive(Message, Debug)]
 pub struct SnapToPosition(pub Vec3);
 
 pub fn handle_transform_events(
     mut root_query: Query<&mut Transform, With<XrTrackingRoot>>,
     views: ResMut<OxrViews>,
-    mut position_reader: EventReader<SnapToPosition>,
-    mut rotation_reader: EventReader<SnapToRotation>,
+    mut position_reader: MessageReader<SnapToPosition>,
+    mut rotation_reader: MessageReader<SnapToRotation>,
 ) {
     let result = root_query.single_mut();
     match result {

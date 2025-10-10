@@ -35,7 +35,7 @@ fn main() -> AppExit {
     app.run()
 }
 
-fn attach_set(actions: Res<ControllerActions>, mut attach: EventWriter<OxrAttachActionSet>) {
+fn attach_set(actions: Res<ControllerActions>, mut attach: MessageWriter<OxrAttachActionSet>) {
     attach.write(OxrAttachActionSet(actions.set.clone()));
 }
 
@@ -45,7 +45,7 @@ struct ControllerActions {
     left: openxr::Action<Posef>,
     right: openxr::Action<Posef>,
 }
-fn sync_actions(actions: Res<ControllerActions>, mut sync: EventWriter<OxrSyncActionSet>) {
+fn sync_actions(actions: Res<ControllerActions>, mut sync: MessageWriter<OxrSyncActionSet>) {
     sync.write(OxrSyncActionSet(actions.set.clone()));
 }
 /// set up a simple 3D scene
@@ -81,7 +81,7 @@ fn setup(
 }
 fn suggest_action_bindings(
     actions: Res<ControllerActions>,
-    mut bindings: EventWriter<OxrSuggestActionBinding>,
+    mut bindings: MessageWriter<OxrSuggestActionBinding>,
 ) {
     bindings.write(OxrSuggestActionBinding {
         action: actions.left.as_raw(),

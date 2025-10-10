@@ -34,18 +34,23 @@ unsafe impl GraphicsExt for openxr::D3D12 {
         format: wgpu::TextureFormat,
         resolution: bevy::prelude::UVec2,
     ) -> Result<wgpu::Texture> {
-        let wgpu_hal_texture = <wgpu_hal::dx12::Api as wgpu_hal::Api>::Device::texture_from_raw(
-            d3d12::ComPtr::from_raw(image as *mut _),
-            format,
-            wgpu::TextureDimension::D2,
-            wgpu::Extent3d {
-                width: resolution.x,
-                height: resolution.y,
-                depth_or_array_layers: 2,
-            },
-            1,
-            1,
-        );
+        let wgpu_hal_texture = unsafe {
+            let Some(device) = device.as_hal::<wgpu_hal::dx12::Api>() else {
+                return Err(OxrError::WgpuDeviceError(wgpu_hal::DeviceError::Unexpected));
+            };
+            device.texture_from_raw(
+                d3d12::ComPtr::from_raw(image as *mut _),
+                format,
+                wgpu::TextureDimension::D2,
+                wgpu::Extent3d {
+                    width: resolution.x,
+                    height: resolution.y,
+                    depth_or_array_layers: 2,
+                },
+                1,
+                1,
+            )
+        };
         let texture = device.create_texture_from_hal::<wgpu_hal::dx12::Api>(
             wgpu_hal_texture,
             &wgpu::TextureDescriptor {
@@ -390,4 +395,3 @@ fn wgpu_to_d3d12(format: wgpu::TextureFormat) -> Option<DXGI_FORMAT> {
         } => return None,
     })
 }
-

@@ -150,7 +150,7 @@ fn create_action_entities(mut commands: Commands) {
 
 fn send_look_at_red_cube_event(
     mut action_query: Query<&XRUtilsActionState, With<FaceRedAction>>,
-    mut event_writer: EventWriter<SnapToRotation>,
+    mut event_writer: MessageWriter<SnapToRotation>,
 ) {
     //now for the actual checking
     for state in action_query.iter_mut() {
@@ -175,7 +175,7 @@ pub struct Center;
 
 fn send_recenter(
     mut action_query: Query<&XRUtilsActionState, With<Center>>,
-    mut event_writer: EventWriter<SnapToPosition>,
+    mut event_writer: MessageWriter<SnapToPosition>,
 ) {
     //now for the actual checking
     for state in action_query.iter_mut() {

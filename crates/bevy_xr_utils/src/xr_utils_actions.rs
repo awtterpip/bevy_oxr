@@ -116,8 +116,8 @@ fn create_openxr_events(
     actions_query: Query<(&XRUtilsAction, &Children)>,
     bindings_query: Query<&XRUtilsBinding>,
     instance: ResMut<OxrInstance>,
-    mut binding_writer: EventWriter<OxrSuggestActionBinding>,
-    mut attach_writer: EventWriter<OxrAttachActionSet>,
+    mut binding_writer: MessageWriter<OxrSuggestActionBinding>,
+    mut attach_writer: MessageWriter<OxrAttachActionSet>,
     mut commands: Commands,
 ) {
     //lets create some sets!
@@ -260,7 +260,7 @@ fn create_openxr_events(
 }
 
 fn sync_active_action_sets(
-    mut sync_set: EventWriter<OxrSyncActionSet>,
+    mut sync_set: MessageWriter<OxrSyncActionSet>,
     active_action_set_query: Query<&XRUtilsActionSetReference, With<ActiveSet>>,
 ) {
     for set in &active_action_set_query {

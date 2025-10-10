@@ -110,7 +110,7 @@ impl Plugin for OxrInitPlugin {
                         (
                             create_xr_session
                                 .run_if(state_equals(XrState::Available))
-                                .run_if(on_event::<XrCreateSessionEvent>),
+                                .run_if(on_message::<XrCreateSessionEvent>),
                             (
                                 destroy_xr_session,
                                 (|v: Res<XrDestroySessionRender>| {
@@ -120,16 +120,16 @@ impl Plugin for OxrInitPlugin {
                             )
                                 .chain()
                                 .run_if(state_matches!(XrState::Exiting { .. }))
-                                .run_if(on_event::<XrDestroySessionEvent>),
+                                .run_if(on_message::<XrDestroySessionEvent>),
                             begin_xr_session
                                 .run_if(state_equals(XrState::Ready))
-                                .run_if(on_event::<XrBeginSessionEvent>),
+                                .run_if(on_message::<XrBeginSessionEvent>),
                             end_xr_session
                                 .run_if(state_equals(XrState::Stopping))
-                                .run_if(on_event::<XrEndSessionEvent>),
+                                .run_if(on_message::<XrEndSessionEvent>),
                             request_exit_xr_session
                                 .run_if(session_created)
-                                .run_if(on_event::<XrRequestExitEvent>),
+                                .run_if(on_message::<XrRequestExitEvent>),
                             detect_session_destroyed,
                         )
                             .in_set(XrHandleEvents::SessionStateUpdateEvents),
@@ -146,8 +146,8 @@ impl Plugin for OxrInitPlugin {
                     .init_non_send_resource::<OxrSessionCreateNextChain>();
 
                 app.world_mut()
-                    .resource_mut::<Events<XrStateChanged>>()
-                    .send(XrStateChanged(XrState::Available));
+                    .resource_mut::<Messages<XrStateChanged>>()
+                    .write(XrStateChanged(XrState::Available));
 
                 let render_app = app.sub_app_mut(RenderApp);
 
@@ -213,7 +213,7 @@ impl Plugin for OxrInitPlugin {
 fn detect_session_destroyed(
     mut last_state: Local<bool>,
     state: Res<XrDestroySessionRender>,
-    mut sender: EventWriter<XrSessionDestroyedEvent>,
+    mut sender: MessageWriter<XrSessionDestroyedEvent>,
     mut cmds: Commands,
 ) {
     let state = state.0.load(Ordering::Relaxed);
@@ -307,7 +307,7 @@ impl OxrInitPlugin {
 pub fn handle_events(
     event: OxrEventIn,
     mut status: ResMut<XrState>,
-    mut changed_event: EventWriter<XrStateChanged>,
+    mut changed_event: MessageWriter<XrStateChanged>,
 ) {
     use openxr::Event::*;
     match *event {
@@ -511,7 +511,7 @@ pub fn create_xr_session(world: &mut World) {
     }
     world.insert_non_send_resource(chain);
     world.run_schedule(XrSessionCreated);
-    world.send_event(XrSessionCreatedEvent);
+    world.write_message(XrSessionCreatedEvent);
 }
 
 pub fn destroy_xr_session(world: &mut World) {
@@ -525,9 +525,7 @@ pub fn destroy_xr_session(world: &mut World) {
     world.insert_resource(XrState::Available);
 }
 
-pub fn begin_xr_session(
-    world: &mut World,
-) {
+pub fn begin_xr_session(world: &mut World) {
     let _span = debug_span!("xr_begin_session").entered();
     world
         .get_resource::<OxrSession>()
@@ -539,9 +537,7 @@ pub fn begin_xr_session(
     world.run_schedule(XrPostSessionBegin);
 }
 
-pub fn end_xr_session(
-    world: &mut World,
-) {
+pub fn end_xr_session(world: &mut World) {
     world.run_schedule(XrPreSessionEnd);
     let _span = debug_span!("xr_end_session").entered();
     world

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::render::Render;
 use bevy::render::RenderApp;
-use bevy::render::RenderSet;
+use bevy::render::RenderSystems;
 use openxr::sys::SystemPassthroughProperties2FB;
 use openxr::PassthroughCapabilityFlagsFB;
 
@@ -34,7 +34,7 @@ impl Plugin for OxrFbPassthroughPlugin {
                 app.sub_app_mut(RenderApp).add_systems(
                     Render,
                     insert_passthrough
-                        .in_set(RenderSet::PrepareAssets)
+                        .in_set(RenderSystems::PrepareAssets)
                         .run_if(resource_added::<OxrSession>),
                 );
             } else {

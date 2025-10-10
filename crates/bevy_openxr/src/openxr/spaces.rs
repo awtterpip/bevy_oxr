@@ -4,7 +4,8 @@ use bevy::{platform::collections::hash_set::HashSet, prelude::*};
 use bevy_mod_xr::{
     session::{XrFirst, XrHandleEvents},
     spaces::{
-        XrDestroySpace, XrPrimaryReferenceSpace, XrReferenceSpace, XrSpace, XrSpaceLocationFlags, XrSpaceSyncSet, XrSpaceVelocityFlags, XrVelocity
+        XrDestroySpace, XrPrimaryReferenceSpace, XrReferenceSpace, XrSpace, XrSpaceLocationFlags,
+        XrSpaceSyncSet, XrSpaceVelocityFlags, XrVelocity,
     },
 };
 use openxr::{
@@ -33,7 +34,7 @@ impl Plugin for OxrSpacePatchingPlugin {
 pub struct OxrSpatialPlugin;
 impl Plugin for OxrSpatialPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<XrDestroySpace>()
+        app.add_message::<XrDestroySpace>()
             .add_systems(
                 XrFirst,
                 destroy_space_event
@@ -51,7 +52,7 @@ impl Plugin for OxrSpatialPlugin {
     }
 }
 
-fn destroy_space_event(instance: Res<OxrInstance>, mut events: EventReader<XrDestroySpace>) {
+fn destroy_space_event(instance: Res<OxrInstance>, mut events: MessageReader<XrDestroySpace>) {
     for space in events.read() {
         match instance.destroy_space(space.0) {
             Ok(_) => (),

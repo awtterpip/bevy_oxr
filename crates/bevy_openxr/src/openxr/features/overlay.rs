@@ -15,7 +15,7 @@ pub struct OxrOverlayPlugin;
 
 impl Plugin for OxrOverlayPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
-        app.add_event::<OxrOverlaySessionEvent>();
+        app.add_message::<OxrOverlaySessionEvent>();
         app.init_resource::<OxrOverlaySettings>();
         app.add_systems(
             First,
@@ -25,7 +25,7 @@ impl Plugin for OxrOverlayPlugin {
     }
 }
 
-fn handle_overlay_event(event: OxrEventIn, mut writer: EventWriter<OxrOverlaySessionEvent>) {
+fn handle_overlay_event(event: OxrEventIn, mut writer: MessageWriter<OxrOverlaySessionEvent>) {
     if let Event::MainSessionVisibilityChangedEXTX(event) = *event {
         writer.write(OxrOverlaySessionEvent::MainSessionVisibilityChanged {
             visible: event.visible(),
@@ -62,7 +62,7 @@ fn add_overlay_info_to_chain(
     }
 }
 
-#[derive(Event, Clone, Copy, Debug)]
+#[derive(Message, Clone, Copy, Debug)]
 pub enum OxrOverlaySessionEvent {
     MainSessionVisibilityChanged {
         visible: bool,

@@ -227,7 +227,7 @@ fn spawn_tracking_rig(
 //TODO figure out how to make these better, specifically not be controller specific
 pub fn suggest_action_bindings(
     actions: Res<ControllerActions>,
-    mut bindings: EventWriter<OxrSuggestActionBinding>,
+    mut bindings: MessageWriter<OxrSuggestActionBinding>,
 ) {
     bindings.write(OxrSuggestActionBinding {
         action: actions.left.as_raw(),
@@ -241,11 +241,11 @@ pub fn suggest_action_bindings(
     });
 }
 
-fn sync_actions(actions: Res<ControllerActions>, mut sync: EventWriter<OxrSyncActionSet>) {
+fn sync_actions(actions: Res<ControllerActions>, mut sync: MessageWriter<OxrSyncActionSet>) {
     sync.write(OxrSyncActionSet(actions.set.clone()));
 }
 
-fn attach_set(actions: Res<ControllerActions>, mut attach: EventWriter<OxrAttachActionSet>) {
+fn attach_set(actions: Res<ControllerActions>, mut attach: MessageWriter<OxrAttachActionSet>) {
     attach.write(OxrAttachActionSet(actions.set.clone()));
 }
 
