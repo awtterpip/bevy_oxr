@@ -1,6 +1,6 @@
 //! A simple 3D scene with light shining over a cube sitting on a plane.
 
-use bevy::prelude::*;
+use bevy::{prelude::*, render::view::NoIndirectDrawing};
 use bevy_mod_openxr::{add_xr_plugins, init::OxrInitPlugin, types::OxrExtensions};
 
 #[bevy_main]
@@ -18,7 +18,7 @@ fn main() {
         .add_plugins(bevy_mod_xr::hand_debug_gizmos::HandGizmosPlugin)
         .add_plugins(bevy_mod_openxr::features::fb_passthrough::OxrFbPassthroughPlugin)
         .add_systems(Startup, setup)
-        .add_systems(Update, modify_msaa)
+        .add_systems(Update, modify_camera)
         .insert_resource(AmbientLight {
             color: Default::default(),
             brightness: 500.0,
@@ -29,11 +29,18 @@ fn main() {
 }
 
 #[derive(Component)]
-struct MsaaModified;
+struct CamModified;
 
-fn modify_msaa(cams: Query<Entity, (With<Camera>, Without<MsaaModified>)>, mut commands: Commands) {
+fn modify_camera(
+    cams: Query<Entity, (With<Camera>, Without<CamModified>)>,
+    mut commands: Commands,
+) {
     for cam in &cams {
-        commands.entity(cam).insert(Msaa::Off).insert(MsaaModified);
+        commands
+            .entity(cam)
+            .insert(Msaa::Off)
+            .insert(NoIndirectDrawing)
+            .insert(CamModified);
     }
 }
 
