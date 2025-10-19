@@ -11,7 +11,7 @@ keywords = ["gamedev", "bevy", "Xr", "Vr", "OpenXR"]
 default = ["vulkan"]
 vulkan = ["dep:ash", "dep:android_system_properties"]
 d3d12 = ["wgpu/dx12", "wgpu-hal/dx12", "dep:winapi"]
-passthrough = []
+fb_passthrough = []
 reflect = ["dep:bevy_reflect"]
 window_support = ["dep:bevy_winit", "dep:bevy_window"]
 

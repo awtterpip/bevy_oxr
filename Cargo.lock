@@ -1066,6 +1066,7 @@ dependencies = [
 name = "bevy_openxr_android"
 version = "0.3.0"
 dependencies = [
+ "bevy",
  "bevy_mod_openxr",
  "bevy_mod_xr",
  "bevy_xr_utils",

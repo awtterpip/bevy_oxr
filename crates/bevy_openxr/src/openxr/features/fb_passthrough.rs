@@ -1,3 +1,9 @@
+use bevy_app::App;
+use bevy_app::Plugin;
+use bevy_ecs::schedule::IntoScheduleConfigs as _;
+use bevy_ecs::schedule::common_conditions::resource_added;
+use bevy_ecs::system::Res;
+use bevy_ecs::world::World;
 use bevy_log::error;
 use bevy_log::info;
 use bevy_render::Render;
@@ -35,7 +41,7 @@ impl Plugin for OxrFbPassthroughPlugin {
                 app.sub_app_mut(RenderApp).add_systems(
                     Render,
                     insert_passthrough
-                        .in_set(RenderSet::PrepareAssets)
+                        .in_set(RenderSystems::PrepareAssets)
                         .run_if(resource_added::<OxrSession>),
                 );
             } else {
