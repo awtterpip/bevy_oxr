@@ -1,15 +1,15 @@
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 use bevy_app::App;
 use bevy_app::Plugin;
 use bevy_ecs::message::MessageWriter;
 use bevy_ecs::message::Messages;
 use bevy_ecs::resource::Resource;
+use bevy_ecs::schedule::IntoScheduleConfigs as _;
 use bevy_ecs::schedule::SystemCondition as _;
 use bevy_ecs::schedule::common_conditions::on_message;
 use bevy_ecs::schedule::common_conditions::resource_exists;
-use bevy_ecs::schedule::IntoScheduleConfigs as _;
 use bevy_ecs::system::Commands;
 use bevy_ecs::system::Local;
 use bevy_ecs::system::Res;
@@ -22,6 +22,12 @@ use bevy_log::info;
 use bevy_log::warn;
 use bevy_math::UVec2;
 use bevy_mod_xr::session::*;
+use bevy_render::ExtractSchedule;
+use bevy_render::MainWorld;
+use bevy_render::Render;
+use bevy_render::RenderApp;
+use bevy_render::RenderDebugFlags;
+use bevy_render::RenderPlugin;
 use bevy_render::extract_resource::ExtractResourcePlugin;
 use bevy_render::renderer::RenderAdapter;
 use bevy_render::renderer::RenderAdapterInfo;
@@ -30,12 +36,6 @@ use bevy_render::renderer::RenderInstance;
 use bevy_render::renderer::RenderQueue;
 use bevy_render::renderer::WgpuWrapper;
 use bevy_render::settings::RenderCreation;
-use bevy_render::ExtractSchedule;
-use bevy_render::MainWorld;
-use bevy_render::Render;
-use bevy_render::RenderApp;
-use bevy_render::RenderDebugFlags;
-use bevy_render::RenderPlugin;
 #[cfg(feature = "window_support")]
 use bevy_winit::UpdateMode;
 #[cfg(feature = "window_support")]
@@ -185,8 +185,8 @@ impl Plugin for OxrInitPlugin {
             }
             Err(e) => {
                 error!("Failed to initialize openxr: {e}");
-                if let Some(cfg) = cfg {
-                    if let Ok(WgpuGraphics(device, queue, adapter_info, adapter, wgpu_instance)) =
+                if let Some(cfg) = cfg
+                    && let Ok(WgpuGraphics(device, queue, adapter_info, adapter, wgpu_instance)) =
                         graphics_match!(
                             cfg.fallback_backend;
                             _ => Api::init_fallback_graphics(&self.app_info ,&cfg)
@@ -194,21 +194,20 @@ impl Plugin for OxrInitPlugin {
                         .inspect_err(|err| {
                             error!("Failed to initialize custom fallback graphics: {err}")
                         })
-                    {
-                        app.add_plugins(RenderPlugin {
-                            render_creation: RenderCreation::manual(
-                                device.into(),
-                                RenderQueue(Arc::new(WgpuWrapper::new(queue))),
-                                RenderAdapterInfo(WgpuWrapper::new(adapter_info)),
-                                RenderAdapter(Arc::new(WgpuWrapper::new(adapter))),
-                                RenderInstance(Arc::new(WgpuWrapper::new(wgpu_instance))),
-                            ),
-                            synchronous_pipeline_compilation: self.synchronous_pipeline_compilation,
-                            debug_flags: self.render_debug_flags,
-                        })
-                        .insert_resource(XrState::Unavailable);
-                        return;
-                    }
+                {
+                    app.add_plugins(RenderPlugin {
+                        render_creation: RenderCreation::manual(
+                            device.into(),
+                            RenderQueue(Arc::new(WgpuWrapper::new(queue))),
+                            RenderAdapterInfo(WgpuWrapper::new(adapter_info)),
+                            RenderAdapter(Arc::new(WgpuWrapper::new(adapter))),
+                            RenderInstance(Arc::new(WgpuWrapper::new(wgpu_instance))),
+                        ),
+                        synchronous_pipeline_compilation: self.synchronous_pipeline_compilation,
+                        debug_flags: self.render_debug_flags,
+                    })
+                    .insert_resource(XrState::Unavailable);
+                    return;
                 }
                 app.add_plugins(RenderPlugin::default())
                     .insert_resource(XrState::Unavailable);

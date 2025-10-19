@@ -1,8 +1,8 @@
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::resource::Resource;
+use bevy_log::error;
 use bevy_math::UVec2;
 use bevy_render::extract_resource::ExtractResource;
-use bevy_log::error;
 
 use crate::error::OxrError;
 use crate::graphics::*;
@@ -144,7 +144,7 @@ impl OxrInstance {
         graphics_match!(
             info.0;
             info => {
-                let (session, frame_waiter, frame_stream) = Api::create_session(self,system_id, &info,chain)?;
+                let (session, frame_waiter, frame_stream) = unsafe { Api::create_session(self,system_id, &info,chain)? };
                 Ok((session.into(), OxrFrameWaiter(frame_waiter), OxrFrameStream(Api::wrap(frame_stream))))
             }
         )
@@ -192,15 +192,14 @@ impl OxrFrameStream {
                 let mut new_layers = vec![];
 
                 for (i, layer) in layers.iter().enumerate() {
-                    if let Some(swapchain) = layer.swapchain() {
-                        if !swapchain.0.using_graphics::<Api>() {
-                            error!(
-                                "Composition layer {i} is using graphics api '{}', expected graphics api '{}'. Excluding layer from frame submission.",
-                                swapchain.0.graphics_name(),
-                                std::any::type_name::<Api>(),
-                            );
-                            continue;
-                        }
+                    if let Some(swapchain) = layer.swapchain()
+                        && !swapchain.0.using_graphics::<Api>() {
+                        error!(
+                            "Composition layer {i} is using graphics api '{}', expected graphics api '{}'. Excluding layer from frame submission.",
+                            swapchain.0.graphics_name(),
+                            std::any::type_name::<Api>(),
+                        );
+                        continue;
                     }
                     new_layers.push(unsafe {
                         #[allow(clippy::missing_transmute_annotations)]

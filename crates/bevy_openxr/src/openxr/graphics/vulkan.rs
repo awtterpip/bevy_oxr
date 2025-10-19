@@ -207,16 +207,16 @@ unsafe impl GraphicsExt for openxr::Vulkan {
             system_id,
         };
         let mut out = sys::Session::NULL;
-        cvt((instance.fp().create_session)(
+        cvt(unsafe { (instance.fp().create_session)(
             instance.as_raw(),
             &info,
             &mut out,
-        ))?;
-        Ok(openxr::Session::from_raw(
+        ) })?;
+        Ok(unsafe { openxr::Session::from_raw(
             instance.clone(),
             out,
             Box::new(()),
-        ))
+        ) })
     }
 
     fn init_fallback_graphics(
