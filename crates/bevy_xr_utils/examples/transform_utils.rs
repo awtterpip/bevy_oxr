@@ -3,9 +3,8 @@
 use bevy::prelude::*;
 use bevy_mod_openxr::add_xr_plugins;
 use bevy_xr_utils::transform_utils::{self, SnapToPosition, SnapToRotation};
-use bevy_xr_utils::xr_utils_actions::{
-    ActiveSet, XRUtilsAction, XRUtilsActionSet, XRUtilsActionState, XRUtilsActionSystems,
-    XRUtilsActionsPlugin, XRUtilsBinding,
+use bevy_xr_utils::actions::{
+    ActionType, ActiveSet, XRUtilsAction, XRUtilsActionSet, XRUtilsActionState, XRUtilsActionSystems, XRUtilsActionsPlugin, XRUtilsBinding
 };
 
 fn main() -> AppExit {
@@ -104,7 +103,7 @@ fn create_action_entities(mut commands: Commands) {
             XRUtilsAction {
                 action_name: "face_red".into(),
                 localized_name: "face_red_localized".into(),
-                action_type: bevy_mod_xr::actions::ActionType::Bool,
+                action_type: ActionType::Bool,
             },
             FaceRedAction, //lets try a marker component
         ))
@@ -128,7 +127,7 @@ fn create_action_entities(mut commands: Commands) {
             XRUtilsAction {
                 action_name: "center".into(),
                 localized_name: "center_localized".into(),
-                action_type: bevy_mod_xr::actions::ActionType::Bool,
+                action_type: ActionType::Bool,
             },
             Center, //lets try a marker component
         ))
@@ -150,7 +149,7 @@ fn create_action_entities(mut commands: Commands) {
 
 fn send_look_at_red_cube_event(
     mut action_query: Query<&XRUtilsActionState, With<FaceRedAction>>,
-    mut event_writer: EventWriter<SnapToRotation>,
+    mut event_writer: MessageWriter<SnapToRotation>,
 ) {
     //now for the actual checking
     for state in action_query.iter_mut() {
@@ -175,7 +174,7 @@ pub struct Center;
 
 fn send_recenter(
     mut action_query: Query<&XRUtilsActionState, With<Center>>,
-    mut event_writer: EventWriter<SnapToPosition>,
+    mut event_writer: MessageWriter<SnapToPosition>,
 ) {
     //now for the actual checking
     for state in action_query.iter_mut() {
