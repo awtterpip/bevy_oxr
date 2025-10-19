@@ -13,7 +13,7 @@ vulkan = ["dep:ash", "dep:android_system_properties"]
 d3d12 = ["wgpu/dx12", "wgpu-hal/dx12", "dep:winapi"]
 passthrough = []
 reflect = ["dep:bevy_reflect"]
-window_support = ["dep:bevy_winit"]
+window_support = ["dep:bevy_winit", "dep:bevy_window"]
 
 [dev-dependencies]
 bevy.workspace = true

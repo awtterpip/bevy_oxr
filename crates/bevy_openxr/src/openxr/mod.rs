@@ -75,9 +75,9 @@ pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
         primary_window: Some(Window {
             transparent: true,
             present_mode: PresentMode::AutoNoVsync,
-            ..default()
+            ..Default::default()
         }),
-        ..default()
+        ..Default::default()
     });
     plugins
 }
