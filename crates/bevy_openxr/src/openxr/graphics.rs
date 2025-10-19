@@ -5,7 +5,8 @@ pub mod vulkan;
 
 use std::{any::TypeId, ffi::CStr};
 
-use bevy::{ecs::resource::Resource, math::UVec2};
+use bevy_ecs::resource::Resource;
+use bevy_math::UVec2;
 use openxr::{FrameStream, FrameWaiter, Session};
 
 use crate::{

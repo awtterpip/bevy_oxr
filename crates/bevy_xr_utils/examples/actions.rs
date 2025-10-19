@@ -3,7 +3,7 @@ use bevy::{math::vec3, prelude::*};
 use bevy_mod_openxr::{add_xr_plugins, helper_traits::ToQuat, resources::OxrViews};
 use bevy_mod_xr::session::XrTrackingRoot;
 use bevy_xr_utils::xr_utils_actions::{
-    ActiveSet, XRUtilsAction, XRUtilsActionSet, XRUtilsActionState, XRUtilsActionSystemSet,
+    ActiveSet, XRUtilsAction, XRUtilsActionSet, XRUtilsActionState, XRUtilsActionSystems,
     XRUtilsActionsPlugin, XRUtilsBinding,
 };
 
@@ -14,7 +14,7 @@ fn main() {
         .add_systems(Startup, setup_scene)
         .add_systems(
             Startup,
-            create_action_entities.before(XRUtilsActionSystemSet::CreateEvents),
+            create_action_entities.before(XRUtilsActionSystems::CreateEvents),
         )
         .add_plugins(XRUtilsActionsPlugin)
         .add_systems(Update, read_action_with_marker_component)

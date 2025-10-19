@@ -1,6 +1,9 @@
 use std::convert::identity;
 
-use bevy::prelude::*;
+use bevy_app::{App, Plugin, PreUpdate};
+use bevy_derive::{Deref, DerefMut};
+use bevy_ecs::{component::Component, entity::Entity, query::With, resource::Resource, schedule::{IntoScheduleConfigs as _, common_conditions::resource_exists}, system::{Commands, Query, Res, ResMut}};
+use bevy_log::{error, info};
 use bevy_mod_openxr::{
     resources::{OxrInstance, OxrSystemId},
     session::OxrSession,

@@ -1,7 +1,8 @@
-use bevy::prelude::*;
-use bevy::render::Render;
-use bevy::render::RenderApp;
-use bevy::render::RenderSet;
+use bevy_log::error;
+use bevy_log::info;
+use bevy_render::Render;
+use bevy_render::RenderApp;
+use bevy_render::RenderSystems;
 use openxr::sys::SystemPassthroughProperties2FB;
 use openxr::PassthroughCapabilityFlagsFB;
 
@@ -105,7 +106,7 @@ pub fn supports_passthrough(instance: &OxrInstance, system: OxrSystemId) -> OxrR
             system.0,
             p.as_mut_ptr(),
         ))?;
-        bevy::log::info!(
+        info!(
             "From supports_passthrough: Passthrough capabilities: {:?}",
             properties.capabilities
         );

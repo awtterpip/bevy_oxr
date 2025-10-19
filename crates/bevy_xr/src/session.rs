@@ -2,30 +2,45 @@ use std::convert::identity;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
-use bevy::app::{AppExit, MainScheduleOrder};
-use bevy::ecs::component::HookContext;
-use bevy::ecs::schedule::ScheduleLabel;
-use bevy::ecs::world::DeferredWorld;
-use bevy::prelude::*;
-use bevy::render::extract_resource::{ExtractResource, ExtractResourcePlugin};
-use bevy::render::{Render, RenderApp, RenderSet};
+use bevy_app::{App, AppExit, MainScheduleOrder, Plugin, PostUpdate, PreUpdate};
+use bevy_camera::visibility::Visibility;
+use bevy_derive::Deref;
+use bevy_ecs::component::Component;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::hierarchy::Children;
+use bevy_ecs::lifecycle::HookContext;
+use bevy_ecs::message::{Message, MessageReader, MessageWriter};
+use bevy_ecs::query::{Has, With};
+use bevy_ecs::resource::Resource;
+use bevy_ecs::schedule::common_conditions::on_message;
+use bevy_ecs::schedule::{
+    ExecutorKind, IntoScheduleConfigs as _, Schedule, ScheduleLabel, SystemCondition as _, SystemSet
+};
+use bevy_ecs::system::{Local, Query, Res, ResMut};
+use bevy_ecs::world::DeferredWorld;
+use bevy_render::extract_resource::{ExtractResource, ExtractResourcePlugin};
+use bevy_render::{Render, RenderApp, RenderSystems};
+use bevy_transform::components::{GlobalTransform, Transform};
+use bevy_transform::TransformSystems;
+#[cfg(feature="reflect")]
+use bevy_reflect::Reflect;
 
-/// Event sent to instruct backends to create an XR session. Only works when the [`XrState`] is [`Available`](XrState::Available).
-#[derive(Event, Clone, Copy, Default)]
-pub struct XrCreateSessionEvent;
+/// Message sent to instruct backends to create an XR session. Only works when the [`XrState`] is [`Available`](XrState::Available).
+#[derive(Message, Clone, Copy, Default)]
+pub struct XrCreateSessionMessage;
 
-/// A schedule thats ran whenever an [`XrCreateSessionEvent`] is recieved while the [`XrState`] is [`Available`](XrState::Available)
+/// A schedule thats ran whenever an [`XrCreateSessionMessage`] is recieved while the [`XrState`] is [`Available`](XrState::Available)
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug, Hash, ScheduleLabel)]
 pub struct XrSessionCreated;
 
-/// Event sent after the XrSession was created.
-#[derive(Event, Clone, Copy, Default)]
-pub struct XrSessionCreatedEvent;
+/// Message sent after the XrSession was created.
+#[derive(Message, Clone, Copy, Default)]
+pub struct XrSessionCreatedMessage;
 
-/// Event sent to instruct backends to destroy an XR session. Only works when the [`XrState`] is [`Exiting`](XrState::Exiting).
-/// If you would like to request that a running session be destroyed, send the [`XrRequestExitEvent`] instead.
-#[derive(Event, Clone, Copy, Default)]
-pub struct XrDestroySessionEvent;
+/// Message sent to instruct backends to destroy an XR session. Only works when the [`XrState`] is [`Exiting`](XrState::Exiting).
+/// If you would like to request that a running session be destroyed, send the [`XrRequestExitMessage`] instead.
+#[derive(Message, Clone, Copy, Default)]
+pub struct XrDestroySessionMessage;
 
 /// Resource flag thats inserted into the world and extracted to the render world to inform any session resources in the render world to drop.
 #[derive(Resource, Clone, Default)]
@@ -35,29 +50,29 @@ pub struct XrDestroySessionRender(pub Arc<AtomicBool>);
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug, Hash, ScheduleLabel)]
 pub struct XrPreDestroySession;
 
-/// Event sent to instruct backends to begin an XR session. Only works when the [`XrState`] is [`Ready`](XrState::Ready).
-#[derive(Event, Clone, Copy, Default)]
-pub struct XrBeginSessionEvent;
+/// Message sent to instruct backends to begin an XR session. Only works when the [`XrState`] is [`Ready`](XrState::Ready).
+#[derive(Message, Clone, Copy, Default)]
+pub struct XrBeginSessionMessage;
 
 /// Schedule thats ran when the XrSession has begun.
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug, Hash, ScheduleLabel)]
 pub struct XrPostSessionBegin;
 
-/// Event sent to backends to end an XR session. Only works when the [`XrState`] is [`Stopping`](XrState::Stopping).
-#[derive(Event, Clone, Copy, Default)]
-pub struct XrEndSessionEvent;
+/// Message sent to backends to end an XR session. Only works when the [`XrState`] is [`Stopping`](XrState::Stopping).
+#[derive(Message, Clone, Copy, Default)]
+pub struct XrEndSessionMessage;
 
 /// Schedule thats ran whenever the XrSession is about to end
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug, Hash, ScheduleLabel)]
 pub struct XrPreSessionEnd;
 
-/// Event that is emitted when the XrSession is fully destroyed
-#[derive(Clone, Copy, Default, PartialEq, Eq, Debug, Hash, Event)]
-pub struct XrSessionDestroyedEvent;
+/// Message that is emitted when the XrSession is fully destroyed
+#[derive(Message, Clone, Copy, Default, PartialEq, Eq, Debug, Hash)]
+pub struct XrSessionDestroyedMessage;
 
-/// Event sent to backends to request the [`XrState`] proceed to [`Exiting`](XrState::Exiting) and for the session to be exited. Can be called at any time a session exists.
-#[derive(Event, Clone, Copy, Default)]
-pub struct XrRequestExitEvent;
+/// Message sent to backends to request the [`XrState`] proceed to [`Exiting`](XrState::Exiting) and for the session to be exited. Can be called at any time a session exists.
+#[derive(Message, Clone, Copy, Default)]
+pub struct XrRequestExitMessage;
 
 /// Schedule ran before [`First`] to handle XR events.
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug, Hash, ScheduleLabel)]
@@ -75,13 +90,13 @@ pub enum XrHandleEvents {
 
 /// System sets ran in the render world for XR.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, SystemSet)]
-pub enum XrRenderSet {
-    /// Ran before [`XrRenderSet::PreRender`] but after [`RenderSet::ExtractCommands`].
+pub enum XrRenderSystems {
+    /// Ran before [`XrRenderSet::PreRender`] but after [`RenderSystems::ExtractCommands`].
     HandleEvents,
     /// For any XR systems needing to be ran before rendering begins.
-    /// Ran after [`XrRenderSet::HandleEvents`] but before every render set except [`RenderSet::ExtractCommands`].
+    /// Ran after [`XrRenderSet::HandleEvents`] but before every render set except [`RenderSystems::ExtractCommands`].
     PreRender,
-    /// For any XR systems needing to be ran after [`RenderSet::Render`] but before [`RenderSet::Cleanup`].
+    /// For any XR systems needing to be ran after [`RenderSystems::Render`] but before [`RenderSystems::Cleanup`].
     PostRender,
 }
 
@@ -97,7 +112,8 @@ pub struct XrTrackingRoot;
 struct TrackingRootRes(Entity);
 
 /// Makes the entity a child of the XrTrackingRoot if the entity has no parent
-#[derive(Clone, Copy, Hash, PartialEq, Eq, Reflect, Debug, Default, Component)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug, Default, Component)]
+#[cfg_attr(feature = "reflect", derive(Reflect))]
 #[component(on_add = on_tracker_add)]
 pub struct XrTracker;
 fn on_tracker_add(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
@@ -122,15 +138,15 @@ impl Plugin for XrSessionPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<XrDestroySessionRender>();
         let mut xr_first = Schedule::new(XrFirst);
-        xr_first.set_executor_kind(bevy::ecs::schedule::ExecutorKind::Simple);
-        app.add_event::<XrCreateSessionEvent>()
-            .add_event::<XrDestroySessionEvent>()
-            .add_event::<XrBeginSessionEvent>()
-            .add_event::<XrEndSessionEvent>()
-            .add_event::<XrRequestExitEvent>()
-            .add_event::<XrStateChanged>()
-            .add_event::<XrSessionCreatedEvent>()
-            .add_event::<XrSessionDestroyedEvent>()
+        xr_first.set_executor_kind(ExecutorKind::SingleThreaded);
+        app.add_message::<XrCreateSessionMessage>()
+            .add_message::<XrDestroySessionMessage>()
+            .add_message::<XrBeginSessionMessage>()
+            .add_message::<XrEndSessionMessage>()
+            .add_message::<XrRequestExitMessage>()
+            .add_message::<XrStateChanged>()
+            .add_message::<XrSessionCreatedMessage>()
+            .add_message::<XrSessionDestroyedMessage>()
             .init_schedule(XrSessionCreated)
             .init_schedule(XrPreDestroySession)
             .init_schedule(XrPostSessionBegin)
@@ -150,7 +166,7 @@ impl Plugin for XrSessionPlugin {
             .add_systems(
                 XrFirst,
                 exits_session_on_app_exit
-                    .run_if(on_event::<AppExit>)
+                    .run_if(on_message::<AppExit>)
                     .run_if(session_created)
                     .in_set(XrHandleEvents::ExitEvents),
             );
@@ -178,13 +194,13 @@ impl Plugin for XrSessionPlugin {
         .init_resource::<XrRootTransform>()
         .add_systems(
             PostUpdate,
-            update_root_transform.after(TransformSystem::TransformPropagate),
+            update_root_transform.after(TransformSystems::Propagate),
         )
         .add_systems(
             XrFirst,
             exits_session_on_app_exit
                 .before(XrHandleEvents::ExitEvents)
-                .run_if(on_event::<AppExit>.and(session_running)),
+                .run_if(on_message::<AppExit>.and(session_running)),
         );
 
         let render_app = app.sub_app_mut(RenderApp);
@@ -194,33 +210,33 @@ impl Plugin for XrSessionPlugin {
             // .init_resource::<XrRootTransform>()
             .configure_sets(
                 Render,
-                (XrRenderSet::HandleEvents, XrRenderSet::PreRender).chain(),
+                (XrRenderSystems::HandleEvents, XrRenderSystems::PreRender).chain(),
             )
             .configure_sets(
                 Render,
-                XrRenderSet::HandleEvents.after(RenderSet::ExtractCommands),
+                XrRenderSystems::HandleEvents.after(RenderSystems::ExtractCommands),
             )
             .configure_sets(
                 Render,
-                XrRenderSet::PreRender
-                    .before(RenderSet::ManageViews)
-                    .before(RenderSet::PrepareAssets),
+                XrRenderSystems::PreRender
+                    .before(RenderSystems::ManageViews)
+                    .before(RenderSystems::PrepareAssets),
             )
             .configure_sets(
                 Render,
-                XrRenderSet::PostRender
-                    .after(RenderSet::Render)
-                    .before(RenderSet::Cleanup),
+                XrRenderSystems::PostRender
+                    .after(RenderSystems::Render)
+                    .before(RenderSystems::Cleanup),
             );
     }
 }
 
-fn exits_session_on_app_exit(mut request_exit: EventWriter<XrRequestExitEvent>) {
+fn exits_session_on_app_exit(mut request_exit: MessageWriter<XrRequestExitMessage>) {
     request_exit.write_default();
 }
 
-/// Event sent by backends whenever [`XrState`] is changed.
-#[derive(Event, Clone, Copy, Deref)]
+/// Message sent by backends whenever [`XrState`] is changed.
+#[derive(Message, Clone, Copy, Deref)]
 pub struct XrStateChanged(pub XrState);
 
 /// A resource in the main world and render world representing the current session state.
@@ -229,17 +245,17 @@ pub struct XrStateChanged(pub XrState);
 pub enum XrState {
     /// An XR session is not available here
     Unavailable,
-    /// An XR session is available and ready to be created with an [`XrCreateSessionEvent`].
+    /// An XR session is available and ready to be created with an [`XrCreateSessionMessage`].
     Available,
     /// An XR session is created but not ready to begin. Backends are not required to use this state.
     Idle,
-    /// An XR session has been created and is ready to start rendering with an [`XrBeginSessionEvent`].
+    /// An XR session has been created and is ready to start rendering with an [`XrBeginSessionMessage`].
     Ready,
-    /// The XR session is running and can be stopped with an [`XrEndSessionEvent`].
+    /// The XR session is running and can be stopped with an [`XrEndSessionMessage`].
     Running,
-    /// The runtime has requested that the session should be ended with an [`XrEndSessionEvent`].
+    /// The runtime has requested that the session should be ended with an [`XrEndSessionMessage`].
     Stopping,
-    /// The XR session should be destroyed with an [`XrDestroySessionEvent`].
+    /// The XR session should be destroyed with an [`XrDestroySessionMessage`].
     Exiting {
         /// Whether we should automatically restart the session
         should_restart: bool,
@@ -247,11 +263,11 @@ pub enum XrState {
 }
 
 pub fn auto_handle_session(
-    mut state_changed: EventReader<XrStateChanged>,
-    mut create_session: EventWriter<XrCreateSessionEvent>,
-    mut begin_session: EventWriter<XrBeginSessionEvent>,
-    mut end_session: EventWriter<XrEndSessionEvent>,
-    mut destroy_session: EventWriter<XrDestroySessionEvent>,
+    mut state_changed: MessageReader<XrStateChanged>,
+    mut create_session: MessageWriter<XrCreateSessionMessage>,
+    mut begin_session: MessageWriter<XrBeginSessionMessage>,
+    mut end_session: MessageWriter<XrEndSessionMessage>,
+    mut destroy_session: MessageWriter<XrDestroySessionMessage>,
     mut no_auto_restart: Local<bool>,
 ) {
     for XrStateChanged(state) in state_changed.read() {
@@ -290,8 +306,8 @@ pub fn update_root_transform(
 /// A [`Condition`](bevy::ecs::schedule::Condition) that allows the system to run when the xr status changed to a specific [`XrStatus`].
 pub fn status_changed_to(
     status: XrState,
-) -> impl FnMut(EventReader<XrStateChanged>) -> bool + Clone {
-    move |mut reader: EventReader<XrStateChanged>| {
+) -> impl FnMut(MessageReader<XrStateChanged>) -> bool + Clone {
+    move |mut reader: MessageReader<XrStateChanged>| {
         reader.read().any(|new_status| new_status.0 == status)
     }
 }
@@ -332,5 +348,4 @@ macro_rules! state_matches {
     };
 }
 
-use bevy::transform::TransformSystem;
 pub use state_matches;

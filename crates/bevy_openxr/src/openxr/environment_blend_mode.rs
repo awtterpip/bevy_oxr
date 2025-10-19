@@ -1,4 +1,5 @@
-use bevy::{ecs::resource::Resource, render::extract_resource::ExtractResource};
+use bevy_ecs::resource::Resource;
+use bevy_render::extract_resource::ExtractResource;
 use openxr::EnvironmentBlendMode;
 
 #[derive(Resource, ExtractResource, Clone)]

@@ -10,10 +10,21 @@ keywords = ["gamedev", "bevy", "Xr", "Vr"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
 default = ["gizmos"]
-gizmos = ["bevy/bevy_gizmos"]
+gizmos = ["dep:bevy_gizmos", "dep:bevy_color"]
+reflect = ["dep:bevy_reflect"]
 
 [dependencies]
-bevy = { workspace = true, features = ["bevy_log"] }
+bevy_ecs.workspace = true
+bevy_math.workspace = true
+bevy_render.workspace = true
+bevy_app.workspace = true
+bevy_reflect = { workspace = true, optional = true }
+bevy_log.workspace = true
+bevy_gizmos = { workspace = true, optional = true }
+bevy_color = { workspace = true, optional = true }
+bevy_transform.workspace = true
+bevy_camera.workspace = true
+bevy_derive.workspace = true
 
 [lints.clippy]
 too_many_arguments = "allow"

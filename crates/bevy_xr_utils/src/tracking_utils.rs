@@ -1,4 +1,13 @@
-use bevy::prelude::*;
+use bevy_app::{App, Plugin, PreUpdate, Startup};
+use bevy_ecs::{
+    component::Component,
+    message::MessageWriter,
+    query::{With, Without},
+    resource::Resource,
+    schedule::IntoScheduleConfigs as _,
+    system::{Commands, Query, Res},
+};
+use bevy_math::{EulerRot, Isometry3d, Quat};
 use bevy_mod_openxr::{
     action_binding::OxrSuggestActionBinding,
     action_set_attaching::OxrAttachActionSet,
@@ -13,6 +22,7 @@ use bevy_mod_xr::{
     session::{XrSessionCreated, XrTracker, XrTrackingRoot},
     spaces::{XrPrimaryReferenceSpace, XrReferenceSpace, XrSpaceSyncSet},
 };
+use bevy_transform::components::Transform;
 use openxr::Posef;
 
 //exernal api
@@ -203,14 +213,9 @@ fn spawn_tracking_rig(
 ) {
     //head
     let head_space = session
-        .create_reference_space(openxr::ReferenceSpaceType::VIEW, Transform::IDENTITY)
+        .create_reference_space(openxr::ReferenceSpaceType::VIEW, Isometry3d::IDENTITY)
         .unwrap();
-    cmds.spawn((
-        Transform::default(),
-        Visibility::default(),
-        XrTracker,
-        HeadXRSpace(head_space),
-    ));
+    cmds.spawn((Transform::default(), XrTracker, HeadXRSpace(head_space)));
     // let local_floor = cmds.spawn((SpatialBundle::default(), LocalFloor)).id();
 
     let left_space = session
@@ -227,7 +232,7 @@ fn spawn_tracking_rig(
 //TODO figure out how to make these better, specifically not be controller specific
 pub fn suggest_action_bindings(
     actions: Res<ControllerActions>,
-    mut bindings: EventWriter<OxrSuggestActionBinding>,
+    mut bindings: MessageWriter<OxrSuggestActionBinding>,
 ) {
     bindings.write(OxrSuggestActionBinding {
         action: actions.left.as_raw(),
@@ -241,11 +246,11 @@ pub fn suggest_action_bindings(
     });
 }
 
-fn sync_actions(actions: Res<ControllerActions>, mut sync: EventWriter<OxrSyncActionSet>) {
+fn sync_actions(actions: Res<ControllerActions>, mut sync: MessageWriter<OxrSyncActionSet>) {
     sync.write(OxrSyncActionSet(actions.set.clone()));
 }
 
-fn attach_set(actions: Res<ControllerActions>, mut attach: EventWriter<OxrAttachActionSet>) {
+fn attach_set(actions: Res<ControllerActions>, mut attach: MessageWriter<OxrAttachActionSet>) {
     attach.write(OxrAttachActionSet(actions.set.clone()));
 }
 

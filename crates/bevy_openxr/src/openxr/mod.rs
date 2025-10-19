@@ -1,13 +1,11 @@
 // use actions::XrActionPlugin;
-use bevy::{
-    app::{PluginGroup, PluginGroupBuilder},
-    prelude::Res,
-    render::RenderPlugin,
-    utils::default,
-    window::{PresentMode, Window, WindowPlugin},
-};
+use bevy_app::{PluginGroup, PluginGroupBuilder};
+use bevy_ecs::system::Res;
 use bevy_mod_xr::session::XrSessionPlugin;
 use bevy_mod_xr::{camera::XrCameraPlugin, session::XrState};
+use bevy_render::RenderPlugin;
+#[cfg(feature = "window_support")]
+use bevy_window::{PresentMode, Window, WindowPlugin};
 use init::OxrInitPlugin;
 use poll_events::OxrEventsPlugin;
 use render::OxrRenderPlugin;
@@ -54,7 +52,7 @@ pub fn openxr_session_running(
 }
 
 pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
-    plugins
+    let plugins = plugins
         .build()
         .disable::<RenderPlugin>()
         .add_before::<RenderPlugin>(XrSessionPlugin { auto_handle: true })
@@ -69,15 +67,17 @@ pub fn add_xr_plugins<G: PluginGroup>(plugins: G) -> PluginGroupBuilder {
         .add(action_set_syncing::OxrActionSyncingPlugin)
         .add(features::overlay::OxrOverlayPlugin)
         .add(spaces::OxrSpatialPlugin)
-        .add(spaces::OxrSpacePatchingPlugin)
-        // we should probably handle the exiting ourselfs so that we can correctly end the
-        // session and instance
-        .set(WindowPlugin {
-            primary_window: Some(Window {
-                transparent: true,
-                present_mode: PresentMode::AutoNoVsync,
-                ..default()
-            }),
+        .add(spaces::OxrSpacePatchingPlugin);
+    // we should probably handle the exiting ourselfs so that we can correctly end the
+    // session and instance
+    #[cfg(feature = "window_support")]
+    let plugins = plugins.set(WindowPlugin {
+        primary_window: Some(Window {
+            transparent: true,
+            present_mode: PresentMode::AutoNoVsync,
             ..default()
-        })
+        }),
+        ..default()
+    });
+    plugins
 }

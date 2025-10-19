@@ -1,6 +1,7 @@
 use std::{mem, ptr};
 
-use bevy::prelude::*;
+use bevy_app::{App, First, Plugin};
+use bevy_ecs::{message::{Message, MessageWriter}, resource::Resource, schedule::IntoScheduleConfigs as _, system::{NonSendMut, Res}};
 use openxr::{sys, Event};
 
 use crate::{
@@ -14,8 +15,8 @@ use crate::{
 pub struct OxrOverlayPlugin;
 
 impl Plugin for OxrOverlayPlugin {
-    fn build(&self, app: &mut bevy::prelude::App) {
-        app.add_event::<OxrOverlaySessionEvent>();
+    fn build(&self, app: &mut App) {
+        app.add_message::<OxrOverlaySessionMessage>();
         app.init_resource::<OxrOverlaySettings>();
         app.add_systems(
             First,
@@ -25,9 +26,9 @@ impl Plugin for OxrOverlayPlugin {
     }
 }
 
-fn handle_overlay_event(event: OxrEventIn, mut writer: EventWriter<OxrOverlaySessionEvent>) {
+fn handle_overlay_event(event: OxrEventIn, mut writer: MessageWriter<OxrOverlaySessionMessage>) {
     if let Event::MainSessionVisibilityChangedEXTX(event) = *event {
-        writer.write(OxrOverlaySessionEvent::MainSessionVisibilityChanged {
+        writer.write(OxrOverlaySessionMessage::MainSessionVisibilityChanged {
             visible: event.visible(),
             flags: event.flags(),
         });
@@ -62,8 +63,8 @@ fn add_overlay_info_to_chain(
     }
 }
 
-#[derive(Event, Clone, Copy, Debug)]
-pub enum OxrOverlaySessionEvent {
+#[derive(Message, Clone, Copy, Debug)]
+pub enum OxrOverlaySessionMessage {
     MainSessionVisibilityChanged {
         visible: bool,
         flags: openxr::OverlayMainSessionFlagsEXTX,

@@ -1,4 +1,12 @@
-use bevy::prelude::*;
+use bevy_app::{App, Plugin, PreUpdate, Startup};
+use bevy_derive::{Deref, DerefMut};
+use bevy_ecs::component::Component;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::query::{Or, With};
+use bevy_ecs::schedule::IntoScheduleConfigs as _;
+use bevy_ecs::system::{Commands, Query, Res};
+use bevy_ecs::world::World;
+use bevy_log::{debug, error, warn};
 use bevy_mod_xr::hands::{
     spawn_hand_bones, HandBone, HandSide, SpawnHandTracker, SpawnHandTrackerCommandExecutor,
     XrHandBoneRadius,
@@ -9,6 +17,7 @@ use bevy_mod_xr::spaces::{
     XrPrimaryReferenceSpace, XrReferenceSpace, XrSpaceLocationFlags, XrSpaceSyncSet,
     XrSpaceVelocityFlags, XrVelocity,
 };
+use bevy_transform::components::Transform;
 use openxr::{SpaceLocationFlags, SpaceVelocityFlags};
 
 use crate::helper_traits::ToVec3;

@@ -2,10 +2,11 @@ use std::ffi::{c_void, CStr, CString};
 use std::str::FromStr;
 
 use ash::vk::{self, Handle};
-use bevy::log::{debug, error};
-use bevy::math::UVec2;
+use bevy_log::{debug, error};
+use bevy_math::UVec2;
 use openxr::{sys, Version};
-use wgpu::InstanceFlags;
+use wgpu::{InstanceFlags, MemoryBudgetThresholds};
+use wgpu::TextureUses;
 use wgpu_hal::api::Vulkan;
 use wgpu_hal::Api;
 
@@ -53,7 +54,15 @@ unsafe impl GraphicsExt for openxr::Vulkan {
     ) -> Result<wgpu::Texture> {
         let color_image = vk::Image::from_raw(color_image);
         let wgpu_hal_texture = unsafe {
-            <wgpu_hal::vulkan::Api as wgpu_hal::Api>::Device::texture_from_raw(
+            let hal_dev =
+                device
+                    .as_hal::<wgpu_hal::vulkan::Api>()
+                    .ok_or(OxrError::GraphicsBackendMismatch {
+                        item: "Wgpu Device",
+                        backend: "unknown",
+                        expected_backend: "vulkan",
+                    })?;
+            hal_dev.texture_from_raw(
                 color_image,
                 &wgpu_hal::TextureDescriptor {
                     label: Some("VR Swapchain"),
@@ -66,7 +75,7 @@ unsafe impl GraphicsExt for openxr::Vulkan {
                     sample_count: 1,
                     dimension: wgpu::TextureDimension::D2,
                     format,
-                    usage: wgpu_hal::TextureUses::COLOR_TARGET | wgpu_hal::TextureUses::COPY_DST,
+                    usage: TextureUses::COLOR_TARGET | TextureUses::COPY_DST,
                     memory_flags: wgpu_hal::MemoryFlags::empty(),
                     view_formats: vec![],
                 },
@@ -151,7 +160,7 @@ unsafe impl GraphicsExt for openxr::Vulkan {
             vk_physical_device,
             instance_exts,
             flags,
-            device_exts.into(),
+            device_exts,
             |info| unsafe {
                 let vk_device = instance
                     .create_vulkan_device(
@@ -262,8 +271,8 @@ unsafe impl GraphicsExt for openxr::Vulkan {
             vk_physical_device,
             instance_exts,
             instance_flags,
-            device_exts.into(),
-            |info| unsafe { Ok(vk_instance.create_device(vk_physical_device, &info, None)?) },
+            device_exts,
+            |info| unsafe { Ok(vk_instance.create_device(vk_physical_device, info, None)?) },
         )
         .map(|v| v.0)
     }
@@ -275,7 +284,7 @@ fn get_extensions(
 ) -> Result<(wgpu::InstanceFlags, Vec<&'static CStr>, Vec<&'static CStr>)> {
     let flags = wgpu::InstanceFlags::default().with_env();
     let mut instance_exts =
-        <Vulkan as Api>::Instance::desired_extensions(&vk_entry, VK_TARGET_VERSION_ASH, flags)?;
+        <Vulkan as Api>::Instance::desired_extensions(vk_entry, VK_TARGET_VERSION_ASH, flags)?;
     let mut device_exts = vec![
         ash::khr::swapchain::NAME,
         ash::khr::draw_indirect_count::NAME,
@@ -370,6 +379,7 @@ fn init_from_instance_and_dev(
             None,
             instance_exts,
             instance_flags,
+            MemoryBudgetThresholds::default(),
             has_nv_optimus,
             None,
         )?
@@ -442,8 +452,8 @@ fn init_from_instance_and_dev(
                 required_features: wgpu_features,
                 required_limits: limits,
                 memory_hints: wgpu::MemoryHints::Performance,
+                trace: wgpu::Trace::Off,
             },
-            None,
         )
     }?;
     Ok((

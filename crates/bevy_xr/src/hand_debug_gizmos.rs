@@ -1,13 +1,21 @@
 use crate::hands::{HandBone, XrHandBoneRadius};
 use crate::spaces::XrSpaceLocationFlags;
-use bevy::color::palettes::css;
-use bevy::{prelude::*, transform::TransformSystem};
+use bevy_app::{App, Plugin, PostUpdate};
+use bevy_color::palettes::css;
+use bevy_color::Srgba;
+use bevy_ecs::schedule::IntoScheduleConfigs as _;
+use bevy_ecs::system::Query;
+use bevy_gizmos::gizmos::Gizmos;
+use bevy_math::Isometry3d;
+use bevy_transform::TransformSystems;
+use bevy_transform::components::GlobalTransform;
+
 pub struct HandGizmosPlugin;
 impl Plugin for HandGizmosPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             PostUpdate,
-            draw_hand_gizmos.after(TransformSystem::TransformPropagate),
+            draw_hand_gizmos.after(TransformSystems::Propagate),
         );
     }
 }

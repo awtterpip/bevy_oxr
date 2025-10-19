@@ -1,11 +1,15 @@
 use std::borrow::Cow;
 use std::ptr;
 
-use bevy::ecs::schedule::ScheduleLabel;
-use bevy::ecs::system::RunSystemOnce;
-use bevy::platform::collections::HashMap;
-use bevy::prelude::*;
-use bevy_mod_xr::session::XrSessionCreatedEvent;
+use bevy_app::{App, Plugin, Update};
+use bevy_ecs::message::{Message, MessageReader};
+use bevy_ecs::schedule::common_conditions::on_message;
+use bevy_ecs::schedule::{IntoScheduleConfigs as _, Schedule, ScheduleLabel};
+use bevy_ecs::system::{Res, RunSystemOnce};
+use bevy_ecs::world::World;
+use bevy_log::error;
+use bevy_mod_xr::session::XrSessionCreatedMessage;
+use bevy_platform::collections::HashMap;
 use openxr::sys::ActionSuggestedBinding;
 
 use crate::resources::OxrInstance;
@@ -13,10 +17,10 @@ use crate::resources::OxrInstance;
 impl Plugin for OxrActionBindingPlugin {
     fn build(&self, app: &mut App) {
         app.add_schedule(Schedule::new(OxrSendActionBindings));
-        app.add_event::<OxrSuggestActionBinding>();
+        app.add_message::<OxrSuggestActionBinding>();
         app.add_systems(
             Update,
-            run_action_binding_sugestion.run_if(on_event::<XrSessionCreatedEvent>),
+            run_action_binding_sugestion.run_if(on_message::<XrSessionCreatedMessage>),
         );
     }
 }
@@ -28,7 +32,7 @@ pub(crate) fn run_action_binding_sugestion(world: &mut World) {
     _ = world.run_system_once(bind_actions);
 }
 
-fn bind_actions(instance: Res<OxrInstance>, mut actions: EventReader<OxrSuggestActionBinding>) {
+fn bind_actions(instance: Res<OxrInstance>, mut actions: MessageReader<OxrSuggestActionBinding>) {
     let mut bindings: HashMap<&str, Vec<ActionSuggestedBinding>> = HashMap::new();
     for e in actions.read() {
         bindings.entry(&e.interaction_profile).or_default().extend(
@@ -88,7 +92,7 @@ fn bind_actions(instance: Res<OxrInstance>, mut actions: EventReader<OxrSuggestA
     }
 }
 
-#[derive(Event, Clone)]
+#[derive(Message, Clone)]
 /// Only Send this for Actions that were not attached yet!
 pub struct OxrSuggestActionBinding {
     pub action: openxr::sys::Action,
@@ -97,6 +101,5 @@ pub struct OxrSuggestActionBinding {
 }
 
 pub struct OxrActionBindingPlugin;
-// Maybe use a SystemSet in an XrStartup Schedule?
 #[derive(ScheduleLabel, Hash, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct OxrSendActionBindings;

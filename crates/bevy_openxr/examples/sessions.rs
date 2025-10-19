@@ -16,11 +16,11 @@ fn main() -> AppExit {
 
 fn handle_input(
     keys: Res<ButtonInput<KeyCode>>,
-    mut end: EventWriter<bevy_mod_xr::session::XrEndSessionEvent>,
-    mut destroy: EventWriter<bevy_mod_xr::session::XrDestroySessionEvent>,
-    mut begin: EventWriter<bevy_mod_xr::session::XrBeginSessionEvent>,
-    mut create: EventWriter<bevy_mod_xr::session::XrCreateSessionEvent>,
-    mut request_exit: EventWriter<bevy_mod_xr::session::XrRequestExitEvent>,
+    mut end: MessageWriter<bevy_mod_xr::session::XrEndSessionMessage>,
+    mut destroy: MessageWriter<bevy_mod_xr::session::XrDestroySessionMessage>,
+    mut begin: MessageWriter<bevy_mod_xr::session::XrBeginSessionMessage>,
+    mut create: MessageWriter<bevy_mod_xr::session::XrCreateSessionMessage>,
+    mut request_exit: MessageWriter<bevy_mod_xr::session::XrRequestExitMessage>,
     state: Res<XrState>,
 ) {
     if keys.just_pressed(KeyCode::KeyE) {

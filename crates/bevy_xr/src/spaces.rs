@@ -1,7 +1,11 @@
-use bevy::{
-    prelude::*,
-    render::{extract_component::ExtractComponent, extract_resource::ExtractResource},
-};
+use bevy_camera::visibility::Visibility;
+use bevy_derive::{Deref, DerefMut};
+use bevy_ecs::{component::Component, message::Message, resource::Resource, schedule::SystemSet};
+use bevy_math::Vec3;
+use bevy_render::{extract_component::ExtractComponent, extract_resource::ExtractResource};
+use bevy_transform::components::Transform;
+#[cfg(feature="reflect")]
+use bevy_reflect::Reflect;
 
 use crate::session::XrTracker;
 
@@ -10,11 +14,13 @@ pub struct XrSpaceSyncSet;
 
 /// Any Spaces will be invalid after the owning session exits
 #[repr(transparent)]
-#[derive(Component, Clone, Copy, Hash, PartialEq, Eq, Reflect, Debug, ExtractComponent)]
+#[derive(Component, Clone, Copy, Hash, PartialEq, Eq, Debug, ExtractComponent)]
+#[cfg_attr(feature = "reflect", derive(Reflect))]
 #[require(XrSpaceLocationFlags, Transform, Visibility, XrTracker)]
 pub struct XrSpace(u64);
 
-#[derive(Component, Clone, Copy, Reflect, Debug, ExtractComponent, Default)]
+#[derive(Component, Clone, Copy, Debug, ExtractComponent, Default)]
+#[cfg_attr(feature = "reflect", derive(Reflect))]
 #[require(XrSpaceVelocityFlags)]
 pub struct XrVelocity {
     /// Velocity of a space relative to it's reference space
@@ -34,32 +40,30 @@ impl XrVelocity {
     }
 }
 
-#[derive(Event, Clone, Copy, Deref, DerefMut)]
+#[derive(Message, Clone, Copy, Deref, DerefMut)]
 pub struct XrDestroySpace(pub XrSpace);
 
 #[repr(transparent)]
-#[derive(
-    Clone, Copy, Hash, PartialEq, Eq, Reflect, Debug, Component, Deref, DerefMut, ExtractComponent,
-)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug, Component, Deref, DerefMut, ExtractComponent)]
+#[cfg_attr(feature = "reflect", derive(Reflect))]
 pub struct XrReferenceSpace(pub XrSpace);
 
 #[repr(transparent)]
-#[derive(
-    Clone, Copy, Hash, PartialEq, Eq, Reflect, Debug, Resource, Deref, DerefMut, ExtractResource,
-)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug, Resource, Deref, DerefMut, ExtractResource)]
+#[cfg_attr(feature = "reflect", derive(Reflect))]
 pub struct XrPrimaryReferenceSpace(pub XrReferenceSpace);
 
-#[derive(
-    Clone, Copy, Hash, PartialEq, Eq, Reflect, Debug, Component, ExtractComponent, Default,
-)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug, Component, ExtractComponent, Default)]
+#[cfg_attr(feature = "reflect", derive(Reflect))]
 pub struct XrSpaceLocationFlags {
     pub position_tracked: bool,
     pub rotation_tracked: bool,
 }
 
 #[derive(
-    Clone, Copy, Hash, PartialEq, Eq, Reflect, Debug, Component, ExtractComponent, Default,
+    Clone, Copy, Hash, PartialEq, Eq, Debug, Component, ExtractComponent, Default,
 )]
+#[cfg_attr(feature = "reflect", derive(Reflect))]
 pub struct XrSpaceVelocityFlags {
     pub linear_valid: bool,
     pub angular_valid: bool,

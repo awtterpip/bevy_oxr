@@ -1,4 +1,5 @@
-use bevy::prelude::{Deref, DerefMut, Resource};
+use bevy_derive::{Deref, DerefMut};
+use bevy_ecs::resource::Resource;
 use openxr::ExtensionSet;
 
 #[derive(Clone, Debug, Eq, PartialEq, Deref, DerefMut, Resource)]

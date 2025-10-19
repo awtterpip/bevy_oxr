@@ -9,12 +9,20 @@ description = "utils for bevy_mod_xr and bevy_mod_openxr"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy = { workspace = true, features = ["bevy_gizmos"] }
+# bevy = { workspace = true, features = ["bevy_gizmos"] }
 bevy_mod_xr.workspace = true
 bevy_mod_openxr.workspace = true
+bevy_ecs.workspace=true
+bevy_app.workspace=true
+bevy_transform.workspace=true
+bevy_color.workspace=true
+bevy_gizmos.workspace=true
+bevy_log.workspace=true
+bevy_derive.workspace=true
+bevy_math.workspace=true
 
 [dev-dependencies]
-bevy = { workspace = true, default-features = true }
+bevy.workspace = true
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 openxr.workspace = true

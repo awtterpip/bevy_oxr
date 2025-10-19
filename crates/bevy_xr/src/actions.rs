@@ -1,8 +1,8 @@
 use std::{any::TypeId, marker::PhantomData};
 
-use bevy::app::{App, Plugin};
-use bevy::math::Vec2;
-use bevy::prelude::Resource;
+use bevy_app::{App, Plugin};
+use bevy_ecs::resource::Resource;
+use bevy_math::Vec2;
 
 pub struct ActionPlugin<A: Action>(PhantomData<A>);
 

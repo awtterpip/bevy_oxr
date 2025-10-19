@@ -1,10 +1,11 @@
-use bevy::{
-    ecs::{component::Component, entity::Entity},
-    log::warn,
-    math::bool,
-    prelude::{Bundle, Command, Commands, Deref, DerefMut, Resource, Transform, Visibility, World},
-};
 use crate::{session::XrTracker, spaces::XrSpaceLocationFlags};
+use bevy_camera::visibility::Visibility;
+use bevy_derive::{Deref, DerefMut};
+use bevy_ecs::{bundle::Bundle, component::Component, entity::Entity, resource::Resource, system::{Command, Commands}, world::World};
+use bevy_log::warn;
+use bevy_math::bool;
+use bevy_transform::components::Transform;
+
 pub const HAND_JOINT_COUNT: usize = 26;
 
 pub fn spawn_hand_bones<T: Bundle>(

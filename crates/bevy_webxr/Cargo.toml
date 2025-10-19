@@ -8,7 +8,7 @@ license.workspace = true
 
 # bevy can't be placed behind target or proc macros won't work properly
 [dependencies]
-bevy.workspace = true
+# bevy.workspace = true
 
 # all dependencies are placed under this since on anything but wasm, this crate is completely empty
 [target.'cfg(target_family = "wasm")'.dependencies]

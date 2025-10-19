@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 use bevy_mod_openxr::{
-    add_xr_plugins, features::overlay::OxrOverlaySessionEvent, init::OxrInitPlugin,
+    add_xr_plugins, features::overlay::OxrOverlaySessionMessage, init::OxrInitPlugin,
     resources::OxrSessionConfig, types::OxrExtensions,
 };
 use openxr::EnvironmentBlendMode;
@@ -36,20 +36,20 @@ fn main() {
         .run();
 }
 
-fn print_main_session_changes(mut events: EventReader<OxrOverlaySessionEvent>) {
+fn print_main_session_changes(mut events: MessageReader<OxrOverlaySessionMessage>) {
     for event in events.read() {
-        let OxrOverlaySessionEvent::MainSessionVisibilityChanged { visible, flags: _ } = event;
+        let OxrOverlaySessionMessage::MainSessionVisibilityChanged { visible, flags: _ } = event;
         info!("main session visible: {visible}");
     }
 }
 
 fn handle_input(
     keys: Res<ButtonInput<KeyCode>>,
-    mut end: EventWriter<bevy_mod_xr::session::XrEndSessionEvent>,
-    mut destroy: EventWriter<bevy_mod_xr::session::XrDestroySessionEvent>,
-    mut begin: EventWriter<bevy_mod_xr::session::XrBeginSessionEvent>,
-    mut create: EventWriter<bevy_mod_xr::session::XrCreateSessionEvent>,
-    mut request_exit: EventWriter<bevy_mod_xr::session::XrRequestExitEvent>,
+    mut end: MessageWriter<bevy_mod_xr::session::XrEndSessionMessage>,
+    mut destroy: MessageWriter<bevy_mod_xr::session::XrDestroySessionMessage>,
+    mut begin: MessageWriter<bevy_mod_xr::session::XrBeginSessionMessage>,
+    mut create: MessageWriter<bevy_mod_xr::session::XrCreateSessionMessage>,
+    mut request_exit: MessageWriter<bevy_mod_xr::session::XrRequestExitMessage>,
 ) {
     if keys.just_pressed(KeyCode::KeyE) {
         info!("sending end");

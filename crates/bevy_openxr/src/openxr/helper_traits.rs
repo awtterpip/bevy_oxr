@@ -1,4 +1,5 @@
-use bevy::{math::Vec3A, prelude::*};
+use bevy_math::{Isometry3d, Quat, Vec2, Vec3, Vec3A};
+use bevy_transform::components::Transform;
 
 pub trait ToPosef {
     fn to_posef(&self) -> openxr::Posef;

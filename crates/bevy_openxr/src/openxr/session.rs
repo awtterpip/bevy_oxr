@@ -3,7 +3,8 @@ use std::ffi::c_void;
 use crate::next_chain::{OxrNextChain, OxrNextChainStructBase, OxrNextChainStructProvider};
 use crate::resources::{OxrPassthrough, OxrPassthroughLayer, OxrSwapchain};
 use crate::types::{Result, SwapchainCreateInfo};
-use bevy::prelude::*;
+use bevy_derive::Deref;
+use bevy_ecs::resource::Resource;
 use openxr::AnyGraphics;
 
 use crate::graphics::{graphics_match, GraphicsExt, GraphicsType, GraphicsWrap};

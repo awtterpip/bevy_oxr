@@ -1,11 +1,17 @@
-use bevy::{
-    prelude::*,
-    render::{extract_resource::ExtractResourcePlugin, RenderApp},
+use bevy_app::{App, Plugin};
+use bevy_ecs::{
+    entity::Entity,
+    query::With,
+    resource::Resource,
+    system::{Commands, Query, Res},
 };
+use bevy_log::error;
+use bevy_math::Isometry3d;
 use bevy_mod_xr::{
     session::{XrPreDestroySession, XrSessionCreated},
     spaces::{XrPrimaryReferenceSpace, XrReferenceSpace},
 };
+use bevy_render::{RenderApp, extract_resource::ExtractResourcePlugin};
 
 use crate::session::OxrSession;
 
@@ -51,7 +57,7 @@ fn set_primary_ref_space(
     space_type: Res<OxrDefaultPrimaryReferenceSpaceType>,
     mut cmds: Commands,
 ) {
-    match session.create_reference_space(space_type.0, Transform::IDENTITY) {
+    match session.create_reference_space(space_type.0, Isometry3d::IDENTITY) {
         Ok(space) => {
             cmds.insert_resource(XrPrimaryReferenceSpace(space));
         }

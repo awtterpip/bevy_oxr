@@ -8,13 +8,15 @@ license.workspace = true
 keywords = ["gamedev", "bevy", "Xr", "Vr", "OpenXR"]
 
 [features]
-default = ["vulkan", "d3d12", "passthrough"]
+default = ["vulkan"]
 vulkan = ["dep:ash", "dep:android_system_properties"]
 d3d12 = ["wgpu/dx12", "wgpu-hal/dx12", "dep:winapi"]
 passthrough = []
+reflect = ["dep:bevy_reflect"]
+window_support = ["dep:bevy_winit"]
 
 [dev-dependencies]
-bevy = { workspace = true, default-features = true }
+bevy.workspace = true
 
 [target.'cfg(target_os = "android")'.dependencies]
 ndk-context = "0.1"
@@ -23,7 +25,18 @@ android_system_properties = { version = "0.1.5", optional = true }
 
 # bevy can't be placed behind target or proc macros won't work properly
 [dependencies]
-bevy.workspace = true
+bevy_ecs.workspace = true
+bevy_math.workspace = true
+bevy_render.workspace = true
+bevy_app.workspace = true
+bevy_reflect = { workspace = true, optional = true }
+bevy_log.workspace = true
+bevy_transform.workspace = true
+bevy_camera.workspace = true
+bevy_derive.workspace = true
+bevy_platform.workspace = true
+bevy_winit = { workspace = true, optional = true }
+bevy_window = { workspace = true, optional = true }
 
 # all other dependencies are placed under this since on wasm, this crate is completely empty
 [target.'cfg(not(target_family = "wasm"))'.dependencies]

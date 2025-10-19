@@ -1,4 +1,8 @@
-use bevy::{color::palettes::css, prelude::*};
+use bevy_app::{App, Plugin, PostUpdate};
+use bevy_color::palettes::css;
+use bevy_ecs::{component::Component, query::With, schedule::IntoScheduleConfigs as _, system::Query};
+use bevy_gizmos::gizmos::Gizmos;
+use bevy_transform::{TransformSystems, components::{GlobalTransform, Transform}};
 
 #[derive(Clone, Copy, Component)]
 #[require(Transform)]
@@ -8,10 +12,7 @@ pub struct GenericTrackerGizmoPlugin;
 
 impl Plugin for GenericTrackerGizmoPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            PostUpdate,
-            draw_gizmos.after(TransformSystem::TransformPropagate),
-        );
+        app.add_systems(PostUpdate, draw_gizmos.after(TransformSystems::Propagate));
     }
 }
 

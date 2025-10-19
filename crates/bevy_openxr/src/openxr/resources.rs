@@ -1,5 +1,8 @@
-use bevy::prelude::*;
-use bevy::render::extract_resource::ExtractResource;
+use bevy_derive::{Deref, DerefMut};
+use bevy_ecs::resource::Resource;
+use bevy_math::UVec2;
+use bevy_render::extract_resource::ExtractResource;
+use bevy_log::error;
 
 use crate::error::OxrError;
 use crate::graphics::*;
@@ -351,7 +354,7 @@ impl Default for OxrSessionConfig {
         Self {
             blend_mode_preference: vec![openxr::EnvironmentBlendMode::OPAQUE],
             formats: Some(vec![wgpu::TextureFormat::Rgba8UnormSrgb]),
-            resolutions: default(),
+            resolutions: None,
         }
     }
 }

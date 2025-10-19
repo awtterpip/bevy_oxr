@@ -1,5 +1,8 @@
 use super::{openxr_session_available, resources::OxrInstance};
-use bevy::{ecs::system::SystemId, prelude::*};
+use bevy_app::{App, Plugin};
+use bevy_derive::Deref;
+use bevy_ecs::{entity::Entity, resource::Resource, schedule::IntoScheduleConfigs as _, system::{IntoSystem, SystemId, SystemInput}, world::World};
+use bevy_log::{debug_span, error};
 use bevy_mod_xr::session::{XrFirst, XrHandleEvents};
 use openxr::{Event, EventDataBuffer};
 

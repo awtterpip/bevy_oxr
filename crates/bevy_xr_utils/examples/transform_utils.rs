@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use bevy_mod_openxr::add_xr_plugins;
 use bevy_xr_utils::transform_utils::{self, SnapToPosition, SnapToRotation};
 use bevy_xr_utils::xr_utils_actions::{
-    ActiveSet, XRUtilsAction, XRUtilsActionSet, XRUtilsActionState, XRUtilsActionSystemSet,
+    ActiveSet, XRUtilsAction, XRUtilsActionSet, XRUtilsActionState, XRUtilsActionSystems,
     XRUtilsActionsPlugin, XRUtilsBinding,
 };
 
@@ -17,15 +17,15 @@ fn main() -> AppExit {
         .add_plugins(XRUtilsActionsPlugin)
         .add_systems(
             Startup,
-            create_action_entities.before(XRUtilsActionSystemSet::CreateEvents),
+            create_action_entities.before(XRUtilsActionSystems::CreateEvents),
         )
         .add_systems(
             Update,
-            send_look_at_red_cube_event.after(XRUtilsActionSystemSet::SyncActionStates),
+            send_look_at_red_cube_event.after(XRUtilsActionSystems::SyncActionStates),
         )
         .add_systems(
             Update,
-            send_recenter.after(XRUtilsActionSystemSet::SyncActionStates),
+            send_recenter.after(XRUtilsActionSystems::SyncActionStates),
         )
         .insert_resource(AmbientLight {
             brightness: 500.0,
