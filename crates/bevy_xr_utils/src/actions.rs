@@ -138,7 +138,7 @@ fn create_openxr_events(
             let (create_action, bindings) = actions_query.get(child).unwrap();
             //lets create dat action
             match create_action.action_type {
-                bevy_mod_xr::actions::ActionType::Bool => {
+                ActionType::Bool => {
                     let action: openxr::Action<bool> = action_set
                         .create_action::<bool>(
                             &create_action.action_name,
@@ -176,7 +176,7 @@ fn create_openxr_events(
                         binding_writer.write(sugestion);
                     }
                 }
-                bevy_mod_xr::actions::ActionType::Float => {
+                ActionType::Float => {
                     let action: openxr::Action<f32> = action_set
                         .create_action::<f32>(
                             &create_action.action_name,
@@ -215,7 +215,7 @@ fn create_openxr_events(
                         binding_writer.write(sugestion);
                     }
                 }
-                bevy_mod_xr::actions::ActionType::Vector => {
+                ActionType::Vector => {
                     let action: openxr::Action<Vector2f> = action_set
                         .create_action::<Vector2f>(
                             &create_action.action_name,
@@ -345,6 +345,13 @@ fn sync_and_update_action_states_vector(
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+pub enum ActionType {
+    Bool,
+    Float,
+    Vector,
+}
+
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, SystemSet)]
 pub enum XRUtilsActionSystems {
     /// Runs in Startup
@@ -375,7 +382,7 @@ pub struct ActiveSet;
 pub struct XRUtilsAction {
     pub action_name: Cow<'static, str>,
     pub localized_name: Cow<'static, str>,
-    pub action_type: bevy_mod_xr::actions::ActionType,
+    pub action_type: ActionType,
 }
 
 #[derive(Component)]
