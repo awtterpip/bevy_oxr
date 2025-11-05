@@ -1,14 +1,14 @@
-use std::ffi::{c_void, CStr, CString};
+use std::ffi::{CStr, CString, c_void};
 use std::str::FromStr;
 
 use ash::vk::{self, Handle};
 use bevy_log::{debug, error};
 use bevy_math::UVec2;
-use openxr::{sys, Version};
-use wgpu::{ExperimentalFeatures, InstanceFlags, MemoryBudgetThresholds};
+use openxr::{Version, sys};
 use wgpu::TextureUses;
-use wgpu_hal::api::Vulkan;
+use wgpu::{ExperimentalFeatures, InstanceFlags, MemoryBudgetThresholds};
 use wgpu_hal::Api;
+use wgpu_hal::api::Vulkan;
 
 use super::{GraphicsExt, GraphicsType, GraphicsWrap, OxrManualGraphicsConfig};
 use crate::error::OxrError;
@@ -54,14 +54,13 @@ unsafe impl GraphicsExt for openxr::Vulkan {
     ) -> Result<wgpu::Texture> {
         let color_image = vk::Image::from_raw(color_image);
         let wgpu_hal_texture = unsafe {
-            let hal_dev =
-                device
-                    .as_hal::<wgpu_hal::vulkan::Api>()
-                    .ok_or(OxrError::GraphicsBackendMismatch {
-                        item: "Wgpu Device",
-                        backend: "unknown",
-                        expected_backend: "vulkan",
-                    })?;
+            let hal_dev = device.as_hal::<wgpu_hal::vulkan::Api>().ok_or(
+                OxrError::GraphicsBackendMismatch {
+                    item: "Wgpu Device",
+                    backend: "unknown",
+                    expected_backend: "vulkan",
+                },
+            )?;
             hal_dev.texture_from_raw(
                 color_image,
                 &wgpu_hal::TextureDescriptor {
@@ -207,16 +206,8 @@ unsafe impl GraphicsExt for openxr::Vulkan {
             system_id,
         };
         let mut out = sys::Session::NULL;
-        cvt(unsafe { (instance.fp().create_session)(
-            instance.as_raw(),
-            &info,
-            &mut out,
-        ) })?;
-        Ok(unsafe { openxr::Session::from_raw(
-            instance.clone(),
-            out,
-            Box::new(()),
-        ) })
+        cvt(unsafe { (instance.fp().create_session)(instance.as_raw(), &info, &mut out) })?;
+        Ok(unsafe { openxr::Session::from_raw(instance.clone(), out, Box::new(())) })
     }
 
     fn init_fallback_graphics(
@@ -299,7 +290,12 @@ fn get_extensions(
     if let Some(cfg) = cfg {
         instance_exts.extend(&cfg.vk_instance_exts);
         device_exts.extend(&cfg.vk_device_exts);
+        debug!(
+            "Using device extensions from config: {:#?}",
+            cfg.vk_device_exts
+        );
     }
+
     instance_exts.dedup();
     device_exts.dedup();
 
@@ -392,12 +388,13 @@ fn init_from_instance_and_dev(
     let wgpu_features = wgpu_exposed_adapter.features;
     debug!("wgpu features: {wgpu_features:#?}");
 
-    let enabled_extensions = wgpu_exposed_adapter
+    let mut enabled_extensions = wgpu_exposed_adapter
         .adapter
         .required_device_extensions(wgpu_features);
+    enabled_extensions.extend(device_exts);
+    enabled_extensions.dedup();
 
     let (wgpu_open_device, vk_device_ptr, queue_family_index) = {
-        let extensions_cchar: Vec<_> = device_exts.iter().map(|s| s.as_ptr()).collect();
         let mut enabled_phd_features = wgpu_exposed_adapter
             .adapter
             .physical_device_features(&enabled_extensions, wgpu_features);
@@ -406,17 +403,13 @@ fn init_from_instance_and_dev(
             .queue_family_index(family_index)
             .queue_priorities(&[1.0]);
         let family_infos = [family_info];
-        let mut physical_device_multiview_features = vk::PhysicalDeviceMultiviewFeatures {
-            multiview: vk::TRUE,
-            ..Default::default()
-        };
+        let ext_names = enabled_extensions
+            .iter()
+            .map(|e| e.as_ptr())
+            .collect::<Vec<_>>();
         let info = enabled_phd_features
-            .add_to_device_create(
-                vk::DeviceCreateInfo::default()
-                    .queue_create_infos(&family_infos)
-                    .push_next(&mut physical_device_multiview_features),
-            )
-            .enabled_extension_names(&extensions_cchar);
+            .add_to_device_create(vk::DeviceCreateInfo::default().queue_create_infos(&family_infos))
+            .enabled_extension_names(&ext_names);
         let vk_device = create_dev(&info)?;
         let vk_device_ptr = vk_device.handle().as_raw() as *const c_void;
 
@@ -476,11 +469,7 @@ fn init_from_instance_and_dev(
 }
 
 fn cvt(x: sys::Result) -> openxr::Result<sys::Result> {
-    if x.into_raw() >= 0 {
-        Ok(x)
-    } else {
-        Err(x)
-    }
+    if x.into_raw() >= 0 { Ok(x) } else { Err(x) }
 }
 
 fn vulkan_to_wgpu(format: vk::Format) -> Option<wgpu::TextureFormat> {
