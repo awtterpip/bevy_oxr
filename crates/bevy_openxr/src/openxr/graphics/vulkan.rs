@@ -290,10 +290,6 @@ fn get_extensions(
     if let Some(cfg) = cfg {
         instance_exts.extend(&cfg.vk_instance_exts);
         device_exts.extend(&cfg.vk_device_exts);
-        debug!(
-            "Using device extensions from config: {:#?}",
-            cfg.vk_device_exts
-        );
     }
 
     instance_exts.dedup();
