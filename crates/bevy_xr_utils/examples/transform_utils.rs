@@ -26,9 +26,9 @@ fn main() -> AppExit {
             Update,
             send_recenter.after(XRUtilsActionSystems::SyncActionStates),
         )
-        .insert_resource(AmbientLight {
+        .insert_resource(GlobalAmbientLight {
             brightness: 500.0,
-            ..AmbientLight::default()
+            ..GlobalAmbientLight::default()
         })
         .run()
 }
