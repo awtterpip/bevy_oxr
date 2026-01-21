@@ -5,7 +5,7 @@ use ash::vk::{self, Handle};
 use bevy_log::{debug, error};
 use bevy_math::UVec2;
 use openxr::{sys, Version};
-use wgpu::{InstanceFlags, MemoryBudgetThresholds};
+use wgpu::{ExperimentalFeatures, InstanceFlags, MemoryBudgetThresholds};
 use wgpu::TextureUses;
 use wgpu_hal::api::Vulkan;
 use wgpu_hal::Api;
@@ -453,6 +453,7 @@ fn init_from_instance_and_dev(
                 required_limits: limits,
                 memory_hints: wgpu::MemoryHints::Performance,
                 trace: wgpu::Trace::Off,
+                experimental_features: ExperimentalFeatures::enabled(),
             },
         )
     }?;
@@ -811,6 +812,7 @@ fn wgpu_to_vulkan(format: wgpu::TextureFormat) -> Option<vk::Format> {
         Tf::EacR11Snorm => F::EAC_R11_SNORM_BLOCK,
         Tf::EacRg11Unorm => F::EAC_R11G11_UNORM_BLOCK,
         Tf::EacRg11Snorm => F::EAC_R11G11_SNORM_BLOCK,
+        Tf::P010 => F::G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16,
         Tf::Astc { block, channel } => match channel {
             AstcChannel::Unorm => match block {
                 AstcBlock::B4x4 => F::ASTC_4X4_UNORM_BLOCK,

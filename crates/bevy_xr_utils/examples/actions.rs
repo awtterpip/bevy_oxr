@@ -19,9 +19,9 @@ fn main() {
         .add_systems(Update, read_action_with_marker_component)
         .add_systems(Update, handle_flight_input)
         // Realtime lighting is expensive, use ambient light instead
-        .insert_resource(AmbientLight {
+        .insert_resource(GlobalAmbientLight {
             brightness: 500.0,
-            ..AmbientLight::default()
+            ..GlobalAmbientLight::default()
         })
         .run();
 }

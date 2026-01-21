@@ -19,7 +19,7 @@ fn main() {
         .add_plugins(bevy_mod_openxr::features::fb_passthrough::OxrFbPassthroughPlugin)
         .add_systems(Startup, setup)
         .add_systems(Update, modify_camera)
-        .insert_resource(AmbientLight {
+        .insert_resource(GlobalAmbientLight {
             color: Default::default(),
             brightness: 500.0,
             affects_lightmapped_meshes: false,

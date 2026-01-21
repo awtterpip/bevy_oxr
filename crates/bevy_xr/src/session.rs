@@ -120,7 +120,7 @@ fn on_tracker_add(mut world: DeferredWorld, HookContext { entity, .. }: HookCont
     if world
         .entity(entity)
         .get_components::<Has<Children>>()
-        .is_some_and(identity)
+        .is_ok_and(identity)
     {
         return;
     }

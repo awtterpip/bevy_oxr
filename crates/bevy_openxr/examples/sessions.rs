@@ -10,7 +10,7 @@ fn main() -> AppExit {
         .add_plugins(bevy_mod_xr::hand_debug_gizmos::HandGizmosPlugin)
         .add_systems(Startup, setup)
         .add_systems(Update, handle_input)
-        .insert_resource(AmbientLight::default())
+        .insert_resource(GlobalAmbientLight::default())
         .run()
 }
 
