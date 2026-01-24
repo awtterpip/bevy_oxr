@@ -283,7 +283,11 @@ pub fn insert_texture_views(
     mut swapchain: ResMut<OxrSwapchain>,
     mut manual_texture_views: ResMut<ManualTextureViews>,
     graphics_info: Res<OxrCurrentSessionConfig>,
+    frame_state: Res<OxrFrameState>,
 ) {
+    if !frame_state.should_render {
+        return;
+    }
     let index = swapchain.acquire_image().expect("Failed to acquire image");
     let image = &swapchain_images[index as usize];
 
@@ -293,10 +297,12 @@ pub fn insert_texture_views(
     }
 }
 
-pub fn wait_image(mut swapchain: ResMut<OxrSwapchain>) {
-    swapchain
-        .wait_image(openxr::Duration::INFINITE)
-        .expect("Failed to wait image");
+pub fn wait_image(mut swapchain: ResMut<OxrSwapchain>, state: Res<OxrFrameState>) {
+    if state.should_render {
+        swapchain
+            .wait_image(openxr::Duration::INFINITE)
+            .expect("Failed to wait image");
+    }
 }
 
 pub fn add_texture_view(
@@ -325,7 +331,10 @@ pub fn begin_frame(mut frame_stream: ResMut<OxrFrameStream>) {
     frame_stream.begin().expect("Failed to begin frame");
 }
 
-pub fn release_image(mut swapchain: ResMut<OxrSwapchain>) {
+pub fn release_image(mut swapchain: ResMut<OxrSwapchain>, state: Res<OxrFrameState>) {
+    if !state.should_render {
+        return;
+    }
     #[cfg(target_os = "android")]
     {
         let ctx = ndk_context::android_context();
