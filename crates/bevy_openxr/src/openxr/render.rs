@@ -7,7 +7,7 @@ use bevy_ecs::{
     system::{Commands, Query, Res, ResMut},
     world::World,
 };
-use bevy_log::{debug_span, error, info};
+use bevy_log::{debug_span, error, info, warn};
 use bevy_render::{
     Render, RenderApp,
     extract_resource::ExtractResourcePlugin,
@@ -202,13 +202,16 @@ pub fn locate_views(
     } else {
         frame_state.predicted_display_time
     };
-    let (flags, xr_views) = session
+    let Ok((flags, xr_views)) = session
         .locate_views(
             openxr::ViewConfigurationType::PRIMARY_STEREO,
             time,
             &ref_space,
         )
-        .expect("Failed to locate views");
+        .inspect_err(|err| warn!("failed to locate views: {err}"))
+    else {
+        return;
+    };
 
     match (
         flags & ViewStateFlags::ORIENTATION_VALID == ViewStateFlags::ORIENTATION_VALID,
