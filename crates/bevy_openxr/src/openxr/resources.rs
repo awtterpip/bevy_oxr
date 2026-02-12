@@ -322,11 +322,11 @@ impl OxrPassthrough {
 
 /// Wrapper around [`openxr::Passthrough`].
 ///
-/// Used to create a [`CompositionLayerPassthrough`](crate::layer_builder::CompositionLayerPassthrough), and to [`pause`](openxr::PassthroughLayer::pause) or [`resume`](openxr::PassthroughLayer::resume) rendering of the passthrough layer.
+/// Used to create a [`CompositionLayerPassthrough`](crate::layer_builder::CompositionLayerPassthrough), and to [`pause`](openxr::PassthroughLayerFB::pause) or [`resume`](openxr::PassthroughLayerFB::resume) rendering of the passthrough layer.
 ///
-/// See [`openxr::PassthroughLayer`] for available methods.
+/// See [`openxr::PassthroughLayerFB`] for available methods.
 #[derive(Resource, Deref, DerefMut)]
-pub struct OxrPassthroughLayer(pub openxr::PassthroughLayer);
+pub struct OxrPassthroughLayerFB(pub openxr::PassthroughLayerFB);
 
 #[derive(Resource, Deref, DerefMut, Default)]
 pub struct OxrRenderLayers(pub Vec<Box<dyn LayerProvider + Send + Sync>>);

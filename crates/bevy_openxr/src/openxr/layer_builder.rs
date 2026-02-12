@@ -65,8 +65,8 @@ impl LayerProvider for ProjectionLayer {
 impl LayerProvider for PassthroughLayer {
     fn get(&self, world: &World) -> Option<Box<dyn CompositionLayer<'_>>> {
         Some(Box::new(
-            CompositionLayerPassthrough::new()
-                .layer_handle(world.get_resource::<OxrPassthroughLayer>()?)
+            CompositionLayerPassthroughFB::new()
+                .layer_handle(world.get_resource::<OxrPassthroughLayerFB>()?)
                 .layer_flags(CompositionLayerFlags::BLEND_TEXTURE_SOURCE_ALPHA),
         ))
     }
@@ -236,16 +236,16 @@ impl Default for CompositionLayerProjection<'_> {
         Self::new()
     }
 }
-pub struct CompositionLayerPassthrough {
+pub struct CompositionLayerPassthroughFB {
     inner: sys::CompositionLayerPassthroughFB,
 }
-impl Default for CompositionLayerPassthrough {
+impl Default for CompositionLayerPassthroughFB {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl CompositionLayerPassthrough {
+impl CompositionLayerPassthroughFB {
     #[inline]
     pub const fn new() -> Self {
         Self {
@@ -256,7 +256,7 @@ impl CompositionLayerPassthrough {
         }
     }
     #[inline]
-    pub fn layer_handle(mut self, layer_handle: &OxrPassthroughLayer) -> Self {
+    pub fn layer_handle(mut self, layer_handle: &OxrPassthroughLayerFB) -> Self {
         self.inner.layer_handle = *layer_handle.inner();
         self
     }
@@ -266,7 +266,7 @@ impl CompositionLayerPassthrough {
         self
     }
 }
-unsafe impl<'a> CompositionLayer<'a> for CompositionLayerPassthrough {
+unsafe impl<'a> CompositionLayer<'a> for CompositionLayerPassthroughFB {
     fn swapchain(&self) -> Option<&'a OxrSwapchain> {
         None
     }

@@ -4,6 +4,7 @@ use std::str::FromStr;
 use ash::vk::{self, Handle};
 use bevy_log::{debug, error};
 use bevy_math::UVec2;
+use openxr::sys::Handle as _;
 use openxr::{Version, sys};
 use wgpu::TextureUses;
 use wgpu::{ExperimentalFeatures, InstanceFlags, MemoryBudgetThresholds};

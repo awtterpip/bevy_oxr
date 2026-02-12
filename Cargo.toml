@@ -32,7 +32,7 @@ bevy_platform = { version = "0.18", default-features = false }
 bevy_mod_xr = { path = "crates/bevy_xr", version = "0.4.0" }
 bevy_mod_openxr = { path = "crates/bevy_openxr", version = "0.4.0" }
 bevy_xr_utils = { path = "crates/bevy_xr_utils", version = "0.4.0" }
-openxr = "0.19.0"
+openxr = "0.21.1"
 thiserror = "2.0.3"
 wgpu = "27"
 wgpu-hal = "27"

@@ -1,7 +1,7 @@
 use std::ffi::c_void;
 
 use crate::next_chain::{OxrNextChain, OxrNextChainStructBase, OxrNextChainStructProvider};
-use crate::resources::{OxrPassthrough, OxrPassthroughLayer, OxrSwapchain};
+use crate::resources::{OxrPassthrough, OxrPassthroughLayerFB, OxrSwapchain};
 use crate::types::{Result, SwapchainCreateInfo};
 use bevy_derive::Deref;
 use bevy_ecs::resource::Resource;
@@ -91,8 +91,8 @@ impl OxrSession {
         &self,
         passthrough: &OxrPassthrough,
         purpose: openxr::PassthroughLayerPurposeFB,
-    ) -> Result<OxrPassthroughLayer> {
-        Ok(OxrPassthroughLayer(graphics_match! {
+    ) -> Result<OxrPassthroughLayerFB> {
+        Ok(OxrPassthroughLayerFB(graphics_match! {
             &self.1;
             session => session.create_passthrough_layer(&passthrough.0, passthrough.1, purpose)?
         }))

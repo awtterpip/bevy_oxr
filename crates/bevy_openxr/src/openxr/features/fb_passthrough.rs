@@ -69,7 +69,7 @@ pub fn insert_passthrough(world: &mut World) {
 
 pub fn resume_passthrough(
     passthrough: Res<OxrPassthrough>,
-    passthrough_layer: Res<OxrPassthroughLayer>,
+    passthrough_layer: Res<OxrPassthroughLayerFB>,
 ) {
     passthrough.start().unwrap();
     passthrough_layer.resume().unwrap();
@@ -77,7 +77,7 @@ pub fn resume_passthrough(
 
 pub fn pause_passthrough(
     passthrough: Res<OxrPassthrough>,
-    passthrough_layer: Res<OxrPassthroughLayer>,
+    passthrough_layer: Res<OxrPassthroughLayerFB>,
 ) {
     passthrough_layer.pause().unwrap();
     passthrough.pause().unwrap();
@@ -87,7 +87,7 @@ pub fn create_passthrough(
     session: &OxrSession,
     flags: openxr::PassthroughFlagsFB,
     purpose: openxr::PassthroughLayerPurposeFB,
-) -> OxrResult<(OxrPassthrough, OxrPassthroughLayer)> {
+) -> OxrResult<(OxrPassthrough, OxrPassthroughLayerFB)> {
     let passthrough = session.create_passthrough(flags)?;
 
     let passthrough_layer = session.create_passthrough_layer(&passthrough, purpose)?;

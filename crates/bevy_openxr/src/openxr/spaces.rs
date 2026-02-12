@@ -19,7 +19,7 @@ use bevy_platform::collections::hash_set::HashSet;
 use bevy_transform::components::Transform;
 use openxr::{
     HAND_JOINT_COUNT, HandJointLocation, HandJointLocations, HandJointVelocities,
-    HandJointVelocity, ReferenceSpaceType, SpaceLocationFlags, SpaceVelocityFlags, sys,
+    HandJointVelocity, ReferenceSpaceType, SpaceLocationFlags, SpaceVelocityFlags, sys::{self, Handle as _},
 };
 use std::{mem::MaybeUninit, ptr, sync::Mutex};
 
