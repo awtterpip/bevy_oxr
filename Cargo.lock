@@ -1041,7 +1041,7 @@ checksum = "7ef8e4b7e61dfe7719bb03c884dc270cd46a82efb40f93e9933b990c5c190c59"
 
 [[package]]
 name = "bevy_mod_openxr"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "android_system_properties",
  "ash",
@@ -1080,7 +1080,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_mod_xr"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "bevy_app",
  "bevy_camera",
@@ -1097,7 +1097,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_openxr_android"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "bevy",
  "bevy_mod_openxr",
@@ -1661,7 +1661,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_xr_utils"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "bevy",
  "bevy_app",

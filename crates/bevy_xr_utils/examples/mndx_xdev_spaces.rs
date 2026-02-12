@@ -11,7 +11,7 @@ fn main() -> AppExit {
             exts: {
                 let mut exts = OxrExtensions::default();
                 exts.enable_hand_tracking();
-                exts.other.push("XR_MNDX_xdev_space".to_string());
+                exts.other.push(c"XR_MNDX_xdev_space".to_bytes_with_nul().to_vec());
                 exts
             },
             ..Default::default()

@@ -119,7 +119,7 @@ fn spawn_hands(
         actions
             .left
             .create_space(
-                session.deref().deref().clone(),
+                session.deref().deref(),
                 openxr::Path::NULL,
                 Posef::IDENTITY,
             )
