@@ -104,6 +104,14 @@ impl Plugin for OxrRenderPlugin {
 
         let render_app = app.sub_app_mut(RenderApp);
 
+        #[cfg(target_os = "android")]
+        render_app.add_systems(
+            Render,
+            clear_android_window
+                .before(bevy_render::view::prepare_windows)
+                .in_set(bevy_render::RenderSystems::ManageViews),
+        );
+
         render_app
             .add_systems(XrPreDestroySession, clean_views)
             .add_systems(
@@ -128,6 +136,21 @@ impl Plugin for OxrRenderPlugin {
             )
             .insert_resource(OxrRenderLayers(vec![Box::new(ProjectionLayer)]));
     }
+}
+
+/// Clears extracted windows to prevent wgpu surface creation on Android.
+///
+/// On Android, the NativeActivity always creates a window (required for the event
+/// loop), but in XR mode the OpenXR compositor handles display. If bevy creates a
+/// wgpu surface for this window, it adds a present semaphore to every vkQueueSubmit.
+/// This is unnecessary overhead and on some GPUs (e.g. Qualcomm Adreno) causes a
+/// sync_file file descriptor leak (~1 per frame), exhausting the FD limit within minutes.
+///
+/// Clearing ExtractedWindows prevents surface/swapchain creation while keeping
+/// the Android event loop functional.
+#[cfg(target_os = "android")]
+fn clear_android_window(mut windows: ResMut<bevy_render::view::ExtractedWindows>) {
+    windows.windows.clear();
 }
 
 pub const XR_TEXTURE_INDEX: u32 = 3383858418;
