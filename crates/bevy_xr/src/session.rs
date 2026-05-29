@@ -14,7 +14,8 @@ use bevy_ecs::query::{Has, With};
 use bevy_ecs::resource::Resource;
 use bevy_ecs::schedule::common_conditions::on_message;
 use bevy_ecs::schedule::{
-    ExecutorKind, IntoScheduleConfigs as _, Schedule, ScheduleLabel, SystemCondition as _, SystemSet
+    IntoScheduleConfigs as _, Schedule, ScheduleLabel, SingleThreadedExecutor,
+    SystemCondition as _, SystemSet,
 };
 use bevy_ecs::system::{Local, Query, Res, ResMut};
 use bevy_ecs::world::DeferredWorld;
@@ -138,7 +139,7 @@ impl Plugin for XrSessionPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<XrDestroySessionRender>();
         let mut xr_first = Schedule::new(XrFirst);
-        xr_first.set_executor_kind(ExecutorKind::SingleThreaded);
+        xr_first.set_executor(SingleThreadedExecutor::new());
         app.add_message::<XrCreateSessionMessage>()
             .add_message::<XrDestroySessionMessage>()
             .add_message::<XrBeginSessionMessage>()
@@ -200,7 +201,7 @@ impl Plugin for XrSessionPlugin {
             XrFirst,
             exits_session_on_app_exit
                 .before(XrHandleEvents::ExitEvents)
-                .run_if(on_message::<AppExit>.and(session_running)),
+                .run_if(on_message::<AppExit>.and_then(session_running)),
         );
 
         let render_app = app.sub_app_mut(RenderApp);
@@ -219,7 +220,7 @@ impl Plugin for XrSessionPlugin {
             .configure_sets(
                 Render,
                 XrRenderSystems::PreRender
-                    .before(RenderSystems::ManageViews)
+                    .before(RenderSystems::PrepareViews)
                     .before(RenderSystems::PrepareAssets),
             )
             .configure_sets(

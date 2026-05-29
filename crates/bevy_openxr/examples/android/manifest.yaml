@@ -40,4 +40,5 @@ android:
                 - "android.intent.category.LAUNCHER"
                 - "org.khronos.openxr.intent.category.IMMERSIVE_HMD"
     sdk:
+      min_sdk_version: 26
       target_sdk_version: 32

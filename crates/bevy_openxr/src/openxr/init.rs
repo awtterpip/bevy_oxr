@@ -160,8 +160,8 @@ impl Plugin for OxrInitPlugin {
                     .insert_resource(system_id)
                     .insert_resource(XrState::Available)
                     .insert_resource(OxrSessionStarted(false))
-                    .insert_non_send_resource(graphics_info)
-                    .init_non_send_resource::<OxrSessionCreateNextChain>();
+                    .insert_non_send(graphics_info)
+                    .init_non_send::<OxrSessionCreateNextChain>();
                 #[cfg(feature = "window_support")]
                 {
                     app.insert_resource(WinitSettings {
@@ -228,7 +228,7 @@ impl Plugin for OxrInitPlugin {
                 .chain()
                 .run_if(
                     resource_exists::<XrDestroySessionRender>
-                        .and(|v: Res<XrDestroySessionRender>| v.0.load(Ordering::Relaxed)),
+                        .and_then(|v: Res<XrDestroySessionRender>| v.0.load(Ordering::Relaxed)),
                 ),
         );
     }
@@ -490,12 +490,12 @@ fn init_xr_session(
 
 pub fn create_xr_session(world: &mut World) {
     let mut chain = world
-        .remove_non_send_resource::<OxrSessionCreateNextChain>()
+        .remove_non_send::<OxrSessionCreateNextChain>()
         .unwrap();
     let device = world.resource::<RenderDevice>();
     let instance = world.resource::<OxrInstance>();
     let session_config = world.resource::<OxrSessionConfig>();
-    let session_create_info = world.non_send_resource::<SessionGraphicsCreateInfo>();
+    let session_create_info = world.non_send::<SessionGraphicsCreateInfo>();
     let system_id = world.resource::<OxrSystemId>();
     match init_xr_session(
         device.wgpu_device(),
@@ -533,7 +533,7 @@ pub fn create_xr_session(world: &mut World) {
         }
         Err(e) => error!("Failed to initialize XrSession: {e}"),
     }
-    world.insert_non_send_resource(chain);
+    world.insert_non_send(chain);
     world.run_schedule(XrSessionCreated);
     world.write_message(XrSessionCreatedMessage);
 }
