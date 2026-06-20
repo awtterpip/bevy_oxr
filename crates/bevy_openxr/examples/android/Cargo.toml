@@ -13,14 +13,7 @@ bevy_mod_openxr = { workspace = true, features = [
 ] }
 bevy_xr_utils.workspace = true
 bevy_mod_xr.workspace = true
-bevy = { workspace = true, features = [
-    # Bevy 0.15 made GameActivity the default which breaks Quest builds
-    # To use NativeActivity instead of GameActivity all of the features have to be listed manually
-    "android-native-activity",
-    "bevy_window",
-    "multi_threaded",
-    "tonemapping_luts",
-] }
+bevy = { workspace = true, features = ["android-native-activity"] } # cargo-apk is not compatible with android-game-activity
 
 [build-dependencies]
 reqwest = { version = "0.12", features = ["blocking"] }
@@ -49,6 +42,7 @@ strip = "strip"
 # label = "Bevy Example"
 
 [package.metadata.android.sdk]
+min_sdk_version = 26 # https://bevy.org/learn/migration-guides/0-18-to-0-19/#android-related-features
 target_sdk_version = 32
 
 [package.metadata.android.application.activity]

@@ -6,8 +6,7 @@ use bevy_log::{debug, error};
 use bevy_math::UVec2;
 use openxr::sys::Handle as _;
 use openxr::{Version, sys};
-use wgpu::TextureUses;
-use wgpu::{ExperimentalFeatures, InstanceFlags, MemoryBudgetThresholds};
+use wgpu::{ExperimentalFeatures, InstanceFlags, Limits, MemoryBudgetThresholds, TextureUses};
 use wgpu_hal::Api;
 use wgpu_hal::api::Vulkan;
 
@@ -80,6 +79,7 @@ unsafe impl GraphicsExt for openxr::Vulkan {
                     view_formats: vec![],
                 },
                 None,
+                wgpu_hal::vulkan::TextureMemory::External,
             )
         };
         let texture = unsafe {
@@ -416,6 +416,7 @@ fn init_from_instance_and_dev(
                 None,
                 &enabled_extensions,
                 wgpu_features,
+                &Limits::defaults(),
                 &wgpu::MemoryHints::Performance,
                 family_info.queue_family_index,
                 0,
