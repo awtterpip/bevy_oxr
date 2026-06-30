@@ -29,5 +29,36 @@ This does not automatically convert Bevy's built-in PBR or core render passes to
 
 See `cargo run -p bevy_mod_openxr --example multiview` for a minimal setup example.
 
+## Fixed foveated rendering
+
+Applications can opt into the `XR_FB_foveation` extension family by adding
+`OxrFoveationPlugin` before the OpenXR plugins are initialized:
+
+```rust
+use bevy::prelude::*;
+use bevy_mod_openxr::{
+    add_xr_plugins,
+    foveation::{OxrFoveationConfig, OxrFoveationPlugin},
+};
+
+fn main() {
+    App::new()
+        .add_plugins(OxrFoveationPlugin::new(
+            OxrFoveationConfig::medium().dynamic(true),
+        ))
+        .add_plugins(add_xr_plugins(DefaultPlugins))
+        .run();
+}
+```
+
+On Vulkan, this requests the OpenXR foveation extensions, enables the Vulkan
+fragment-density-map device extensions, creates the swapchain with foveation
+enabled, and applies a foveation profile. Runtimes that do not expose every
+required extension automatically fall back to a regular swapchain.
+
+Current `wgpu` render pass APIs do not expose a fragment density map attachment,
+so applications should validate visual quality and performance on target
+headsets before relying on a GPU time reduction.
+
 ![](https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExY2FlOXJrOG1pbzFkYTVjZHIybndqamF1a2YwZHU3dXgyZGcwdmFzMiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/CHbQyXOT5yZZ1VQRh7/giphy-downsized-large.gif)
 ![](https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbHVmZXc2b3VhcGE2eHE2c2Y3NDR6cXNibHdjNjk5MmtyOHlkMXkwZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Hsvp5el2o7tzgOf9GQ/giphy-downsized-large.gif)

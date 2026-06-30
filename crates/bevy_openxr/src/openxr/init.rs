@@ -42,6 +42,9 @@ use bevy_winit::UpdateMode;
 use bevy_winit::WinitSettings;
 
 use crate::error::OxrError;
+use crate::foveation::OxrEnabledFoveationConfig;
+use crate::foveation::OxrFoveationConfig;
+use crate::foveation::OxrFoveationProfile;
 use crate::graphics::*;
 use crate::resources::*;
 use crate::session::OxrSession;
@@ -111,13 +114,15 @@ impl Plugin for OxrInitPlugin {
         app.insert_resource(MainThreadTid(android_thread_settings::current_thread_tid()));
 
         let cfg = app.world_mut().remove_resource::<OxrManualGraphicsConfig>();
-        match self.init_xr(cfg.as_ref()) {
+        let foveation = app.world().get_resource::<OxrFoveationConfig>().copied();
+        match self.init_xr(cfg.clone(), foveation) {
             Ok((
                 instance,
                 system_id,
                 WgpuGraphics(device, queue, adapter_info, adapter, wgpu_instance),
                 enabled_exts,
                 graphics_info,
+                enabled_foveation,
             )) => {
                 app.insert_resource(enabled_exts)
                     .add_plugins((
@@ -171,6 +176,9 @@ impl Plugin for OxrInitPlugin {
                     .insert_resource(OxrSessionStarted(false))
                     .insert_non_send(graphics_info)
                     .init_non_send::<OxrSessionCreateNextChain>();
+                if let Some(foveation) = enabled_foveation {
+                    app.insert_resource(OxrEnabledFoveationConfig(foveation));
+                }
                 #[cfg(feature = "window_support")]
                 {
                     app.insert_resource(WinitSettings {
@@ -271,13 +279,15 @@ fn detect_session_destroyed(
 impl OxrInitPlugin {
     fn init_xr(
         &self,
-        cfg: Option<&OxrManualGraphicsConfig>,
+        mut cfg: Option<OxrManualGraphicsConfig>,
+        foveation: Option<OxrFoveationConfig>,
     ) -> OxrResult<(
         OxrInstance,
         OxrSystemId,
         WgpuGraphics,
         OxrEnabledExtensions,
         SessionGraphicsCreateInfo,
+        Option<OxrFoveationConfig>,
     )> {
         #[cfg(windows)]
         let entry = OxrEntry(openxr::Entry::linked());
@@ -289,13 +299,17 @@ impl OxrInitPlugin {
 
         let available_exts = entry.enumerate_extensions()?;
         #[cfg(target_os = "android")]
-        let requested_exts = {
+        let mut requested_exts = {
             let mut requested_exts = self.exts.clone();
             requested_exts.raw_mut().khr_android_thread_settings = true;
             requested_exts
         };
         #[cfg(not(target_os = "android"))]
-        let requested_exts = self.exts.clone();
+        let mut requested_exts = self.exts.clone();
+
+        if let Some(config) = foveation {
+            requested_exts = requested_exts | config.required_extensions();
+        }
 
         // check available extensions and send a warning for any wanted extensions that aren't available.
         for ext in available_exts.unavailable_exts(&requested_exts) {
@@ -322,6 +336,13 @@ impl OxrInitPlugin {
         .ok_or(OxrError::NoAvailableBackend)?;
 
         let exts = requested_exts & available_exts;
+        let foveation = foveation.filter(|config| {
+            let is_available = config.required_extensions().is_available(&exts);
+            if !is_available {
+                warn!("OpenXR foveation disabled because one or more required extensions are not available");
+            }
+            is_available
+        });
 
         let instance = entry.create_instance(self.app_info.clone(), exts.clone(), &[], backend)?;
         let instance_props = instance.properties()?;
@@ -343,7 +364,13 @@ impl OxrInitPlugin {
             }
         );
 
-        let (graphics, graphics_info) = instance.init_graphics(system_id, cfg)?;
+        if let Some(config) = foveation
+            && config.use_fragment_density_map
+        {
+            add_vulkan_foveation_device_extensions(&mut cfg);
+        }
+
+        let (graphics, graphics_info) = instance.init_graphics(system_id, cfg.as_ref())?;
 
         Ok((
             instance,
@@ -351,8 +378,27 @@ impl OxrInitPlugin {
             graphics,
             OxrEnabledExtensions(exts),
             graphics_info,
+            foveation,
         ))
     }
+}
+
+#[cfg(feature = "vulkan")]
+fn add_vulkan_foveation_device_extensions(cfg: &mut Option<OxrManualGraphicsConfig>) {
+    let cfg = cfg.get_or_insert_with(|| OxrManualGraphicsConfig {
+        fallback_backend: GraphicsBackend::Vulkan(()),
+        vk_instance_exts: Vec::new(),
+        vk_device_exts: Vec::new(),
+    });
+    cfg.vk_device_exts
+        .push(ash::ext::fragment_density_map::NAME);
+    cfg.vk_device_exts
+        .push(ash::ext::fragment_density_map2::NAME);
+}
+
+#[cfg(not(feature = "vulkan"))]
+fn add_vulkan_foveation_device_extensions(_cfg: &mut Option<OxrManualGraphicsConfig>) {
+    warn!("OpenXR foveation requested, but Vulkan support is not enabled");
 }
 
 pub fn handle_events(
@@ -406,6 +452,7 @@ fn init_xr_session(
     graphics_info: SessionGraphicsCreateInfo,
     display_refresh_rate_request: Option<f32>,
     display_refresh_rate_enabled: bool,
+    foveation: Option<OxrFoveationConfig>,
 ) -> OxrResult<(
     OxrSession,
     OxrFrameWaiter,
@@ -414,6 +461,7 @@ fn init_xr_session(
     OxrSwapchainImages,
     OxrCurrentSessionConfig,
     OxrEnvironmentBlendModes,
+    Option<OxrFoveationProfile>,
 )> {
     let (session, frame_waiter, frame_stream) =
         unsafe { instance.create_session(system_id, graphics_info, chain)? };
@@ -515,7 +563,7 @@ fn init_xr_session(
     }
     .ok_or(OxrError::NoAvailableFormat)?;
 
-    let swapchain = session.create_swapchain(SwapchainCreateInfo {
+    let swapchain_create_info = SwapchainCreateInfo {
         create_flags: SwapchainCreateFlags::EMPTY,
         usage_flags: SwapchainUsageFlags::COLOR_ATTACHMENT | SwapchainUsageFlags::SAMPLED,
         format,
@@ -526,7 +574,13 @@ fn init_xr_session(
         face_count: 1,
         array_size: 2,
         mip_count: 1,
-    })?;
+    };
+
+    let (swapchain, foveation) = if let Some(foveation) = foveation {
+        session.create_foveated_swapchain(swapchain_create_info, foveation)?
+    } else {
+        (session.create_swapchain(swapchain_create_info)?, None)
+    };
 
     let images = swapchain.enumerate_images(device, format, resolution)?;
 
@@ -547,6 +601,7 @@ fn init_xr_session(
         images,
         graphics_info,
         blend_modes,
+        foveation,
     ))
 }
 
@@ -566,6 +621,9 @@ pub fn create_xr_session(world: &mut World) {
         .resource::<OxrEnabledExtensions>()
         .raw()
         .fb_display_refresh_rate;
+    let foveation = world
+        .get_resource::<OxrEnabledFoveationConfig>()
+        .map(|config| config.0);
     match init_xr_session(
         device.wgpu_device(),
         &instance,
@@ -575,6 +633,7 @@ pub fn create_xr_session(world: &mut World) {
         session_create_info.clone(),
         display_refresh_rate_request,
         display_refresh_rate_enabled,
+        foveation,
     ) {
         Ok((
             session,
@@ -584,6 +643,7 @@ pub fn create_xr_session(world: &mut World) {
             images,
             graphics_info,
             blend_modes,
+            foveation_profile,
         )) => {
             world.insert_resource(session.clone());
             #[cfg(target_os = "android")]
@@ -609,6 +669,9 @@ pub fn create_xr_session(world: &mut World) {
                     .clone(),
             });
             world.insert_resource(blend_modes);
+            if let Some(foveation_profile) = foveation_profile {
+                world.insert_resource(foveation_profile);
+            }
         }
         Err(e) => error!("Failed to initialize XrSession: {e}"),
     }
@@ -625,6 +688,7 @@ pub fn destroy_xr_session(world: &mut World) {
     world.remove_resource::<OxrSwapchain>();
     world.remove_resource::<OxrSwapchainImages>();
     world.remove_resource::<OxrCurrentSessionConfig>();
+    world.remove_resource::<OxrFoveationProfile>();
     world.insert_resource(XrState::Available);
 }
 

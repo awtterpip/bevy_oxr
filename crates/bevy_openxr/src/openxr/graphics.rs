@@ -54,7 +54,7 @@ pub unsafe trait GraphicsExt: openxr::Graphics {
     ) -> Result<WgpuGraphics>;
 }
 
-#[derive(Resource)]
+#[derive(Resource, Clone)]
 pub struct OxrManualGraphicsConfig {
     pub fallback_backend: GraphicsBackend,
     pub vk_instance_exts: Vec<&'static CStr>,
