@@ -17,6 +17,8 @@ use self::{features::handtracking::HandTrackingPlugin, reference_space::OxrRefer
 pub mod action_binding;
 pub mod action_set_attaching;
 pub mod action_set_syncing;
+#[cfg(target_os = "android")]
+pub mod android_thread_settings;
 pub mod environment_blend_mode;
 pub mod error;
 pub mod exts;
