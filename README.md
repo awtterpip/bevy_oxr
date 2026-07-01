@@ -4,6 +4,8 @@ A crate for adding openxr (and in the future webxr) support to Bevy.
 
 To see it in action run the example in `crates/bevy_openxr/examples` with `cargo run -p bevy_mod_openxr --example 3d_scene`
 
+The OpenXR backend can also expose an opt-in stereo multiview swapchain view for custom render graph nodes. See `cargo run -p bevy_mod_openxr --example multiview` and the `bevy_mod_openxr` README for details.
+
 ## Discord
 
 Come hang out if you have questions or issues 
@@ -33,4 +35,3 @@ at your option. This means you can select the license you prefer!
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in the work by you, as defined in the Apache-2.0 license, shall
 be dual licensed as above, without any additional terms or conditions.
-
