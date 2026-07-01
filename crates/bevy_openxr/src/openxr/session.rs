@@ -1,13 +1,18 @@
 use std::ffi::c_void;
+use std::ptr;
 
+use crate::foveation::{OxrFoveationConfig, OxrFoveationProfile};
 use crate::next_chain::{OxrNextChain, OxrNextChainStructBase, OxrNextChainStructProvider};
 use crate::resources::{OxrPassthrough, OxrPassthroughLayerFB, OxrSwapchain};
 use crate::types::{Result, SwapchainCreateInfo};
 use bevy_derive::Deref;
 use bevy_ecs::resource::Resource;
 use openxr::AnyGraphics;
+use openxr::sys::Handle as _;
 
-use crate::graphics::{graphics_match, GraphicsExt, GraphicsType, GraphicsWrap};
+use crate::graphics::{GraphicsExt, GraphicsType, GraphicsWrap, graphics_match};
+
+const VK_IMAGE_CREATE_SUBSAMPLED_BIT_EXT: openxr::sys::platform::VkImageCreateFlags = 0x0000_4000;
 
 /// Graphics agnostic wrapper around [openxr::Session].
 ///
@@ -67,6 +72,26 @@ impl OxrSession {
         )))
     }
 
+    /// Creates an [`OxrSwapchain`] with `XR_FB_foveation` enabled and applies
+    /// a foveation profile to it.
+    ///
+    /// On Vulkan runtimes this requests a fragment-density-map swapchain. The
+    /// returned profile is kept alive by the caller for as long as the
+    /// swapchain may use it.
+    pub fn create_foveated_swapchain(
+        &self,
+        info: SwapchainCreateInfo,
+        config: OxrFoveationConfig,
+    ) -> Result<(OxrSwapchain, Option<OxrFoveationProfile>)> {
+        Ok(graphics_match!(
+            &self.1;
+            session => {
+                let (swapchain, profile) = create_foveated_swapchain(session, info, config)?;
+                (OxrSwapchain(Api::wrap(swapchain)), profile)
+            }
+        ))
+    }
+
     /// Creates a passthrough.
     ///
     /// Requires [`XR_FB_passthrough`](https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#XR_FB_passthrough).
@@ -97,6 +122,92 @@ impl OxrSession {
             session => session.create_passthrough_layer(&passthrough.0, passthrough.1, purpose)?
         }))
     }
+}
+
+fn create_foveated_swapchain<G: GraphicsExt>(
+    session: &openxr::Session<G>,
+    info: SwapchainCreateInfo,
+    config: OxrFoveationConfig,
+) -> Result<(openxr::Swapchain<G>, Option<OxrFoveationProfile>)> {
+    let Some(format) = G::from_wgpu_format(info.format) else {
+        return Err(crate::error::OxrError::UnsupportedTextureFormat(
+            info.format,
+        ));
+    };
+
+    let mut vulkan_create_info = openxr::sys::VulkanSwapchainCreateInfoMETA {
+        ty: openxr::sys::VulkanSwapchainCreateInfoMETA::TYPE,
+        next: ptr::null(),
+        additional_create_flags: 0,
+        additional_usage_flags: 0,
+    };
+    if config.use_subsampled_layout {
+        vulkan_create_info.additional_create_flags = VK_IMAGE_CREATE_SUBSAMPLED_BIT_EXT;
+    }
+
+    let mut foveation_create_info = openxr::sys::SwapchainCreateInfoFoveationFB {
+        ty: openxr::sys::SwapchainCreateInfoFoveationFB::TYPE,
+        next: if config.use_subsampled_layout {
+            &vulkan_create_info as *const _ as *mut _
+        } else {
+            ptr::null_mut()
+        },
+        flags: if config.use_fragment_density_map {
+            openxr::sys::SwapchainCreateFoveationFlagsFB::FRAGMENT_DENSITY_MAP
+        } else {
+            openxr::sys::SwapchainCreateFoveationFlagsFB::SCALED_BIN
+        },
+    };
+
+    let create_info = openxr::sys::SwapchainCreateInfo {
+        ty: openxr::sys::SwapchainCreateInfo::TYPE,
+        next: &mut foveation_create_info as *mut _ as *const _,
+        create_flags: info.create_flags,
+        usage_flags: info.usage_flags,
+        format: G::lower_format(format),
+        sample_count: info.sample_count,
+        width: info.width,
+        height: info.height,
+        face_count: info.face_count,
+        array_size: info.array_size,
+        mip_count: info.mip_count,
+    };
+
+    let mut swapchain = openxr::sys::Swapchain::NULL;
+    let result = unsafe {
+        (session.instance().fp().create_swapchain)(session.as_raw(), &create_info, &mut swapchain)
+    };
+    if result.into_raw() < 0 {
+        return Err(result.into());
+    }
+
+    let swapchain = unsafe { openxr::Swapchain::from_raw(session.clone(), swapchain) };
+    let profile = session.create_foveation_profile(Some(openxr::FoveationLevelProfile {
+        level: config.level,
+        vertical_offset: config.vertical_offset,
+        dynamic: config.dynamic,
+    }))?;
+    let state = openxr::sys::SwapchainStateFoveationFB {
+        ty: openxr::sys::SwapchainStateFoveationFB::TYPE,
+        next: ptr::null_mut(),
+        flags: openxr::sys::SwapchainStateFoveationFlagsFB::EMPTY,
+        profile: profile.as_raw(),
+    };
+    let Some(update_swapchain) = session.instance().exts().fb_swapchain_update_state.as_ref()
+    else {
+        return Err(openxr::sys::Result::ERROR_EXTENSION_NOT_PRESENT.into());
+    };
+    let result = unsafe {
+        (update_swapchain.update_swapchain)(
+            swapchain.as_raw(),
+            &state as *const _ as *const openxr::sys::SwapchainStateBaseHeaderFB,
+        )
+    };
+    if result.into_raw() < 0 {
+        return Err(result.into());
+    }
+
+    Ok((swapchain, Some(OxrFoveationProfile(profile))))
 }
 
 pub trait OxrSessionCreateNextProvider: OxrNextChainStructProvider {}

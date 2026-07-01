@@ -40,6 +40,14 @@ impl OxrExtensions {
         self.0.extx_overlay = true;
         self
     }
+    pub fn enable_fb_foveation(&mut self) -> &mut Self {
+        self.0.fb_swapchain_update_state = true;
+        self.0.fb_foveation = true;
+        self.0.fb_foveation_configuration = true;
+        self.0.fb_foveation_vulkan = true;
+        self.0.meta_vulkan_swapchain_create_info = true;
+        self
+    }
     /// returns true if all of the extensions enabled are also available in `available_exts`
     pub fn is_available(&self, available_exts: &OxrExtensions) -> bool {
         self.0.intersection(&available_exts) == self.0
