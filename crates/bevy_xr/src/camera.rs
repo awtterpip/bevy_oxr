@@ -1,15 +1,18 @@
-use core::panic;
+use core::{num::NonZeroU32, panic};
 
 use bevy_app::{App, Plugin};
 use bevy_camera::{Camera3d, CameraProjection};
-use bevy_ecs::{component::Component, schedule::SystemSet};
+use bevy_ecs::{component::Component, resource::Resource, schedule::SystemSet};
 use bevy_math::{Mat4, Vec3A, Vec4};
 // use bevy::prelude::SystemSet;
 #[cfg(feature = "reflect")]
 use bevy_reflect::std_traits::ReflectDefault;
 #[cfg(feature = "reflect")]
 use bevy_reflect::Reflect;
-use bevy_render::extract_component::{ExtractComponent, ExtractComponentPlugin};
+use bevy_render::{
+    extract_component::{ExtractComponent, ExtractComponentPlugin},
+    extract_resource::{ExtractResource, ExtractResourcePlugin},
+};
 
 use crate::session::XrTracker;
 
@@ -17,7 +20,47 @@ pub struct XrCameraPlugin;
 
 impl Plugin for XrCameraPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(ExtractComponentPlugin::<XrCamera>::default());
+        app.init_resource::<XrStereoRenderMode>().add_plugins((
+            ExtractComponentPlugin::<XrCamera>::default(),
+            ExtractResourcePlugin::<XrStereoRenderMode>::default(),
+        ));
+    }
+}
+
+/// Selects how stereo XR views are exposed to render code.
+///
+/// [`XrStereoRenderMode::MultiPass`] is the compatibility default used by Bevy's built-in
+/// render graph today. [`XrStereoRenderMode::Multiview`] asks backends to also expose a
+/// stereo array texture view that custom render graph nodes can render to with a matching
+/// `wgpu::RenderPassDescriptor::multiview_mask`.
+#[derive(Resource, ExtractResource, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum XrStereoRenderMode {
+    /// Render each eye through a separate 2D texture view.
+    MultiPass,
+    /// Expose a single array texture view for stereo multiview rendering.
+    Multiview { view_mask: NonZeroU32 },
+}
+
+impl Default for XrStereoRenderMode {
+    fn default() -> Self {
+        Self::MultiPass
+    }
+}
+
+impl XrStereoRenderMode {
+    /// The standard two-eye OpenXR view mask: view 0 and view 1.
+    pub fn stereo_multiview() -> Self {
+        Self::Multiview {
+            view_mask: NonZeroU32::new(0b11).expect("stereo multiview mask is non-zero"),
+        }
+    }
+
+    /// Returns the render pass multiview mask, if multiview is enabled.
+    pub fn view_mask(self) -> Option<NonZeroU32> {
+        match self {
+            Self::MultiPass => None,
+            Self::Multiview { view_mask } => Some(view_mask),
+        }
     }
 }
 
@@ -196,8 +239,8 @@ pub fn calculate_projection(near_z: f32, fov: Fov) -> Mat4 {
 mod tests {
     use std::f32::{self, consts::PI};
 
-    use bevy_math::{Mat4,Vec3A};
     use bevy_camera::{CameraProjection, PerspectiveProjection};
+    use bevy_math::{Mat4, Vec3A};
 
     const TEST_VALUES: &[(f32, f32)] = &[(0.5, 100.0), (50.0, 200.0)];
 

@@ -9,22 +9,22 @@ use bevy_ecs::{
 };
 use bevy_log::{debug_span, error, info, warn};
 use bevy_render::{
-    Render, RenderApp,
     extract_resource::ExtractResourcePlugin,
     pipelined_rendering::PipelinedRenderingPlugin,
     texture::{ManualTextureView, ManualTextureViews},
     view::ExtractedView,
+    Render, RenderApp,
 };
 
 use bevy_mod_xr::{
-    camera::{Fov, XrCamera, XrProjection, XrViewInit, calculate_projection},
+    camera::{calculate_projection, Fov, XrCamera, XrProjection, XrStereoRenderMode, XrViewInit},
     session::{
         XrFirst, XrHandleEvents, XrPreDestroySession, XrRenderSystems, XrRootTransform,
         XrSessionCreated,
     },
     spaces::XrPrimaryReferenceSpace,
 };
-use bevy_transform::{TransformSystems, components::Transform};
+use bevy_transform::{components::Transform, TransformSystems};
 use openxr::ViewStateFlags;
 
 use crate::{helper_traits::ToTransform as _, init::should_run_frame_loop, resources::*};
@@ -131,14 +131,24 @@ impl Plugin for OxrRenderPlugin {
 }
 
 pub const XR_TEXTURE_INDEX: u32 = 3383858418;
+pub const XR_MULTIVIEW_TEXTURE_INDEX: u32 = XR_TEXTURE_INDEX + 2;
+
+pub fn xr_eye_texture_view_handle(index: u32) -> ManualTextureViewHandle {
+    ManualTextureViewHandle(XR_TEXTURE_INDEX + index)
+}
+
+pub fn xr_multiview_texture_view_handle() -> ManualTextureViewHandle {
+    ManualTextureViewHandle(XR_MULTIVIEW_TEXTURE_INDEX)
+}
 
 pub fn clean_views(
     mut manual_texture_views: ResMut<ManualTextureViews>,
     mut commands: Commands,
     cam_query: Query<(Entity, &XrCamera)>,
 ) {
+    manual_texture_views.remove(&xr_multiview_texture_view_handle());
     for (e, cam) in &cam_query {
-        manual_texture_views.remove(&ManualTextureViewHandle(XR_TEXTURE_INDEX + cam.0));
+        manual_texture_views.remove(&xr_eye_texture_view_handle(cam.0));
         commands.entity(e).despawn();
     }
 }
@@ -147,9 +157,13 @@ pub fn init_views<const SPAWN_CAMERAS: bool>(
     graphics_info: Res<OxrCurrentSessionConfig>,
     mut manual_texture_views: ResMut<ManualTextureViews>,
     swapchain_images: Res<OxrSwapchainImages>,
+    stereo_render_mode: Res<XrStereoRenderMode>,
     mut commands: Commands,
 ) {
     let temp_tex = swapchain_images.first().unwrap();
+    if stereo_render_mode.view_mask().is_some() {
+        add_multiview_texture_view(&mut manual_texture_views, temp_tex, &graphics_info);
+    }
     // this for loop is to easily add support for quad or mono views in the future.
     for index in 0..2 {
         let _span = debug_span!("xr_init_view").entered();
@@ -177,8 +191,7 @@ pub fn update_cameras(
     mut cameras: Query<(&mut Camera, &mut RenderTarget, &XrCamera)>,
 ) {
     for (_, mut target, xr_camera) in &mut cameras {
-        *target =
-            RenderTarget::TextureView(ManualTextureViewHandle(XR_TEXTURE_INDEX + xr_camera.0));
+        *target = RenderTarget::TextureView(xr_eye_texture_view_handle(xr_camera.0));
     }
     if frame_state.is_changed() {
         for (mut camera, _, _) in &mut cameras {
@@ -287,12 +300,17 @@ pub fn insert_texture_views(
     mut manual_texture_views: ResMut<ManualTextureViews>,
     graphics_info: Res<OxrCurrentSessionConfig>,
     frame_state: Res<OxrFrameState>,
+    stereo_render_mode: Res<XrStereoRenderMode>,
 ) {
     if !frame_state.should_render {
         return;
     }
     let index = swapchain.acquire_image().expect("Failed to acquire image");
     let image = &swapchain_images[index as usize];
+
+    if stereo_render_mode.view_mask().is_some() {
+        add_multiview_texture_view(&mut manual_texture_views, image, &graphics_info);
+    }
 
     for i in 0..2 {
         let _span = debug_span!("xr_insert_texture_view").entered();
@@ -325,7 +343,33 @@ pub fn add_texture_view(
         size: info.resolution,
         view_format: info.format,
     };
-    let handle = ManualTextureViewHandle(XR_TEXTURE_INDEX + index);
+    let handle = xr_eye_texture_view_handle(index);
+    manual_texture_views.insert(handle, view);
+    handle
+}
+
+/// Adds a 2-layer array texture view for custom stereo multiview render passes.
+///
+/// The returned view targets the same OpenXR swapchain image as the per-eye views. Render graph
+/// nodes using this view must set `RenderPassDescriptor::multiview_mask` to the mask configured
+/// by [`XrStereoRenderMode`].
+pub fn add_multiview_texture_view(
+    manual_texture_views: &mut ManualTextureViews,
+    texture: &wgpu::Texture,
+    info: &OxrCurrentSessionConfig,
+) -> ManualTextureViewHandle {
+    let view = texture.create_view(&wgpu::TextureViewDescriptor {
+        dimension: Some(wgpu::TextureViewDimension::D2Array),
+        array_layer_count: Some(2),
+        base_array_layer: 0,
+        ..Default::default()
+    });
+    let view = ManualTextureView {
+        texture_view: view.into(),
+        size: info.resolution,
+        view_format: info.format,
+    };
+    let handle = xr_multiview_texture_view_handle();
     manual_texture_views.insert(handle, view);
     handle
 }
