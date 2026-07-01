@@ -1206,6 +1206,7 @@ dependencies = [
  "bevy_window",
  "bevy_winit",
  "jni 0.20.0",
+ "libc",
  "ndk-context",
  "openxr",
  "thiserror 2.0.18",
