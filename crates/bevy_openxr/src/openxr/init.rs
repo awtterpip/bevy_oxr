@@ -84,6 +84,10 @@ pub struct OxrInitPlugin {
     pub synchronous_pipeline_compilation: bool,
     pub render_debug_flags: RenderDebugFlags,
 }
+
+#[derive(Clone, Copy, Debug, Resource)]
+pub struct OxrDisplayRefreshRateRequest(pub f32);
+
 impl Default for OxrInitPlugin {
     fn default() -> Self {
         Self {
@@ -400,6 +404,8 @@ fn init_xr_session(
         resolutions,
     }: OxrSessionConfig,
     graphics_info: SessionGraphicsCreateInfo,
+    display_refresh_rate_request: Option<f32>,
+    display_refresh_rate_enabled: bool,
 ) -> OxrResult<(
     OxrSession,
     OxrFrameWaiter,
@@ -411,6 +417,39 @@ fn init_xr_session(
 )> {
     let (session, frame_waiter, frame_stream) =
         unsafe { instance.create_session(system_id, graphics_info, chain)? };
+
+    if let Some(requested_hz) = display_refresh_rate_request {
+        if display_refresh_rate_enabled {
+            match session.enumerate_display_refresh_rates() {
+                Ok(rates) => info!(
+                    "OpenXR display refresh available_rates={rates:?} requested_hz={requested_hz:.3}"
+                ),
+                Err(err) => warn!(
+                    "OpenXR display refresh enumerate failed requested_hz={requested_hz:.3} error={err}"
+                ),
+            }
+            match session.get_display_refresh_rate() {
+                Ok(current_hz) => info!(
+                    "OpenXR display refresh before_request current_hz={current_hz:.3} requested_hz={requested_hz:.3}"
+                ),
+                Err(err) => warn!(
+                    "OpenXR display refresh get before request failed requested_hz={requested_hz:.3} error={err}"
+                ),
+            }
+            match session.request_display_refresh_rate(requested_hz) {
+                Ok(()) => {
+                    info!("OpenXR display refresh request submitted requested_hz={requested_hz:.3}")
+                }
+                Err(err) => warn!(
+                    "OpenXR display refresh request failed requested_hz={requested_hz:.3} error={err}"
+                ),
+            }
+        } else {
+            warn!(
+                "OpenXR display refresh request skipped; XR_FB_display_refresh_rate unavailable requested_hz={requested_hz:.3}"
+            );
+        }
+    }
 
     // TODO!() support other view configurations
     let available_view_configurations = instance.enumerate_view_configurations(system_id)?;
@@ -520,6 +559,13 @@ pub fn create_xr_session(world: &mut World) {
     let session_config = world.resource::<OxrSessionConfig>();
     let session_create_info = world.non_send::<SessionGraphicsCreateInfo>();
     let system_id = world.resource::<OxrSystemId>();
+    let display_refresh_rate_request = world
+        .get_resource::<OxrDisplayRefreshRateRequest>()
+        .map(|request| request.0);
+    let display_refresh_rate_enabled = world
+        .resource::<OxrEnabledExtensions>()
+        .raw()
+        .fb_display_refresh_rate;
     match init_xr_session(
         device.wgpu_device(),
         &instance,
@@ -527,6 +573,8 @@ pub fn create_xr_session(world: &mut World) {
         &mut chain,
         session_config.clone(),
         session_create_info.clone(),
+        display_refresh_rate_request,
+        display_refresh_rate_enabled,
     ) {
         Ok((
             session,
