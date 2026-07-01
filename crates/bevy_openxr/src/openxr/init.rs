@@ -49,6 +49,8 @@ use crate::session::OxrSessionCreateNextChain;
 use crate::types::Result as OxrResult;
 use crate::types::*;
 
+#[cfg(target_os = "android")]
+use super::android_thread_settings::{self, AndroidThreadTagState, MainThreadTid};
 use super::environment_blend_mode::OxrEnvironmentBlendModes;
 use super::exts::OxrEnabledExtensions;
 use super::poll_events::OxrEventHandlerExt;
@@ -101,6 +103,9 @@ impl Default for OxrInitPlugin {
 impl Plugin for OxrInitPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<OxrSessionConfig>();
+        #[cfg(target_os = "android")]
+        app.insert_resource(MainThreadTid(android_thread_settings::current_thread_tid()));
+
         let cfg = app.world_mut().remove_resource::<OxrManualGraphicsConfig>();
         match self.init_xr(cfg.as_ref()) {
             Ok((
@@ -182,6 +187,16 @@ impl Plugin for OxrInitPlugin {
                     .insert_resource(system_id)
                     .insert_resource(XrState::Available)
                     .insert_resource(OxrSessionStarted(false));
+
+                #[cfg(target_os = "android")]
+                render_app
+                    .init_resource::<AndroidThreadTagState>()
+                    .add_systems(
+                        Render,
+                        android_thread_settings::tag_render_thread_system
+                            .in_set(XrRenderSystems::HandleEvents)
+                            .run_if(resource_exists::<OxrSession>),
+                    );
             }
             Err(e) => {
                 error!("Failed to initialize openxr: {e}");
@@ -269,9 +284,17 @@ impl OxrInitPlugin {
         entry.initialize_android_loader()?;
 
         let available_exts = entry.enumerate_extensions()?;
+        #[cfg(target_os = "android")]
+        let requested_exts = {
+            let mut requested_exts = self.exts.clone();
+            requested_exts.raw_mut().khr_android_thread_settings = true;
+            requested_exts
+        };
+        #[cfg(not(target_os = "android"))]
+        let requested_exts = self.exts.clone();
 
         // check available extensions and send a warning for any wanted extensions that aren't available.
-        for ext in available_exts.unavailable_exts(&self.exts) {
+        for ext in available_exts.unavailable_exts(&requested_exts) {
             warn!(
                 "Extension \"{ext}\" not available in the current OpenXR runtime. Disabling extension."
             );
@@ -294,7 +317,7 @@ impl OxrInitPlugin {
         }
         .ok_or(OxrError::NoAvailableBackend)?;
 
-        let exts = self.exts.clone() & available_exts;
+        let exts = requested_exts & available_exts;
 
         let instance = entry.create_instance(self.app_info.clone(), exts.clone(), &[], backend)?;
         let instance_props = instance.properties()?;
@@ -493,13 +516,13 @@ pub fn create_xr_session(world: &mut World) {
         .remove_non_send::<OxrSessionCreateNextChain>()
         .unwrap();
     let device = world.resource::<RenderDevice>();
-    let instance = world.resource::<OxrInstance>();
+    let instance = world.resource::<OxrInstance>().clone();
     let session_config = world.resource::<OxrSessionConfig>();
     let session_create_info = world.non_send::<SessionGraphicsCreateInfo>();
     let system_id = world.resource::<OxrSystemId>();
     match init_xr_session(
         device.wgpu_device(),
-        instance,
+        &instance,
         **system_id,
         &mut chain,
         session_config.clone(),
@@ -515,6 +538,14 @@ pub fn create_xr_session(world: &mut World) {
             blend_modes,
         )) => {
             world.insert_resource(session.clone());
+            #[cfg(target_os = "android")]
+            {
+                let main_tid = world
+                    .get_resource::<MainThreadTid>()
+                    .map(|t| t.0)
+                    .unwrap_or_else(android_thread_settings::current_thread_tid);
+                android_thread_settings::tag_application_main_thread(&instance, &session, main_tid);
+            }
             world.insert_resource(frame_waiter);
             world.insert_resource(images);
             world.insert_resource(graphics_info);
