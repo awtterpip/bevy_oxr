@@ -19,6 +19,8 @@ pub mod action_set_attaching;
 pub mod action_set_syncing;
 #[cfg(target_os = "android")]
 pub mod android_thread_settings;
+#[cfg(not(target_os = "android"))]
+mod android_thread_settings;
 pub mod environment_blend_mode;
 pub mod error;
 pub mod exts;
