@@ -1186,7 +1186,7 @@ checksum = "bff34eb29ff4b8a8688bc7299f14fb6b597461ca80fec03ed7d22939ab33e48f"
 
 [[package]]
 name = "bevy_mod_openxr"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "android-activity",
  "android_system_properties",
@@ -1206,6 +1206,7 @@ dependencies = [
  "bevy_window",
  "bevy_winit",
  "jni 0.20.0",
+ "libc",
  "ndk-context",
  "openxr",
  "thiserror 2.0.18",
@@ -1226,7 +1227,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_mod_xr"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "bevy_app",
  "bevy_camera",
@@ -1243,7 +1244,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_openxr_android"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "bevy",
  "bevy_mod_openxr",
@@ -1885,7 +1886,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_xr_utils"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "bevy",
  "bevy_app",

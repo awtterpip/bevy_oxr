@@ -49,6 +49,8 @@ use crate::session::OxrSessionCreateNextChain;
 use crate::types::Result as OxrResult;
 use crate::types::*;
 
+#[cfg(target_os = "android")]
+use super::android_thread_settings::{self, AndroidThreadTagState, ApplicationMainThread};
 use super::environment_blend_mode::OxrEnvironmentBlendModes;
 use super::exts::OxrEnabledExtensions;
 use super::poll_events::OxrEventHandlerExt;
@@ -101,6 +103,7 @@ impl Default for OxrInitPlugin {
 impl Plugin for OxrInitPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<OxrSessionConfig>();
+
         let cfg = app.world_mut().remove_resource::<OxrManualGraphicsConfig>();
         match self.init_xr(cfg.as_ref()) {
             Ok((
@@ -182,6 +185,21 @@ impl Plugin for OxrInitPlugin {
                     .insert_resource(system_id)
                     .insert_resource(XrState::Available)
                     .insert_resource(OxrSessionStarted(false));
+
+                #[cfg(target_os = "android")]
+                render_app
+                    .init_resource::<AndroidThreadTagState>()
+                    .add_systems(
+                        XrPreDestroySession,
+                        android_thread_settings::clear_render_thread_tag_state,
+                    )
+                    .add_systems(
+                        Render,
+                        android_thread_settings::tag_render_thread_system
+                            .in_set(XrRenderSystems::HandleEvents)
+                            .run_if(resource_exists::<OxrSession>)
+                            .run_if(resource_exists::<ApplicationMainThread>),
+                    );
             }
             Err(e) => {
                 error!("Failed to initialize openxr: {e}");
@@ -269,9 +287,10 @@ impl OxrInitPlugin {
         entry.initialize_android_loader()?;
 
         let available_exts = entry.enumerate_extensions()?;
+        let requested_exts = self.exts.clone();
 
         // check available extensions and send a warning for any wanted extensions that aren't available.
-        for ext in available_exts.unavailable_exts(&self.exts) {
+        for ext in available_exts.unavailable_exts(&requested_exts) {
             warn!(
                 "Extension \"{ext}\" not available in the current OpenXR runtime. Disabling extension."
             );
@@ -294,7 +313,7 @@ impl OxrInitPlugin {
         }
         .ok_or(OxrError::NoAvailableBackend)?;
 
-        let exts = self.exts.clone() & available_exts;
+        let exts = requested_exts & available_exts;
 
         let instance = entry.create_instance(self.app_info.clone(), exts.clone(), &[], backend)?;
         let instance_props = instance.properties()?;
@@ -493,13 +512,13 @@ pub fn create_xr_session(world: &mut World) {
         .remove_non_send::<OxrSessionCreateNextChain>()
         .unwrap();
     let device = world.resource::<RenderDevice>();
-    let instance = world.resource::<OxrInstance>();
+    let instance = world.resource::<OxrInstance>().clone();
     let session_config = world.resource::<OxrSessionConfig>();
     let session_create_info = world.non_send::<SessionGraphicsCreateInfo>();
     let system_id = world.resource::<OxrSystemId>();
     match init_xr_session(
         device.wgpu_device(),
-        instance,
+        &instance,
         **system_id,
         &mut chain,
         session_config.clone(),
@@ -515,10 +534,25 @@ pub fn create_xr_session(world: &mut World) {
             blend_modes,
         )) => {
             world.insert_resource(session.clone());
+            #[cfg(target_os = "android")]
+            let application_main_thread =
+                instance
+                    .exts()
+                    .khr_android_thread_settings
+                    .as_ref()
+                    .map(|_| {
+                        let tid = android_thread_settings::current_thread_tid();
+                        let tagged = android_thread_settings::tag_application_main_thread(
+                            &instance, &session, tid,
+                        );
+                        ApplicationMainThread { tid, tagged }
+                    });
             world.insert_resource(frame_waiter);
             world.insert_resource(images);
             world.insert_resource(graphics_info);
             world.insert_resource(OxrRenderResources {
+                #[cfg(target_os = "android")]
+                application_main_thread,
                 session,
                 frame_stream,
                 swapchain,
@@ -579,6 +613,8 @@ pub fn request_exit_xr_session(session: Res<OxrSession>) {
 /// This is used solely to transport resources from the main world to the render world.
 #[derive(Resource)]
 struct OxrRenderResources {
+    #[cfg(target_os = "android")]
+    application_main_thread: Option<ApplicationMainThread>,
     session: OxrSession,
     frame_stream: OxrFrameStream,
     swapchain: OxrSwapchain,
@@ -590,6 +626,8 @@ struct OxrRenderResources {
 /// This system transfers important render resources from the main world to the render world when a session is created.
 pub fn transfer_xr_resources(mut commands: Commands, mut world: ResMut<MainWorld>) {
     let Some(OxrRenderResources {
+        #[cfg(target_os = "android")]
+        application_main_thread,
         session,
         frame_stream,
         swapchain,
@@ -601,6 +639,10 @@ pub fn transfer_xr_resources(mut commands: Commands, mut world: ResMut<MainWorld
         return;
     };
 
+    #[cfg(target_os = "android")]
+    if let Some(application_main_thread) = application_main_thread {
+        commands.insert_resource(application_main_thread);
+    }
     commands.insert_resource(session);
     commands.insert_resource(frame_stream);
     commands.insert_resource(swapchain);
