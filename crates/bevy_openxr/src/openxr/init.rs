@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use bevy_app::App;
@@ -34,7 +33,6 @@ use bevy_render::renderer::RenderAdapterInfo;
 use bevy_render::renderer::RenderDevice;
 use bevy_render::renderer::RenderInstance;
 use bevy_render::renderer::RenderQueue;
-use bevy_render::renderer::WgpuWrapper;
 use bevy_render::settings::RenderCreation;
 #[cfg(feature = "window_support")]
 use bevy_winit::UpdateMode;
@@ -115,10 +113,10 @@ impl Plugin for OxrInitPlugin {
                         RenderPlugin {
                             render_creation: RenderCreation::manual(
                                 device.into(),
-                                RenderQueue(Arc::new(WgpuWrapper::new(queue))),
-                                RenderAdapterInfo(WgpuWrapper::new(adapter_info)),
-                                RenderAdapter(Arc::new(WgpuWrapper::new(adapter))),
-                                RenderInstance(Arc::new(WgpuWrapper::new(wgpu_instance))),
+                                RenderQueue::new(queue),
+                                RenderAdapterInfo::new(adapter_info),
+                                RenderAdapter::new(adapter),
+                                RenderInstance::new(wgpu_instance),
                             ),
                             synchronous_pipeline_compilation: self.synchronous_pipeline_compilation,
                             debug_flags: self.render_debug_flags,
@@ -198,10 +196,10 @@ impl Plugin for OxrInitPlugin {
                     app.add_plugins(RenderPlugin {
                         render_creation: RenderCreation::manual(
                             device.into(),
-                            RenderQueue(Arc::new(WgpuWrapper::new(queue))),
-                            RenderAdapterInfo(WgpuWrapper::new(adapter_info)),
-                            RenderAdapter(Arc::new(WgpuWrapper::new(adapter))),
-                            RenderInstance(Arc::new(WgpuWrapper::new(wgpu_instance))),
+                            RenderQueue::new(queue),
+                            RenderAdapterInfo::new(adapter_info),
+                            RenderAdapter::new(adapter),
+                            RenderInstance::new(wgpu_instance),
                         ),
                         synchronous_pipeline_compilation: self.synchronous_pipeline_compilation,
                         debug_flags: self.render_debug_flags,
@@ -261,12 +259,19 @@ impl OxrInitPlugin {
         SessionGraphicsCreateInfo,
     )> {
         #[cfg(windows)]
-        let entry = OxrEntry(openxr::Entry::linked());
+        let entry = OxrEntry(openxr::Entry::linked(&())?);
         #[cfg(not(windows))]
-        let entry = OxrEntry(unsafe { openxr::Entry::load()? });
-
-        #[cfg(target_os = "android")]
-        entry.initialize_android_loader()?;
+        let entry = OxrEntry(unsafe {
+            openxr::Entry::load(
+                #[cfg(not(target_os = "android"))]
+                &(),
+                #[cfg(target_os = "android")]
+                &openxr::AndroidPlatformInfo::new(
+                    jni::JavaVM::singleton().unwrap().get_raw() as *mut core::ffi::c_void,
+                    bevy_android::ANDROID_APP.get().unwrap().activity_as_ptr(),
+                ),
+            )?
+        });
 
         let available_exts = entry.enumerate_extensions()?;
 

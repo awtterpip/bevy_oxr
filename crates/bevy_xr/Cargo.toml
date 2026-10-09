@@ -15,6 +15,7 @@ reflect = ["dep:bevy_reflect"]
 
 [dependencies]
 bevy_ecs.workspace = true
+bevy_extract.workspace = true
 bevy_math.workspace = true
 bevy_render.workspace = true
 bevy_app.workspace = true

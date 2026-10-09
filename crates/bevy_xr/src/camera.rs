@@ -10,6 +10,7 @@ use bevy_reflect::std_traits::ReflectDefault;
 #[cfg(feature = "reflect")]
 use bevy_reflect::Reflect;
 use bevy_render::extract_component::{ExtractComponent, ExtractComponentPlugin};
+use bevy_render::RenderApp;
 
 use crate::session::XrTracker;
 
@@ -43,6 +44,7 @@ impl Default for XrProjection {
 
 /// Marker component for an XR view. It is the backends responsibility to update this.
 #[derive(Clone, Copy, Component, ExtractComponent, Debug, Default)]
+#[extract_app(RenderApp)]
 #[require(Camera3d, XrTracker)]
 pub struct XrCamera(pub u32);
 

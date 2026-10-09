@@ -6,7 +6,7 @@ use bevy_log::{debug, error};
 use bevy_math::UVec2;
 use openxr::sys::Handle as _;
 use openxr::{Version, sys};
-use wgpu::{ExperimentalFeatures, InstanceFlags, Limits, MemoryBudgetThresholds, TextureUses};
+use wgpu::{wgt, ExperimentalFeatures, InstanceFlags, Limits, MemoryBudgetThresholds, TextureUses};
 use wgpu_hal::Api;
 use wgpu_hal::api::Vulkan;
 
@@ -99,6 +99,7 @@ unsafe impl GraphicsExt for openxr::Vulkan {
                     usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_DST,
                     view_formats: &[],
                 },
+                TextureUses::UNINITIALIZED
             )
         };
         Ok(texture)
@@ -433,8 +434,17 @@ fn init_from_instance_and_dev(
     let wgpu_instance =
         unsafe { wgpu::Instance::from_hal::<wgpu_hal::api::Vulkan>(wgpu_vk_instance) };
     let wgpu_adapter = unsafe { wgpu_instance.create_adapter_from_hal(wgpu_exposed_adapter) };
-    let limits = wgpu_adapter.limits();
+
+    let mut limits = wgpu_adapter.limits();
+    // Clamp limits like in wgpu-core::Instance::adjust_limits_for_indirect_validation, because that doesn't get called for create_device_from_hal
+    limits.max_buffer_size = limits.max_buffer_size.min(u32::MAX as u64);
+    limits.max_uniform_buffer_binding_size =
+        limits.max_uniform_buffer_binding_size.min(u32::MAX as u64);
+    limits.max_storage_buffer_binding_size = limits
+        .max_storage_buffer_binding_size
+        .min(u32::MAX as u64 & !(wgt::STORAGE_BINDING_SIZE_ALIGNMENT as u64 - 1));
     debug!("wgpu_limits: {limits:#?}");
+
     let (wgpu_device, wgpu_queue) = unsafe {
         wgpu_adapter.create_device_from_hal(
             wgpu_open_device,
@@ -448,6 +458,7 @@ fn init_from_instance_and_dev(
             },
         )
     }?;
+
     Ok((
         WgpuGraphics(
             wgpu_device,

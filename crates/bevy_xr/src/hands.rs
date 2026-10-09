@@ -3,7 +3,6 @@ use bevy_camera::visibility::Visibility;
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{bundle::Bundle, component::Component, entity::Entity, resource::Resource, system::{Command, Commands}, world::World};
 use bevy_log::warn;
-use bevy_math::bool;
 use bevy_transform::components::Transform;
 
 pub const HAND_JOINT_COUNT: usize = 26;

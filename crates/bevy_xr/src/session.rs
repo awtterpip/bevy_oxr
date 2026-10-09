@@ -103,6 +103,7 @@ pub enum XrRenderSystems {
 
 /// The root transform's global position for late latching in the render world.
 #[derive(ExtractResource, Resource, Clone, Copy, Default)]
+#[extract_app(RenderApp)]
 pub struct XrRootTransform(pub GlobalTransform);
 
 /// Component used to specify the entity we should use as the tracking root.
@@ -242,6 +243,7 @@ pub struct XrStateChanged(pub XrState);
 
 /// A resource in the main world and render world representing the current session state.
 #[derive(Clone, Copy, Debug, ExtractResource, Resource, PartialEq, Eq)]
+#[extract_app(RenderApp)]
 #[repr(u8)]
 pub enum XrState {
     /// An XR session is not available here

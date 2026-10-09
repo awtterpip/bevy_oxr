@@ -339,22 +339,20 @@ pub fn release_image(mut swapchain: ResMut<OxrSwapchain>, state: Res<OxrFrameSta
         return;
     }
     #[cfg(target_os = "android")]
-    {
-        let ctx = ndk_context::android_context();
-        let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }.unwrap();
-        let env = vm.attach_current_thread_as_daemon();
-    }
+    jni::JavaVM::singleton()
+        .unwrap()
+        .attach_current_thread(|_env| -> jni::errors::Result<()> { Ok(()) })
+        .unwrap();
     let _span = debug_span!("xr_release_image").entered();
     swapchain.release_image().unwrap();
 }
 
 pub fn end_frame(world: &mut World) {
     #[cfg(target_os = "android")]
-    {
-        let ctx = ndk_context::android_context();
-        let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }.unwrap();
-        let env = vm.attach_current_thread_as_daemon();
-    }
+    jni::JavaVM::singleton()
+        .unwrap()
+        .attach_current_thread(|_env| -> jni::errors::Result<()> { Ok(()) })
+        .unwrap();
     world.resource_scope::<OxrFrameStream, ()>(|world, mut frame_stream| {
         let mut layers = vec![];
         let frame_state = world.resource::<OxrFrameState>();

@@ -47,6 +47,15 @@ pub enum OxrError {
     InitError(InitError),
 }
 
+impl From<openxr::EntryError> for OxrError {
+    fn from(value: openxr::EntryError) -> Self {
+        match value {
+            openxr::EntryError::Load(load_error) => Self::OpenXrLoadingError(load_error),
+            openxr::EntryError::Xr(oxr_error) => Self::OpenXrError(oxr_error),
+        }
+    }
+}
+
 pub use init_error::InitError;
 
 /// This module is needed because thiserror does not allow conditional compilation within enums for some reason,
